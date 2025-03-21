@@ -1,0 +1,2097 @@
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+File: home.js
+Content:
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
+
+const Menu = () => {
+  const router = useRouter();
+
+  // Define las secciones del sistema; en este ejemplo "Perfil y ConfiguraciÃ³n" es una sola secciÃ³n.
+  const menuItems = [
+    { title: 'Dashboard', route: './dashboard' },
+    { title: 'Clientes', route: './clients/ClientsScreen' },
+    { title: 'Productos / Servicios', route: './products' },
+    { title: 'Carpetas', route: './folders' },
+    { title: 'Trabajos', route: './jobs' },
+    { title: 'Ventas', route: './sales' },
+    { title: 'Gastos', route: './expenses' },
+    { title: 'Citas', route: './appointments' },
+    { title: 'Notificaciones', route: './notifications' },
+    { title: 'Cajas de Dinero', route: './cashboxes' },
+    { title: 'Cierres Contables', route: './accounting_closings' },
+    { title: 'Perfil y ConfiguraciÃ³n', route: './profile' },
+  ];
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>MenÃº Principal</Text>
+      {menuItems.map((item, index) => (
+        <TouchableOpacity
+          key={index}
+          style={styles.menuItem}
+          onPress={() => router.push(item.route)}
+        >
+          <Text style={styles.menuText}>{item.title}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f2f2f2'
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  menuItem: {
+    backgroundColor: '#007BFF',
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center'
+  },
+  menuText: {
+    color: 'white',
+    fontSize: 18,
+  }
+});
+
+export default Menu;
+
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+File: index.js
+Content:
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import logo from '../assets/images/logo.png';
+// <-- IMPORTAMOS BASE_URL
+import { BASE_URL } from './config/index';
+
+const SplashScreen = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkProfile = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        try {
+          // USAMOS BASE_URL
+          const response = await fetch(`${BASE_URL}/profile`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            // Extraemos los datos del usuario
+            const { id, username, email } = data.user;
+            // Guardamos en AsyncStorage
+            await AsyncStorage.setItem('user_id', id.toString());
+            await AsyncStorage.setItem('username', username);
+            await AsyncStorage.setItem('email', email);
+
+            router.replace('./home');
+          } else {
+            await AsyncStorage.removeItem('token');
+            router.replace('./login/login');
+          }
+        } catch (error) {
+          console.log('Error:', error);
+          await AsyncStorage.removeItem('token');
+          router.replace('./login/login');
+        }
+      } else {
+        router.replace('./login/login');
+      }
+    };
+
+    setTimeout(checkProfile, 1000);
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Sistema de GestiÃ³n</Text>
+      <Image source={logo} style={styles.logo} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#2f273e', // Color de fondo
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    marginBottom: 20,
+    color:'#ffffff'
+  },
+  logo: {
+    width: '90%',
+    resizeMode: 'contain',
+  },
+});
+
+export default SplashScreen;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+File: output.txt
+Content:
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+File: profile.js
+Content:
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Button,
+  Alert,
+  Image,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { BASE_URL } from './config/index';
+import { pickAndProcessImage, uploadImage } from './utils/imageUtils';
+
+const Home = () => {
+  const router = useRouter();
+
+  // Datos bÃ¡sicos desde AsyncStorage
+  const [userData, setUserData] = useState({
+    user_id: null,
+    username: null,
+    email: null,
+  });
+
+  // Datos obtenidos vÃ­a API
+  const [profileDetails, setProfileDetails] = useState(null);
+  const [configDetails, setConfigDetails] = useState(null);
+  // Imagen obtenida de la API
+  const [fileData, setFileData] = useState(null);
+
+  // Modo ediciÃ³n para perfil y configuraciÃ³n
+  const [editProfile, setEditProfile] = useState(false);
+  const [editConfig, setEditConfig] = useState(false);
+
+  // Formularios para editar
+  const [profileForm, setProfileForm] = useState({
+    full_name: '',
+    phone: '',
+    address: '',
+    cuit: '',
+    profile_file_id: '',
+  });
+  const [configForm, setConfigForm] = useState({
+    role: '',
+    view_type: '',
+    theme: '',
+    font_size: '',
+  });
+
+  // Cargar datos bÃ¡sicos del usuario
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user_id = await AsyncStorage.getItem('user_id');
+        const username = await AsyncStorage.getItem('username');
+        const email = await AsyncStorage.getItem('email');
+        setUserData({ user_id, username, email });
+      } catch (error) {
+        console.log('Error al cargar datos del usuario:', error);
+      }
+    };
+    loadUserData();
+  }, []);
+
+  // FunciÃ³n para cargar perfil y configuraciÃ³n
+  const loadUserDetails = async () => {
+    if (userData.user_id) {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      // Obtener perfil
+      try {
+        const profileResponse = await fetch(
+          `${BASE_URL}/user_profile/${userData.user_id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          // Extraer el objeto profile (ya que el JSON estÃ¡ dentro de profile)
+          const profile = profileData.profile;
+          setProfileDetails(profile);
+          setProfileForm({
+            full_name: profile.full_name || '',
+            phone: profile.phone || '',
+            address: profile.address || '',
+            cuit: profile.cuit || '',
+            profile_file_id: profile.profile_file_id
+              ? profile.profile_file_id.toString()
+              : '',
+          });
+        } else {
+          console.error('Error al obtener el perfil');
+        }
+      } catch (error) {
+        console.error('Error en fetch de perfil:', error);
+      }
+      // Obtener configuraciÃ³n
+      try {
+        const configResponse = await fetch(
+          `${BASE_URL}/user_configurations/${userData.user_id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (configResponse.ok) {
+          const configData = await configResponse.json();
+          // Extraer el objeto configuration (ya que el JSON estÃ¡ dentro de configuration)
+          const configuration = configData.configuration;
+          setConfigDetails(configuration);
+          setConfigForm({
+            role: configuration.role || '',
+            view_type: configuration.view_type || '',
+            theme: configuration.theme || '',
+            font_size: configuration.font_size || '',
+          });
+        } else {
+          console.error('Error al obtener la configuraciÃ³n');
+        }
+      } catch (error) {
+        console.error('Error en fetch de configuraciÃ³n:', error);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadUserDetails();
+  }, [userData.user_id]);
+
+  // Obtener archivo (imagen) a travÃ©s de la API usando el id dinÃ¡mico del perfil
+  useEffect(() => {
+    const loadFile = async () => {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      if (profileDetails?.profile_file_id) {
+        try {
+          const response = await fetch(
+            `${BASE_URL}/get_file?file_id=${profileDetails.profile_file_id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (response.ok) {
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setFileData(reader.result);
+            };
+            reader.readAsDataURL(blob);
+          } else {
+            console.error('Error al obtener el archivo:', response.status);
+          }
+        } catch (error) {
+          console.error('Error en fetch del archivo:', error);
+        }
+      }
+    };
+    loadFile();
+  }, [profileDetails]);
+
+  // FunciÃ³n para tomar foto, subirla y actualizar el perfil usando las utilidades
+  const handleTakePhoto = async () => {
+    Alert.alert(
+      'Seleccionar imagen',
+      'Elige una opciÃ³n',
+      [
+        {
+          text: 'CÃ¡mara',
+          onPress: async () => {
+            const localUri = await pickAndProcessImage(true);
+            if (localUri) {
+              await uploadPhoto(localUri);
+            }
+          },
+        },
+        {
+          text: 'GalerÃ­a',
+          onPress: async () => {
+            const localUri = await pickAndProcessImage(false);
+            if (localUri) {
+              await uploadPhoto(localUri);
+            }
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
+  // FunciÃ³n modificada para subir la imagen utilizando uploadImage de utils/imageUtils.ts
+  const uploadPhoto = async (localUri) => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const fileId = await uploadImage(localUri, token);
+      if (fileId) {
+        // Actualizar el perfil usando la URL sin id (el API toma el id del token)
+        const updateResponse = await fetch(
+          `${BASE_URL}/user_profile`,
+          {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              full_name: profileForm.full_name,
+              phone: profileForm.phone,
+              address: profileForm.address,
+              cuit: profileForm.cuit,
+              profile_file_id: fileId,
+            }),
+          }
+        );
+
+        if (updateResponse.ok) {
+          setFileData(localUri);
+          // Refrescar toda la informaciÃ³n del usuario
+          loadUserDetails();
+        } else {
+          const errData = await updateResponse.json();
+          Alert.alert('Error', errData.error || 'Error actualizando perfil');
+        }
+      } else {
+        Alert.alert('Error', 'Error al subir archivo');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user_id');
+      await AsyncStorage.removeItem('username');
+      await AsyncStorage.removeItem('email');
+      Alert.alert('SesiÃ³n cerrada');
+      router.replace('./login/login');
+    } catch (error) {
+      console.log('Error al cerrar sesiÃ³n:', error);
+    }
+  };
+
+  // Guardar cambios en perfil vÃ­a PUT (token enviado en el header)
+  const handleProfileSave = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch(
+        `${BASE_URL}/user_profile`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            full_name: profileForm.full_name,
+            phone: profileForm.phone,
+            address: profileForm.address,
+            cuit: profileForm.cuit,
+            profile_file_id: profileForm.profile_file_id === '' 
+              ? null 
+              : parseInt(profileForm.profile_file_id),
+          }),
+        }
+      );
+      if (response.ok) {
+        setProfileDetails({ ...profileDetails, ...profileForm });
+        setEditProfile(false);
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error actualizando perfil');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // Guardar cambios en configuraciÃ³n vÃ­a PUT (token enviado en el header)
+  const handleConfigSave = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch(
+        `${BASE_URL}/user_configurations`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            role: configForm.role,
+            view_type: configForm.view_type,
+            theme: configForm.theme,
+            font_size: configForm.font_size,
+          }),
+        }
+      );
+      if (response.ok) {
+        setConfigDetails({ ...configDetails, ...configForm });
+        setEditConfig(false);
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error actualizando configuraciÃ³n');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.subtitle}>
+        Perfil
+        <TouchableOpacity onPress={() => setEditProfile(!editProfile)}>
+          <Text style={styles.editIcon}> âœ�ï¸�</Text>
+        </TouchableOpacity>
+      </Text>
+
+      {profileDetails ? (
+        <View style={styles.dataContainer}>
+          {fileData ? (
+            <View style={styles.profileImageContainer}>
+              <Image source={{ uri: fileData }} style={styles.fileImage} />
+              {/* BotÃ³n en la esquina inferior derecha, por encima de la imagen */}
+              <TouchableOpacity
+                style={styles.cameraButtonOnImage}
+                onPress={handleTakePhoto}
+              >
+                <Text style={styles.cameraIconText}>ðŸ“·</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.profileImageContainer, styles.defaultImage]}>
+              {/* Si no hay imagen, el botÃ³n se centra en el cÃ­rculo */}
+              <TouchableOpacity
+                style={styles.cameraButtonNoImage}
+                onPress={handleTakePhoto}
+              >
+                <Text style={styles.cameraIconText}>ðŸ“·</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <Text style={styles.infoText}>Username: {userData.username}</Text>
+          <Text style={styles.infoText}>Email: {userData.email}</Text>
+          {editProfile ? (
+            <>
+              <TextInput
+                style={styles.input}
+                value={profileForm.full_name}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, full_name: text })
+                }
+                placeholder="Nombre completo"
+              />
+              <TextInput
+                style={styles.input}
+                value={profileForm.phone}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, phone: text })
+                }
+                placeholder="TelÃ©fono"
+                keyboardType="phone-pad"
+              />
+              <TextInput
+                style={styles.input}
+                value={profileForm.address}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, address: text })
+                }
+                placeholder="DirecciÃ³n"
+              />
+              <TextInput
+                style={styles.input}
+                value={profileForm.cuit}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, cuit: text })
+                }
+                placeholder="CUIT"
+                keyboardType="numeric"
+              />
+              <Button title="Guardar Perfil" onPress={handleProfileSave} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.infoText}>
+                Nombre: {profileDetails.full_name}
+              </Text>
+              <Text style={styles.infoText}>
+                TelÃ©fono: {profileDetails.phone}
+              </Text>
+              <Text style={styles.infoText}>
+                DirecciÃ³n: {profileDetails.address}
+              </Text>
+              <Text style={styles.infoText}>CUIT: {profileDetails.cuit}</Text>
+            </>
+          )}
+        </View>
+      ) : (
+        <Text style={styles.infoText}>Cargando perfil...</Text>
+      )}
+
+      <Text style={styles.subtitle}>
+        ConfiguraciÃ³n
+        <TouchableOpacity onPress={() => setEditConfig(!editConfig)}>
+          <Text style={styles.editIcon}> âœ�ï¸�</Text>
+        </TouchableOpacity>
+      </Text>
+      {configDetails ? (
+        <View style={styles.dataContainer}>
+          {editConfig ? (
+            <>
+              <TextInput
+                style={styles.input}
+                value={configForm.role}
+                onChangeText={(text) =>
+                  setConfigForm({ ...configForm, role: text })
+                }
+                placeholder="Rol"
+              />
+              <TextInput
+                style={styles.input}
+                value={configForm.view_type}
+                onChangeText={(text) =>
+                  setConfigForm({ ...configForm, view_type: text })
+                }
+                placeholder="Tipo de vista"
+              />
+              <TextInput
+                style={styles.input}
+                value={configForm.theme}
+                onChangeText={(text) =>
+                  setConfigForm({ ...configForm, theme: text })
+                }
+                placeholder="Tema"
+              />
+              <TextInput
+                style={styles.input}
+                value={configForm.font_size}
+                onChangeText={(text) =>
+                  setConfigForm({ ...configForm, font_size: text })
+                }
+                placeholder="TamaÃ±o de fuente"
+              />
+              <Button title="Guardar ConfiguraciÃ³n" onPress={handleConfigSave} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.infoText}>Rol: {configDetails.role}</Text>
+              <Text style={styles.infoText}>
+                Tipo de vista: {configDetails.view_type}
+              </Text>
+              <Text style={styles.infoText}>Tema: {configDetails.theme}</Text>
+              <Text style={styles.infoText}>
+                TamaÃ±o de fuente: {configDetails.font_size}
+              </Text>
+            </>
+          )}
+        </View>
+      ) : (
+        <Text style={styles.infoText}>Cargando configuraciÃ³n...</Text>
+      )}
+
+      <Button title="Cerrar SesiÃ³n" onPress={handleLogout} />
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  dataContainer: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    justifyContent: 'center',
+  },
+  infoText: { fontSize: 18, marginVertical: 5 },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginVertical: 5,
+    borderRadius: 5,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  editIcon: {
+    fontSize: 18,
+    marginLeft: 10,
+    color: '#007BFF',
+  },
+  // Contenedor de la imagen: se permite overflow visible para que el botÃ³n pueda salir
+  profileImageContainer: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 15,
+    overflow: 'visible',
+    position: 'relative',
+  },
+  // Imagen circular con borderRadius
+  fileImage: {
+    width: 200,
+    height: 200,
+    resizeMode: 'cover',
+    borderRadius: 100,
+  },
+  defaultImage: {
+    backgroundColor: 'blue',
+  },
+  // BotÃ³n de cÃ¡mara cuando hay imagen: se posiciona fuera del contenedor
+  cameraButtonOnImage: {
+    position: 'absolute',
+    bottom: -10,
+    right: -10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  // BotÃ³n de cÃ¡mara cuando NO hay imagen: centrado en el contenedor
+  cameraButtonNoImage: {
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraIconText: {
+    fontSize: 30,
+    color: 'white',
+  },
+});
+
+export default Home;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+File: addClient.js
+Content:
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Button,
+  Image,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
+import { BASE_URL } from '../config/index';
+
+const AddClient = () => {
+  const router = useRouter();
+  const [form, setForm] = useState({
+    business_name: '',
+    tax_id: '',
+    email: '',
+    brand_file_id: null,
+    phone: '',
+    address: '',
+  });
+  const [uploading, setUploading] = useState(false);
+  const [localImageUri, setLocalImageUri] = useState(null);
+
+  const handlePickImage = () => {
+    Alert.alert(
+      'Seleccionar imagen',
+      'Elige una opciÃ³n',
+      [
+        {
+          text: 'CÃ¡mara',
+          onPress: async () => {
+            const localUri = await pickAndProcessImage(true);
+            if (localUri) {
+              await handleUploadPhoto(localUri);
+            }
+          },
+        },
+        {
+          text: 'GalerÃ­a',
+          onPress: async () => {
+            const localUri = await pickAndProcessImage(false);
+            if (localUri) {
+              await handleUploadPhoto(localUri);
+            }
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handleUploadPhoto = async (localUri) => {
+    setUploading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const fileId = await uploadImage(localUri, token);
+      if (fileId) {
+        setForm({ ...form, brand_file_id: fileId });
+        setLocalImageUri(localUri);
+      } else {
+        Alert.alert('Error', 'Error al subir la imagen');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch(`${BASE_URL}/clients`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+      if (response.ok) {
+        Alert.alert('Ã‰xito', 'Cliente creado correctamente');
+        router.push('./ClientsScreen');
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error creando el cliente');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Agregar Cliente</Text>
+      {(localImageUri || form.brand_file_id) && (
+        <Image
+          source={{
+            uri: localImageUri || `${BASE_URL}/get_file?file_id=${form.brand_file_id}`,
+          }}
+          style={styles.previewImage}
+        />
+      )}
+      <TouchableOpacity style={styles.imageButton} onPress={handlePickImage}>
+        <Text style={styles.imageButtonText}>
+          {localImageUri || form.brand_file_id ? 'Cambiar Logo' : 'Agregar Logo'}
+        </Text>
+      </TouchableOpacity>
+      <TextInput
+        style={styles.input}
+        placeholder="RazÃ³n Social"
+        value={form.business_name}
+        onChangeText={(text) => setForm({ ...form, business_name: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="CUIT / Tax ID"
+        value={form.tax_id}
+        keyboardType="numeric"
+        onChangeText={(text) => setForm({ ...form, tax_id: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={form.email}
+        keyboardType="email-address"
+        onChangeText={(text) => setForm({ ...form, email: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="TelÃ©fono"
+        value={form.phone}
+        keyboardType="numeric"
+        onChangeText={(text) => setForm({ ...form, phone: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="DirecciÃ³n"
+        value={form.address}
+        onChangeText={(text) => setForm({ ...form, address: text })}
+      />
+      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+        <Text style={styles.saveButtonText}>Crear Cliente</Text>
+      </TouchableOpacity>
+      <Button title="Cancelar" onPress={() => router.push('./ClientsScreen')} />
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 15,
+    borderRadius: 5,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  saveButton: {
+    backgroundColor: '#007BFF',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  imageButton: {
+    backgroundColor: '#28A745',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  imageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  previewImage: {
+    width: 200,
+    aspectRatio: 1,
+    borderRadius: 100,
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+});
+
+export default AddClient;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+File: ClientItem.js
+Content:
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  LayoutAnimation,
+  UIManager,
+  Platform
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BASE_URL } from '../config/index';
+
+/**
+ * Componente controlado para mostrar la tarjeta de cliente.
+ * Recibe:
+ * - item: datos del cliente.
+ * - expanded: booleano que indica si el item estÃ¡ expandido.
+ * - onToggle: funciÃ³n que se invoca al pulsar la tarjeta para cambiar el estado expandido.
+ * - onDelete: callback para eliminar.
+ * - onEdit: callback para editar.
+ */
+export default function ClientItem({ item, expanded, onToggle, onDelete, onEdit }) {
+  const [imageData, setImageData] = useState(null);
+
+  // Habilitar animaciones en Android
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      UIManager.setLayoutAnimationEnabledExperimental &&
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  // Cargar la imagen del cliente, si existe
+  useEffect(() => {
+    const loadFile = async () => {
+      if (!item.brand_file_id) return;
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      try {
+        const response = await fetch(
+          `${BASE_URL}/get_file?file_id=${item.brand_file_id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (response.ok) {
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => setImageData(reader.result);
+          reader.readAsDataURL(blob);
+        } else {
+          console.error('Error al obtener el archivo:', response.status);
+        }
+      } catch (error) {
+        console.error('Error en fetch del archivo:', error);
+      }
+    };
+    loadFile();
+  }, [item.brand_file_id]);
+
+  // Al pulsar la tarjeta, alterna el estado expandido
+  const handleToggle = () => {
+    if (Platform.OS !== 'web' && LayoutAnimation && LayoutAnimation.configureNext) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    onToggle(item.id);
+  };
+
+  // Ajustar tamaÃ±o del avatar segÃºn si estÃ¡ expandido
+  const avatarSize = expanded ? 80 : 50;
+  // Se muestra el nombre del negocio
+  const titleText = item.business_name;
+
+  return (
+    <TouchableOpacity onPress={handleToggle} activeOpacity={0.8}>
+      <View style={styles.itemContainer}>
+        {/* Cabecera: TÃ­tulo a la izquierda, avatar a la derecha */}
+        <View style={styles.headerRow}>
+          <Text style={styles.companyName}>{titleText}</Text>
+          <View style={[styles.avatarContainer, { width: avatarSize, height: avatarSize }]}>
+            {imageData ? (
+              <Image source={{ uri: imageData }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder} />
+            )}
+          </View>
+        </View>
+
+        {/* Datos adicionales solo si expandido */}
+        {expanded && (
+          <>
+            <Text style={styles.itemText}>CUIT: {item.tax_id}</Text>
+            <Text style={styles.itemText}>eMail: {item.email}</Text>
+            <Text style={styles.itemText}>DirecciÃ³n: {item.address}</Text>
+            <Text style={styles.itemText}>TelÃ©fono: {item.phone}</Text>
+          </>
+        )}
+
+        {/* Botonera a todo el ancho, visible solo si expandido */}
+        {expanded && (
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.button} onPress={() => onEdit(item.id)}>
+              <Text style={styles.buttonText}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.deleteButton]}
+              onPress={() =>
+                Alert.alert(
+                  'Confirmar',
+                  'Â¿EstÃ¡s seguro de eliminar este cliente?',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                      text: 'Eliminar',
+                      style: 'destructive',
+                      onPress: () => onDelete(item.id),
+                    },
+                  ]
+                )
+              }
+            >
+              <Text style={styles.buttonText}>Eliminar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  itemContainer: {
+    width: '100%',
+    backgroundColor: '#E2E2FA',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 15,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  companyName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  avatarContainer: {
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: '#007BFF',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 999,
+  },
+  avatarPlaceholder: {
+    flex: 1,
+    borderRadius: 999,
+    backgroundColor: '#007BFF',
+  },
+  itemText: {
+    fontSize: 16,
+    marginTop: 5,
+  },
+  buttonContainer: {
+    width: '100%',
+    flexDirection: 'row',
+    marginTop: 10,
+  },
+  button: {
+    flex: 1,
+    backgroundColor: '#007BFF',
+    padding: 15,
+    borderRadius: 5,
+    marginRight: 10,
+    alignItems: 'center',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3333',
+    marginRight: 0,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+});
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+File: clientList.js
+Content:
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Platform,
+  UIManager,
+  LayoutAnimation,
+  TextInput,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import ClientItem from './ClientItem';
+import { BASE_URL } from '../config/index';
+import Fuse from 'fuse.js';
+
+export default function ClientList() {
+  const router = useRouter();
+  const [clients, setClients] = useState([]);
+  const [filteredClients, setFilteredClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  // Estado para almacenar el id del item actualmente expandido (null si ninguno)
+  const [expandedItemId, setExpandedItemId] = useState(null);
+
+  // Activar animaciones en Android
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      UIManager.setLayoutAnimationEnabledExperimental &&
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  // Cargar clientes desde la API
+  const loadClients = async () => {
+    setLoading(true);
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const response = await fetch(`${BASE_URL}/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const allClients = data.clients || data;
+        setClients(allClients);
+        setFilteredClients(allClients);
+      } else {
+        Alert.alert('Error', 'No se pudieron obtener los clientes');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadClients();
+  }, []);
+
+  // Configurar Fuse para bÃºsqueda avanzada (fuzzy search)
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredClients(clients);
+      return;
+    }
+    const options = {
+      keys: ['business_name', 'tax_id', 'email', 'address', 'phone'],
+      threshold: 0.4, // Ajusta la sensibilidad de la bÃºsqueda
+      includeScore: true,
+    };
+    const fuse = new Fuse(clients, options);
+    const results = fuse.search(searchQuery);
+    const matchedClients = results.map(result => result.item);
+    setFilteredClients(matchedClients);
+  }, [searchQuery, clients]);
+
+  const handleDelete = async (clientId) => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch(`${BASE_URL}/clients/${clientId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        Alert.alert('Cliente eliminado');
+        loadClients();
+        if (expandedItemId === clientId) {
+          setExpandedItemId(null);
+        }
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error eliminando el cliente');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleEdit = (clientId) => {
+    router.push(`./editClient?id=${clientId}`);
+  };
+
+  // Alterna el estado expandido: solo un item se expande a la vez
+  const handleToggle = (clientId) => {
+    if (Platform.OS !== 'web' && LayoutAnimation && LayoutAnimation.configureNext) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setExpandedItemId(prev => (prev === clientId ? null : clientId));
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Buscar clientes..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#007BFF" style={styles.loader} />
+      ) : (
+        <FlatList
+          data={filteredClients}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => (
+            <ClientItem
+              item={item}
+              expanded={expandedItemId === item.id}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+              onEdit={handleEdit}
+            />
+          )}
+          contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={<Text>No hay clientes disponibles.</Text>}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    width: '100%',  // Se ocupa todo el ancho de la pantalla
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  searchInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+  },
+  listContainer: { 
+    marginTop: 20,
+  },
+  loader: { 
+    marginTop: 20,
+  },
+});
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+File: ClientsScreen.js
+Content:
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import ClientList from './clientList';
+import { useRouter } from 'expo-router';
+
+export default function ClientsScreen() {
+  const router = useRouter();
+
+  const handleAddClient = () => {
+    router.push('./addClient');
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Lista de Clientes</Text>
+      <ClientList />
+      <TouchableOpacity style={styles.floatingButton} onPress={handleAddClient}>
+        <Text style={styles.floatingButtonText}>+</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff',
+    padding: 20 
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: 'bold', 
+    marginBottom: 10 
+  },
+  floatingButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#007BFF',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Sombra para Android e iOS
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 2,
+  },
+  floatingButtonText: {
+    fontSize: 30,
+    color: '#fff',
+    marginTop: -4, // Ajuste fino para centrar el '+'
+  },
+});
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+File: editClient.js
+Content:
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Button,
+  ScrollView,
+  Image,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { useRoute } from '@react-navigation/native';
+import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
+import { BASE_URL } from '../config/index';
+
+const EditClient = () => {
+  const router = useRouter();
+  const route = useRoute();
+  const { id } = route.params; // Obtenemos el id del cliente
+
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [localImageUri, setLocalImageUri] = useState(null);
+  const [form, setForm] = useState({
+    business_name: '',
+    tax_id: '',
+    email: '',
+    brand_file_id: null,
+    phone: '',
+    address: '',
+  });
+
+  // Cargar datos del cliente en modo ediciÃ³n
+  const loadClient = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const response = await fetch(`${BASE_URL}/clients/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const client = data.client;
+        setForm({
+          business_name: client.business_name || '',
+          tax_id: client.tax_id || '',
+          email: client.email || '',
+          brand_file_id: client.brand_file_id,
+          phone: client.phone || '',
+          address: client.address || '',
+        });
+        if (client.brand_file_id) {
+          // Actualizamos la imagen local usando la URL basada en BASE_URL
+          setLocalImageUri(`${BASE_URL}/get_file?file_id=${client.brand_file_id}`);
+        }
+      } else {
+        Alert.alert('Error', 'No se pudo obtener la informaciÃ³n del cliente');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      loadClient();
+    }
+  }, [id]);
+
+  // FunciÃ³n para seleccionar imagen usando la librerÃ­a de utilidades
+  const handlePickImage = () => {
+    Alert.alert(
+      'Seleccionar imagen',
+      'Elige una opciÃ³n',
+      [
+        {
+          text: 'CÃ¡mara',
+          onPress: async () => {
+            const localUri = await pickAndProcessImage(true);
+            if (localUri) {
+              await handleUploadPhoto(localUri);
+            }
+          },
+        },
+        {
+          text: 'GalerÃ­a',
+          onPress: async () => {
+            const localUri = await pickAndProcessImage(false);
+            if (localUri) {
+              await handleUploadPhoto(localUri);
+            }
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  };
+
+  // FunciÃ³n para subir la imagen al servidor utilizando la funciÃ³n uploadImage de la librerÃ­a
+  const handleUploadPhoto = async (localUri) => {
+    setUploading(true);
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return;
+      const fileId = await uploadImage(localUri, token);
+      if (fileId) {
+        setForm({ ...form, brand_file_id: fileId });
+        setLocalImageUri(localUri);
+      } else {
+        Alert.alert('Error', 'Error al subir la imagen');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // FunciÃ³n para guardar (crear o actualizar) el cliente
+  const handleSave = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    const url = id ? `${BASE_URL}/clients/${id}` : `${BASE_URL}/clients`;
+    const method = id ? 'PUT' : 'POST';
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+      if (response.ok) {
+        Alert.alert('Ã‰xito', id ? 'Cliente actualizado' : 'Cliente creado');
+        router.push('./ClientsScreen');
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error al guardar');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // FunciÃ³n para eliminar el cliente
+  const handleDelete = async () => {
+    if (!id) return;
+    Alert.alert(
+      'Confirmar',
+      'Â¿EstÃ¡ seguro de eliminar este cliente?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return;
+            try {
+              const response = await fetch(`${BASE_URL}/clients/${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (response.ok) {
+                Alert.alert('Ã‰xito', 'Cliente eliminado');
+                router.push('./ClientsScreen');
+              } else {
+                const errData = await response.json();
+                Alert.alert('Error', errData.error || 'Error eliminando el cliente');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator size="large" color="#007BFF" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>{id ? 'Editar Cliente' : 'Agregar Cliente'}</Text>
+      {(localImageUri || form.brand_file_id) && (
+        <Image
+          source={{
+            uri: localImageUri || `${BASE_URL}/get_file?file_id=${form.brand_file_id}`,
+          }}
+          style={styles.previewImage}
+        />
+      )}
+      <TouchableOpacity style={styles.imageButton} onPress={handlePickImage}>
+        <Text style={styles.imageButtonText}>
+          {localImageUri || form.brand_file_id ? 'Cambiar Logo' : 'Agregar Logo'}
+        </Text>
+      </TouchableOpacity>
+
+      <TextInput
+        style={styles.input}
+        placeholder="RazÃ³n Social"
+        value={form.business_name}
+        onChangeText={(text) => setForm({ ...form, business_name: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="CUIT / Tax ID"
+        value={form.tax_id}
+        keyboardType="numeric"
+        onChangeText={(text) => setForm({ ...form, tax_id: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={form.email}
+        keyboardType="email-address"
+        onChangeText={(text) => setForm({ ...form, email: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="TelÃ©fono"
+        value={form.phone}
+        keyboardType="numeric"
+        onChangeText={(text) => setForm({ ...form, phone: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="DirecciÃ³n"
+        value={form.address}
+        onChangeText={(text) => setForm({ ...form, address: text })}
+      />
+      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+        <Text style={styles.saveButtonText}>{id ? 'Actualizar' : 'Crear'}</Text>
+      </TouchableOpacity>
+      {id && (
+        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+          <Text style={styles.deleteButtonText}>Eliminar Cliente</Text>
+        </TouchableOpacity>
+      )}
+      <Button title="Cancelar" onPress={() => router.push('./ClientsScreen')} />
+      {uploading && <ActivityIndicator size="large" color="#007BFF" />}
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 15,
+    borderRadius: 5,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  saveButton: {
+    backgroundColor: '#007BFF',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3333',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  imageButton: {
+    backgroundColor: '#28A745',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  imageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  previewImage: {
+    width: 200,
+    aspectRatio: 1,
+    borderRadius: 100,
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+});
+
+export default EditClient;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\config
+File: index.js
+Content:
+export const BASE_URL = 'https://sistema.depros.com.ar';
+export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\login
+File: forgot-password.js
+Content:
+import React, { useState } from 'react';
+import { View, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+// <-- IMPORTAMOS BASE_URL
+import { BASE_URL } from '../config/index';
+
+const ForgotPassword = () => {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Por favor ingresa tu email');
+      return;
+    }
+    try {
+      // USAMOS BASE_URL
+      const response = await fetch(`${BASE_URL}/forgot_password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        Alert.alert('Ã‰xito', result.message || 'Email de recuperaciÃ³n enviado');
+        router.replace('./login');
+      } else {
+        Alert.alert('Error', result.error || 'Error al enviar la solicitud');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        placeholder="Ingresa tu email"
+        style={styles.input}
+        value={email}
+        keyboardType="email-address"
+        onChangeText={setEmail}
+      />
+      <Button title="Enviar recuperaciÃ³n" onPress={handleForgotPassword} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  input: { borderWidth: 1, padding: 10, marginBottom: 10 },
+});
+
+export default ForgotPassword;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\login
+File: login.js
+Content:
+import React, { useState } from 'react';
+import { View, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// <-- IMPORTAMOS BASE_URL
+import { BASE_URL } from '../config/index';
+
+const Login = () => {
+  const router = useRouter();
+  const [username, setUsername] = useState('pormauro');
+  const [password, setPassword] = useState('123456');
+
+  const handleLogin = async () => {
+    if (!username || !password) {
+      Alert.alert('Error', 'Ingresa username y contraseÃ±a');
+      return;
+    }
+    try {
+      // USAMOS BASE_URL
+      const response = await fetch(`${BASE_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (response.ok) {
+        const authHeader = response.headers.get('Authorization');
+        const token = authHeader && authHeader.startsWith('Bearer ')
+          ? authHeader.split(' ')[1]
+          : null;
+
+        if (token) {
+          // Guardamos el token en AsyncStorage
+          await AsyncStorage.setItem('token', token);
+
+          // Solicitar el perfil del usuario para guardar sus datos
+          const profileResponse = await fetch(`${BASE_URL}/profile`, {
+            method: 'GET',
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+          });
+
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            const { id, username: userName, email } = profileData.user;
+            await AsyncStorage.setItem('user_id', id.toString());
+            await AsyncStorage.setItem('username', userName);
+            await AsyncStorage.setItem('email', email);
+
+            // Redirigir a Home
+            router.replace('../home');
+          } else {
+            Alert.alert('Error', 'No se pudo obtener el perfil del usuario');
+          }
+        } else {
+          Alert.alert('Error', 'Token no recibido en el encabezado');
+        }
+      } else {
+        const result = await response.json();
+        Alert.alert('Error', result.error || 'Credenciales invÃ¡lidas');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        placeholder="Username"
+        style={styles.input}
+        value={username}
+        onChangeText={setUsername}
+      />
+      <TextInput
+        placeholder="ContraseÃ±a"
+        secureTextEntry
+        style={styles.input}
+        value={password}
+        onChangeText={setPassword}
+      />
+      <Button title="Ingresar" onPress={handleLogin} />
+      <Button title="Registrarse" onPress={() => router.push('./register')} />
+      <Button title="OlvidÃ© mi contraseÃ±a" onPress={() => router.push('./forgot-password')} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20, justifyContent: 'center' },
+  input: { borderWidth: 1, padding: 10, marginBottom: 10 },
+});
+
+export default Login;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\login
+File: register.js
+Content:
+import React, { useState } from 'react';
+import { View, TextInput, Button, Alert, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+// <-- IMPORTAMOS BASE_URL
+import { BASE_URL } from '../config/index';
+
+const Register = () => {
+  const router = useRouter();
+  const [username, setUsername] = useState('pormauro');
+  const [email, setEmail] = useState('pormauro@gmail.com');
+  const [password, setPassword] = useState('123456');
+
+  const handleRegister = async () => {
+    if (!username || !email || !password) {
+      Alert.alert('Error', 'Todos los campos son requeridos');
+      return;
+    }
+    try {
+      // USAMOS BASE_URL
+      const response = await fetch(`${BASE_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        Alert.alert(
+          'Ã‰xito',
+          result.message || 'Usuario registrado. Revisa tu email para activar la cuenta.'
+        );
+        router.replace('./login');
+      } else {
+        Alert.alert('Error', result.error || 'Error en el registro');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        placeholder="Nombre de usuario"
+        style={styles.input}
+        value={username}
+        onChangeText={setUsername}
+      />
+      <TextInput
+        placeholder="Correo electrÃ³nico"
+        style={styles.input}
+        value={email}
+        keyboardType="email-address"
+        onChangeText={setEmail}
+      />
+      <TextInput
+        placeholder="ContraseÃ±a"
+        secureTextEntry
+        style={styles.input}
+        value={password}
+        onChangeText={setPassword}
+      />
+      <Button title="Registrar" onPress={handleRegister} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  input: { borderWidth: 1, padding: 10, marginBottom: 10 },
+});
+
+export default Register;
+
+---
+Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\utils
+File: imageUtils.ts
+Content:
+// sisa/app/utils/imageUtils.ts
+
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
+import { Alert } from 'react-native';
+import { BASE_URL, MAX_FILE_SIZE } from '../config/index';
+
+/**
+ * Solicita permisos para cÃ¡mara o galerÃ­a, abre la fuente de imagen
+ * y retorna el objeto resultante de ImagePicker.
+ * 
+ * NOTA: Se omiten 'allowsEditing' y 'aspect' para evitar reinicios/crashes en algunos Android.
+ *       Se reduce la calidad a 0.7 (70%) para no generar archivos muy grandes de inicio.
+ */
+export async function pickImageFromSource(fromCamera: boolean) {
+  if (fromCamera) {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Se requieren permisos de cÃ¡mara.');
+      return null;
+    }
+    return await ImagePicker.launchCameraAsync({
+      quality: 0.7,
+    });
+  } else {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Se requieren permisos de galerÃ­a.');
+      return null;
+    }
+    return await ImagePicker.launchImageLibraryAsync({
+      quality: 0.7,
+    });
+  }
+}
+
+/**
+ * Verifica y comprime/redimensiona la imagen HASTA que su tamaÃ±o sea <= MAX_FILE_SIZE (1MB).
+ * Realiza varias "pasadas" reduciendo gradualmente el tamaÃ±o y la compresiÃ³n. 
+ * Retorna el nuevo URI local de la imagen final bajo 1MB (o lo que defina MAX_FILE_SIZE).
+ */
+async function ensureUnderMaxSize(
+  uri: string,
+  originalWidth: number,
+  originalHeight: number
+): Promise<string> {
+  let currentUri = uri;
+  let width = originalWidth;
+  let height = originalHeight;
+
+  // Hasta 3 intentos para ir reduciendo
+  const maxPasses = 3;
+  // Empieza con una compresiÃ³n razonable
+  let compressQuality = 0.7;
+
+  for (let attempt = 1; attempt <= maxPasses; attempt++) {
+    const fileInfo = await FileSystem.getInfoAsync(currentUri);
+    if (!fileInfo.exists || typeof fileInfo.size !== 'number') {
+      // Si algo falla, salimos sin forzar
+      return currentUri;
+    }
+    if (fileInfo.size <= MAX_FILE_SIZE) {
+      // Ya estamos por debajo (o igual) al lÃ­mite de 1MB
+      return currentUri;
+    }
+    // Reducir dimensiones de forma aproximada para acercarnos a 1MB
+    const ratio = Math.sqrt(MAX_FILE_SIZE / fileInfo.size);
+    // Si ratio >= 1, significa que ya estamos "casi" sin necesidad de redimensionar
+    // pero igual se comprime un poco mÃ¡s.
+    const newWidth = Math.floor(width * Math.min(ratio, 0.9));
+    const newHeight = Math.floor(height * Math.min(ratio, 0.9));
+
+    // Procesar con ImageManipulator
+    const manipResult = await ImageManipulator.manipulateAsync(
+      currentUri,
+      [{ resize: { width: newWidth, height: newHeight } }],
+      {
+        compress: compressQuality,
+        format: ImageManipulator.SaveFormat.JPEG,
+      }
+    );
+
+    currentUri = manipResult.uri;
+    width = newWidth;
+    height = newHeight;
+
+    // Cada pasada bajamos mÃ¡s la compresiÃ³n
+    compressQuality -= 0.1;
+    if (compressQuality < 0.3) {
+      compressQuality = 0.3;
+    }
+  }
+
+  // DespuÃ©s de los intentos, devolvemos el resultado (aunque quizÃ¡s siga arriba de 1MB si la imagen era enorme)
+  return currentUri;
+}
+
+/**
+ * El flujo completo de:
+ *  1. Elegir la imagen (cÃ¡mara/galerÃ­a)
+ *  2. Asegurar que quede por debajo de 1MB (ensureUnderMaxSize)
+ *  3. Retornar el URI local final de la imagen procesada
+ */
+export async function pickAndProcessImage(fromCamera: boolean): Promise<string | null> {
+  const result = await pickImageFromSource(fromCamera);
+  // Verificamos si el usuario cancelÃ³
+  if (!result || result.canceled === true || (result as any).cancelled === true) {
+    return null;
+  }
+  // En SDKs modernos, result.assets es un array con los datos de la imagen
+  const asset = result.assets ? result.assets[0] : result;
+  if (!asset || !asset.uri) {
+    return null;
+  }
+  // Llamamos a ensureUnderMaxSize para que el archivo no supere 1MB
+  const finalUri = await ensureUnderMaxSize(asset.uri, asset.width, asset.height);
+  return finalUri;
+}
+
+/**
+ * Sube la imagen (finalUri) al servidor con multipart/form-data
+ * y retorna el file_id devuelto por la API.
+ */
+export async function uploadImage(localUri: string, token: string): Promise<number | null> {
+  try {
+    let filename = localUri.split('/').pop() || 'photo.jpg';
+    if (!/\.\w+$/.test(filename)) {
+      filename = `${filename}.jpg`;
+    }
+    const match = /\.(\w+)$/.exec(filename);
+    // Forzamos 'jpeg' si la extensiÃ³n es '.jpg'
+    const type = match
+      ? `image/${match[1].toLowerCase() === 'jpg' ? 'jpeg' : match[1].toLowerCase()}`
+      : 'image/jpeg';
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: localUri,
+      name: filename,
+      type,
+    } as any);
+
+    const uploadResponse = await fetch(`${BASE_URL}/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      Alert.alert('Error', 'Error al subir archivo');
+      return null;
+    }
+
+    const data = await uploadResponse.json();
+    const fileId = data?.file?.id;
+    return fileId || null;
+  } catch (error: any) {
+    Alert.alert('Error', error.message);
+    return null;
+  }
+}
+
+---
