@@ -1,4 +1,214 @@
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+Folder: C:\Users\porma\Desktop\sisa.ui/app
+File: ConfigScreen.js
+Content:
+// app/config.js (o app/config/index.js)
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Button,
+  Alert,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { BASE_URL } from './config/index';
+
+export default function ConfigScreen() {
+  const router = useRouter();
+
+  const [userId, setUserId] = useState(null);
+
+  // Datos de configuraciÃ³n
+  const [configDetails, setConfigDetails] = useState(null);
+
+  // Modo ediciÃ³n
+  const [editConfig, setEditConfig] = useState(false);
+
+  // Formulario
+  const [configForm, setConfigForm] = useState({
+    role: '',
+    view_type: '',
+    theme: '',
+    font_size: '',
+  });
+
+  // Cargar userId de AsyncStorage
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const storedUserId = await AsyncStorage.getItem('user_id');
+        if (storedUserId) setUserId(storedUserId);
+      } catch (error) {
+        console.log('Error al cargar user_id:', error);
+      }
+    };
+    loadUserData();
+  }, []);
+
+  // Cargar configuraciÃ³n
+  const loadConfig = async () => {
+    if (!userId) return;
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const configResponse = await fetch(
+        `${BASE_URL}/user_configurations/${userId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (configResponse.ok) {
+        const configData = await configResponse.json();
+        const configuration = configData.configuration;
+        setConfigDetails(configuration);
+        setConfigForm({
+          role: configuration.role || '',
+          view_type: configuration.view_type || '',
+          theme: configuration.theme || '',
+          font_size: configuration.font_size || '',
+        });
+      } else {
+        console.error('Error al obtener la configuraciÃ³n');
+      }
+    } catch (error) {
+      console.error('Error en fetch de configuraciÃ³n:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadConfig();
+  }, [userId]);
+
+  // Guardar cambios en configuraciÃ³n (PUT)
+  const handleConfigSave = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch(`${BASE_URL}/user_configurations`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: configForm.role,
+          view_type: configForm.view_type,
+          theme: configForm.theme,
+          font_size: configForm.font_size,
+        }),
+      });
+      if (response.ok) {
+        setConfigDetails({ ...configDetails, ...configForm });
+        setEditConfig(false);
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error actualizando configuraciÃ³n');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.subtitle}>ConfiguraciÃ³n</Text>
+
+      {configDetails ? (
+        <View style={styles.dataContainer}>
+          {editConfig ? (
+            <>
+              <TextInput
+                style={styles.input}
+                value={configForm.role}
+                onChangeText={(text) => setConfigForm({ ...configForm, role: text })}
+                placeholder="Rol"
+              />
+              <TextInput
+                style={styles.input}
+                value={configForm.view_type}
+                onChangeText={(text) => setConfigForm({ ...configForm, view_type: text })}
+                placeholder="Tipo de vista"
+              />
+              <TextInput
+                style={styles.input}
+                value={configForm.theme}
+                onChangeText={(text) => setConfigForm({ ...configForm, theme: text })}
+                placeholder="Tema"
+              />
+              <TextInput
+                style={styles.input}
+                value={configForm.font_size}
+                onChangeText={(text) => setConfigForm({ ...configForm, font_size: text })}
+                placeholder="TamaÃ±o de fuente"
+              />
+              <Button title="Guardar ConfiguraciÃ³n" onPress={handleConfigSave} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.infoText}>Rol: {configDetails.role}</Text>
+              <Text style={styles.infoText}>Tipo de vista: {configDetails.view_type}</Text>
+              <Text style={styles.infoText}>Tema: {configDetails.theme}</Text>
+              <Text style={styles.infoText}>TamaÃ±o de fuente: {configDetails.font_size}</Text>
+
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => setEditConfig(true)}
+              >
+                <Text style={styles.editButtonText}>Editar ConfiguraciÃ³n</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      ) : (
+        <Text style={styles.infoText}>Cargando configuraciÃ³n...</Text>
+      )}
+
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  subtitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  dataContainer: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    justifyContent: 'center',
+  },
+  infoText: { fontSize: 18, marginVertical: 5 },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginVertical: 8,
+    borderRadius: 5,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  editButton: {
+    backgroundColor: '#007BFF',
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 18,
+  },
+});
+
+---
+Folder: C:\Users\porma\Desktop\sisa.ui/app
 File: home.js
 Content:
 import React from 'react';
@@ -21,7 +231,8 @@ const Menu = () => {
     { title: 'Notificaciones', route: './notifications' },
     { title: 'Cajas de Dinero', route: './cashboxes' },
     { title: 'Cierres Contables', route: './accounting_closings' },
-    { title: 'Perfil y ConfiguraciÃ³n', route: './profile' },
+    { title: 'Perfil', route: './ProfileScreen' },
+    { title: 'ConfiguraciÃ³n', route: './ConfigScreen' },
   ];
 
   return (
@@ -70,16 +281,19 @@ export default Menu;
 
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+Folder: C:\Users\porma\Desktop\sisa.ui/app
 File: index.js
 Content:
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image, Linking, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import logo from '../assets/images/logo.png';
 // <-- IMPORTAMOS BASE_URL
 import { BASE_URL } from './config/index';
+
+
+
 
 const SplashScreen = () => {
   const router = useRouter();
@@ -129,6 +343,10 @@ const SplashScreen = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Sistema de GestiÃ³n</Text>
       <Image source={logo} style={styles.logo} />
+
+      <TouchableOpacity onPress={() => Linking.openURL('https://www.privacypolicies.com/live/a987d28b-ea26-4d75-97fb-3518c54598b0')}>
+        <Text style={{ color: 'blue' }}>PolÃ­tica de Privacidad</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -155,14 +373,15 @@ const styles = StyleSheet.create({
 export default SplashScreen;
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+Folder: C:\Users\porma\Desktop\sisa.ui/app
 File: output.txt
 Content:
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app
+Folder: C:\Users\porma\Desktop\sisa.ui/app
 File: profile.js
 Content:
+// app/profile.js
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -171,14 +390,15 @@ import {
   ScrollView,
   Button,
   Alert,
-  Image,
   TextInput,
   TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { BASE_URL } from './config/index';
-import { pickAndProcessImage, uploadImage } from './utils/imageUtils';
+
+// Importamos nuestro nuevo componente
+import CircleImagePicker from './components/CircleImagePicker';
 
 const Home = () => {
   const router = useRouter();
@@ -190,17 +410,15 @@ const Home = () => {
     email: null,
   });
 
-  // Datos obtenidos vÃ­a API
+  // Datos de la API
   const [profileDetails, setProfileDetails] = useState(null);
   const [configDetails, setConfigDetails] = useState(null);
-  // Imagen obtenida de la API
-  const [fileData, setFileData] = useState(null);
 
-  // Modo ediciÃ³n para perfil y configuraciÃ³n
+  // Modo ediciÃ³n
   const [editProfile, setEditProfile] = useState(false);
   const [editConfig, setEditConfig] = useState(false);
 
-  // Formularios para editar
+  // Formularios
   const [profileForm, setProfileForm] = useState({
     full_name: '',
     phone: '',
@@ -230,7 +448,7 @@ const Home = () => {
     loadUserData();
   }, []);
 
-  // FunciÃ³n para cargar perfil y configuraciÃ³n
+  // Cargar perfil y configuraciÃ³n
   const loadUserDetails = async () => {
     if (userData.user_id) {
       const token = await AsyncStorage.getItem('token');
@@ -243,7 +461,6 @@ const Home = () => {
         );
         if (profileResponse.ok) {
           const profileData = await profileResponse.json();
-          // Extraer el objeto profile (ya que el JSON estÃ¡ dentro de profile)
           const profile = profileData.profile;
           setProfileDetails(profile);
           setProfileForm({
@@ -269,7 +486,6 @@ const Home = () => {
         );
         if (configResponse.ok) {
           const configData = await configResponse.json();
-          // Extraer el objeto configuration (ya que el JSON estÃ¡ dentro de configuration)
           const configuration = configData.configuration;
           setConfigDetails(configuration);
           setConfigForm({
@@ -291,100 +507,32 @@ const Home = () => {
     loadUserDetails();
   }, [userData.user_id]);
 
-  // Obtener archivo (imagen) a travÃ©s de la API usando el id dinÃ¡mico del perfil
-  useEffect(() => {
-    const loadFile = async () => {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
-      if (profileDetails?.profile_file_id) {
-        try {
-          const response = await fetch(
-            `${BASE_URL}/get_file?file_id=${profileDetails.profile_file_id}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (response.ok) {
-            const blob = await response.blob();
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              setFileData(reader.result);
-            };
-            reader.readAsDataURL(blob);
-          } else {
-            console.error('Error al obtener el archivo:', response.status);
-          }
-        } catch (error) {
-          console.error('Error en fetch del archivo:', error);
-        }
-      }
-    };
-    loadFile();
-  }, [profileDetails]);
-
-  // FunciÃ³n para tomar foto, subirla y actualizar el perfil usando las utilidades
-  const handleTakePhoto = async () => {
-    Alert.alert(
-      'Seleccionar imagen',
-      'Elige una opciÃ³n',
-      [
-        {
-          text: 'CÃ¡mara',
-          onPress: async () => {
-            const localUri = await pickAndProcessImage(true);
-            if (localUri) {
-              await uploadPhoto(localUri);
-            }
-          },
-        },
-        {
-          text: 'GalerÃ­a',
-          onPress: async () => {
-            const localUri = await pickAndProcessImage(false);
-            if (localUri) {
-              await uploadPhoto(localUri);
-            }
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
-  };
-
-  // FunciÃ³n modificada para subir la imagen utilizando uploadImage de utils/imageUtils.ts
-  const uploadPhoto = async (localUri) => {
+  // Callback cuando se sube una nueva imagen de perfil
+  const handleImageUpdate = async (newFileId) => {
+    // Actualizamos en backend
     const token = await AsyncStorage.getItem('token');
     if (!token) return;
     try {
-      const fileId = await uploadImage(localUri, token);
-      if (fileId) {
-        // Actualizar el perfil usando la URL sin id (el API toma el id del token)
-        const updateResponse = await fetch(
-          `${BASE_URL}/user_profile`,
-          {
-            method: 'PUT',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              full_name: profileForm.full_name,
-              phone: profileForm.phone,
-              address: profileForm.address,
-              cuit: profileForm.cuit,
-              profile_file_id: fileId,
-            }),
-          }
-        );
-
-        if (updateResponse.ok) {
-          setFileData(localUri);
-          // Refrescar toda la informaciÃ³n del usuario
-          loadUserDetails();
-        } else {
-          const errData = await updateResponse.json();
-          Alert.alert('Error', errData.error || 'Error actualizando perfil');
-        }
+      const updateResponse = await fetch(`${BASE_URL}/user_profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          cuit: profileForm.cuit,
+          profile_file_id: newFileId,
+        }),
+      });
+      if (updateResponse.ok) {
+        // Recargamos el perfil
+        loadUserDetails();
       } else {
-        Alert.alert('Error', 'Error al subir archivo');
+        const errData = await updateResponse.json();
+        Alert.alert('Error', errData.error || 'Error actualizando perfil');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -404,30 +552,28 @@ const Home = () => {
     }
   };
 
-  // Guardar cambios en perfil vÃ­a PUT (token enviado en el header)
+  // Guardar cambios en perfil
   const handleProfileSave = async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) return;
     try {
-      const response = await fetch(
-        `${BASE_URL}/user_profile`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            full_name: profileForm.full_name,
-            phone: profileForm.phone,
-            address: profileForm.address,
-            cuit: profileForm.cuit,
-            profile_file_id: profileForm.profile_file_id === '' 
-              ? null 
+      const response = await fetch(`${BASE_URL}/user_profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          cuit: profileForm.cuit,
+          profile_file_id:
+            profileForm.profile_file_id === ''
+              ? null
               : parseInt(profileForm.profile_file_id),
-          }),
-        }
-      );
+        }),
+      });
       if (response.ok) {
         setProfileDetails({ ...profileDetails, ...profileForm });
         setEditProfile(false);
@@ -440,27 +586,24 @@ const Home = () => {
     }
   };
 
-  // Guardar cambios en configuraciÃ³n vÃ­a PUT (token enviado en el header)
+  // Guardar cambios en configuraciÃ³n
   const handleConfigSave = async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) return;
     try {
-      const response = await fetch(
-        `${BASE_URL}/user_configurations`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            role: configForm.role,
-            view_type: configForm.view_type,
-            theme: configForm.theme,
-            font_size: configForm.font_size,
-          }),
-        }
-      );
+      const response = await fetch(`${BASE_URL}/user_configurations`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: configForm.role,
+          view_type: configForm.view_type,
+          theme: configForm.theme,
+          font_size: configForm.font_size,
+        }),
+      });
       if (response.ok) {
         setConfigDetails({ ...configDetails, ...configForm });
         setEditConfig(false);
@@ -478,37 +621,23 @@ const Home = () => {
       <Text style={styles.subtitle}>
         Perfil
         <TouchableOpacity onPress={() => setEditProfile(!editProfile)}>
-          <Text style={styles.editIcon}> âœ�ï¸�</Text>
+          <Text style={styles.editIcon}> âœ�ï¸� </Text>
         </TouchableOpacity>
       </Text>
 
       {profileDetails ? (
         <View style={styles.dataContainer}>
-          {fileData ? (
-            <View style={styles.profileImageContainer}>
-              <Image source={{ uri: fileData }} style={styles.fileImage} />
-              {/* BotÃ³n en la esquina inferior derecha, por encima de la imagen */}
-              <TouchableOpacity
-                style={styles.cameraButtonOnImage}
-                onPress={handleTakePhoto}
-              >
-                <Text style={styles.cameraIconText}>ðŸ“·</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={[styles.profileImageContainer, styles.defaultImage]}>
-              {/* Si no hay imagen, el botÃ³n se centra en el cÃ­rculo */}
-              <TouchableOpacity
-                style={styles.cameraButtonNoImage}
-                onPress={handleTakePhoto}
-              >
-                <Text style={styles.cameraIconText}>ðŸ“·</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Usamos nuestro CircleImagePicker */}
+          <CircleImagePicker
+            fileId={profileDetails.profile_file_id}
+            editable={true}
+            onImageChange={handleImageUpdate}
+            size={200}
+          />
 
           <Text style={styles.infoText}>Username: {userData.username}</Text>
           <Text style={styles.infoText}>Email: {userData.email}</Text>
+
           {editProfile ? (
             <>
               <TextInput
@@ -549,15 +678,9 @@ const Home = () => {
             </>
           ) : (
             <>
-              <Text style={styles.infoText}>
-                Nombre: {profileDetails.full_name}
-              </Text>
-              <Text style={styles.infoText}>
-                TelÃ©fono: {profileDetails.phone}
-              </Text>
-              <Text style={styles.infoText}>
-                DirecciÃ³n: {profileDetails.address}
-              </Text>
+              <Text style={styles.infoText}>Nombre: {profileDetails.full_name}</Text>
+              <Text style={styles.infoText}>TelÃ©fono: {profileDetails.phone}</Text>
+              <Text style={styles.infoText}>DirecciÃ³n: {profileDetails.address}</Text>
               <Text style={styles.infoText}>CUIT: {profileDetails.cuit}</Text>
             </>
           )}
@@ -569,9 +692,10 @@ const Home = () => {
       <Text style={styles.subtitle}>
         ConfiguraciÃ³n
         <TouchableOpacity onPress={() => setEditConfig(!editConfig)}>
-          <Text style={styles.editIcon}> âœ�ï¸�</Text>
+          <Text style={styles.editIcon}> âœ�ï¸� </Text>
         </TouchableOpacity>
       </Text>
+
       {configDetails ? (
         <View style={styles.dataContainer}>
           {editConfig ? (
@@ -613,13 +737,9 @@ const Home = () => {
           ) : (
             <>
               <Text style={styles.infoText}>Rol: {configDetails.role}</Text>
-              <Text style={styles.infoText}>
-                Tipo de vista: {configDetails.view_type}
-              </Text>
+              <Text style={styles.infoText}>Tipo de vista: {configDetails.view_type}</Text>
               <Text style={styles.infoText}>Tema: {configDetails.theme}</Text>
-              <Text style={styles.infoText}>
-                TamaÃ±o de fuente: {configDetails.font_size}
-              </Text>
+              <Text style={styles.infoText}>TamaÃ±o de fuente: {configDetails.font_size}</Text>
             </>
           )}
         </View>
@@ -632,9 +752,10 @@ const Home = () => {
   );
 };
 
+export default Home;
+
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
   subtitle: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -662,81 +783,366 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: '#007BFF',
   },
-  // Contenedor de la imagen: se permite overflow visible para que el botÃ³n pueda salir
-  profileImageContainer: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    alignItems: 'center',
+});
+
+---
+Folder: C:\Users\porma\Desktop\sisa.ui/app
+File: ProfileScreen.js
+Content:
+// app/profile.js (o app/profile/index.js)
+
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Button,
+  Alert,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import { BASE_URL } from './config/index';
+
+import CircleImagePicker from './components/CircleImagePicker';
+
+export default function ProfileScreen() {
+  const router = useRouter();
+
+  // Datos bÃ¡sicos del usuario
+  const [userData, setUserData] = useState({
+    user_id: null,
+    username: null,
+    email: null,
+  });
+
+  // Datos de perfil
+  const [profileDetails, setProfileDetails] = useState(null);
+
+  // Modo ediciÃ³n
+  const [editProfile, setEditProfile] = useState(false);
+
+  // Formulario para editar
+  const [profileForm, setProfileForm] = useState({
+    full_name: '',
+    phone: '',
+    address: '',
+    cuit: '',
+    profile_file_id: '',
+  });
+
+  // Cargar datos bÃ¡sicos (user_id, username, email) de AsyncStorage
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const user_id = await AsyncStorage.getItem('user_id');
+        const username = await AsyncStorage.getItem('username');
+        const email = await AsyncStorage.getItem('email');
+        setUserData({ user_id, username, email });
+      } catch (error) {
+        console.log('Error al cargar datos del usuario:', error);
+      }
+    };
+    loadUserData();
+  }, []);
+
+  // Cargar perfil desde la API
+  const loadProfile = async () => {
+    if (!userData.user_id) return;
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const profileResponse = await fetch(
+        `${BASE_URL}/user_profile/${userData.user_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (profileResponse.ok) {
+        const profileData = await profileResponse.json();
+        const profile = profileData.profile;
+        setProfileDetails(profile);
+        // Llenamos el formulario
+        setProfileForm({
+          full_name: profile.full_name || '',
+          phone: profile.phone || '',
+          address: profile.address || '',
+          cuit: profile.cuit || '',
+          profile_file_id: profile.profile_file_id
+            ? profile.profile_file_id.toString()
+            : '',
+        });
+      } else {
+        console.error('Error al obtener el perfil');
+      }
+    } catch (error) {
+      console.error('Error en fetch de perfil:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, [userData.user_id]);
+
+  // Callback al cambiar la imagen (subir nueva foto)
+  const handleImageUpdate = async (newFileId) => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const updateResponse = await fetch(`${BASE_URL}/user_profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          cuit: profileForm.cuit,
+          profile_file_id: newFileId,
+        }),
+      });
+      if (updateResponse.ok) {
+        loadProfile(); // Recargamos datos de perfil
+      } else {
+        const errData = await updateResponse.json();
+        Alert.alert('Error', errData.error || 'Error actualizando perfil');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // Guardar cambios en perfil (PUT)
+  const handleProfileSave = async () => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
+    try {
+      const response = await fetch(`${BASE_URL}/user_profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          full_name: profileForm.full_name,
+          phone: profileForm.phone,
+          address: profileForm.address,
+          cuit: profileForm.cuit,
+          profile_file_id:
+            profileForm.profile_file_id === ''
+              ? null
+              : parseInt(profileForm.profile_file_id),
+        }),
+      });
+      if (response.ok) {
+        // Actualizamos localmente
+        if (profileDetails) {
+          setProfileDetails({ ...profileDetails, ...profileForm });
+        }
+        setEditProfile(false);
+      } else {
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error actualizando perfil');
+      }
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  // Cerrar sesiÃ³n
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user_id');
+      await AsyncStorage.removeItem('username');
+      await AsyncStorage.removeItem('email');
+      Alert.alert('SesiÃ³n cerrada');
+      router.replace('./login/login');
+    } catch (error) {
+      console.log('Error al cerrar sesiÃ³n:', error);
+    }
+  };
+
+  //Elimina la Cuenta
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      'Eliminar cuenta',
+      'Esta acciÃ³n es irreversible. Â¿Deseas continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) return;
+            try {
+              const response = await fetch(`${BASE_URL}/users/${userData.user_id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+  
+              if (response.ok) {
+                await AsyncStorage.clear();
+                Alert.alert('Cuenta eliminada');
+                router.replace('./login');
+              } else {
+                Alert.alert('Error', 'No se pudo eliminar la cuenta.');
+              }
+            } catch (error) {
+              Alert.alert('Error', error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+  
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.subtitle}>Perfil</Text>
+
+      {profileDetails ? (
+        <View style={styles.dataContainer}>
+          {/* Foto en cÃ­rculo editable */}
+          <CircleImagePicker
+            fileId={profileDetails.profile_file_id}
+            editable={true}
+            size={200}
+            onImageChange={handleImageUpdate}
+          />
+
+          <Text style={styles.infoText}>Username: {userData.username}</Text>
+          <Text style={styles.infoText}>Email: {userData.email}</Text>
+
+          {editProfile ? (
+            <>
+              <TextInput
+                style={styles.input}
+                value={profileForm.full_name}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, full_name: text })
+                }
+                placeholder="Nombre completo"
+              />
+              <TextInput
+                style={styles.input}
+                value={profileForm.phone}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, phone: text })
+                }
+                placeholder="TelÃ©fono"
+                keyboardType="phone-pad"
+              />
+              <TextInput
+                style={styles.input}
+                value={profileForm.address}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, address: text })
+                }
+                placeholder="DirecciÃ³n"
+              />
+              <TextInput
+                style={styles.input}
+                value={profileForm.cuit}
+                onChangeText={(text) =>
+                  setProfileForm({ ...profileForm, cuit: text })
+                }
+                placeholder="CUIT"
+                keyboardType="numeric"
+              />
+
+              <Button title="Guardar Perfil" onPress={handleProfileSave} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.infoText}>Nombre: {profileDetails.full_name}</Text>
+              <Text style={styles.infoText}>TelÃ©fono: {profileDetails.phone}</Text>
+              <Text style={styles.infoText}>DirecciÃ³n: {profileDetails.address}</Text>
+              <Text style={styles.infoText}>CUIT: {profileDetails.cuit}</Text>
+
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => setEditProfile(true)}
+              >
+                <Text style={styles.editButtonText}>Editar Perfil</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      ) : (
+        <Text style={styles.infoText}>Cargando perfil...</Text>
+      )}
+      <Button title="Eliminar Cuenta" onPress={handleDeleteAccount} color="red" />
+      <Button title="Cerrar SesiÃ³n" onPress={handleLogout} />
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  subtitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  dataContainer: {
+    backgroundColor: '#f5f5f5',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
     justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 15,
-    overflow: 'visible',
-    position: 'relative',
   },
-  // Imagen circular con borderRadius
-  fileImage: {
-    width: 200,
-    height: 200,
-    resizeMode: 'cover',
-    borderRadius: 100,
+  infoText: { fontSize: 18, marginVertical: 5 },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginVertical: 8,
+    borderRadius: 5,
+    fontSize: 16,
+    backgroundColor: '#fff',
   },
-  defaultImage: {
-    backgroundColor: 'blue',
-  },
-  // BotÃ³n de cÃ¡mara cuando hay imagen: se posiciona fuera del contenedor
-  cameraButtonOnImage: {
-    position: 'absolute',
-    bottom: -10,
-    right: -10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  // BotÃ³n de cÃ¡mara cuando NO hay imagen: centrado en el contenedor
-  cameraButtonNoImage: {
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
+  editButton: {
+    backgroundColor: '#007BFF',
+    borderRadius: 10,
+    padding: 15,
+    marginTop: 10,
     alignItems: 'center',
   },
-  cameraIconText: {
-    fontSize: 30,
-    color: 'white',
+  editButtonText: {
+    color: '#fff',
+    fontSize: 18,
   },
 });
 
-export default Home;
-
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
-File: addClient.js
+Folder: C:\Users\porma\Desktop\sisa.ui/app\clients
+File: AddClient.js
 Content:
+// app/clients/AddClient.js
 import React, { useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
-  ScrollView,
   Button,
-  Image,
+  ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
 import { BASE_URL } from '../config/index';
 
-const AddClient = () => {
+// Importamos el nuevo recurso
+import CircleImagePicker from '../components/CircleImagePicker';
+
+const EditClient = () => {
   const router = useRouter();
   const [form, setForm] = useState({
     business_name: '',
@@ -746,60 +1152,18 @@ const AddClient = () => {
     phone: '',
     address: '',
   });
-  const [uploading, setUploading] = useState(false);
-  const [localImageUri, setLocalImageUri] = useState(null);
 
-  const handlePickImage = () => {
-    Alert.alert(
-      'Seleccionar imagen',
-      'Elige una opciÃ³n',
-      [
-        {
-          text: 'CÃ¡mara',
-          onPress: async () => {
-            const localUri = await pickAndProcessImage(true);
-            if (localUri) {
-              await handleUploadPhoto(localUri);
-            }
-          },
-        },
-        {
-          text: 'GalerÃ­a',
-          onPress: async () => {
-            const localUri = await pickAndProcessImage(false);
-            if (localUri) {
-              await handleUploadPhoto(localUri);
-            }
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
+  // Callback al actualizar la imagen (nueva fileId)  
+  const handleImageUpdate = (newFileId) => {
+    setForm({ ...form, brand_file_id: newFileId });
   };
 
-  const handleUploadPhoto = async (localUri) => {
-    setUploading(true);
+  // Crear un nuevo cliente (POST)
+  const handleSave = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
-      const fileId = await uploadImage(localUri, token);
-      if (fileId) {
-        setForm({ ...form, brand_file_id: fileId });
-        setLocalImageUri(localUri);
-      } else {
-        Alert.alert('Error', 'Error al subir la imagen');
-      }
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setUploading(false);
-    }
-  };
 
-  const handleSave = async () => {
-    const token = await AsyncStorage.getItem('token');
-    if (!token) return;
-    try {
       const response = await fetch(`${BASE_URL}/clients`, {
         method: 'POST',
         headers: {
@@ -808,12 +1172,13 @@ const AddClient = () => {
         },
         body: JSON.stringify(form),
       });
+
       if (response.ok) {
-        Alert.alert('Ã‰xito', 'Cliente creado correctamente');
+        Alert.alert('Ã‰xito', 'Cliente creado');
         router.push('./ClientsScreen');
       } else {
         const errData = await response.json();
-        Alert.alert('Error', errData.error || 'Error creando el cliente');
+        Alert.alert('Error', errData.error || 'Error al guardar');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -823,19 +1188,14 @@ const AddClient = () => {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Agregar Cliente</Text>
-      {(localImageUri || form.brand_file_id) && (
-        <Image
-          source={{
-            uri: localImageUri || `${BASE_URL}/get_file?file_id=${form.brand_file_id}`,
-          }}
-          style={styles.previewImage}
-        />
-      )}
-      <TouchableOpacity style={styles.imageButton} onPress={handlePickImage}>
-        <Text style={styles.imageButtonText}>
-          {localImageUri || form.brand_file_id ? 'Cambiar Logo' : 'Agregar Logo'}
-        </Text>
-      </TouchableOpacity>
+
+      <CircleImagePicker
+        fileId={form.brand_file_id}
+        onImageChange={handleImageUpdate}
+        editable={true}
+        size={200}
+      />
+
       <TextInput
         style={styles.input}
         placeholder="RazÃ³n Social"
@@ -869,13 +1229,17 @@ const AddClient = () => {
         value={form.address}
         onChangeText={(text) => setForm({ ...form, address: text })}
       />
+
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>Crear Cliente</Text>
+        <Text style={styles.saveButtonText}>Crear</Text>
       </TouchableOpacity>
+
       <Button title="Cancelar" onPress={() => router.push('./ClientsScreen')} />
     </ScrollView>
   );
 };
+
+export default EditClient;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
@@ -883,7 +1247,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     padding: 10,
-    marginBottom: 15,
+    marginVertical: 5,
     borderRadius: 5,
     fontSize: 16,
     backgroundColor: '#fff',
@@ -900,158 +1264,78 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  imageButton: {
-    backgroundColor: '#28A745',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: 'center',
-  },
-  imageButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  previewImage: {
-    width: 200,
-    aspectRatio: 1,
-    borderRadius: 100,
-    alignSelf: 'center',
-    marginBottom: 15,
-  },
 });
 
-export default AddClient;
-
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+Folder: C:\Users\porma\Desktop\sisa.ui/app\clients
 File: ClientItem.js
 Content:
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  LayoutAnimation,
-  UIManager,
-  Platform
-} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BASE_URL } from '../config/index';
+// app/clients/ClientItem.js
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import CircleImagePicker from '../components/CircleImagePicker';
 
 /**
- * Componente controlado para mostrar la tarjeta de cliente.
- * Recibe:
- * - item: datos del cliente.
- * - expanded: booleano que indica si el item estÃ¡ expandido.
- * - onToggle: funciÃ³n que se invoca al pulsar la tarjeta para cambiar el estado expandido.
- * - onDelete: callback para eliminar.
- * - onEdit: callback para editar.
+ * item: datos del cliente
+ * expanded: bool para controlar expandido
+ * onToggle, onDelete, onEdit: callbacks
  */
 export default function ClientItem({ item, expanded, onToggle, onDelete, onEdit }) {
-  const [imageData, setImageData] = useState(null);
 
-  // Habilitar animaciones en Android
-  useEffect(() => {
-    if (Platform.OS === 'android') {
-      UIManager.setLayoutAnimationEnabledExperimental &&
-        UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-  }, []);
-
-  // Cargar la imagen del cliente, si existe
-  useEffect(() => {
-    const loadFile = async () => {
-      if (!item.brand_file_id) return;
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
-      try {
-        const response = await fetch(
-          `${BASE_URL}/get_file?file_id=${item.brand_file_id}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (response.ok) {
-          const blob = await response.blob();
-          const reader = new FileReader();
-          reader.onloadend = () => setImageData(reader.result);
-          reader.readAsDataURL(blob);
-        } else {
-          console.error('Error al obtener el archivo:', response.status);
-        }
-      } catch (error) {
-        console.error('Error en fetch del archivo:', error);
-      }
-    };
-    loadFile();
-  }, [item.brand_file_id]);
-
-  // Al pulsar la tarjeta, alterna el estado expandido
   const handleToggle = () => {
-    if (Platform.OS !== 'web' && LayoutAnimation && LayoutAnimation.configureNext) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
     onToggle(item.id);
   };
 
-  // Ajustar tamaÃ±o del avatar segÃºn si estÃ¡ expandido
+  // Ajusta un tamaÃ±o mÃ¡s chico, por ejemplo 50
   const avatarSize = expanded ? 80 : 50;
-  // Se muestra el nombre del negocio
-  const titleText = item.business_name;
 
   return (
     <TouchableOpacity onPress={handleToggle} activeOpacity={0.8}>
       <View style={styles.itemContainer}>
-        {/* Cabecera: TÃ­tulo a la izquierda, avatar a la derecha */}
         <View style={styles.headerRow}>
-          <Text style={styles.companyName}>{titleText}</Text>
-          <View style={[styles.avatarContainer, { width: avatarSize, height: avatarSize }]}>
-            {imageData ? (
-              <Image source={{ uri: imageData }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder} />
-            )}
-          </View>
+          <Text style={styles.companyName}>{item.business_name}</Text>
+
+          {/* Usa CircleImagePicker en modo lectura (editable={false}). 
+              Carga la imagen a partir de brand_file_id */}
+          <CircleImagePicker
+            fileId={item.brand_file_id}
+            editable={false}
+            size={avatarSize}
+          />
         </View>
 
-        {/* Datos adicionales solo si expandido */}
         {expanded && (
           <>
             <Text style={styles.itemText}>CUIT: {item.tax_id}</Text>
-            <Text style={styles.itemText}>eMail: {item.email}</Text>
+            <Text style={styles.itemText}>Email: {item.email}</Text>
             <Text style={styles.itemText}>DirecciÃ³n: {item.address}</Text>
             <Text style={styles.itemText}>TelÃ©fono: {item.phone}</Text>
-          </>
-        )}
 
-        {/* Botonera a todo el ancho, visible solo si expandido */}
-        {expanded && (
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.button} onPress={() => onEdit(item.id)}>
-              <Text style={styles.buttonText}>Editar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.deleteButton]}
-              onPress={() =>
-                Alert.alert(
-                  'Confirmar',
-                  'Â¿EstÃ¡s seguro de eliminar este cliente?',
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    {
-                      text: 'Eliminar',
-                      style: 'destructive',
-                      onPress: () => onDelete(item.id),
-                    },
-                  ]
-                )
-              }
-            >
-              <Text style={styles.buttonText}>Eliminar</Text>
-            </TouchableOpacity>
-          </View>
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={styles.button} onPress={() => onEdit(item.id)}>
+                <Text style={styles.buttonText}>Editar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={() =>
+                  Alert.alert(
+                    'Confirmar',
+                    'Â¿EstÃ¡s seguro de eliminar este cliente?',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      {
+                        text: 'Eliminar',
+                        style: 'destructive',
+                        onPress: () => onDelete(item.id),
+                      },
+                    ]
+                  )
+                }
+              >
+                <Text style={styles.buttonText}>Eliminar</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
       </View>
     </TouchableOpacity>
@@ -1074,21 +1358,7 @@ const styles = StyleSheet.create({
   companyName: {
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  avatarContainer: {
-    overflow: 'hidden',
-    borderRadius: 999,
-    backgroundColor: '#007BFF',
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 999,
-  },
-  avatarPlaceholder: {
-    flex: 1,
-    borderRadius: 999,
-    backgroundColor: '#007BFF',
+    flexShrink: 1,
   },
   itemText: {
     fontSize: 16,
@@ -1118,7 +1388,7 @@ const styles = StyleSheet.create({
 });
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+Folder: C:\Users\porma\Desktop\sisa.ui/app\clients
 File: clientList.js
 Content:
 import React, { useEffect, useState } from 'react';
@@ -1276,7 +1546,6 @@ const styles = StyleSheet.create({
     flex: 1, 
     width: '100%',  // Se ocupa todo el ancho de la pantalla
     backgroundColor: '#fff',
-    padding: 20,
   },
   searchInput: {
     height: 40,
@@ -1294,7 +1563,7 @@ const styles = StyleSheet.create({
 });
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+Folder: C:\Users\porma\Desktop\sisa.ui/app\clients
 File: ClientsScreen.js
 Content:
 import React from 'react';
@@ -1306,7 +1575,7 @@ export default function ClientsScreen() {
   const router = useRouter();
 
   const handleAddClient = () => {
-    router.push('./addClient');
+    router.push('./AddClient');
   };
 
   return (
@@ -1329,7 +1598,8 @@ const styles = StyleSheet.create({
   title: { 
     fontSize: 24, 
     fontWeight: 'bold', 
-    marginBottom: 10 
+    marginBottom: 10,
+    textAlign: 'center',
   },
   floatingButton: {
     position: 'absolute',
@@ -1356,36 +1626,36 @@ const styles = StyleSheet.create({
 });
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\clients
+Folder: C:\Users\porma\Desktop\sisa.ui/app\clients
 File: editClient.js
 Content:
+// app/clients/editClient.js
 import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   StyleSheet,
   Alert,
   ActivityIndicator,
   Button,
   ScrollView,
-  Image,
+  TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
-import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
 import { BASE_URL } from '../config/index';
+
+// Importamos el CircleImagePicker
+import CircleImagePicker from '../components/CircleImagePicker';
 
 const EditClient = () => {
   const router = useRouter();
   const route = useRoute();
-  const { id } = route.params; // Obtenemos el id del cliente
+  const { id } = route.params; // id del cliente
 
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [localImageUri, setLocalImageUri] = useState(null);
   const [form, setForm] = useState({
     business_name: '',
     tax_id: '',
@@ -1402,6 +1672,7 @@ const EditClient = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
+
       const response = await fetch(`${BASE_URL}/clients/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -1416,10 +1687,6 @@ const EditClient = () => {
           phone: client.phone || '',
           address: client.address || '',
         });
-        if (client.brand_file_id) {
-          // Actualizamos la imagen local usando la URL basada en BASE_URL
-          setLocalImageUri(`${BASE_URL}/get_file?file_id=${client.brand_file_id}`);
-        }
       } else {
         Alert.alert('Error', 'No se pudo obtener la informaciÃ³n del cliente');
       }
@@ -1436,61 +1703,20 @@ const EditClient = () => {
     }
   }, [id]);
 
-  // FunciÃ³n para seleccionar imagen usando la librerÃ­a de utilidades
-  const handlePickImage = () => {
-    Alert.alert(
-      'Seleccionar imagen',
-      'Elige una opciÃ³n',
-      [
-        {
-          text: 'CÃ¡mara',
-          onPress: async () => {
-            const localUri = await pickAndProcessImage(true);
-            if (localUri) {
-              await handleUploadPhoto(localUri);
-            }
-          },
-        },
-        {
-          text: 'GalerÃ­a',
-          onPress: async () => {
-            const localUri = await pickAndProcessImage(false);
-            if (localUri) {
-              await handleUploadPhoto(localUri);
-            }
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ]
-    );
+  // Callback cuando se suba una nueva imagen
+  const handleImageUpdate = (newFileId) => {
+    // Actualizamos el brand_file_id en nuestro formulario
+    setForm({ ...form, brand_file_id: newFileId });
   };
 
-  // FunciÃ³n para subir la imagen al servidor utilizando la funciÃ³n uploadImage de la librerÃ­a
-  const handleUploadPhoto = async (localUri) => {
-    setUploading(true);
-    try {
-      const token = await AsyncStorage.getItem('token');
-      if (!token) return;
-      const fileId = await uploadImage(localUri, token);
-      if (fileId) {
-        setForm({ ...form, brand_file_id: fileId });
-        setLocalImageUri(localUri);
-      } else {
-        Alert.alert('Error', 'Error al subir la imagen');
-      }
-    } catch (error) {
-      Alert.alert('Error', error.message);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // FunciÃ³n para guardar (crear o actualizar) el cliente
+  // Guardar cambios
   const handleSave = async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) return;
+
     const url = id ? `${BASE_URL}/clients/${id}` : `${BASE_URL}/clients`;
     const method = id ? 'PUT' : 'POST';
+
     try {
       const response = await fetch(url, {
         method,
@@ -1512,21 +1738,21 @@ const EditClient = () => {
     }
   };
 
-  // FunciÃ³n para eliminar el cliente
+  // Eliminar cliente
   const handleDelete = async () => {
     if (!id) return;
     Alert.alert(
       'Confirmar',
-      'Â¿EstÃ¡ seguro de eliminar este cliente?',
+      'Â¿EstÃ¡s seguro de eliminar este cliente?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            const token = await AsyncStorage.getItem('token');
-            if (!token) return;
             try {
+              const token = await AsyncStorage.getItem('token');
+              if (!token) return;
               const response = await fetch(`${BASE_URL}/clients/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
@@ -1558,19 +1784,14 @@ const EditClient = () => {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>{id ? 'Editar Cliente' : 'Agregar Cliente'}</Text>
-      {(localImageUri || form.brand_file_id) && (
-        <Image
-          source={{
-            uri: localImageUri || `${BASE_URL}/get_file?file_id=${form.brand_file_id}`,
-          }}
-          style={styles.previewImage}
-        />
-      )}
-      <TouchableOpacity style={styles.imageButton} onPress={handlePickImage}>
-        <Text style={styles.imageButtonText}>
-          {localImageUri || form.brand_file_id ? 'Cambiar Logo' : 'Agregar Logo'}
-        </Text>
-      </TouchableOpacity>
+
+      {/* USO de CircleImagePicker con tamaÃ±o 120 y editable */}
+      <CircleImagePicker
+        fileId={form.brand_file_id}
+        size={200}
+        editable={true}
+        onImageChange={handleImageUpdate}
+      />
 
       <TextInput
         style={styles.input}
@@ -1605,6 +1826,7 @@ const EditClient = () => {
         value={form.address}
         onChangeText={(text) => setForm({ ...form, address: text })}
       />
+
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>{id ? 'Actualizar' : 'Crear'}</Text>
       </TouchableOpacity>
@@ -1614,10 +1836,11 @@ const EditClient = () => {
         </TouchableOpacity>
       )}
       <Button title="Cancelar" onPress={() => router.push('./ClientsScreen')} />
-      {uploading && <ActivityIndicator size="large" color="#007BFF" />}
     </ScrollView>
   );
 };
+
+export default EditClient;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
@@ -1630,7 +1853,7 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     padding: 10,
-    marginBottom: 15,
+    marginVertical: 5,
     borderRadius: 5,
     fontSize: 16,
     backgroundColor: '#fff',
@@ -1659,37 +1882,419 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  imageButton: {
-    backgroundColor: '#28A745',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 10,
+});
+
+---
+Folder: C:\Users\porma\Desktop\sisa.ui/app\components
+File: CameraImagePicker.ts
+Content:
+// sisa/app/utils/imageUtils.ts
+
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
+import { Alert } from 'react-native';
+import { BASE_URL, MAX_FILE_SIZE } from '../config/index';
+
+/**
+ * Solicita permisos para cÃ¡mara o galerÃ­a, abre la fuente de imagen
+ * y retorna el objeto resultante de ImagePicker.
+ * Se han agregado opciones para optimizar el uso de memoria y evitar reinicios.
+ */
+export async function pickImageFromSource(fromCamera: boolean) {
+  try {
+    if (fromCamera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se requieren permisos de cÃ¡mara.');
+        return null;
+      }
+      return await ImagePicker.launchCameraAsync({
+        quality: 0.7,
+        allowsEditing: false,
+        exif: false,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se requieren permisos de galerÃ­a.');
+        return null;
+      }
+      return await ImagePicker.launchImageLibraryAsync({
+        quality: 0.7,
+        allowsEditing: false,
+        exif: false,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      });
+    }
+  } catch (error: any) {
+    Alert.alert('Error', error.message);
+    return null;
+  }
+}
+
+/**
+ * Verifica y comprime/redimensiona la imagen hasta que su tamaÃ±o sea <= MAX_FILE_SIZE (1MB).
+ * Realiza hasta 3 intentos reduciendo gradualmente el tamaÃ±o y la compresiÃ³n.
+ * Retorna el URI final de la imagen procesada.
+ */
+async function ensureUnderMaxSize(
+  uri: string,
+  originalWidth: number,
+  originalHeight: number
+): Promise<string> {
+  let currentUri = uri;
+  let width = originalWidth;
+  let height = originalHeight;
+
+  const maxPasses = 3;
+  let compressQuality = 0.7;
+
+  for (let attempt = 1; attempt <= maxPasses; attempt++) {
+    const fileInfo = await FileSystem.getInfoAsync(currentUri);
+    if (!fileInfo.exists || typeof fileInfo.size !== 'number') {
+      return currentUri;
+    }
+    if (fileInfo.size <= MAX_FILE_SIZE) {
+      return currentUri;
+    }
+    // Calcula el ratio para acercarse al lÃ­mite
+    const ratio = Math.sqrt(MAX_FILE_SIZE / fileInfo.size);
+    const newWidth = Math.floor(width * Math.min(ratio, 0.9));
+    const newHeight = Math.floor(height * Math.min(ratio, 0.9));
+
+    const manipResult = await ImageManipulator.manipulateAsync(
+      currentUri,
+      [{ resize: { width: newWidth, height: newHeight } }],
+      {
+        compress: compressQuality,
+        format: ImageManipulator.SaveFormat.JPEG,
+      }
+    );
+
+    currentUri = manipResult.uri;
+    width = newWidth;
+    height = newHeight;
+    compressQuality = Math.max(compressQuality - 0.1, 0.3);
+  }
+
+  return currentUri;
+}
+
+/**
+ * Flujo completo para:
+ * 1. Elegir la imagen (cÃ¡mara/galerÃ­a)
+ * 2. Asegurar que la imagen procesada estÃ© por debajo de 1MB
+ * 3. Retornar el URI final de la imagen
+ */
+export async function pickAndProcessImage(fromCamera: boolean): Promise<string | null> {
+  try {
+    const result = await pickImageFromSource(fromCamera);
+    // Verifica si el usuario cancelÃ³ la acciÃ³n
+    if (!result || result.canceled === true || (result as any).cancelled === true) {
+      return null;
+    }
+    // En versiones modernas, el resultado contiene un array en result.assets
+    const asset = result.assets ? result.assets[0] : result;
+    if (!asset || !asset.uri) {
+      return null;
+    }
+    const finalUri = await ensureUnderMaxSize(asset.uri, asset.width, asset.height);
+    return finalUri;
+  } catch (error: any) {
+    Alert.alert('Error al seleccionar imagen', error.message);
+    return null;
+  }
+}
+
+/**
+ * Sube la imagen (finalUri) al servidor usando multipart/form-data y retorna el file_id devuelto.
+ */
+export async function uploadImage(localUri: string, token: string): Promise<number | null> {
+  try {
+    let filename = localUri.split('/').pop() || 'photo.jpg';
+    if (!/\.\w+$/.test(filename)) {
+      filename = `${filename}.jpg`;
+    }
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match
+      ? `image/${match[1].toLowerCase() === 'jpg' ? 'jpeg' : match[1].toLowerCase()}`
+      : 'image/jpeg';
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: localUri,
+      name: filename,
+      type,
+    } as any);
+
+    const uploadResponse = await fetch(`${BASE_URL}/upload`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!uploadResponse.ok) {
+      Alert.alert('Error', 'Error al subir archivo');
+      return null;
+    }
+
+    const data = await uploadResponse.json();
+    const fileId = data?.file?.id;
+    return fileId || null;
+  } catch (error: any) {
+    Alert.alert('Error', error.message);
+    return null;
+  }
+}
+
+---
+Folder: C:\Users\porma\Desktop\sisa.ui/app\components
+File: CircleImagePicker.js
+Content:
+// app/components/CircleImagePicker.js
+import React, { useState, useEffect } from 'react';
+import { 
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  Image,
+  ActivityIndicator,
+  Text
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
+import { BASE_URL } from '../config/index';
+
+/**
+ * Componente para mostrar la imagen en un cÃ­rculo. Puede ser:
+ * - SÃ³lo lectura (editable={false}), sin botÃ³n de cÃ¡mara.
+ * - Editable (editable={true}), con botÃ³n de cÃ¡mara para cambiar la imagen.
+ * 
+ * Props:
+ *  - fileId    : (opcional) ID de archivo en el servidor. Se descargarÃ¡ la imagen de /get_file?file_id=xxx
+ *  - imageUri  : (opcional) URI local (o remota) a usar directamente.
+ *  - editable  : boolean que indica si se muestra el icono de cÃ¡mara.
+ *  - onImageChange(newFileId) : callback cuando se sube con Ã©xito una imagen y se obtiene un nuevo fileId.
+ *  - size      : tamaÃ±o del cÃ­rculo (ancho/alto).
+ */
+export default function CircleImagePicker({
+  fileId = null,
+  imageUri = null,
+  editable = false,
+  size = 80,
+  onImageChange,
+  style,
+}) {
+  const [loading, setLoading] = useState(false);
+  const [internalUri, setInternalUri] = useState(null);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    if (imageUri) {
+      // Usar directamente la URI pasada
+      setInternalUri(imageUri);
+      setHasError(false);
+    } else if (fileId) {
+      // Cargar la imagen desde el servidor
+      loadFileFromServer(fileId);
+    } else {
+      // No hay imagen
+      setInternalUri(null);
+      setHasError(false);
+    }
+  }, [fileId, imageUri]);
+
+  const loadFileFromServer = async (fId) => {
+    try {
+      setLoading(true);
+      setHasError(false);
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        setHasError(true);
+        setLoading(false);
+        return;
+      }
+      const response = await fetch(`${BASE_URL}/get_file?file_id=${fId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setInternalUri(reader.result);
+          setLoading(false);
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        setHasError(true);
+        setLoading(false);
+      }
+    } catch (error) {
+      setHasError(true);
+      setLoading(false);
+    }
+  };
+
+  // Abre cÃ¡mara o galerÃ­a, sube la imagen
+  const handleSelectImage = () => {
+    Alert.alert(
+      'Seleccionar Imagen',
+      'Â¿Deseas usar la cÃ¡mara o la galerÃ­a?',
+      [
+        { text: 'CÃ¡mara', onPress: () => pickAndUpload(true) },
+        { text: 'GalerÃ­a', onPress: () => pickAndUpload(false) },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const pickAndUpload = async (fromCamera) => {
+    try {
+      setLoading(true);
+      const newUri = await pickAndProcessImage(fromCamera);
+      if (!newUri) {
+        // Usuario cancelÃ³
+        setLoading(false);
+        return;
+      }
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Error', 'No se encontrÃ³ token');
+        setLoading(false);
+        return;
+      }
+
+      // Subir la imagen
+      const newFileId = await uploadImage(newUri, token);
+      if (newFileId) {
+        setInternalUri(newUri);
+        setHasError(false);
+        if (onImageChange) {
+          onImageChange(newFileId);
+        }
+      } else {
+        Alert.alert('Error', 'No se pudo subir la imagen');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Aplicar el tamaÃ±o (width/height) dinÃ¡micamente
+  const circleStyle = {
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+  };
+
+  return (
+    <View style={[styles.container, style, circleStyle]}>
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator color="#fff" size="large" />
+        </View>
+      )}
+
+      {/* Mostrar la imagen si tenemos URI, o un placeholder azul */}
+      {internalUri && !hasError ? (
+        <Image
+          source={{ uri: internalUri }}
+          style={[styles.image, { width: size, height: size, borderRadius: size / 2 }, loading && { opacity: 0.4 }]}
+        />
+      ) : (
+        <View style={[styles.image, styles.placeholder, circleStyle]} />
+      )}
+
+      {/* BotÃ³n de cÃ¡mara si es editable */}
+      {editable && !loading && (
+        <TouchableOpacity style={styles.cameraButton} onPress={handleSelectImage}>
+          <Text style={styles.cameraIcon}>ðŸ“·</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignSelf: 'center',
+    position: 'relative',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  imageButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  loadingOverlay: {
+    position: 'absolute',
+    zIndex: 2,
   },
-  previewImage: {
-    width: 200,
-    aspectRatio: 1,
-    borderRadius: 100,
-    alignSelf: 'center',
-    marginBottom: 15,
+  image: {
+    resizeMode: 'cover',
+  },
+  placeholder: {
+    backgroundColor: 'blue',
+  },
+  cameraButton: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: '30%',
+    height: '30%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: '50%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3,
+  },
+  cameraIcon: {
+    color: '#fff',
+    fontSize: 32,
   },
 });
 
-export default EditClient;
+---
+Folder: C:\Users\porma\Desktop\sisa.ui/app\components
+File: ImageDisplay.js
+Content:
+// ImageDisplay.js
+import React from 'react';
+import { View, Image, StyleSheet } from 'react-native';
+
+const ImageDisplay = ({ imageUri, style }) => {
+  if (imageUri) {
+    return <Image source={{ uri: imageUri }} style={[styles.image, style]} />;
+  }
+  return <View style={[styles.image, styles.placeholder, style]} />;
+};
+
+const styles = StyleSheet.create({
+  image: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    resizeMode: 'cover',
+  },
+  placeholder: {
+    backgroundColor: 'blue',
+  },
+});
+
+export default ImageDisplay;
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\config
+Folder: C:\Users\porma\Desktop\sisa.ui/app\config
 File: index.js
 Content:
 export const BASE_URL = 'https://sistema.depros.com.ar';
 export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\login
+Folder: C:\Users\porma\Desktop\sisa.ui/app\login
 File: forgot-password.js
 Content:
 import React, { useState } from 'react';
@@ -1748,7 +2353,7 @@ const styles = StyleSheet.create({
 export default ForgotPassword;
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\login
+Folder: C:\Users\porma\Desktop\sisa.ui/app\login
 File: login.js
 Content:
 import React, { useState } from 'react';
@@ -1849,7 +2454,7 @@ const styles = StyleSheet.create({
 export default Login;
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\login
+Folder: C:\Users\porma\Desktop\sisa.ui/app\login
 File: register.js
 Content:
 import React, { useState } from 'react';
@@ -1864,7 +2469,15 @@ const Register = () => {
   const [email, setEmail] = useState('pormauro@gmail.com');
   const [password, setPassword] = useState('123456');
 
+  const isValidPassword = (password) => {
+    return /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password);
+  };
   const handleRegister = async () => {
+    if (!isValidPassword(password)) {
+      Alert.alert('Error', 'La contraseÃ±a debe tener al menos 8 caracteres, una mayÃºscula y un nÃºmero.');
+      return;
+    }
+    
     if (!username || !email || !password) {
       Alert.alert('Error', 'Todos los campos son requeridos');
       return;
@@ -1926,7 +2539,7 @@ const styles = StyleSheet.create({
 export default Register;
 
 ---
-Folder: C:/Users/porma/Desktop/movil/202503142041 - copia/sisa/app\utils
+Folder: C:\Users\porma\Desktop\sisa.ui/app\utils
 File: imageUtils.ts
 Content:
 // sisa/app/utils/imageUtils.ts
