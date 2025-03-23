@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // <-- IMPORTAMOS BASE_URL
 import { BASE_URL } from '../../src/config/index';
 
-const Login = () => {
+export default function Login() {
   const router = useRouter();
   const [username, setUsername] = useState('pormauro');
   const [password, setPassword] = useState('123456');
@@ -92,5 +92,3 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, justifyContent: 'center' },
   input: { borderWidth: 1, padding: 10, marginBottom: 10 },
 });
-
-export default Login;
