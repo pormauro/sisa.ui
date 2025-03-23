@@ -14,7 +14,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import ClientItem from './ClientItem';
-import { BASE_URL } from '../config/index';
+import { BASE_URL } from '../../src/config/index';
 import Fuse from 'fuse.js';
 
 export default function ClientList() {

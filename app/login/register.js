@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 // <-- IMPORTAMOS BASE_URL
-import { BASE_URL } from '../config/index';
+import { BASE_URL } from '../../src/config/index';
 
-const Register = () => {
+export default function Register () {
   const router = useRouter();
   const [username, setUsername] = useState('pormauro');
   const [email, setEmail] = useState('pormauro@gmail.com');
@@ -76,5 +76,3 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   input: { borderWidth: 1, padding: 10, marginBottom: 10 },
 });
-
-export default Register;

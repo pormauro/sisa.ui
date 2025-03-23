@@ -14,12 +14,12 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
-import { BASE_URL } from '../config/index';
+import { BASE_URL } from '../../src/config/index';
 
 // Importamos el CircleImagePicker
-import CircleImagePicker from '../components/CircleImagePicker';
+import CircleImagePicker from '../../src/components/CircleImagePicker';
 
-const EditClient = () => {
+export default function EditClient() {
   const router = useRouter();
   const route = useRoute();
   const { id } = route.params; // id del cliente
@@ -208,8 +208,6 @@ const EditClient = () => {
     </ScrollView>
   );
 };
-
-export default EditClient;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },

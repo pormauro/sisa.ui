@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 
-const Menu = () => {
+export default function Menu () {
   const router = useRouter();
 
   // Define las secciones del sistema; en este ejemplo "Perfil y Configuración" es una sola sección.
@@ -63,6 +63,3 @@ const styles = StyleSheet.create({
     fontSize: 18,
   }
 });
-
-export default Menu;
-

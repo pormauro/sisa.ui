@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { BASE_URL } from './config/index';
+import { BASE_URL } from '../src/config/index';
 
-import CircleImagePicker from './components/CircleImagePicker';
+import CircleImagePicker from '../src/components/CircleImagePicker';
 
 export default function ProfileScreen() {
   const router = useRouter();

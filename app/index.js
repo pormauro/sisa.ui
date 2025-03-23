@@ -4,12 +4,12 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import logo from '../assets/images/logo.png';
 // <-- IMPORTAMOS BASE_URL
-import { BASE_URL } from './config/index';
+import { BASE_URL } from '../src/config/index';
 
 
 
 
-const SplashScreen = () => {
+export default function SplashScreen() {
   const router = useRouter();
 
   useEffect(() => {
@@ -83,5 +83,3 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
 });
-
-export default SplashScreen;

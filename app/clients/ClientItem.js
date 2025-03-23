@@ -1,7 +1,7 @@
 // app/clients/ClientItem.js
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import CircleImagePicker from '../components/CircleImagePicker';
+import CircleImagePicker from '../../src/components/CircleImagePicker';
 
 /**
  * item: datos del cliente

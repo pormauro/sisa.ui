@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { View, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 // <-- IMPORTAMOS BASE_URL
-import { BASE_URL } from '../config/index';
+import { BASE_URL } from '../../src/config/index';
 
-const ForgotPassword = () => {
+export default function ForgotPassword() {
   const router = useRouter();
   const [email, setEmail] = useState('');
 
@@ -50,5 +50,3 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   input: { borderWidth: 1, padding: 10, marginBottom: 10 },
 });
-
-export default ForgotPassword;

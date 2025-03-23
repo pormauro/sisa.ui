@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { BASE_URL } from '../config/index';
+import { BASE_URL } from '../../src/config/index';
 
 // Importamos el nuevo recurso
-import CircleImagePicker from '../components/CircleImagePicker';
+import CircleImagePicker from '../../src/components/CircleImagePicker';
 
-const EditClient = () => {
+export default function AddClient() {
   const router = useRouter();
   const [form, setForm] = useState({
     business_name: '',
@@ -113,8 +113,6 @@ const EditClient = () => {
     </ScrollView>
   );
 };
-
-export default EditClient;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },

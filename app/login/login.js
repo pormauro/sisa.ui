@@ -3,7 +3,7 @@ import { View, TextInput, Button, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // <-- IMPORTAMOS BASE_URL
-import { BASE_URL } from '../config/index';
+import { BASE_URL } from '../../src/config/index';
 
 const Login = () => {
   const router = useRouter();

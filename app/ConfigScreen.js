@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { BASE_URL } from './config/index';
+import { BASE_URL } from '../src/config/index';
 
 export default function ConfigScreen() {
   const router = useRouter();
