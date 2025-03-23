@@ -4,18 +4,26 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Platform,
   UIManager,
   LayoutAnimation,
   TextInput,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import ClientItem from './ClientItem';
-import { BASE_URL } from '../../src/config/index';
 import Fuse from 'fuse.js';
+
+// Importar funciones de la BD local y sincronización
+import { 
+  getAllClientsLocal, 
+  deleteClientLocal, 
+  createLocalClientsTable, 
+  syncFromServer 
+} from '../../src/database/clientsLocalDB';
+
+// Importar la función para registrar errores en el log interno
+import { logErrorToLocal } from '../../src/database/errorLogger';
 
 export default function ClientList() {
   const router = useRouter();
@@ -23,7 +31,7 @@ export default function ClientList() {
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  // Estado para almacenar el id del item actualmente expandido (null si ninguno)
+  // Almacena el id del item actualmente expandido (null si ninguno)
   const [expandedItemId, setExpandedItemId] = useState(null);
 
   // Activar animaciones en Android
@@ -34,30 +42,31 @@ export default function ClientList() {
     }
   }, []);
 
-  // Cargar clientes desde la API
+  // Consulta primero la BD local y luego intenta actualizarla desde el servidor.
   const loadClients = async () => {
     setLoading(true);
-    const token = await AsyncStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     try {
-      const response = await fetch(`${BASE_URL}/clients`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const allClients = data.clients || data;
-        setClients(allClients);
-        setFilteredClients(allClients);
-      } else {
-        Alert.alert('Error', 'No se pudieron obtener los clientes');
-      }
+      await createLocalClientsTable();
+      const localClients = await getAllClientsLocal();
+      setClients(localClients);
+      setFilteredClients(localClients);
     } catch (error) {
-      Alert.alert('Error', error.message);
+      await logErrorToLocal(error);
     } finally {
       setLoading(false);
+      updateClients();
+    }
+  };
+
+  // Actualiza los datos consultando el servidor.
+  const updateClients = async () => {
+    try {
+      await syncFromServer();
+      const updatedClients = await getAllClientsLocal();
+      setClients(updatedClients);
+      setFilteredClients(updatedClients);
+    } catch (error) {
+      await logErrorToLocal(error);
     }
   };
 
@@ -73,7 +82,7 @@ export default function ClientList() {
     }
     const options = {
       keys: ['business_name', 'tax_id', 'email', 'address', 'phone'],
-      threshold: 0.4, // Ajusta la sensibilidad de la búsqueda
+      threshold: 0.4,
       includeScore: true,
     };
     const fuse = new Fuse(clients, options);
@@ -83,25 +92,18 @@ export default function ClientList() {
   }, [searchQuery, clients]);
 
   const handleDelete = async (clientId) => {
-    const token = await AsyncStorage.getItem('token');
-    if (!token) return;
     try {
-      const response = await fetch(`${BASE_URL}/clients/${clientId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        Alert.alert('Cliente eliminado');
+      const result = await deleteClientLocal(clientId);
+      if (result > 0) {
         loadClients();
         if (expandedItemId === clientId) {
           setExpandedItemId(null);
         }
       } else {
-        const errData = await response.json();
-        Alert.alert('Error', errData.error || 'Error eliminando el cliente');
+        await logErrorToLocal(new Error('No se pudo eliminar el cliente'));
       }
     } catch (error) {
-      Alert.alert('Error', error.message);
+      await logErrorToLocal(error);
     }
   };
 
@@ -151,7 +153,7 @@ export default function ClientList() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    width: '100%',  // Se ocupa todo el ancho de la pantalla
+    width: '100%',
     backgroundColor: '#fff',
   },
   searchInput: {

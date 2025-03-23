@@ -7,7 +7,7 @@ export default function Menu () {
 
   // Define las secciones del sistema; en este ejemplo "Perfil y Configuración" es una sola sección.
   const menuItems = [
-    { title: 'Dashboard', route: './dashboard' },
+    { title: 'Errors', route: './ErrorLogsList' },
     { title: 'Clientes', route: './clients/ClientsScreen' },
     { title: 'Productos / Servicios', route: './products' },
     { title: 'Carpetas', route: './folders' },
