@@ -28,7 +28,7 @@ export default function AddClient() {
     address: '',
   });
 
-  // Callback al actualizar la imagen (nueva fileId)
+  // Callback al actualizar la imagen (nueva fileId)  
   const handleImageUpdate = (newFileId) => {
     setForm({ ...form, brand_file_id: newFileId });
   };
