@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import ClientList from './clientList';
 import { useRouter } from 'expo-router';
 
 export default function ClientsScreen() {
+  const [selectedClient, setSelectedClient] = useState(null);
   const router = useRouter();
+
+  //console.log(selectedClient.id);
 
   const handleAddClient = () => {
     router.push('./AddClient');
@@ -13,7 +16,7 @@ export default function ClientsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Lista de Clientes</Text>
-      <ClientList />
+      <ClientList onSelectedClient={setSelectedClient} />
       <TouchableOpacity style={styles.floatingButton} onPress={handleAddClient}>
         <Text style={styles.floatingButtonText}>+</Text>
       </TouchableOpacity>
