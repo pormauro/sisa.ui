@@ -1,4 +1,4 @@
-// app/clients/AddClient.js
+// app/cash_boxes/AddCashBox.js
 import React, { useState } from 'react';
 import {
   View,
@@ -13,33 +13,25 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { BASE_URL } from '../../src/config/index';
-
-// Importamos el nuevo recurso
 import CircleImagePicker from '../../src/components/CircleImagePicker';
 
-export default function AddClient() {
+export default function AddCashBox() {
   const router = useRouter();
   const [form, setForm] = useState({
-    business_name: '',
-    tax_id: '',
-    email: '',
-    brand_file_id: null,
-    phone: '',
-    address: '',
+    name: '',
+    image_file_id: null,
   });
 
-  // Callback al actualizar la imagen (nueva fileId)  
   const handleImageUpdate = (newFileId) => {
-    setForm({ ...form, brand_file_id: newFileId });
+    setForm({ ...form, image_file_id: newFileId });
   };
 
-  // Crear un nuevo cliente (POST)
   const handleSave = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`${BASE_URL}/clients`, {
+      const response = await fetch(`${BASE_URL}/cash_boxes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +41,7 @@ export default function AddClient() {
       });
 
       if (response.ok) {
-        Alert.alert('Éxito', 'Cliente creado');
+        Alert.alert('Éxito', 'Caja de dinero creada');
         router.back();
       } else {
         const errData = await response.json();
@@ -62,10 +54,10 @@ export default function AddClient() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Agregar Cliente</Text>
+      <Text style={styles.title}>Agregar Caja de Dinero</Text>
 
       <CircleImagePicker
-        fileId={form.brand_file_id}
+        fileId={form.image_file_id}
         onImageChange={handleImageUpdate}
         editable={true}
         size={200}
@@ -73,36 +65,9 @@ export default function AddClient() {
 
       <TextInput
         style={styles.input}
-        placeholder="Razón Social"
-        value={form.business_name}
-        onChangeText={(text) => setForm({ ...form, business_name: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="CUIT / Tax ID"
-        value={form.tax_id}
-        keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, tax_id: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={form.email}
-        keyboardType="email-address"
-        onChangeText={(text) => setForm({ ...form, email: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Teléfono"
-        value={form.phone}
-        keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, phone: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Dirección"
-        value={form.address}
-        onChangeText={(text) => setForm({ ...form, address: text })}
+        placeholder="Nombre de la caja"
+        value={form.name}
+        onChangeText={(text) => setForm({ ...form, name: text })}
       />
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
@@ -112,7 +77,7 @@ export default function AddClient() {
       <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },

@@ -1,4 +1,4 @@
-// app/clients/editClient.js
+// app/cash_boxes/EditCashBox.js
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -15,49 +15,37 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
 import { BASE_URL } from '../../src/config/index';
-
-// Importamos el CircleImagePicker
 import CircleImagePicker from '../../src/components/CircleImagePicker';
 
-export default function EditClient() {
+export default function EditCashBox() {
   const router = useRouter();
   const route = useRoute();
-  const { id } = route.params; // id del cliente
+  const { id } = route.params; // ID de la caja
 
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    business_name: '',
-    tax_id: '',
-    email: '',
-    brand_file_id: null,
-    phone: '',
-    address: '',
+    name: '',
+    image_file_id: null,
   });
 
-  // Cargar datos del cliente en modo edición
-  const loadClient = async () => {
+  const loadCashBox = async () => {
     if (!id) return;
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
-
-      const response = await fetch(`${BASE_URL}/clients/${id}`, {
+      const response = await fetch(`${BASE_URL}/cash_boxes/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        const client = data.client;
+        const cashBox = data.cash_box;
         setForm({
-          business_name: client.business_name || '',
-          tax_id: client.tax_id || '',
-          email: client.email || '',
-          brand_file_id: client.brand_file_id,
-          phone: client.phone || '',
-          address: client.address || '',
+          name: cashBox.name || '',
+          image_file_id: cashBox.image_file_id,
         });
       } else {
-        Alert.alert('Error', 'No se pudo obtener la información del cliente');
+        Alert.alert('Error', 'No se pudo obtener la información de la caja');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -67,28 +55,21 @@ export default function EditClient() {
   };
 
   useEffect(() => {
-    if (id) {
-      loadClient();
-    }
+    if (id) loadCashBox();
   }, [id]);
 
-  // Callback cuando se suba una nueva imagen
   const handleImageUpdate = (newFileId) => {
-    // Actualizamos el brand_file_id en nuestro formulario
-    setForm({ ...form, brand_file_id: newFileId });
+    setForm({ ...form, image_file_id: newFileId });
   };
 
-  // Guardar cambios
   const handleSave = async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) return;
 
-    const url = id ? `${BASE_URL}/clients/${id}` : `${BASE_URL}/clients`;
-    const method = id ? 'PUT' : 'POST';
-
+    const url = `${BASE_URL}/cash_boxes/${id}`;
     try {
       const response = await fetch(url, {
-        method,
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -96,7 +77,7 @@ export default function EditClient() {
         body: JSON.stringify(form),
       });
       if (response.ok) {
-        Alert.alert('Éxito', id ? 'Cliente actualizado' : 'Cliente creado');
+        Alert.alert('Éxito', 'Caja actualizada');
         router.back();
       } else {
         const errData = await response.json();
@@ -107,12 +88,11 @@ export default function EditClient() {
     }
   };
 
-  // Eliminar cliente
   const handleDelete = async () => {
     if (!id) return;
     Alert.alert(
       'Confirmar',
-      '¿Estás seguro de eliminar este cliente?',
+      '¿Estás seguro de eliminar esta caja?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -122,16 +102,16 @@ export default function EditClient() {
             try {
               const token = await AsyncStorage.getItem('token');
               if (!token) return;
-              const response = await fetch(`${BASE_URL}/clients/${id}`, {
+              const response = await fetch(`${BASE_URL}/cash_boxes/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
               });
               if (response.ok) {
-                Alert.alert('Éxito', 'Cliente eliminado');
+                Alert.alert('Éxito', 'Caja eliminada');
                 router.back();
               } else {
                 const errData = await response.json();
-                Alert.alert('Error', errData.error || 'Error eliminando el cliente');
+                Alert.alert('Error', errData.error || 'Error eliminando la caja');
               }
             } catch (error) {
               Alert.alert('Error', error.message);
@@ -152,11 +132,10 @@ export default function EditClient() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>{id ? 'Editar Cliente' : 'Agregar Cliente'}</Text>
+      <Text style={styles.title}>Editar Caja de Dinero</Text>
 
-      {/* USO de CircleImagePicker con tamaño 120 y editable */}
       <CircleImagePicker
-        fileId={form.brand_file_id}
+        fileId={form.image_file_id}
         size={200}
         editable={true}
         onImageChange={handleImageUpdate}
@@ -164,50 +143,21 @@ export default function EditClient() {
 
       <TextInput
         style={styles.input}
-        placeholder="Razón Social"
-        value={form.business_name}
-        onChangeText={(text) => setForm({ ...form, business_name: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="CUIT / Tax ID"
-        value={form.tax_id}
-        keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, tax_id: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        value={form.email}
-        keyboardType="email-address"
-        onChangeText={(text) => setForm({ ...form, email: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Teléfono"
-        value={form.phone}
-        keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, phone: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Dirección"
-        value={form.address}
-        onChangeText={(text) => setForm({ ...form, address: text })}
+        placeholder="Nombre de la caja"
+        value={form.name}
+        onChangeText={(text) => setForm({ ...form, name: text })}
       />
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>{id ? 'Actualizar' : 'Crear'}</Text>
+        <Text style={styles.saveButtonText}>Actualizar</Text>
       </TouchableOpacity>
-      {id && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteButtonText}>Eliminar Cliente</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+        <Text style={styles.deleteButtonText}>Eliminar Caja</Text>
+      </TouchableOpacity>
       <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },

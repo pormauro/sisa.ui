@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router';
 import ClientItem from './ClientItem';
 import Fuse from 'fuse.js';
 
+<<<<<<< HEAD
 // Importar funciones de la BD local y sincronización
 import { 
   getAllClientsLocal, 
@@ -26,6 +27,9 @@ import {
 import { logErrorToLocal } from '../../src/database/errorLogger';
 
 export default function ClientList() {
+=======
+export default function ClientList({ onSelectedClient }) {
+>>>>>>> nueva-rama
   const router = useRouter();
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
@@ -33,6 +37,14 @@ export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   // Almacena el id del item actualmente expandido (null si ninguno)
   const [expandedItemId, setExpandedItemId] = useState(null);
+
+// Propagar el cliente seleccionado al componente contenedor
+useEffect(() => {
+  if (onSelectedClient) {
+    const selectedClient = clients.find(client => client.id === expandedItemId);
+    onSelectedClient(selectedClient || null);
+  }
+}, [expandedItemId, clients]);
 
   // Activar animaciones en Android
   useEffect(() => {
@@ -168,5 +180,10 @@ const styles = StyleSheet.create({
   },
   loader: { 
     marginTop: 20,
+  },
+  selectedClientText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginVertical: 10,
   },
 });

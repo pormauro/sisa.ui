@@ -1,23 +1,21 @@
-import React, { useState } from 'react';
+// app/cash_boxes/CashBoxesScreen.js
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import ClientList from './ClientList';
 import { useRouter } from 'expo-router';
+import CashBoxesList from './CashBoxesList';
 
-export default function ClientsScreen() {
-  const [selectedClient, setSelectedClient] = useState(null);
+export default function CashBoxesScreen() {
   const router = useRouter();
 
-  //console.log(selectedClient.id);
-
-  const handleAddClient = () => {
-    router.push('./AddClient');
+  const handleAddCashBox = () => {
+    router.push('./AddCashBox');
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Lista de Clientes</Text>
-      <ClientList onSelectedClient={setSelectedClient} />
-      <TouchableOpacity style={styles.floatingButton} onPress={handleAddClient}>
+      <Text style={styles.title}>Cajas de Dinero</Text>
+      <CashBoxesList />
+      <TouchableOpacity style={styles.floatingButton} onPress={handleAddCashBox}>
         <Text style={styles.floatingButtonText}>+</Text>
       </TouchableOpacity>
     </View>
@@ -34,7 +32,7 @@ const styles = StyleSheet.create({
     fontSize: 24, 
     fontWeight: 'bold', 
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   floatingButton: {
     position: 'absolute',
@@ -46,7 +44,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    // Sombra para Android e iOS
     elevation: 5,
     shadowColor: '#000',
     shadowOpacity: 0.3,
@@ -56,6 +53,6 @@ const styles = StyleSheet.create({
   floatingButtonText: {
     fontSize: 30,
     color: '#fff',
-    marginTop: -4, // Ajuste fino para centrar el '+'
+    marginTop: -4,
   },
 });

@@ -1,5 +1,6 @@
-// app/clients/editClient.js
+// app/products_services/EditProductService.js
 import React, { useEffect, useState } from 'react';
+import { Picker } from '@react-native-picker/picker';
 import {
   View,
   Text,
@@ -15,49 +16,49 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useRoute } from '@react-navigation/native';
 import { BASE_URL } from '../../src/config/index';
-
-// Importamos el CircleImagePicker
 import CircleImagePicker from '../../src/components/CircleImagePicker';
 
-export default function EditClient() {
+export default function EditProductService() {
   const router = useRouter();
   const route = useRoute();
-  const { id } = route.params; // id del cliente
+  const { id } = route.params; // ID del producto/servicio
 
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    business_name: '',
-    tax_id: '',
-    email: '',
-    brand_file_id: null,
-    phone: '',
-    address: '',
+    description: '',
+    category: '',
+    price: '',
+    cost: '',
+    difficulty: '',
+    item_type: '',
+    stock: '',
+    product_image_file_id: null,
   });
 
-  // Cargar datos del cliente en modo edición
-  const loadClient = async () => {
+  const loadProductService = async () => {
     if (!id) return;
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
       if (!token) return;
-
-      const response = await fetch(`${BASE_URL}/clients/${id}`, {
+      const response = await fetch(`${BASE_URL}/products_services/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        const client = data.client;
+        const productService = data.product_service;
         setForm({
-          business_name: client.business_name || '',
-          tax_id: client.tax_id || '',
-          email: client.email || '',
-          brand_file_id: client.brand_file_id,
-          phone: client.phone || '',
-          address: client.address || '',
+          description: productService.description || '',
+          category: productService.category || '',
+          price: productService.price ? productService.price.toString() : '',
+          cost: productService.cost ? productService.cost.toString() : '',
+          difficulty: productService.difficulty || '',
+          item_type: productService.item_type || '',
+          stock: productService.stock ? productService.stock.toString() : '0',
+          product_image_file_id: productService.product_image_file_id,
         });
       } else {
-        Alert.alert('Error', 'No se pudo obtener la información del cliente');
+        Alert.alert('Error', 'No se pudo obtener la información del producto/servicio');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -67,36 +68,36 @@ export default function EditClient() {
   };
 
   useEffect(() => {
-    if (id) {
-      loadClient();
-    }
+    if (id) loadProductService();
   }, [id]);
 
-  // Callback cuando se suba una nueva imagen
   const handleImageUpdate = (newFileId) => {
-    // Actualizamos el brand_file_id en nuestro formulario
-    setForm({ ...form, brand_file_id: newFileId });
+    setForm({ ...form, product_image_file_id: newFileId });
   };
 
-  // Guardar cambios
   const handleSave = async () => {
     const token = await AsyncStorage.getItem('token');
     if (!token) return;
-
-    const url = id ? `${BASE_URL}/clients/${id}` : `${BASE_URL}/clients`;
-    const method = id ? 'PUT' : 'POST';
-
+    const url = `${BASE_URL}/products_services/${id}`;
     try {
+      // Convertir price, cost y stock a números
+      const payload = {
+        ...form,
+        price: parseFloat(form.price),
+        cost: form.cost ? parseFloat(form.cost) : null,
+        stock: parseInt(form.stock, 10),
+      };
+
       const response = await fetch(url, {
-        method,
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       if (response.ok) {
-        Alert.alert('Éxito', id ? 'Cliente actualizado' : 'Cliente creado');
+        Alert.alert('Éxito', 'Producto/Servicio actualizado');
         router.back();
       } else {
         const errData = await response.json();
@@ -107,12 +108,11 @@ export default function EditClient() {
     }
   };
 
-  // Eliminar cliente
   const handleDelete = async () => {
     if (!id) return;
     Alert.alert(
       'Confirmar',
-      '¿Estás seguro de eliminar este cliente?',
+      '¿Estás seguro de eliminar este producto/servicio?',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -122,16 +122,16 @@ export default function EditClient() {
             try {
               const token = await AsyncStorage.getItem('token');
               if (!token) return;
-              const response = await fetch(`${BASE_URL}/clients/${id}`, {
+              const response = await fetch(`${BASE_URL}/products_services/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
               });
               if (response.ok) {
-                Alert.alert('Éxito', 'Cliente eliminado');
+                Alert.alert('Éxito', 'Producto/Servicio eliminado');
                 router.back();
               } else {
                 const errData = await response.json();
-                Alert.alert('Error', errData.error || 'Error eliminando el cliente');
+                Alert.alert('Error', errData.error || 'Error eliminando');
               }
             } catch (error) {
               Alert.alert('Error', error.message);
@@ -152,11 +152,10 @@ export default function EditClient() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>{id ? 'Editar Cliente' : 'Agregar Cliente'}</Text>
+      <Text style={styles.title}>Editar Producto/Servicio</Text>
 
-      {/* USO de CircleImagePicker con tamaño 120 y editable */}
       <CircleImagePicker
-        fileId={form.brand_file_id}
+        fileId={form.product_image_file_id}
         size={200}
         editable={true}
         onImageChange={handleImageUpdate}
@@ -164,50 +163,63 @@ export default function EditClient() {
 
       <TextInput
         style={styles.input}
-        placeholder="Razón Social"
-        value={form.business_name}
-        onChangeText={(text) => setForm({ ...form, business_name: text })}
+        placeholder="Descripción"
+        value={form.description}
+        onChangeText={(text) => setForm({ ...form, description: text })}
       />
       <TextInput
         style={styles.input}
-        placeholder="CUIT / Tax ID"
-        value={form.tax_id}
+        placeholder="Categoría"
+        value={form.category}
+        onChangeText={(text) => setForm({ ...form, category: text })}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Precio"
+        value={form.price}
         keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, tax_id: text })}
+        onChangeText={(text) => setForm({ ...form, price: text })}
       />
       <TextInput
         style={styles.input}
-        placeholder="Email"
-        value={form.email}
-        keyboardType="email-address"
-        onChangeText={(text) => setForm({ ...form, email: text })}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Teléfono"
-        value={form.phone}
+        placeholder="Costo"
+        value={form.cost}
         keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, phone: text })}
+        onChangeText={(text) => setForm({ ...form, cost: text })}
       />
       <TextInput
         style={styles.input}
-        placeholder="Dirección"
-        value={form.address}
-        onChangeText={(text) => setForm({ ...form, address: text })}
+        placeholder="Dificultad"
+        value={form.difficulty}
+        onChangeText={(text) => setForm({ ...form, difficulty: text })}
+      />
+        <Text style={styles.label}>Tipo</Text>
+        <Picker
+        selectedValue={form.item_type}
+        style={styles.picker}
+        onValueChange={(itemValue) => setForm({ ...form, item_type: itemValue })}
+        >
+        <Picker.Item label="Producto" value="product" />
+        <Picker.Item label="Servicio" value="service" />
+        </Picker>
+      <TextInput
+        style={styles.input}
+        placeholder="Stock"
+        value={form.stock}
+        keyboardType="numeric"
+        onChangeText={(text) => setForm({ ...form, stock: text })}
       />
 
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-        <Text style={styles.saveButtonText}>{id ? 'Actualizar' : 'Crear'}</Text>
+        <Text style={styles.saveButtonText}>Actualizar</Text>
       </TouchableOpacity>
-      {id && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Text style={styles.deleteButtonText}>Eliminar Cliente</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+        <Text style={styles.deleteButtonText}>Eliminar Producto/Servicio</Text>
+      </TouchableOpacity>
       <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#fff' },
@@ -229,7 +241,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#007BFF',
     padding: 15,
     borderRadius: 10,
-    marginBottom: 10,
+    marginVertical: 10,
     alignItems: 'center',
   },
   saveButtonText: {
@@ -241,7 +253,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3333',
     padding: 15,
     borderRadius: 10,
-    marginBottom: 10,
+    marginVertical: 10,
     alignItems: 'center',
   },
   deleteButtonText: {
