@@ -97,7 +97,7 @@ export default function EditClient() {
       });
       if (response.ok) {
         Alert.alert('Éxito', id ? 'Cliente actualizado' : 'Cliente creado');
-        router.push('./ClientsScreen');
+        router.back();
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error al guardar');
@@ -128,7 +128,7 @@ export default function EditClient() {
               });
               if (response.ok) {
                 Alert.alert('Éxito', 'Cliente eliminado');
-                router.push('./ClientsScreen');
+                router.back();
               } else {
                 const errData = await response.json();
                 Alert.alert('Error', errData.error || 'Error eliminando el cliente');
@@ -204,7 +204,7 @@ export default function EditClient() {
           <Text style={styles.deleteButtonText}>Eliminar Cliente</Text>
         </TouchableOpacity>
       )}
-      <Button title="Cancelar" onPress={() => router.push('./ClientsScreen')} />
+      <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
 };

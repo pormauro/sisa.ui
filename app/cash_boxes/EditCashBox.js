@@ -78,7 +78,7 @@ export default function EditCashBox() {
       });
       if (response.ok) {
         Alert.alert('Éxito', 'Caja actualizada');
-        router.push('./CashBoxesScreen');
+        router.back();
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error al guardar');
@@ -108,7 +108,7 @@ export default function EditCashBox() {
               });
               if (response.ok) {
                 Alert.alert('Éxito', 'Caja eliminada');
-                router.push('./CashBoxesScreen');
+                router.back();
               } else {
                 const errData = await response.json();
                 Alert.alert('Error', errData.error || 'Error eliminando la caja');
@@ -154,7 +154,7 @@ export default function EditCashBox() {
       <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
         <Text style={styles.deleteButtonText}>Eliminar Caja</Text>
       </TouchableOpacity>
-      <Button title="Cancelar" onPress={() => router.push('./CashBoxesScreen')} />
+      <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
 }

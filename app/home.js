@@ -10,7 +10,7 @@ export default function Menu () {
     { title: 'Dashboard', route: './dashboard' },
     { title: 'Clientes', route: './clients/ClientsScreen' },
     { title: 'Productos / Servicios', route: './products_services/ProductsServicesScreen' },
-    { title: 'Carpetas', route: './folders' },
+    { title: 'Carpetas', route: './folders/FolderExplorer' },
     { title: 'Trabajos', route: './jobs' },
     { title: 'Ventas', route: './sales' },
     { title: 'Gastos', route: './expenses' },

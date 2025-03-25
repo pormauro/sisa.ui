@@ -28,7 +28,7 @@ export default function AddClient() {
     address: '',
   });
 
-  // Callback al actualizar la imagen (nueva fileId)
+  // Callback al actualizar la imagen (nueva fileId)  
   const handleImageUpdate = (newFileId) => {
     setForm({ ...form, brand_file_id: newFileId });
   };
@@ -50,7 +50,7 @@ export default function AddClient() {
 
       if (response.ok) {
         Alert.alert('Éxito', 'Cliente creado');
-        router.push('./ClientsScreen');
+        router.back();
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error al guardar');
@@ -109,7 +109,7 @@ export default function AddClient() {
         <Text style={styles.saveButtonText}>Crear</Text>
       </TouchableOpacity>
 
-      <Button title="Cancelar" onPress={() => router.push('./ClientsScreen')} />
+      <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
 };

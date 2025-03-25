@@ -57,7 +57,7 @@ export default function AddProductService() {
 
       if (response.ok) {
         Alert.alert('Éxito', 'Producto/Servicio creado');
-        router.push('./ProductsServicesScreen');
+        router.back();
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error al guardar');
@@ -131,7 +131,7 @@ export default function AddProductService() {
         <Text style={styles.saveButtonText}>Crear</Text>
       </TouchableOpacity>
 
-      <Button title="Cancelar" onPress={() => router.push('./ProductsServicesScreen')} />
+      <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
 }

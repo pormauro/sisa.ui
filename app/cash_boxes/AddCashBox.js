@@ -42,7 +42,7 @@ export default function AddCashBox() {
 
       if (response.ok) {
         Alert.alert('Éxito', 'Caja de dinero creada');
-        router.push('./CashBoxesScreen');
+        router.back();
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error al guardar');
@@ -74,7 +74,7 @@ export default function AddCashBox() {
         <Text style={styles.saveButtonText}>Crear</Text>
       </TouchableOpacity>
 
-      <Button title="Cancelar" onPress={() => router.push('./CashBoxesScreen')} />
+      <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
 }

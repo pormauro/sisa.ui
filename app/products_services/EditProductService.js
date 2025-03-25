@@ -98,7 +98,7 @@ export default function EditProductService() {
       });
       if (response.ok) {
         Alert.alert('Éxito', 'Producto/Servicio actualizado');
-        router.push('./ProductsServicesScreen');
+        router.back();
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error al guardar');
@@ -128,7 +128,7 @@ export default function EditProductService() {
               });
               if (response.ok) {
                 Alert.alert('Éxito', 'Producto/Servicio eliminado');
-                router.push('./ProductsServicesScreen');
+                router.back();
               } else {
                 const errData = await response.json();
                 Alert.alert('Error', errData.error || 'Error eliminando');
@@ -216,7 +216,7 @@ export default function EditProductService() {
       <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
         <Text style={styles.deleteButtonText}>Eliminar Producto/Servicio</Text>
       </TouchableOpacity>
-      <Button title="Cancelar" onPress={() => router.push('./ProductsServicesScreen')} />
+      <Button title="Cancelar" onPress={() => router.back()} />
     </ScrollView>
   );
 }

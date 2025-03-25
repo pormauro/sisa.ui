@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import ClientList from './clientList';
+import ClientList from './ClientList';
 import { useRouter } from 'expo-router';
 
 export default function ClientsScreen() {
