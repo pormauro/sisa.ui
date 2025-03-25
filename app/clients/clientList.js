@@ -4,38 +4,26 @@ import {
   Text,
   FlatList,
   StyleSheet,
+  Alert,
   ActivityIndicator,
   Platform,
   UIManager,
   LayoutAnimation,
   TextInput,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import ClientItem from './ClientItem';
+import { BASE_URL } from '../../src/config/index';
 import Fuse from 'fuse.js';
 
-<<<<<<< HEAD
-// Importar funciones de la BD local y sincronización
-import { 
-  getAllClientsLocal, 
-  deleteClientLocal, 
-  createLocalClientsTable, 
-  syncFromServer 
-} from '../../src/database/clientsLocalDB';
-
-// Importar la función para registrar errores en el log interno
-import { logErrorToLocal } from '../../src/database/errorLogger';
-
-export default function ClientList() {
-=======
 export default function ClientList({ onSelectedClient }) {
->>>>>>> nueva-rama
   const router = useRouter();
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  // Almacena el id del item actualmente expandido (null si ninguno)
+  // Estado para almacenar el id del item actualmente expandido (null si ninguno)
   const [expandedItemId, setExpandedItemId] = useState(null);
 
 // Propagar el cliente seleccionado al componente contenedor
@@ -54,31 +42,30 @@ useEffect(() => {
     }
   }, []);
 
-  // Consulta primero la BD local y luego intenta actualizarla desde el servidor.
+  // Cargar clientes desde la API
   const loadClients = async () => {
     setLoading(true);
+    const token = await AsyncStorage.getItem('token');
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
-      await createLocalClientsTable();
-      const localClients = await getAllClientsLocal();
-      setClients(localClients);
-      setFilteredClients(localClients);
+      const response = await fetch(`${BASE_URL}/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const allClients = data.clients || data;
+        setClients(allClients);
+        setFilteredClients(allClients);
+      } else {
+        Alert.alert('Error', 'No se pudieron obtener los clientes');
+      }
     } catch (error) {
-      await logErrorToLocal(error);
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
-      updateClients();
-    }
-  };
-
-  // Actualiza los datos consultando el servidor.
-  const updateClients = async () => {
-    try {
-      await syncFromServer();
-      const updatedClients = await getAllClientsLocal();
-      setClients(updatedClients);
-      setFilteredClients(updatedClients);
-    } catch (error) {
-      await logErrorToLocal(error);
     }
   };
 
@@ -94,7 +81,7 @@ useEffect(() => {
     }
     const options = {
       keys: ['business_name', 'tax_id', 'email', 'address', 'phone'],
-      threshold: 0.4,
+      threshold: 0.4, // Ajusta la sensibilidad de la búsqueda
       includeScore: true,
     };
     const fuse = new Fuse(clients, options);
@@ -104,18 +91,25 @@ useEffect(() => {
   }, [searchQuery, clients]);
 
   const handleDelete = async (clientId) => {
+    const token = await AsyncStorage.getItem('token');
+    if (!token) return;
     try {
-      const result = await deleteClientLocal(clientId);
-      if (result > 0) {
+      const response = await fetch(`${BASE_URL}/clients/${clientId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        Alert.alert('Cliente eliminado');
         loadClients();
         if (expandedItemId === clientId) {
           setExpandedItemId(null);
         }
       } else {
-        await logErrorToLocal(new Error('No se pudo eliminar el cliente'));
+        const errData = await response.json();
+        Alert.alert('Error', errData.error || 'Error eliminando el cliente');
       }
     } catch (error) {
-      await logErrorToLocal(error);
+      Alert.alert('Error', error.message);
     }
   };
 
@@ -165,7 +159,7 @@ useEffect(() => {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    width: '100%',
+    width: '100%',  // Se ocupa todo el ancho de la pantalla
     backgroundColor: '#fff',
   },
   searchInput: {
