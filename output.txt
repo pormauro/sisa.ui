@@ -1,4 +1,40 @@
 Folder: C:\Users\porma\Desktop\sisa.ui\app
+File: .index.js
+Content:
+// App.js
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { UserProvider } from './UserContext';
+import UserProfile from './UserProfile';
+
+const App = () => {
+  return (
+    <UserProvider>
+      <View style={styles.container}>
+        <Text style={styles.title}>React Native useContext Example</Text>
+        <UserProfile />
+      </View>
+    </UserProvider>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  title: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginBottom: 20 
+  },
+});
+
+export default App;
+
+---
+Folder: C:\Users\porma\Desktop\sisa.ui\app
 File: ConfigScreen.js
 Content:
 // app/config.js (o app/config/index.js)
@@ -2803,6 +2839,48 @@ const styles = StyleSheet.create({
 });
 
 ---
+Folder: C:\Users\porma\Desktop\sisa.ui\app
+File: UserProfile.js
+Content:
+// UserProfile.js
+import React, { useContext } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import { UserContext } from './UserContext';
+
+const UserProfile = () => {
+  const { user, setUser } = useContext(UserContext);
+
+  // FunciÃ³n para actualizar la informaciÃ³n del usuario
+  const updateUser = () => {
+    setUser({
+      id: 2,
+      username: 'jane_doe',
+      email: 'jane@example.com',
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>Username: {user.username}</Text>
+      <Text style={styles.label}>Email: {user.email}</Text>
+      <Button title="Update User" onPress={updateUser} />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: { 
+    alignItems: 'center' 
+  },
+  label: { 
+    fontSize: 16, 
+    marginBottom: 10 
+  },
+});
+
+export default UserProfile;
+
+---
 Folder: C:\Users\porma\Desktop\sisa.ui\app\clients
 File: AddClient.js
 Content:
@@ -3091,7 +3169,7 @@ import ClientItem from './ClientItem';
 import { BASE_URL } from '../../src/config/index';
 import Fuse from 'fuse.js';
 
-export default function ClientList() {
+export default function ClientList({ onSelectedClient }) {
   const router = useRouter();
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
@@ -3099,6 +3177,14 @@ export default function ClientList() {
   const [searchQuery, setSearchQuery] = useState('');
   // Estado para almacenar el id del item actualmente expandido (null si ninguno)
   const [expandedItemId, setExpandedItemId] = useState(null);
+
+// Propagar el cliente seleccionado al componente contenedor
+useEffect(() => {
+  if (onSelectedClient) {
+    const selectedClient = clients.find(client => client.id === expandedItemId);
+    onSelectedClient(selectedClient || null);
+  }
+}, [expandedItemId, clients]);
 
   // Activar animaciones en Android
   useEffect(() => {
@@ -3241,19 +3327,27 @@ const styles = StyleSheet.create({
   loader: { 
     marginTop: 20,
   },
+  selectedClientText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginVertical: 10,
+  },
 });
 
 ---
 Folder: C:\Users\porma\Desktop\sisa.ui\app\clients
 File: ClientsScreen.js
 Content:
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import ClientList from './clientList';
 import { useRouter } from 'expo-router';
 
 export default function ClientsScreen() {
+  const [selectedClient, setSelectedClient] = useState(null);
   const router = useRouter();
+
+  //console.log(selectedClient.id);
 
   const handleAddClient = () => {
     router.push('./AddClient');
@@ -3262,7 +3356,7 @@ export default function ClientsScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Lista de Clientes</Text>
-      <ClientList />
+      <ClientList onSelectedClient={setSelectedClient} />
       <TouchableOpacity style={styles.floatingButton} onPress={handleAddClient}>
         <Text style={styles.floatingButtonText}>+</Text>
       </TouchableOpacity>
@@ -4211,6 +4305,53 @@ File: index.js
 Content:
 export const BASE_URL = 'https://sistema.depros.com.ar';
 export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1 MB
+---
+Folder: C:\Users\porma\Desktop\sisa.ui\src\contexts
+File: AppContext.js
+Content:
+// AppContext.js
+import React, { createContext } from 'react';
+import { BASE_URL } from '../config/index';
+
+export const AppContext = createContext({
+  baseUrl: BASE_URL,
+});
+
+export const AppProvider = ({ children }) => {
+  const contextValue = { baseUrl: BASE_URL };
+
+  return (
+    <AppContext.Provider value={contextValue}>
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+---
+Folder: C:\Users\porma\Desktop\sisa.ui\src\contexts
+File: UserContext.js
+Content:
+// UserContext.js
+import React, { createContext, useState } from 'react';
+
+// Creamos el contexto con un valor inicial null
+export const UserContext = createContext(null);
+
+// Creamos el proveedor para envolver la aplicaciÃ³n
+export const UserProvider = ({ children }) => {
+  const [user, setUser] = useState({
+    id: 1,
+    username: 'john_doe',
+    email: 'john@example.com',
+  });
+
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
 ---
 Folder: C:\Users\porma\Desktop\sisa.ui\src\database
 File: clientsLocalDB.js

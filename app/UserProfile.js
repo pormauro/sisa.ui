@@ -1,7 +1,7 @@
 // UserProfile.js
 import React, { useContext } from 'react';
 import { View, Text, Button, StyleSheet } from 'react-native';
-import { UserContext } from './UserContext';
+import { UserContext } from '../src/contexts/UserContext';
 
 const UserProfile = () => {
   const { user, setUser } = useContext(UserContext);
