@@ -1,14 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import CircleImagePicker from '../../src/components/CircleImagePicker';
+
+const windowWidth = Dimensions.get('window').width;
+const itemWidth = (windowWidth - 40) / 3; // Ajusta 40 según el padding/margin total
 
 export default function FolderItem({ folder, onPress, onLongPress }) {
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, { width: itemWidth }]}
       onPress={onPress}
       onLongPress={onLongPress}
-      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} // Aumenta el área táctil
+      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
     >
       <View style={styles.iconContainer}>
         <Text style={styles.folderIcon}>📁</Text>
@@ -25,7 +28,6 @@ export default function FolderItem({ folder, onPress, onLongPress }) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     margin: 5,
     alignItems: 'center',
     justifyContent: 'center',
