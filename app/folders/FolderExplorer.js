@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   View, 
   FlatList, 
@@ -17,17 +17,23 @@ import FolderModal from './FolderModal';
 export default function FolderExplorer() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  let parsedClient = null;
-  if (params.client) {
-    try {
-      parsedClient = JSON.parse(params.client);
-      console.log("[FolderExplorer] Parsed client:", parsedClient);
-    } catch (err) {
-      console.error("[FolderExplorer] Error al parsear 'client':", err);
+
+  // Memorizar el parsedClient para que no se recree en cada render
+  const parsedClient = useMemo(() => {
+    if (params.client) {
+      try {
+        const client = JSON.parse(params.client);
+        console.log("[FolderExplorer] Parsed client:", client);
+        return client;
+      } catch (err) {
+        console.error("[FolderExplorer] Error al parsear 'client':", err);
+        return null;
+      }
+    } else {
+      console.log("[FolderExplorer] No se recibió parámetro 'client'. Vista raíz (clientes).");
+      return null;
     }
-  } else {
-    console.log("[FolderExplorer] No se recibió parámetro 'client'. Vista raíz (clientes).");
-  }
+  }, [params.client]);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
