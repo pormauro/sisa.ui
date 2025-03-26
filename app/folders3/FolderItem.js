@@ -1,24 +1,16 @@
+// app/folders/FolderItem.js
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import CircleImagePicker from '../../src/components/CircleImagePicker';
 
 export default function FolderItem({ folder, onPress, onLongPress }) {
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }} // Aumenta el área táctil
-    >
+    <TouchableOpacity style={styles.container} onPress={onPress} onLongPress={onLongPress}>
       <View style={styles.iconContainer}>
         <Text style={styles.folderIcon}>📁</Text>
-        {folder.image && (
-          <View style={styles.imageCircle}>
-            <CircleImagePicker fileId={folder.image} editable={false} size={40} />
-          </View>
-        )}
       </View>
-      <Text style={styles.folderName} numberOfLines={1}>{folder.name}</Text>
+      <Text style={styles.folderName} numberOfLines={1}>
+        {folder.name}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -35,17 +27,9 @@ const styles = StyleSheet.create({
     height: 80,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   },
   folderIcon: {
     fontSize: 50,
-  },
-  imageCircle: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    top: 35,
-    left: 22,
   },
   folderName: {
     marginTop: 5,
