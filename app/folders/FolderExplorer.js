@@ -1,3 +1,4 @@
+// app/folders/FolderExplorer.js
 import React, { useEffect, useState, useMemo } from 'react';
 import { 
   View, 
@@ -33,7 +34,7 @@ export default function FolderExplorer() {
     return null;
   }, [params.folder]);
 
-  // Si se pasa el parámetro 'client', significa que se está en la vista de un cliente (nivel superior)
+  // Si se pasa el parámetro 'client', significa que estamos en la vista de un cliente (nivel superior)
   const parsedClient = useMemo(() => {
     if (params.client) {
       try {
@@ -114,16 +115,26 @@ export default function FolderExplorer() {
     loadItems();
   }, [parsedFolder, parsedClient]);
 
+  // Al tocar un item, si es carpeta se navega hacia adentro
   const handleItemPress = (item) => {
-    // Permite navegar hacia adentro de una carpeta (aunque esté vacía) para poder agregar subcarpetas.
+    // Aseguramos que el objeto 'item' tenga el client_id
+    let folderToPass = item;
+    if (!item.client_id) {
+      if (parsedFolder) {
+        // Si ya estamos en una subcarpeta, usamos el client_id del folder padre o del cliente
+        folderToPass = { ...item, client_id: parsedFolder.client_id || (parsedClient ? parsedClient.id : null) };
+      } else if (parsedClient) {
+        folderToPass = { ...item, client_id: parsedClient.id };
+      }
+    }
     if (parsedFolder || parsedClient) {
       router.push({
         pathname: "/folders/FolderExplorer",
-        params: { folder: JSON.stringify(item) }
+        params: { folder: JSON.stringify(folderToPass) }
       });
-      console.log("[FolderExplorer] Navegación iniciada con folder:", item);
+      console.log("[FolderExplorer] Navegación iniciada con folder:", folderToPass);
     } else {
-      // En la vista raíz (clientes), navegamos pasando el parámetro "client".
+      // En la vista raíz (clientes)
       router.push({
         pathname: "/folders/FolderExplorer",
         params: { client: JSON.stringify(item) }
@@ -158,13 +169,20 @@ export default function FolderExplorer() {
     }
   };
 
+  // Función para agregar carpeta incluyendo el client_id (siempre se retiene)
   const addFolder = async (folderData) => {
     if (!parsedClient && !parsedFolder) {
       Alert.alert("Error", "Solo se pueden agregar carpetas dentro de un cliente o carpeta.");
       return;
     }
-    // Si estamos dentro de una carpeta, usamos su id como parent_id; si es de cliente, se envía client_id.
-    const parentIdentifier = parsedFolder ? { parent_id: parsedFolder.id } : { client_id: parsedClient.id };
+    let parentIdentifier = {};
+    if (parsedFolder) {
+      parentIdentifier.parent_id = parsedFolder.id;
+      // Si el folder actual no tiene client_id, se lo asignamos desde parsedFolder (si existe) o parsedClient
+      parentIdentifier.client_id = parsedFolder.client_id ? parsedFolder.client_id : (parsedClient ? parsedClient.id : null);
+    } else if (parsedClient) {
+      parentIdentifier.client_id = parsedClient.id;
+    }
     console.log("[FolderExplorer] Agregando carpeta con datos:", folderData, parentIdentifier);
     try {
       const token = await AsyncStorage.getItem('token');
@@ -190,8 +208,20 @@ export default function FolderExplorer() {
     }
   };
 
+  // Función para actualizar carpeta; se añade client_id si no viene en updatedData
   const updateFolder = async (folderId, updatedData) => {
     console.log("[FolderExplorer] Actualizando carpeta con ID:", folderId, "Datos:", updatedData);
+    
+    // Si estamos editando desde una carpeta (parsedFolder) o vista de cliente, asignamos parent_id y client_id
+    if (parsedFolder) {
+      updatedData.parent_id = parsedFolder.id;
+      updatedData.client_id = parsedFolder.client_id ? parsedFolder.client_id : (parsedClient ? parsedClient.id : null);
+    } else if (parsedClient) {
+      // En la vista de cliente de nivel superior, parent_id es null
+      updatedData.parent_id = null;
+      updatedData.client_id = parsedClient.id;
+    }
+    
     try {
       const token = await AsyncStorage.getItem('token');
       const response = await fetch(`${BASE_URL}/folders/${folderId}`, {
@@ -215,7 +245,7 @@ export default function FolderExplorer() {
       Alert.alert("Error", error.message);
     }
   };
-
+  
   const deleteFolder = async (folderId) => {
     console.log("[FolderExplorer] Eliminando carpeta con ID:", folderId);
     try {
