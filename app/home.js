@@ -11,6 +11,7 @@ export default function Menu () {
     { title: 'Clientes', route: './clients/ClientsScreen' },
     { title: 'Productos / Servicios', route: './products_services/ProductsServicesScreen' },
     { title: 'Carpetas', route: './folders/AppNavigator' },
+    { title: 'Carpetas 2', route: './folders/AppNavigatorExplorer' },
     { title: 'Trabajos', route: './jobs/JobsScreen' },
     { title: 'Ventas', route: './sales' },
     { title: 'Gastos', route: './expenses' },
