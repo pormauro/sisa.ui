@@ -19,10 +19,11 @@ export default function FolderModal({ visible, onClose, onSubmit, folder }) {
 
   const handleSubmit = () => {
     if (folderName.trim() === '') {
-      // Aquí podrías mostrar un mensaje de error
+      Alert.alert("Error", "El nombre de la carpeta es obligatorio");
       return;
     }
-    onSubmit({ name: folderName, image: folderImageId });
+    // Enviar el payload con el campo 'folder_image_file_id' en lugar de 'image'
+    onSubmit({ name: folderName, folder_image_file_id: folderImageId });
   };
 
   return (
