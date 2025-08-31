@@ -187,7 +187,7 @@ export default function CreateJobScreen() {
       </View>
 
       {/* Descripción */}
-      <Text style={styles.label}>Descripción</Text>
+      <Text style={styles.label}>Descripción *</Text>
       <TextInput
         style={[styles.input, { height: 80 }]}
         placeholder="Describe este trabajo"
