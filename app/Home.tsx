@@ -25,6 +25,7 @@ const menuItems: MenuItem[] = [
   { title: 'Productos / Servicios', route: '/products_services', requiredPermissions: ['listProductsServices'] },
   { title: 'Carpetas', route: '/folders', requiredPermissions: ['listFolders'] },
   { title: 'Estados', route: '/statuses', requiredPermissions: ['listStatuses'] },
+  { title: 'Tarifas', route: '/tariffs', requiredPermissions: ['listTariffs'] },
   { title: 'Errors', route: '/ErrorLogsList', requiredPermissions: ['viewErrors'] },
   { title: 'Permisos', route: '/permission', requiredPermissions: ['listPermissions'] },
 ];
