@@ -20,6 +20,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
+import { StatusesContext } from '@/contexts/StatusesContext';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function EditJobScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
+  const { statuses } = useContext(StatusesContext);
 
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
@@ -38,6 +40,7 @@ export default function EditJobScreen() {
   // estados para pickers
   const [selectedClient,  setSelectedClient]  = useState<ModalPickerItem | null>(null);
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
+  const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
 
   // otros campos
   const [description,   setDescription] = useState('');
@@ -65,6 +68,9 @@ export default function EditJobScreen() {
     const fol = folders.find(f => f.id === job.folder_id);
     setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
 
+    const statusObj = statuses.find(s => s.id === job.status_id);
+    setSelectedStatus(statusObj ? { id: statusObj.id, name: statusObj.label, backgroundColor: statusObj.background_color } : null);
+
     const extractDate = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[0] : dt || '');
     const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
 
@@ -73,7 +79,7 @@ export default function EditJobScreen() {
     setJobDate(extractDate(job.job_date));
     setStartTime(extractTime(job.start_time));
     setEndTime(extractTime(job.end_time));
-  }, [job, clients, folders]);
+  }, [job, clients, folders, statuses]);
 
   // opciones para pickers
   const clientItems = useMemo(
@@ -85,6 +91,11 @@ export default function EditJobScreen() {
       .filter(f => selectedClient?.id === f.client_id)
       .map(f => ({ id: f.id, name: f.name })),
     [folders, selectedClient]
+  );
+
+  const statusItems = useMemo(
+    () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
+    [statuses]
   );
 
   // submit
@@ -104,6 +115,7 @@ export default function EditJobScreen() {
       attached_files: attachedFiles || null,
       folder_id: selectedFolder ? Number(selectedFolder.id) : null,
       job_date: jobDate,
+      status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
     });
     setLoading(false);
 
@@ -182,6 +194,17 @@ export default function EditJobScreen() {
           selectedItem={selectedFolder}
           onSelect={setSelectedFolder}
           placeholder="-- Carpeta --"
+        />
+      </View>
+
+      {/* Estado */}
+      <Text style={styles.label}>Estado</Text>
+      <View style={styles.pickerWrap}>
+        <ModalPicker
+          items={statusItems}
+          selectedItem={selectedStatus}
+          onSelect={setSelectedStatus}
+          placeholder="-- Estado --"
         />
       </View>
 
@@ -278,6 +301,7 @@ export default function EditJobScreen() {
            jobDate,
            startTime,
            endTime,
+           selectedStatus,
          }}
        />
   );
