@@ -9,6 +9,7 @@ import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
+import { TariffsProvider } from '@/contexts/TariffsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -57,11 +58,13 @@ export default function RootLayout() {
                 <ClientsProvider>
                   <ProductsServicesProvider>
                     <StatusesProvider>
-                      <JobsProvider>
-                        <FoldersProvider>
-                          <RootLayoutContent />
-                        </FoldersProvider>
-                      </JobsProvider>
+                      <TariffsProvider>
+                        <JobsProvider>
+                          <FoldersProvider>
+                            <RootLayoutContent />
+                          </FoldersProvider>
+                        </JobsProvider>
+                      </TariffsProvider>
                     </StatusesProvider>
                   </ProductsServicesProvider>
                 </ClientsProvider>
