@@ -18,6 +18,8 @@ import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
+import { StatusesContext } from '@/contexts/StatusesContext';
+import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -25,9 +27,11 @@ export default function CreateJobScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
+  const { statuses } = useContext(StatusesContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
+  const [selectedStatus, setSelectedStatus]   = useState<ModalPickerItem | null>(null);
   const [description, setDescription]         = useState<string>('');
   const [attachedFiles, setAttachedFiles]     = useState<string>('');
   const [jobDate, setJobDate]                 = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -51,6 +55,18 @@ export default function CreateJobScreen() {
     return folders.filter(f => f.client_id === cid);
   }, [folders, selectedClient]);
 
+  const statusItems = useMemo(
+    () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
+    [statuses]
+  );
+
+  useEffect(() => {
+    if (statuses.length > 0 && !selectedStatus) {
+      const first = statuses[0];
+      setSelectedStatus({ id: first.id, name: first.label, backgroundColor: first.background_color });
+    }
+  }, [statuses, selectedStatus]);
+
 
   const handleSubmit = async () => {
     if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
@@ -67,6 +83,7 @@ export default function CreateJobScreen() {
       attached_files: attachedFiles || null,
       folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
       job_date: jobDate,
+      status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
     };
     setLoading(true);
     const created = await addJob(jobData);
@@ -132,6 +149,17 @@ export default function CreateJobScreen() {
             <Picker.Item key={f.id} label={f.name} value={f.id.toString()} />
           ))}
         </Picker>
+      </View>
+
+      {/* Estado */}
+      <Text style={styles.label}>Estado</Text>
+      <View style={styles.pickerWrap}>
+        <ModalPicker
+          items={statusItems}
+          selectedItem={selectedStatus}
+          onSelect={setSelectedStatus}
+          placeholder="-- Estado --"
+        />
       </View>
 
       {/* Descripción */}

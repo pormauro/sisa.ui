@@ -15,7 +15,8 @@ export interface Job {
   /** Hora de finalización en formato HH:mm */
   end_time: string;
   type_of_work?: string;
-  status?: string;
+  /** Identificador de estado asociado */
+  status_id: number;
   folder_id?: number | null;
   product_service_id?: number | null;
   multiplicative_value?: number;

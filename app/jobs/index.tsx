@@ -27,7 +27,7 @@ export default function JobsScreen() {
     }
   }, [permissions]);
 
-  const fuse = new Fuse(jobs, { keys: ['description', 'type_of_work', 'status'] });
+  const fuse = new Fuse(jobs, { keys: ['description', 'type_of_work'] });
   const filteredJobs = useMemo(() => {
     if (!search) return jobs;
     const result = fuse.search(search);
@@ -36,7 +36,7 @@ export default function JobsScreen() {
 
   // Función para buscar el objeto status que corresponda al trabajo
   const getJobStatus = (job: Job): Status | undefined => {
-    return statuses.find(s => s.id === parseInt(job.status));
+    return statuses.find(s => s.id === job.status_id);
   };
 
   // Función para obtener el nombre del cliente según el client_id
@@ -72,7 +72,7 @@ export default function JobsScreen() {
 
     return (
       <TouchableOpacity
-        style={styles.itemContainer}
+        style={[styles.itemContainer, jobStatus ? { backgroundColor: jobStatus.background_color } : {}]}
         onLongPress={() => router.push(`./jobs/${item.id}`)}
       >
         <View style={styles.itemContent}>
@@ -88,22 +88,19 @@ export default function JobsScreen() {
           {(dateStr || startStr || endStr) && (
             <Text style={styles.date}>{`${dateStr} ${startStr} - ${endStr}`}</Text>
           )}
-
-          {jobStatus ? (
-            <View style={[styles.statusContainer, { backgroundColor: jobStatus.background_color }]}>
-              <Text style={styles.statusLabel}>{jobStatus.label}</Text>
-            </View>
-          ) : (
-            <Text style={styles.statusFallback}>Estado: {item.status}</Text>
-          )}
         </View>
-        <TouchableOpacity onPress={() => handleDelete(item.id)}>
-          {loadingId === item.id ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.trash}>🗑️</Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.itemRight}>
+          <Text style={styles.statusText}>
+            {jobStatus ? jobStatus.label : `Estado: ${item.status_id}`}
+          </Text>
+          <TouchableOpacity onPress={() => handleDelete(item.id)}>
+            {loadingId === item.id ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.trash}>🗑️</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -132,27 +129,20 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 10 },
-  itemContainer: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    borderBottomWidth: 1, 
-    borderColor: '#eee', 
-    paddingVertical: 12 
+  itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    paddingVertical: 12
   },
   itemContent: { flex: 1, marginRight: 10 },
+  itemRight: { justifyContent: 'space-between', alignItems: 'flex-end' },
   title: { fontWeight: 'bold', fontSize: 16 },
   subTitle: { fontSize: 14, color: '#555', marginVertical: 4 }, // Estilo para la descripción
   date: { fontSize: 12, color: '#333' },
-  statusContainer: {
-    marginTop: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    alignSelf: 'flex-start'
-  },
-  statusLabel: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  statusFallback: { fontSize: 12, color: '#888', marginTop: 4 },
+  statusText: { fontSize: 12, color: '#fff', fontWeight: 'bold', marginBottom: 4 },
   trash: { fontSize: 18, color: 'red', paddingHorizontal: 12 },
   addButton: { 
     backgroundColor: '#007BFF', 
