@@ -21,6 +21,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { StatusesContext } from '@/contexts/StatusesContext';
+import { formatTimeInterval } from '@/utils/time';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -53,6 +54,7 @@ export default function EditJobScreen() {
   const [showEndPicker,       setShowEndPicker]    = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
 
   // carga inicial del job
   useEffect(() => {
@@ -249,6 +251,7 @@ export default function EditJobScreen() {
             if (selected) {
               const t = selected.toTimeString().slice(0,5);
               setStartTime(t);
+              if (!endTime) setEndTime(t);
             }
           }}
         />
@@ -269,9 +272,14 @@ export default function EditJobScreen() {
             if (selected) {
               const t = selected.toTimeString().slice(0,5);
               setEndTime(t);
+              if (!startTime) setStartTime(t);
             }
           }}
         />
+      )}
+
+      {startTime && endTime && (
+        <Text style={styles.intervalText}>Intervalo: {timeInterval}</Text>
       )}
 
       {/* Archivos adjuntos */}
@@ -328,6 +336,7 @@ const styles = StyleSheet.create({
   label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600', color: '#333' },
   pickerWrap: { borderWidth: 1, borderColor: '#999', borderRadius: 8, marginBottom: 12, backgroundColor: '#fff' },
   input:      { borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, backgroundColor: '#fff', marginBottom: 12, color: '#000' },
+  intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
   btnSave:    { marginTop: 20, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { color: '#fff', fontSize: 16, fontWeight: 'bold' },

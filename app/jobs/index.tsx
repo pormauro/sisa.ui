@@ -8,6 +8,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 // Importamos el contexto de clientes
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext, Status } from '@/contexts/StatusesContext';
+import { formatTimeInterval } from '@/utils/time';
 
 export default function JobsScreen() {
   const { jobs, loadJobs, deleteJob } = useContext(JobsContext);
@@ -69,6 +70,7 @@ export default function JobsScreen() {
     const dateStr = extractDate(item.job_date);
     const startStr = extractTime(item.start_time);
     const endStr = extractTime(item.end_time);
+    const intervalStr = formatTimeInterval(startStr, endStr);
 
     return (
       <TouchableOpacity
@@ -86,7 +88,7 @@ export default function JobsScreen() {
 
           {/* Fecha y horario */}
           {(dateStr || startStr || endStr) && (
-            <Text style={styles.date}>{`${dateStr} ${startStr} - ${endStr}`}</Text>
+            <Text style={styles.date}>{`${dateStr} ${startStr} - ${endStr}${intervalStr ? ` (${intervalStr})` : ''}`}</Text>
           )}
         </View>
         <View style={styles.itemRight}>
