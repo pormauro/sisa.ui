@@ -94,18 +94,16 @@ export default function EditJobScreen() {
       return;
     }
     setLoading(true);
-    const startDateTime = `${jobDate} ${startTime}:00`;
-    const endDateTime = `${jobDate} ${endTime}:00`;
     const updated = await updateJob(jobId, {
       client_id: Number(selectedClient.id),
       description,
-      start_time: startDateTime,
-      end_time: endDateTime,
+      start_time: startTime,
+      end_time: endTime,
       tariff_id: null,
       manual_amount: null,
       attached_files: attachedFiles || null,
       folder_id: selectedFolder ? Number(selectedFolder.id) : null,
-      job_date: startDateTime,
+      job_date: jobDate,
     });
     setLoading(false);
 
@@ -145,15 +143,25 @@ export default function EditJobScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1 }}
     >
-      {/* Descripción */}
-      <Text style={styles.label}>Descripción</Text>
-      <TextInput
-        style={[styles.input, { height: 80 }]}
-        multiline
-        value={description}
-        onChangeText={setDescription}
-        editable={canEdit}
-      />
+      {/* Fecha del trabajo */}
+      <Text style={styles.label}>Fecha</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+        <Text>{jobDate || 'Selecciona fecha'}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={jobDate ? new Date(jobDate) : new Date()}
+          mode="date"
+          display="default"
+          onChange={(e, selected) => {
+            setShowDatePicker(false);
+            if (selected) {
+              const d = selected.toISOString().split('T')[0];
+              setJobDate(d);
+            }
+          }}
+        />
+      )}
 
       {/* Cliente */}
       <Text style={styles.label}>Cliente *</Text>
@@ -177,25 +185,15 @@ export default function EditJobScreen() {
         />
       </View>
 
-      {/* Fecha del trabajo */}
-      <Text style={styles.label}>Fecha</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-        <Text>{jobDate || 'Selecciona fecha'}</Text>
-      </TouchableOpacity>
-      {showDatePicker && (
-        <DateTimePicker
-          value={jobDate ? new Date(jobDate) : new Date()}
-          mode="date"
-          display="default"
-          onChange={(e, selected) => {
-            setShowDatePicker(false);
-            if (selected) {
-              const d = selected.toISOString().split('T')[0];
-              setJobDate(d);
-            }
-          }}
-        />
-      )}
+      {/* Descripción */}
+      <Text style={styles.label}>Descripción</Text>
+      <TextInput
+        style={[styles.input, { height: 80 }]}
+        multiline
+        value={description}
+        onChangeText={setDescription}
+        editable={canEdit}
+      />
 
       {/* Hora de inicio */}
       <Text style={styles.label}>Hora inicio</Text>
