@@ -127,30 +127,34 @@ export default function JobsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 10 },
+  container: { flex: 1, padding: 16, backgroundColor: '#f7f7f7' },
+  search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: '#fff', color: '#000' },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    paddingVertical: 12
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    backgroundColor: '#fff'
   },
   itemContent: { flex: 1, marginRight: 10 },
   itemRight: { justifyContent: 'space-between', alignItems: 'flex-end' },
-  title: { fontWeight: 'bold', fontSize: 16 },
-  subTitle: { fontSize: 14, color: '#555', marginVertical: 4 }, // Estilo para la descripción
-  date: { fontSize: 12, color: '#333' },
-  statusText: { fontSize: 12, color: '#fff', fontWeight: 'bold', marginBottom: 4 },
-  trash: { fontSize: 18, color: 'red', paddingHorizontal: 12 },
-  addButton: { 
-    backgroundColor: '#007BFF', 
-    padding: 16, 
-    borderRadius: 30, 
-    position: 'absolute', 
-    right: 16, 
-    bottom: 32, 
+  title: { fontWeight: 'bold', fontSize: 16, color: '#000' },
+  subTitle: { fontSize: 14, color: '#333', marginVertical: 4 },
+  date: { fontSize: 12, color: '#555' },
+  statusText: { fontSize: 12, color: '#000', fontWeight: 'bold', marginBottom: 4 },
+  trash: { fontSize: 18, color: '#900', paddingHorizontal: 12 },
+  addButton: {
+    backgroundColor: '#007BFF',
+    padding: 16,
+    borderRadius: 30,
+    position: 'absolute',
+    right: 16,
+    bottom: 32,
     alignItems: 'center'
   },
   addText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },

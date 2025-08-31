@@ -104,27 +104,43 @@ export default function EditJobScreen() {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
-    setLoading(true);
-    const updated = await updateJob(jobId, {
-      client_id: Number(selectedClient.id),
-      description,
-      start_time: startTime,
-      end_time: endTime,
-      tariff_id: null,
-      manual_amount: null,
-      attached_files: attachedFiles || null,
-      folder_id: selectedFolder ? Number(selectedFolder.id) : null,
-      job_date: jobDate,
-      status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
-    });
-    setLoading(false);
+    const saveJob = async () => {
+      setLoading(true);
+      const updated = await updateJob(jobId, {
+        client_id: Number(selectedClient.id),
+        description,
+        start_time: startTime,
+        end_time: endTime,
+        tariff_id: null,
+        manual_amount: null,
+        attached_files: attachedFiles || null,
+        folder_id: selectedFolder ? Number(selectedFolder.id) : null,
+        job_date: jobDate,
+        status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
+      });
+      setLoading(false);
 
-    if (updated) {
-      Alert.alert('Éxito', 'Trabajo actualizado.');
-      router.back();
-    } else {
-      Alert.alert('Error', 'No se pudo actualizar el trabajo.');
+      if (updated) {
+        Alert.alert('Éxito', 'Trabajo actualizado.');
+        router.back();
+      } else {
+        Alert.alert('Error', 'No se pudo actualizar el trabajo.');
+      }
+    };
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    if (end <= start) {
+      Alert.alert(
+        'Advertencia',
+        'La hora de fin es anterior o igual a la hora de inicio. ¿Deseas guardar de todos modos?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Guardar', onPress: saveJob },
+        ]
+      );
+      return;
     }
+    await saveJob();
   };
 
   // delete
@@ -308,10 +324,10 @@ export default function EditJobScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
-  label:      { marginTop: 12, fontSize: 16, fontWeight: '600' },
-  pickerWrap: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, marginVertical: 8 },
-  input:      { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, backgroundColor: '#fff' },
+  container:  { padding: 16, backgroundColor: '#f7f7f7', flexGrow: 1 },
+  label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600', color: '#333' },
+  pickerWrap: { borderWidth: 1, borderColor: '#999', borderRadius: 8, marginBottom: 12, backgroundColor: '#fff' },
+  input:      { borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, backgroundColor: '#fff', marginBottom: 12, color: '#000' },
   btnSave:    { marginTop: 20, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { color: '#fff', fontSize: 16, fontWeight: 'bold' },
