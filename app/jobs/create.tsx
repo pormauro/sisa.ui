@@ -22,6 +22,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
+import { formatTimeInterval } from '@/utils/time';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -43,6 +44,7 @@ export default function CreateJobScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker]     = useState(false);
   const [loading, setLoading]                 = useState<boolean>(false);
+  const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
 
   useEffect(() => {
     if (!permissions.includes('addJob')) {
@@ -206,6 +208,7 @@ export default function CreateJobScreen() {
             if (selected) {
               const t = selected.toTimeString().slice(0,5);
               setStartTime(t);
+              if (!endTime) setEndTime(t);
             }
           }}
         />
@@ -226,9 +229,14 @@ export default function CreateJobScreen() {
             if (selected) {
               const t = selected.toTimeString().slice(0,5);
               setEndTime(t);
+              if (!startTime) setStartTime(t);
             }
           }}
         />
+      )}
+
+      {startTime && endTime && (
+        <Text style={styles.intervalText}>Intervalo: {timeInterval}</Text>
       )}
 
       {/* Archivos adjuntos */}
@@ -280,6 +288,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     color: '#000',
   },
+  intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
   submitBtn: {
     marginTop: 20,
     backgroundColor: '#28a745',
