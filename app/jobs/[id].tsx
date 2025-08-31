@@ -59,6 +59,19 @@ export default function EditJobScreen() {
 
   const [loading, setLoading] = useState(false);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
+  const rate = useMemo(() => {
+    if (selectedTariff) {
+      const t = tariffs.find(t => t.id === selectedTariff.id);
+      return t ? t.amount : 0;
+    }
+    return manualAmount ? parseFloat(manualAmount) : 0;
+  }, [selectedTariff, manualAmount, tariffs]);
+  const price = useMemo(() => {
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    return diffHours > 0 && rate ? diffHours * rate : 0;
+  }, [startTime, endTime, rate]);
 
   // carga inicial del job
   useEffect(() => {
@@ -316,6 +329,10 @@ export default function EditJobScreen() {
         <Text style={styles.intervalText}>Intervalo: {timeInterval}</Text>
       )}
 
+      {price > 0 && (
+        <Text style={styles.priceText}>Costo estimado: ${price.toFixed(2)}</Text>
+      )}
+
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
       <FileCarousel
@@ -373,6 +390,7 @@ const styles = StyleSheet.create({
   pickerWrap: { borderWidth: 1, borderColor: '#999', borderRadius: 8, marginBottom: 12, backgroundColor: '#fff' },
   input:      { borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, backgroundColor: '#fff', marginBottom: 12, color: '#000' },
   intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
+  priceText: { textAlign: 'center', marginBottom: 12, color: '#007BFF', fontWeight: 'bold', fontSize: 16 },
   btnSave:    { marginTop: 20, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { color: '#fff', fontSize: 16, fontWeight: 'bold' },
