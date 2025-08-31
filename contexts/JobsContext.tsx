@@ -6,15 +6,15 @@ import { AuthContext } from '@/contexts/AuthContext';
 export interface Job {
   id: number;
   user_id: number;
-  client_id: number | null;
-  product_service_id: number | null;
-  folder_id: number | null;
-  type_of_work: string;
+  client_id: number;
   description: string;
-  status: string;
-  schedule: string | null;
-  multiplicative_value: number;
-  attached_files: string | null;
+  start_time: string;
+  end_time: string;
+  job_date?: string | null;
+  tariff_id?: number | null;
+  manual_amount?: number | null;
+  attached_files?: string[];
+  folder_id?: number | null;
 }
 
 interface JobsContextType {

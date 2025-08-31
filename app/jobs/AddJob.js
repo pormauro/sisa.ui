@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { BASE_URL } from '../../src/config/index';
 import { pickAndProcessImage, uploadImage } from '../../src/utils/imageUtils';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export default function AddJob() {
   const router = useRouter();
@@ -30,6 +31,10 @@ export default function AddJob() {
     manual_amount: '',
     attached_files: [],
   });
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   // States for dropdowns
   const [clients, setClients] = useState([]);
@@ -224,28 +229,60 @@ export default function AddJob() {
         onChangeText={(text) => setForm({ ...form, description: text })}
       />
       {/* Job Date */}
-      <TextInput
-        style={styles.input}
-        placeholder="Job Date (YYYY-MM-DD)"
-        value={form.job_date}
-        onChangeText={(text) => setForm({ ...form, job_date: text })}
-      />
+      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+        <Text>{form.job_date || 'Select Job Date'}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={form.job_date ? new Date(form.job_date) : new Date()}
+          mode="date"
+          display="default"
+          onChange={(e, selected) => {
+            setShowDatePicker(false);
+            if (selected) {
+              setForm(prev => ({ ...prev, job_date: selected.toISOString().split('T')[0] }));
+            }
+          }}
+        />
+      )}
 
       {/* Start Time */}
-      <TextInput
-        style={styles.input}
-        placeholder="Start Time (YYYY-MM-DD HH:MM)"
-        value={form.start_time}
-        onChangeText={(text) => setForm({ ...form, start_time: text })}
-      />
+      <TouchableOpacity style={styles.input} onPress={() => setShowStartPicker(true)}>
+        <Text>{form.start_time || 'Select Start Time'}</Text>
+      </TouchableOpacity>
+      {showStartPicker && (
+        <DateTimePicker
+          value={form.start_time ? new Date(`1970-01-01T${form.start_time}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowStartPicker(false);
+            if (selected) {
+              const t = selected.toTimeString().slice(0,5);
+              setForm(prev => ({ ...prev, start_time: t }));
+            }
+          }}
+        />
+      )}
 
       {/* End Time */}
-      <TextInput
-        style={styles.input}
-        placeholder="End Time (YYYY-MM-DD HH:MM)"
-        value={form.end_time}
-        onChangeText={(text) => setForm({ ...form, end_time: text })}
-      />
+      <TouchableOpacity style={styles.input} onPress={() => setShowEndPicker(true)}>
+        <Text>{form.end_time || 'Select End Time'}</Text>
+      </TouchableOpacity>
+      {showEndPicker && (
+        <DateTimePicker
+          value={form.end_time ? new Date(`1970-01-01T${form.end_time}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowEndPicker(false);
+            if (selected) {
+              const t = selected.toTimeString().slice(0,5);
+              setForm(prev => ({ ...prev, end_time: t }));
+            }
+          }}
+        />
+      )}
 
       {/* Tariff Picker */}
       <Text style={styles.label}>Tariff:</Text>
