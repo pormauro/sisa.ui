@@ -64,6 +64,11 @@ export default function JobsScreen() {
   const renderItem = ({ item }: { item: Job }) => {
     const jobStatus = getJobStatus(item);
     const clientName = getClientName(item.client_id); // Usamos client_id para obtener el nombre del cliente
+    const extractDate = (d?: string | null) => (d && d.includes(' ') ? d.split(' ')[0] : d || '');
+    const extractTime = (t?: string | null) => (t && t.includes(' ') ? t.split(' ')[1].slice(0,5) : t || '');
+    const dateStr = extractDate(item.job_date);
+    const startStr = extractTime(item.start_time);
+    const endStr = extractTime(item.end_time);
 
     return (
       <TouchableOpacity
@@ -71,15 +76,17 @@ export default function JobsScreen() {
         onLongPress={() => router.push(`./jobs/${item.id}`)}
       >
         <View style={styles.itemContent}>
-          {/* Título: Tipo de trabajo */}
-          <Text style={styles.title}>{item.type_of_work}</Text>
+          {/* Cliente */}
+          <Text style={styles.title}>{clientName ? clientName : 'Cliente desconocido'}</Text>
 
-          {/* Subtítulo: Nombre del cliente */}
-          <Text style={styles.subTitle}>{clientName ? clientName : 'Cliente desconocido'}</Text>
+          {/* Descripción */}
+          {item.description ? (
+            <Text style={styles.subTitle}>{item.description}</Text>
+          ) : null}
 
           {/* Fecha y horario */}
-          {item.job_date && (
-            <Text style={styles.date}>{`${item.job_date} ${item.start_time} - ${item.end_time}`}</Text>
+          {(dateStr || startStr || endStr) && (
+            <Text style={styles.date}>{`${dateStr} ${startStr} - ${endStr}`}</Text>
           )}
 
           {jobStatus ? (
@@ -135,7 +142,7 @@ const styles = StyleSheet.create({
   },
   itemContent: { flex: 1, marginRight: 10 },
   title: { fontWeight: 'bold', fontSize: 16 },
-  subTitle: { fontSize: 14, color: '#555', marginVertical: 4 }, // Estilo para el subtítulo (nombre del cliente)
+  subTitle: { fontSize: 14, color: '#555', marginVertical: 4 }, // Estilo para la descripción
   date: { fontSize: 12, color: '#333' },
   statusContainer: {
     marginTop: 4,
