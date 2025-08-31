@@ -32,14 +32,15 @@ export default function JobItem({ item, expanded, onToggle, onDelete, onEdit }) 
     <TouchableOpacity onPress={handleToggle} activeOpacity={0.8}>
       <View style={styles.itemContainer}>
         <View style={styles.headerRow}>
-          <Text style={styles.jobTitle}>{item.title}</Text>
+          <Text style={styles.jobTitle}>{item.description || 'Job'}</Text>
           {renderAttachmentPreview()}
         </View>
         {expanded && (
           <>
-            <Text style={styles.jobDetail}>Description: {item.description || '-'}</Text>
-            <Text style={styles.jobDetail}>Status: {item.status || '-'}</Text>
-            {item.due_date && <Text style={styles.jobDetail}>Due Date: {item.due_date}</Text>}
+            <Text style={styles.jobDetail}>Start: {item.start_time || '-'}</Text>
+            <Text style={styles.jobDetail}>End: {item.end_time || '-'}</Text>
+            <Text style={styles.jobDetail}>Tariff: {item.tariff?.name || '-'}</Text>
+            <Text style={styles.jobDetail}>Amount: {item.amount ?? item.manual_amount ?? '-'}</Text>
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.button} onPress={() => onEdit(item.id)}>
                 <Text style={styles.buttonText}>Edit</Text>

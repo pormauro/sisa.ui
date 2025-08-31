@@ -68,7 +68,7 @@ export default function JobsList() {
       return;
     }
     const options = {
-      keys: ['title', 'description', 'status'],
+      keys: ['description'],
       threshold: 0.4,
       includeScore: true,
     };

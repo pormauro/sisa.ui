@@ -21,30 +21,29 @@ export default function AddJob() {
   const router = useRouter();
   const [form, setForm] = useState({
     client_id: '',
-    product_service_id: '',
     folder_id: '',
-    type_of_work: '',
     description: '',
-    status: '',
-    start_datetime: '',
-    end_datetime: '',
-    multiplicative_value: '1.00',
+    job_date: '',
+    start_time: '',
+    end_time: '',
+    tariff_id: '',
+    manual_amount: '',
     attached_files: [],
   });
 
   // States for dropdowns
   const [clients, setClients] = useState([]);
-  const [productsServices, setProductsServices] = useState([]);
+  const [tariffs, setTariffs] = useState([]);
   const [folders, setFolders] = useState([]);
 
   // States for handling attachments
   const [localAttachments, setLocalAttachments] = useState([]);
   const [loadingAttachment, setLoadingAttachment] = useState(false);
 
-  // Load clients and products/services on mount
+  // Load clients and tariffs on mount
   useEffect(() => {
     loadClients();
-    loadProductsServices();
+    loadTariffs();
   }, []);
 
   // When client_id changes, load folders for that client
@@ -74,17 +73,17 @@ export default function AddJob() {
     }
   };
 
-  const loadProductsServices = async () => {
+  const loadTariffs = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await fetch(`${BASE_URL}/products_services`, {
+      const response = await fetch(`${BASE_URL}/tariffs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
-        setProductsServices(data.products_services || []);
+        setTariffs(data.tariffs || []);
       } else {
-        Alert.alert('Error', 'Unable to fetch products/services');
+        Alert.alert('Error', 'Unable to fetch tariffs');
       }
     } catch (error) {
       Alert.alert('Error', error.message);
@@ -155,8 +154,12 @@ export default function AddJob() {
       Alert.alert('Error', 'Please select a client');
       return;
     }
-    if (!form.product_service_id) {
-      Alert.alert('Error', 'Please select a product or service');
+    if (!form.description) {
+      Alert.alert('Error', 'Please enter a description');
+      return;
+    }
+    if (!form.start_time || !form.end_time) {
+      Alert.alert('Error', 'Please provide start and end times');
       return;
     }
     try {
@@ -183,13 +186,6 @@ export default function AddJob() {
     }
   };
 
-  const statusOptions = [
-    { label: 'Pending', value: 'pending' },
-    { label: 'In Progress', value: 'in_progress' },
-    { label: 'Completed', value: 'completed' },
-    { label: 'Canceled', value: 'canceled' },
-  ];
-
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Add Job</Text>
@@ -207,19 +203,6 @@ export default function AddJob() {
         ))}
       </Picker>
 
-      {/* Product/Service Picker */}
-      <Text style={styles.label}>Product / Service:</Text>
-      <Picker
-        selectedValue={form.product_service_id}
-        onValueChange={(itemValue) => setForm({ ...form, product_service_id: itemValue })}
-        style={styles.picker}
-      >
-        <Picker.Item label="Select a product or service" value="" />
-        {productsServices.map(ps => (
-          <Picker.Item key={ps.id} label={ps.description} value={ps.id} />
-        ))}
-      </Picker>
-
       {/* Folder Picker */}
       <Text style={styles.label}>Folder:</Text>
       <Picker
@@ -233,14 +216,6 @@ export default function AddJob() {
         ))}
       </Picker>
 
-      {/* Type of Work */}
-      <TextInput
-        style={styles.input}
-        placeholder="Type of work"
-        value={form.type_of_work}
-        onChangeText={(text) => setForm({ ...form, type_of_work: text })}
-      />
-
       {/* Description */}
       <TextInput
         style={styles.input}
@@ -248,43 +223,50 @@ export default function AddJob() {
         value={form.description}
         onChangeText={(text) => setForm({ ...form, description: text })}
       />
+      {/* Job Date */}
+      <TextInput
+        style={styles.input}
+        placeholder="Job Date (YYYY-MM-DD)"
+        value={form.job_date}
+        onChangeText={(text) => setForm({ ...form, job_date: text })}
+      />
 
-      {/* Status */}
-      <Text style={styles.label}>Status:</Text>
+      {/* Start Time */}
+      <TextInput
+        style={styles.input}
+        placeholder="Start Time (YYYY-MM-DD HH:MM)"
+        value={form.start_time}
+        onChangeText={(text) => setForm({ ...form, start_time: text })}
+      />
+
+      {/* End Time */}
+      <TextInput
+        style={styles.input}
+        placeholder="End Time (YYYY-MM-DD HH:MM)"
+        value={form.end_time}
+        onChangeText={(text) => setForm({ ...form, end_time: text })}
+      />
+
+      {/* Tariff Picker */}
+      <Text style={styles.label}>Tariff:</Text>
       <Picker
-        selectedValue={form.status}
-        onValueChange={(itemValue) => setForm({ ...form, status: itemValue })}
+        selectedValue={form.tariff_id}
+        onValueChange={(itemValue) => setForm({ ...form, tariff_id: itemValue })}
         style={styles.picker}
       >
-        <Picker.Item label="Select a status" value="" />
-        {statusOptions.map(status => (
-          <Picker.Item key={status.value} label={status.label} value={status.value} />
+        <Picker.Item label="Select a tariff" value="" />
+        {tariffs.map(t => (
+          <Picker.Item key={t.id} label={t.name} value={t.id} />
         ))}
       </Picker>
 
-      {/* Start Datetime */}
+      {/* Manual Amount */}
       <TextInput
         style={styles.input}
-        placeholder="Start (YYYY-MM-DD HH:MM)"
-        value={form.start_datetime}
-        onChangeText={(text) => setForm({ ...form, start_datetime: text })}
-      />
-
-      {/* End Datetime */}
-      <TextInput
-        style={styles.input}
-        placeholder="End (YYYY-MM-DD HH:MM)"
-        value={form.end_datetime}
-        onChangeText={(text) => setForm({ ...form, end_datetime: text })}
-      />
-
-      {/* Multiplicative Value */}
-      <TextInput
-        style={styles.input}
-        placeholder="Multiplicative Value"
-        value={form.multiplicative_value}
+        placeholder="Manual Amount"
+        value={form.manual_amount}
         keyboardType="numeric"
-        onChangeText={(text) => setForm({ ...form, multiplicative_value: text })}
+        onChangeText={(text) => setForm({ ...form, manual_amount: text })}
       />
 
       {/* Attachments */}
