@@ -291,7 +291,7 @@ export default function CreateJobScreen() {
       )}
 
       {price > 0 && (
-        <Text style={styles.priceText}>Precio: {price.toFixed(2)}</Text>
+        <Text style={styles.priceText}>Costo estimado: ${price.toFixed(2)}</Text>
       )}
 
       {/* Archivos adjuntos */}
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
-  priceText: { textAlign: 'center', marginBottom: 12, color: '#333' },
+  priceText: { textAlign: 'center', marginBottom: 12, color: '#007BFF', fontWeight: 'bold', fontSize: 16 },
   submitBtn: {
     marginTop: 20,
     backgroundColor: '#28a745',

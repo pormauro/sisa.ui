@@ -8,6 +8,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 // Importamos el contexto de clientes
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext, Status } from '@/contexts/StatusesContext';
+import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatTimeInterval } from '@/utils/time';
 
 export default function JobsScreen() {
@@ -15,6 +16,7 @@ export default function JobsScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { statuses } = useContext(StatusesContext);
   const { clients } = useContext(ClientsContext); // Accedemos al contexto de clientes
+  const { tariffs } = useContext(TariffsContext);
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -71,6 +73,16 @@ export default function JobsScreen() {
     const startStr = extractTime(item.start_time);
     const endStr = extractTime(item.end_time);
     const intervalStr = formatTimeInterval(startStr, endStr);
+    const rate = item.tariff_id
+      ? tariffs.find(t => t.id === item.tariff_id)?.amount ?? 0
+      : item.manual_amount ?? 0;
+    let cost = 0;
+    if (startStr && endStr && rate) {
+      const start = new Date(`1970-01-01T${startStr}`);
+      const end = new Date(`1970-01-01T${endStr}`);
+      const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      cost = diffHours > 0 ? diffHours * rate : 0;
+    }
 
     return (
       <TouchableOpacity
@@ -89,6 +101,9 @@ export default function JobsScreen() {
           {/* Fecha y horario */}
           {(dateStr || startStr || endStr) && (
             <Text style={styles.date}>{`${dateStr} ${startStr} - ${endStr}${intervalStr ? ` (${intervalStr})` : ''}`}</Text>
+          )}
+          {cost > 0 && (
+            <Text style={styles.cost}>Costo: ${cost.toFixed(2)}</Text>
           )}
         </View>
         <View style={styles.itemRight}>
@@ -148,6 +163,7 @@ const styles = StyleSheet.create({
   title: { fontWeight: 'bold', fontSize: 16, color: '#fff' },
   subTitle: { fontSize: 14, color: '#fff', marginVertical: 4 },
   date: { fontSize: 12, color: '#fff' },
+  cost: { fontSize: 12, color: '#fff', fontWeight: 'bold', marginTop: 4 },
   statusText: { fontSize: 12, color: '#fff', fontWeight: 'bold', marginBottom: 4 },
   trash: { fontSize: 18, color: '#fff', paddingHorizontal: 12 },
   addButton: {
