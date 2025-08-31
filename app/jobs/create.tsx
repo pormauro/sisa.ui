@@ -11,7 +11,7 @@ import {
   FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import SchedulePicker from '@/components/SchedulePicker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import FileCarousel from '@/components/FileCarousel';
 import { JobsContext } from '@/contexts/JobsContext';
@@ -40,7 +40,12 @@ export default function CreateJobScreen() {
   const [description, setDescription]         = useState<string>('');
   const [multiplicativeValue, setMultiplicativeValue] = useState<string>('1.00');
   const [attachedFiles, setAttachedFiles]     = useState<string>('');
-  const [scheduleJson, setScheduleJson]       = useState<string | null>(null);
+  const [jobDate, setJobDate]                 = useState<string>('');
+  const [startTime, setStartTime]             = useState<string>('');
+  const [endTime, setEndTime]                 = useState<string>('');
+  const [showDatePicker, setShowDatePicker]   = useState(false);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker]     = useState(false);
   const [loading, setLoading]                 = useState<boolean>(false);
 
   useEffect(() => {
@@ -67,8 +72,8 @@ export default function CreateJobScreen() {
   );
 
   const handleSubmit = async () => {
-    if (!selectedClient || !selectedStatus) {
-      Alert.alert('Error', 'Completa Cliente y Estado obligatorios.');
+    if (!selectedClient || !selectedStatus || !jobDate || !startTime || !endTime) {
+      Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
     const jobData = {
@@ -78,7 +83,9 @@ export default function CreateJobScreen() {
       type_of_work: typeOfWork,
       description,
       status: selectedStatus.id.toString(),
-      schedule: scheduleJson,
+      job_date: jobDate,
+      start_time: startTime,
+      end_time: endTime,
       multiplicative_value: parseFloat(multiplicativeValue),
       attached_files: attachedFiles || null,
     };
@@ -173,12 +180,65 @@ export default function CreateJobScreen() {
         </Picker>
       </View>
 
-      {/* Horarios */}
-      <Text style={styles.label}>Horario trabajado</Text>
-      <SchedulePicker
-        initialDataJson={scheduleJson || undefined}
-        onChange={setScheduleJson}
-      />
+      {/* Fecha del trabajo */}
+      <Text style={styles.label}>Fecha</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+        <Text>{jobDate || 'Selecciona fecha'}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={jobDate ? new Date(jobDate) : new Date()}
+          mode="date"
+          display="default"
+          onChange={(e, selected) => {
+            setShowDatePicker(false);
+            if (selected) {
+              const d = selected.toISOString().split('T')[0];
+              setJobDate(d);
+            }
+          }}
+        />
+      )}
+
+      {/* Hora de inicio */}
+      <Text style={styles.label}>Hora inicio</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowStartPicker(true)}>
+        <Text>{startTime || 'Selecciona hora de inicio'}</Text>
+      </TouchableOpacity>
+      {showStartPicker && (
+        <DateTimePicker
+          value={startTime ? new Date(`1970-01-01T${startTime}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowStartPicker(false);
+            if (selected) {
+              const t = selected.toTimeString().slice(0,5);
+              setStartTime(t);
+            }
+          }}
+        />
+      )}
+
+      {/* Hora de fin */}
+      <Text style={styles.label}>Hora fin</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowEndPicker(true)}>
+        <Text>{endTime || 'Selecciona hora de fin'}</Text>
+      </TouchableOpacity>
+      {showEndPicker && (
+        <DateTimePicker
+          value={endTime ? new Date(`1970-01-01T${endTime}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowEndPicker(false);
+            if (selected) {
+              const t = selected.toTimeString().slice(0,5);
+              setEndTime(t);
+            }
+          }}
+        />
+      )}
 
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
