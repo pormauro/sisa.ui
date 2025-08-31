@@ -52,6 +52,19 @@ export default function CreateJobScreen() {
   const [showEndPicker, setShowEndPicker]     = useState(false);
   const [loading, setLoading]                 = useState<boolean>(false);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
+  const rate = useMemo(() => {
+    if (selectedTariff) {
+      const t = tariffs.find(t => t.id.toString() === selectedTariff);
+      return t ? t.amount : 0;
+    }
+    return manualAmount ? parseFloat(manualAmount) : 0;
+  }, [selectedTariff, manualAmount, tariffs]);
+  const price = useMemo(() => {
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    return diffHours > 0 && rate ? diffHours * rate : 0;
+  }, [startTime, endTime, rate]);
 
   useEffect(() => {
     if (!permissions.includes('addJob')) {
@@ -198,22 +211,26 @@ export default function CreateJobScreen() {
           onValueChange={(val) => { setSelectedTariff(val); if (val) setManualAmount(''); }}
           style={styles.picker}
         >
-          <Picker.Item label="-- Sin tarifa --" value="" />
+          <Picker.Item label="-- Tarifa manual --" value="" />
           {tariffs.map(t => (
             <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
           ))}
         </Picker>
       </View>
 
-      {/* Monto manual */}
-      <Text style={styles.label}>Monto manual</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Ingresa monto manual"
-        value={manualAmount}
-        onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(''); }}
-        keyboardType="numeric"
-      />
+      {selectedTariff === '' && (
+        <>
+          {/* Tarifa manual */}
+          <Text style={styles.label}>Tarifa manual</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ingresa tarifa manual"
+            value={manualAmount}
+            onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(''); }}
+            keyboardType="numeric"
+          />
+        </>
+      )}
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
@@ -273,6 +290,10 @@ export default function CreateJobScreen() {
         <Text style={styles.intervalText}>Intervalo: {timeInterval}</Text>
       )}
 
+      {price > 0 && (
+        <Text style={styles.priceText}>Precio: {price.toFixed(2)}</Text>
+      )}
+
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
       <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
@@ -323,6 +344,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
+  priceText: { textAlign: 'center', marginBottom: 12, color: '#333' },
   submitBtn: {
     marginTop: 20,
     backgroundColor: '#28a745',
