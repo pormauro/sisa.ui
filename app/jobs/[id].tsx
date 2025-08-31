@@ -13,7 +13,7 @@ import {
   Platform
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import SchedulePicker from '@/components/SchedulePicker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import FileCarousel from '@/components/FileCarousel';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -50,7 +50,12 @@ export default function EditJobScreen() {
   const [description,         setDescription]      = useState('');
   const [multiplicativeValue, setMultiplicativeValue] = useState('1.00');
   const [attachedFiles,       setAttachedFiles]    = useState('');
-  const [scheduleJson,        setScheduleJson]     = useState<string | null>(null);
+  const [jobDate,             setJobDate]          = useState('');
+  const [startTime,           setStartTime]        = useState('');
+  const [endTime,             setEndTime]          = useState('');
+  const [showDatePicker,      setShowDatePicker]   = useState(false);
+  const [showStartPicker,     setShowStartPicker]  = useState(false);
+  const [showEndPicker,       setShowEndPicker]    = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -78,9 +83,11 @@ export default function EditJobScreen() {
     // resto de campos
     setTypeOfWork(job.type_of_work || '');
     setDescription(job.description || '');
-    setMultiplicativeValue(job.multiplicative_value.toString());
+    setMultiplicativeValue(job.multiplicative_value?.toString() || '1.00');
     setAttachedFiles(job.attached_files || '');
-    setScheduleJson(job.schedule || null);
+    setJobDate(job.job_date || '');
+    setStartTime(job.start_time || '');
+    setEndTime(job.end_time || '');
   }, [job, clients, folders, productsServices, statuses]);
 
   // cargar estados cuando monte
@@ -110,8 +117,8 @@ export default function EditJobScreen() {
 
   // submit
   const handleSubmit = async () => {
-    if (!selectedClient || !selectedStatus) {
-      Alert.alert('Error', 'Completa los campos obligatorios (Cliente y Estado).');
+    if (!selectedClient || !selectedStatus || !jobDate || !startTime || !endTime) {
+      Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
     setLoading(true);
@@ -122,7 +129,9 @@ export default function EditJobScreen() {
       type_of_work:         typeOfWork,
       description,
       status:               selectedStatus.id.toString(),
-      schedule:             scheduleJson,
+      job_date:             jobDate,
+      start_time:           startTime,
+      end_time:             endTime,
       multiplicative_value: parseFloat(multiplicativeValue),
       attached_files:       attachedFiles || null,
     });
@@ -227,12 +236,65 @@ export default function EditJobScreen() {
         />
       </View>
 
-      {/* Horarios */}
-      <Text style={styles.label}>Horarios trabajados</Text>
-      <SchedulePicker
-        initialDataJson={scheduleJson || undefined}
-        onChange={setScheduleJson}
-      />
+      {/* Fecha del trabajo */}
+      <Text style={styles.label}>Fecha</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+        <Text>{jobDate || 'Selecciona fecha'}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={jobDate ? new Date(jobDate) : new Date()}
+          mode="date"
+          display="default"
+          onChange={(e, selected) => {
+            setShowDatePicker(false);
+            if (selected) {
+              const d = selected.toISOString().split('T')[0];
+              setJobDate(d);
+            }
+          }}
+        />
+      )}
+
+      {/* Hora de inicio */}
+      <Text style={styles.label}>Hora inicio</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowStartPicker(true)}>
+        <Text>{startTime || 'Selecciona hora de inicio'}</Text>
+      </TouchableOpacity>
+      {showStartPicker && (
+        <DateTimePicker
+          value={startTime ? new Date(`1970-01-01T${startTime}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowStartPicker(false);
+            if (selected) {
+              const t = selected.toTimeString().slice(0,5);
+              setStartTime(t);
+            }
+          }}
+        />
+      )}
+
+      {/* Hora de fin */}
+      <Text style={styles.label}>Hora fin</Text>
+      <TouchableOpacity style={styles.input} onPress={() => setShowEndPicker(true)}>
+        <Text>{endTime || 'Selecciona hora de fin'}</Text>
+      </TouchableOpacity>
+      {showEndPicker && (
+        <DateTimePicker
+          value={endTime ? new Date(`1970-01-01T${endTime}`) : new Date()}
+          mode="time"
+          display="default"
+          onChange={(e, selected) => {
+            setShowEndPicker(false);
+            if (selected) {
+              const t = selected.toTimeString().slice(0,5);
+              setEndTime(t);
+            }
+          }}
+        />
+      )}
 
       {/* Valor multiplicador */}
     {/*}  <Text style={styles.label}>Valor multiplicador</Text>
@@ -288,7 +350,9 @@ export default function EditJobScreen() {
            description,
            multiplicativeValue,
            attachedFiles,
-           scheduleJson,
+           jobDate,
+           startTime,
+           endTime,
          }}
        />
   );

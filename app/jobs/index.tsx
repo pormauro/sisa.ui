@@ -73,9 +73,14 @@ export default function JobsScreen() {
         <View style={styles.itemContent}>
           {/* Título: Tipo de trabajo */}
           <Text style={styles.title}>{item.type_of_work}</Text>
-          
+
           {/* Subtítulo: Nombre del cliente */}
           <Text style={styles.subTitle}>{clientName ? clientName : 'Cliente desconocido'}</Text>
+
+          {/* Fecha y horario */}
+          {item.job_date && (
+            <Text style={styles.date}>{`${item.job_date} ${item.start_time} - ${item.end_time}`}</Text>
+          )}
 
           {jobStatus ? (
             <View style={[styles.statusContainer, { backgroundColor: jobStatus.background_color }]}>
@@ -131,6 +136,7 @@ const styles = StyleSheet.create({
   itemContent: { flex: 1, marginRight: 10 },
   title: { fontWeight: 'bold', fontSize: 16 },
   subTitle: { fontSize: 14, color: '#555', marginVertical: 4 }, // Estilo para el subtítulo (nombre del cliente)
+  date: { fontSize: 12, color: '#333' },
   statusContainer: {
     marginTop: 4,
     paddingVertical: 4,

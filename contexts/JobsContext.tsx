@@ -8,13 +8,21 @@ export interface Job {
   user_id: number;
   client_id: number;
   description: string;
-  start_time: string;
-  end_time: string;
+  /** Fecha del trabajo en formato YYYY-MM-DD */
   job_date?: string | null;
+  /** Hora de inicio en formato HH:mm */
+  start_time: string;
+  /** Hora de finalización en formato HH:mm */
+  end_time: string;
+  type_of_work?: string;
+  status?: string;
+  folder_id?: number | null;
+  product_service_id?: number | null;
+  multiplicative_value?: number;
   tariff_id?: number | null;
   manual_amount?: number | null;
-  attached_files?: string[];
-  folder_id?: number | null;
+  /** Cadena JSON con archivos adjuntos */
+  attached_files?: string | null;
 }
 
 interface JobsContextType {
