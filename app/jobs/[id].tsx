@@ -45,6 +45,7 @@ export default function EditJobScreen() {
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
   const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
   const [selectedTariff,  setSelectedTariff]  = useState<ModalPickerItem | null>(null);
+  const manualTariffItem = useMemo<ModalPickerItem>(() => ({ id: '', name: '-- Tarifa manual --' }), []);
   const [manualAmount,   setManualAmount]    = useState('');
 
   // otros campos
@@ -60,7 +61,7 @@ export default function EditJobScreen() {
   const [loading, setLoading] = useState(false);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const rate = useMemo(() => {
-    if (selectedTariff) {
+    if (selectedTariff && selectedTariff.id !== '') {
       const t = tariffs.find(t => t.id === selectedTariff.id);
       return t ? t.amount : 0;
     }
@@ -100,9 +101,9 @@ export default function EditJobScreen() {
     setEndTime(extractTime(job.end_time));
 
     const tar = tariffs.find(t => t.id === job.tariff_id);
-    setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : null);
+    setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
     setManualAmount(job.manual_amount ? job.manual_amount.toString() : '');
-  }, [job, clients, folders, statuses, tariffs]);
+  }, [job, clients, folders, statuses, tariffs, manualTariffItem]);
 
   // opciones para pickers
   const clientItems = useMemo(
@@ -122,8 +123,8 @@ export default function EditJobScreen() {
   );
 
   const tariffItems = useMemo(
-    () => tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
-    [tariffs]
+    () => [manualTariffItem, ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` }))],
+    [tariffs, manualTariffItem]
   );
 
   // submit
@@ -139,7 +140,7 @@ export default function EditJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: selectedTariff ? Number(selectedTariff.id) : null,
+        tariff_id: selectedTariff && selectedTariff.id !== '' ? Number(selectedTariff.id) : null,
         manual_amount: manualAmount ? Number(manualAmount) : null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
@@ -258,19 +259,19 @@ export default function EditJobScreen() {
         <ModalPicker
           items={tariffItems}
           selectedItem={selectedTariff}
-          onSelect={(item) => { setSelectedTariff(item); setManualAmount(''); }}
+          onSelect={(item) => { setSelectedTariff(item); if (item.id) setManualAmount(''); }}
           placeholder="-- Tarifa --"
         />
       </View>
 
-      {!selectedTariff && (
+      {selectedTariff?.id === '' && (
         <>
-          {/* Monto manual */}
-          <Text style={styles.label}>Monto manual</Text>
+          {/* Tarifa manual */}
+          <Text style={styles.label}>Tarifa manual</Text>
           <TextInput
             style={styles.input}
             value={manualAmount}
-            onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(null); }}
+            onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(manualTariffItem); }}
             keyboardType="numeric"
             editable={canEdit}
           />
