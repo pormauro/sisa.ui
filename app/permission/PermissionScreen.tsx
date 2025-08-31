@@ -15,6 +15,7 @@ const PERMISSION_GROUPS = [
   { group: "Sales", permissions: ['listSales', 'getSale', 'addSale', 'updateSale', 'deleteSale', 'listSaleHistory'] },
   { group: "Products / Services", permissions: ['listProductsServices', 'getProductService', 'addProductService', 'updateProductService', 'deleteProductService', 'listProductServiceHistory'] },
   { group: "Jobs", permissions: ['listJobs', 'getJob', 'addJob', 'updateJob', 'deleteJob', 'listJobHistory'] },
+  { group: "Tariffs", permissions: ['listTariffs', 'getTariff', 'addTariff', 'updateTariff', 'deleteTariff', 'listTariffHistory'] },
   { group: "Expenses", permissions: ['listExpenses', 'getExpense', 'addExpense', 'updateExpense', 'deleteExpense', 'listExpenseHistory'] },
   { group: "Appointments", permissions: ['listAppointments', 'getAppointment', 'addAppointment', 'updateAppointment', 'deleteAppointment', 'listAppointmentHistory'] },
   { group: "Accounting Closings", permissions: ['listClosings', 'getClosing', 'addClosing', 'updateClosing', 'deleteClosing', 'listClosingHistory'] },
