@@ -18,9 +18,6 @@ import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
-import { ProductsServicesContext } from '@/contexts/ProductsServicesContext';
-import { StatusesContext, Status } from '@/contexts/StatusesContext';
-import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -28,17 +25,10 @@ export default function CreateJobScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
-  const { productsServices } = useContext(ProductsServicesContext);
-  const { statuses, loadStatuses } = useContext(StatusesContext);
-
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
-  const [selectedProduct, setSelectedProduct] = useState<string>('');
-  const [selectedStatus, setSelectedStatus]   = useState<ModalPickerItem | null>(null);
-  const [typeOfWork, setTypeOfWork]           = useState<string>('');
   const [description, setDescription]         = useState<string>('');
-  const [multiplicativeValue, setMultiplicativeValue] = useState<string>('1.00');
   const [attachedFiles, setAttachedFiles]     = useState<string>('');
   const [jobDate, setJobDate]                 = useState<string>('');
   const [startTime, setStartTime]             = useState<string>('');
@@ -53,7 +43,6 @@ export default function CreateJobScreen() {
       Alert.alert('Acceso denegado', 'No tienes permiso para agregar trabajos.');
       router.back();
     }
-    loadStatuses();
   }, [permissions]);
 
   const filteredFolders = useMemo(() => {
@@ -62,32 +51,24 @@ export default function CreateJobScreen() {
     return folders.filter(f => f.client_id === cid);
   }, [folders, selectedClient]);
 
-  const statusItems: ModalPickerItem[] = useMemo(
-    () => statuses.map((s: Status) => ({
-      id: s.id,
-      name: s.label,
-      backgroundColor: s.background_color,
-    })),
-    [statuses]
-  );
 
   const handleSubmit = async () => {
-    if (!selectedClient || !selectedStatus || !jobDate || !startTime || !endTime) {
+    if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
+    const startDateTime = `${jobDate} ${startTime}:00`;
+    const endDateTime = `${jobDate} ${endTime}:00`;
     const jobData = {
       client_id: Number.parseInt(selectedClient, 10),
-      folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
-      product_service_id: selectedProduct ? parseInt(selectedProduct, 10) : null,
-      type_of_work: typeOfWork,
       description,
-      status: selectedStatus.id.toString(),
-      job_date: jobDate,
-      start_time: startTime,
-      end_time: endTime,
-      multiplicative_value: parseFloat(multiplicativeValue),
+      start_time: startDateTime,
+      end_time: endDateTime,
+      tariff_id: null,
+      manual_amount: null,
       attached_files: attachedFiles || null,
+      folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
+      job_date: startDateTime,
     };
     setLoading(true);
     const created = await addJob(jobData);
@@ -104,26 +85,6 @@ export default function CreateJobScreen() {
   // Aquí renderizamos TODO el formulario como header de la FlatList
   const renderHeader = () => (
     <View>
-      {/* Estado */}
-      <Text style={styles.label}>Estado *</Text>
-      <View style={styles.pickerWrap}>
-        <ModalPicker
-          items={statusItems}
-          selectedItem={selectedStatus}
-          onSelect={setSelectedStatus}
-          placeholder="-- Selecciona un Estado --"
-        />
-      </View>
-
-      {/* Tipo de trabajo */}
-      <Text style={styles.label}>Tipo de trabajo</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Ej: Reparación de equipo"
-        value={typeOfWork}
-        onChangeText={setTypeOfWork}
-      />
-
       {/* Descripción */}
       <Text style={styles.label}>Descripción</Text>
       <TextInput
@@ -161,21 +122,6 @@ export default function CreateJobScreen() {
           <Picker.Item label="-- Sin carpeta --" value="" />
           {filteredFolders.map(f => (
             <Picker.Item key={f.id} label={f.name} value={f.id.toString()} />
-          ))}
-        </Picker>
-      </View>
-
-      {/* Producto/Servicio */}
-      <Text style={styles.label}>Producto/Servicio</Text>
-      <View style={styles.pickerWrap}>
-        <Picker
-          selectedValue={selectedProduct}
-          onValueChange={setSelectedProduct}
-          style={styles.picker}
-        >
-          <Picker.Item label="-- Ninguno --" value="" />
-          {productsServices.map(ps => (
-            <Picker.Item key={ps.id} label={ps.description} value={ps.id.toString()} />
           ))}
         </Picker>
       </View>

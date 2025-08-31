@@ -19,8 +19,6 @@ import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
-import { ProductsServicesContext } from '@/contexts/ProductsServicesContext';
-import { StatusesContext, Status } from '@/contexts/StatusesContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 
 export default function EditJobScreen() {
@@ -32,8 +30,6 @@ export default function EditJobScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
-  const { productsServices } = useContext(ProductsServicesContext);
-  const { statuses, loadStatuses } = useContext(StatusesContext);
 
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
@@ -42,17 +38,13 @@ export default function EditJobScreen() {
   // estados para pickers
   const [selectedClient,  setSelectedClient]  = useState<ModalPickerItem | null>(null);
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<ModalPickerItem | null>(null);
-  const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
 
   // otros campos
-  const [typeOfWork,          setTypeOfWork]       = useState('');
-  const [description,         setDescription]      = useState('');
-  const [multiplicativeValue, setMultiplicativeValue] = useState('1.00');
-  const [attachedFiles,       setAttachedFiles]    = useState('');
-  const [jobDate,             setJobDate]          = useState('');
-  const [startTime,           setStartTime]        = useState('');
-  const [endTime,             setEndTime]          = useState('');
+  const [description,   setDescription] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState('');
+  const [jobDate,       setJobDate] = useState('');
+  const [startTime,     setStartTime] = useState('');
+  const [endTime,       setEndTime] = useState('');
   const [showDatePicker,      setShowDatePicker]   = useState(false);
   const [showStartPicker,     setShowStartPicker]  = useState(false);
   const [showEndPicker,       setShowEndPicker]    = useState(false);
@@ -73,27 +65,15 @@ export default function EditJobScreen() {
     const fol = folders.find(f => f.id === job.folder_id);
     setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
 
-    const prod = productsServices.find(p => p.id === job.product_service_id);
-    setSelectedProduct(prod ? { id: prod.id, name: prod.description } : null);
+    const extractDate = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[0] : dt || '');
+    const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
 
-    const sid = job.status ? parseInt(job.status, 10) : undefined;
-    const st  = statuses.find(s => s.id === sid);
-    setSelectedStatus(st ? { id: st.id, name: st.label, backgroundColor: st.background_color } : null);
-
-    // resto de campos
-    setTypeOfWork(job.type_of_work || '');
     setDescription(job.description || '');
-    setMultiplicativeValue(job.multiplicative_value?.toString() || '1.00');
     setAttachedFiles(job.attached_files || '');
-    setJobDate(job.job_date || '');
-    setStartTime(job.start_time || '');
-    setEndTime(job.end_time || '');
-  }, [job, clients, folders, productsServices, statuses]);
-
-  // cargar estados cuando monte
-  useEffect(() => {
-    loadStatuses();
-  }, []);
+    setJobDate(extractDate(job.job_date));
+    setStartTime(extractTime(job.start_time));
+    setEndTime(extractTime(job.end_time));
+  }, [job, clients, folders]);
 
   // opciones para pickers
   const clientItems = useMemo(
@@ -106,34 +86,26 @@ export default function EditJobScreen() {
       .map(f => ({ id: f.id, name: f.name })),
     [folders, selectedClient]
   );
-  const productItems = useMemo(
-    () => productsServices.map(p => ({ id: p.id, name: p.description })),
-    [productsServices]
-  );
-  const statusItems = useMemo(
-    () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
-    [statuses]
-  );
 
   // submit
   const handleSubmit = async () => {
-    if (!selectedClient || !selectedStatus || !jobDate || !startTime || !endTime) {
+    if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
     setLoading(true);
+    const startDateTime = `${jobDate} ${startTime}:00`;
+    const endDateTime = `${jobDate} ${endTime}:00`;
     const updated = await updateJob(jobId, {
-      client_id:            Number(selectedClient.id),
-      product_service_id:   selectedProduct ? Number(selectedProduct.id) : null,
-      folder_id:            selectedFolder  ? Number(selectedFolder.id)  : null,
-      type_of_work:         typeOfWork,
+      client_id: Number(selectedClient.id),
       description,
-      status:               selectedStatus.id.toString(),
-      job_date:             jobDate,
-      start_time:           startTime,
-      end_time:             endTime,
-      multiplicative_value: parseFloat(multiplicativeValue),
-      attached_files:       attachedFiles || null,
+      start_time: startDateTime,
+      end_time: endDateTime,
+      tariff_id: null,
+      manual_amount: null,
+      attached_files: attachedFiles || null,
+      folder_id: selectedFolder ? Number(selectedFolder.id) : null,
+      job_date: startDateTime,
     });
     setLoading(false);
 
@@ -173,26 +145,6 @@ export default function EditJobScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1 }}
     >
-      {/* Estado */}
-      <Text style={styles.label}>Estado *</Text>
-      <View style={styles.pickerWrap}>
-        <ModalPicker
-          items={statusItems}
-          selectedItem={selectedStatus}
-          onSelect={setSelectedStatus}
-          placeholder="-- Estado --"
-        />
-      </View>
-
-      {/* Tipo de trabajo */}
-      <Text style={styles.label}>Tipo de trabajo</Text>
-      <TextInput
-        style={styles.input}
-        value={typeOfWork}
-        onChangeText={setTypeOfWork}
-        editable={canEdit}
-      />
-
       {/* Descripción */}
       <Text style={styles.label}>Descripción</Text>
       <TextInput
@@ -222,17 +174,6 @@ export default function EditJobScreen() {
           selectedItem={selectedFolder}
           onSelect={setSelectedFolder}
           placeholder="-- Carpeta --"
-        />
-      </View>
-
-      {/* Producto/Servicio */}
-      <Text style={styles.label}>Producto/Servicio</Text>
-      <View style={styles.pickerWrap}>
-        <ModalPicker
-          items={productItems}
-          selectedItem={selectedProduct}
-          onSelect={setSelectedProduct}
-          placeholder="-- Producto/Servicio --"
         />
       </View>
 
@@ -296,16 +237,6 @@ export default function EditJobScreen() {
         />
       )}
 
-      {/* Valor multiplicador */}
-    {/*}  <Text style={styles.label}>Valor multiplicador</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="decimal-pad"
-        value={multiplicativeValue}
-        onChangeText={setMultiplicativeValue}
-        editable={canEdit}
-      />*/}
-
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
       <FileCarousel
@@ -344,11 +275,7 @@ export default function EditJobScreen() {
          extraData={{
            selectedClient,
            selectedFolder,
-           selectedProduct,
-           selectedStatus,
-           typeOfWork,
            description,
-           multiplicativeValue,
            attachedFiles,
            jobDate,
            startTime,
