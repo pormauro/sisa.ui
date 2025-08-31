@@ -9,6 +9,8 @@ import {
   View,
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -73,33 +75,50 @@ export default function CreateJobScreen() {
       Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
-    const jobData = {
-      client_id: Number.parseInt(selectedClient, 10),
-      description,
-      start_time: startTime,
-      end_time: endTime,
-      tariff_id: null,
-      manual_amount: null,
-      attached_files: attachedFiles || null,
-      folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
-      job_date: jobDate,
-      status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
+    const saveJob = async () => {
+      const jobData = {
+        client_id: Number.parseInt(selectedClient, 10),
+        description,
+        start_time: startTime,
+        end_time: endTime,
+        tariff_id: null,
+        manual_amount: null,
+        attached_files: attachedFiles || null,
+        folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
+        job_date: jobDate,
+        status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
+      };
+      setLoading(true);
+      const created = await addJob(jobData);
+      setLoading(false);
+      if (created) {
+        Alert.alert('Éxito', 'Trabajo creado.');
+        router.back();
+      } else {
+        Alert.alert('Error', 'No se pudo crear el trabajo.');
+      }
     };
-    setLoading(true);
-    const created = await addJob(jobData);
-    setLoading(false);
-
-    if (created) {
-      Alert.alert('Éxito', 'Trabajo creado.');
-      router.back();
-    } else {
-      Alert.alert('Error', 'No se pudo crear el trabajo.');
+    const start = new Date(`1970-01-01T${startTime}`);
+    const end = new Date(`1970-01-01T${endTime}`);
+    if (end <= start) {
+      Alert.alert(
+        'Advertencia',
+        'La hora de fin es anterior o igual a la hora de inicio. ¿Deseas guardar de todos modos?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Guardar', onPress: saveJob },
+        ]
+      );
+      return;
     }
+    await saveJob();
   };
 
-  // Aquí renderizamos TODO el formulario como header de la FlatList
-  const renderHeader = () => (
-    <View>
+  const renderForm = () => (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1 }}
+    >
       {/* Fecha del trabajo */}
       <Text style={styles.label}>Fecha</Text>
       <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
@@ -215,50 +234,51 @@ export default function CreateJobScreen() {
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
       <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
-    </View>
+
+      <TouchableOpacity
+        style={styles.submitBtn}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitText}>Crear Trabajo</Text>
+        )}
+      </TouchableOpacity>
+    </KeyboardAvoidingView>
   );
 
-  // Como no tenemos datos de lista, pasamos un array vacío.
   return (
     <FlatList
-      data={[]}
-      keyExtractor={() => 'none'}
-      renderItem={null}
-      ListHeaderComponent={renderHeader}
-      ListFooterComponent={() => (
-        <TouchableOpacity
-          style={styles.submitBtn}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.submitText}>Crear Trabajo</Text>
-          }
-        </TouchableOpacity>
-      )}
+      data={[{}]}
+      keyExtractor={() => 'form'}
+      renderItem={renderForm}
       contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
     />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
-  label: { marginTop: 12, fontSize: 16, fontWeight: '600' },
+  container: { padding: 16, backgroundColor: '#f7f7f7' },
+  label: { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600', color: '#333' },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#999',
     borderRadius: 8,
-    marginVertical: 8,
+    marginBottom: 12,
+    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#999',
     borderRadius: 8,
     padding: 12,
-    marginTop: 4,
+    marginBottom: 12,
     backgroundColor: '#fff',
+    color: '#000',
   },
   submitBtn: {
     marginTop: 20,
