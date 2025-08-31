@@ -21,6 +21,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { StatusesContext } from '@/contexts/StatusesContext';
+import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatTimeInterval } from '@/utils/time';
 
 export default function EditJobScreen() {
@@ -33,6 +34,7 @@ export default function EditJobScreen() {
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
+  const { tariffs } = useContext(TariffsContext);
 
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
@@ -42,6 +44,8 @@ export default function EditJobScreen() {
   const [selectedClient,  setSelectedClient]  = useState<ModalPickerItem | null>(null);
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
   const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
+  const [selectedTariff,  setSelectedTariff]  = useState<ModalPickerItem | null>(null);
+  const [manualAmount,   setManualAmount]    = useState('');
 
   // otros campos
   const [description,   setDescription] = useState('');
@@ -81,7 +85,11 @@ export default function EditJobScreen() {
     setJobDate(extractDate(job.job_date));
     setStartTime(extractTime(job.start_time));
     setEndTime(extractTime(job.end_time));
-  }, [job, clients, folders, statuses]);
+
+    const tar = tariffs.find(t => t.id === job.tariff_id);
+    setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : null);
+    setManualAmount(job.manual_amount ? job.manual_amount.toString() : '');
+  }, [job, clients, folders, statuses, tariffs]);
 
   // opciones para pickers
   const clientItems = useMemo(
@@ -100,6 +108,11 @@ export default function EditJobScreen() {
     [statuses]
   );
 
+  const tariffItems = useMemo(
+    () => tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
+    [tariffs]
+  );
+
   // submit
   const handleSubmit = async () => {
     if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
@@ -113,8 +126,8 @@ export default function EditJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: null,
-        manual_amount: null,
+        tariff_id: selectedTariff ? Number(selectedTariff.id) : null,
+        manual_amount: manualAmount ? Number(manualAmount) : null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
@@ -226,6 +239,27 @@ export default function EditJobScreen() {
         />
       </View>
 
+      {/* Tarifa */}
+      <Text style={styles.label}>Tarifa</Text>
+      <View style={styles.pickerWrap}>
+        <ModalPicker
+          items={tariffItems}
+          selectedItem={selectedTariff}
+          onSelect={(item) => { setSelectedTariff(item); setManualAmount(''); }}
+          placeholder="-- Tarifa --"
+        />
+      </View>
+
+      {/* Monto manual */}
+      <Text style={styles.label}>Monto manual</Text>
+      <TextInput
+        style={styles.input}
+        value={manualAmount}
+        onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(null); }}
+        keyboardType="numeric"
+        editable={canEdit}
+      />
+
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
       <TextInput
@@ -321,13 +355,15 @@ export default function EditJobScreen() {
            selectedClient,
            selectedFolder,
            description,
-           attachedFiles,
-           jobDate,
-           startTime,
-           endTime,
-           selectedStatus,
-         }}
-       />
+         attachedFiles,
+         jobDate,
+         startTime,
+         endTime,
+          selectedStatus,
+          selectedTariff,
+          manualAmount,
+        }}
+      />
   );
 }
 

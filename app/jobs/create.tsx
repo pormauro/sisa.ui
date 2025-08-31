@@ -21,6 +21,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
+import { TariffsContext } from '@/contexts/TariffsContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { formatTimeInterval } from '@/utils/time';
 
@@ -31,10 +32,13 @@ export default function CreateJobScreen() {
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
+  const { tariffs } = useContext(TariffsContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
   const [selectedStatus, setSelectedStatus]   = useState<ModalPickerItem | null>(null);
+  const [selectedTariff, setSelectedTariff]   = useState<string>('');
+  const [manualAmount, setManualAmount]       = useState<string>('');
   const [description, setDescription]         = useState<string>('');
   const [attachedFiles, setAttachedFiles]     = useState<string>('');
   const [jobDate, setJobDate]                 = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -86,8 +90,8 @@ export default function CreateJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: null,
-        manual_amount: null,
+        tariff_id: selectedTariff ? parseInt(selectedTariff, 10) : null,
+        manual_amount: manualAmount ? parseFloat(manualAmount) : null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
@@ -185,6 +189,31 @@ export default function CreateJobScreen() {
           placeholder="-- Estado --"
         />
       </View>
+
+      {/* Tarifa */}
+      <Text style={styles.label}>Tarifa</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={selectedTariff}
+          onValueChange={(val) => { setSelectedTariff(val); if (val) setManualAmount(''); }}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Sin tarifa --" value="" />
+          {tariffs.map(t => (
+            <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
+          ))}
+        </Picker>
+      </View>
+
+      {/* Monto manual */}
+      <Text style={styles.label}>Monto manual</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Ingresa monto manual"
+        value={manualAmount}
+        onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(''); }}
+        keyboardType="numeric"
+      />
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
