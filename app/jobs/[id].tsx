@@ -263,15 +263,19 @@ export default function EditJobScreen() {
         />
       </View>
 
-      {/* Monto manual */}
-      <Text style={styles.label}>Monto manual</Text>
-      <TextInput
-        style={styles.input}
-        value={manualAmount}
-        onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(null); }}
-        keyboardType="numeric"
-        editable={canEdit}
-      />
+      {!selectedTariff && (
+        <>
+          {/* Monto manual */}
+          <Text style={styles.label}>Monto manual</Text>
+          <TextInput
+            style={styles.input}
+            value={manualAmount}
+            onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(null); }}
+            keyboardType="numeric"
+            editable={canEdit}
+          />
+        </>
+      )}
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
