@@ -42,7 +42,12 @@ function RootLayoutContent() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { paddingTop: 30, paddingBottom: 30 },
+      }}
+    >
       <Stack.Screen name="Index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="Home" />
