@@ -1,13 +1,17 @@
 import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
 import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
+import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
 import { ConfigProvider } from '@/contexts/ConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
 import { JobsProvider } from '@/contexts/JobsContext';
+import { PaymentsProvider } from '@/contexts/PaymentsContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
+import { ProvidersProvider } from '@/contexts/ProvidersContext';
+import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { Stack, useRouter } from 'expo-router';
@@ -56,17 +60,25 @@ export default function RootLayout() {
             <ConfigProvider>
               <CashBoxesProvider>
                 <ClientsProvider>
-                  <ProductsServicesProvider>
-                    <StatusesProvider>
-                      <TariffsProvider>
-                        <JobsProvider>
-                          <FoldersProvider>
-                            <RootLayoutContent />
-                          </FoldersProvider>
-                        </JobsProvider>
-                      </TariffsProvider>
-                    </StatusesProvider>
-                  </ProductsServicesProvider>
+                  <ProvidersProvider>
+                    <CategoriesProvider>
+                      <ProductsServicesProvider>
+                        <StatusesProvider>
+                          <TariffsProvider>
+                            <JobsProvider>
+                              <PaymentsProvider>
+                                <ReceiptsProvider>
+                                  <FoldersProvider>
+                                    <RootLayoutContent />
+                                  </FoldersProvider>
+                                </ReceiptsProvider>
+                              </PaymentsProvider>
+                            </JobsProvider>
+                          </TariffsProvider>
+                        </StatusesProvider>
+                      </ProductsServicesProvider>
+                    </CategoriesProvider>
+                  </ProvidersProvider>
                 </ClientsProvider>
               </CashBoxesProvider>
             </ConfigProvider>
