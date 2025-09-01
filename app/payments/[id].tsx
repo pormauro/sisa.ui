@@ -19,6 +19,8 @@ import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { toMySQLDateTime } from '@/utils/date';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -36,8 +38,11 @@ export default function PaymentDetailPage() {
 
   const payment = payments.find(p => p.id === paymentId);
 
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [paidWithAccount, setPaidWithAccount] = useState('');
-  const [creditorType, setCreditorType] = useState<'client' | 'provider' | 'other'>('other');
+  const [creditorType, setCreditorType] =
+    useState<'client' | 'provider' | 'other'>('provider');
   const [creditorClientId, setCreditorClientId] = useState('');
   const [creditorProviderId, setCreditorProviderId] = useState('');
   const [creditorOther, setCreditorOther] = useState('');
@@ -57,17 +62,24 @@ export default function PaymentDetailPage() {
 
   useEffect(() => {
     if (payment) {
+      setPaymentDate(new Date(payment.payment_date.replace(' ', 'T')));
       setPaidWithAccount(payment.paid_with_account);
       setCreditorType(payment.creditor_type);
-      setCreditorClientId(payment.creditor_client_id ? String(payment.creditor_client_id) : '');
-      setCreditorProviderId(payment.creditor_provider_id ? String(payment.creditor_provider_id) : '');
+      setCreditorClientId(
+        payment.creditor_client_id ? String(payment.creditor_client_id) : ''
+      );
+      setCreditorProviderId(
+        payment.creditor_provider_id ? String(payment.creditor_provider_id) : ''
+      );
       setCreditorOther(payment.creditor_other || '');
       setDescription(payment.description || '');
       if (payment.items && payment.items[0]) {
         setCategoryId(String(payment.items[0].category_id));
         setPrice(String(payment.items[0].price));
         setChargeClient(payment.items[0].charge_client);
-        setChargeClientId(payment.items[0].client_id ? String(payment.items[0].client_id) : '');
+        setChargeClientId(
+          payment.items[0].client_id ? String(payment.items[0].client_id) : ''
+        );
       }
     }
   }, [payment]);
@@ -88,6 +100,7 @@ export default function PaymentDetailPage() {
         onPress: async () => {
           setLoading(true);
           const success = await updatePayment(paymentId, {
+            payment_date: toMySQLDateTime(paymentDate),
             paid_with_account: paidWithAccount,
             creditor_type: creditorType,
             creditor_client_id:
@@ -145,10 +158,32 @@ export default function PaymentDetailPage() {
     ]);
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Cuenta utilizada</Text>
-      <View style={styles.pickerWrap}>
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.label}>Fecha y hora</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => canEdit && setShowDatePicker(true)}
+          disabled={!canEdit}
+        >
+          <Text>{toMySQLDateTime(paymentDate)}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={paymentDate}
+            mode="datetime"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                setPaymentDate(selectedDate);
+              }
+            }}
+          />
+        )}
+
+        <Text style={styles.label}>Cuenta utilizada</Text>
+        <View style={styles.pickerWrap}>
         <Picker
           selectedValue={paidWithAccount}
           onValueChange={setPaidWithAccount}
