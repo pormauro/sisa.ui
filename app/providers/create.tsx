@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
 import { useRouter } from 'expo-router';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import CircleImagePicker from '@/components/CircleImagePicker';
 
 export default function CreateProvider() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function CreateProvider() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -30,7 +32,14 @@ export default function CreateProvider() {
       return;
     }
     setLoading(true);
-    const newProvider = await addProvider({ business_name: businessName, tax_id: taxId, email, phone, address, brand_file_id: null });
+    const newProvider = await addProvider({
+      business_name: businessName,
+      tax_id: taxId,
+      email,
+      phone,
+      address,
+      brand_file_id: brandFileId,
+    });
     setLoading(false);
     if (newProvider) {
       Alert.alert('Éxito', 'Proveedor creado.');
@@ -42,6 +51,14 @@ export default function CreateProvider() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.label}>Imagen del Proveedor</Text>
+      <CircleImagePicker
+        fileId={brandFileId}
+        editable={true}
+        size={200}
+        onImageChange={setBrandFileId}
+      />
+
       <Text style={styles.label}>Razón Social</Text>
       <TextInput style={styles.input} value={businessName} onChangeText={setBusinessName} placeholder="Nombre" />
 
