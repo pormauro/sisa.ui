@@ -7,6 +7,7 @@ export interface PaymentItem {
   category_id: number;
   price: number;
   charge_client: boolean;
+  client_id?: number | null;
 }
 
 export interface Payment {

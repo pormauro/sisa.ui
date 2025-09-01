@@ -48,7 +48,9 @@ export default function ReceiptsScreen() {
   };
 
   const renderItem = ({ item }: { item: Receipt }) => {
-    const total = item.items.reduce((sum, it) => sum + it.price, 0);
+    const total = Array.isArray(item.items)
+      ? item.items.reduce((sum, it) => sum + it.price, 0)
+      : 0;
     return (
       <TouchableOpacity style={styles.item} onLongPress={() => router.push(`/receipts/${item.id}`)}>
         <View style={styles.itemInfo}>

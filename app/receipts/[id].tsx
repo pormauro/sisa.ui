@@ -18,6 +18,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -31,6 +32,7 @@ export default function ReceiptDetailPage() {
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
+  const { clients } = useContext(ClientsContext);
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -41,6 +43,9 @@ export default function ReceiptDetailPage() {
   const [price, setPrice] = useState('');
   const [payProvider, setPayProvider] = useState(false);
   const [providerId, setProviderId] = useState('');
+  const [payerClientId, setPayerClientId] = useState('');
+  const [payerProviderId, setPayerProviderId] = useState('');
+  const [payerOther, setPayerOther] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -54,6 +59,11 @@ export default function ReceiptDetailPage() {
     if (receipt) {
       setPaidInAccount(receipt.paid_in_account);
       setPayerType(receipt.payer_type);
+      setPayerClientId(receipt.payer_client_id ? String(receipt.payer_client_id) : '');
+      setPayerProviderId(
+        receipt.payer_provider_id ? String(receipt.payer_provider_id) : ''
+      );
+      setPayerOther(receipt.payer_other || '');
       setDescription(receipt.description || '');
       if (receipt.items[0]) {
         setCategoryId(String(receipt.items[0].category_id));
@@ -86,6 +96,15 @@ export default function ReceiptDetailPage() {
           const success = await updateReceipt(receiptId, {
             paid_in_account: paidInAccount,
             payer_type: payerType,
+            payer_client_id:
+              payerType === 'client' && payerClientId
+                ? parseInt(payerClientId, 10)
+                : null,
+            payer_provider_id:
+              payerType === 'provider' && payerProviderId
+                ? parseInt(payerProviderId, 10)
+                : null,
+            payer_other: payerType === 'other' ? payerOther : null,
             description,
             items: [
               {
@@ -158,6 +177,54 @@ export default function ReceiptDetailPage() {
           <Picker.Item label="Otro" value="other" />
         </Picker>
       </View>
+
+      {payerType === 'client' && (
+        <>
+          <Text style={styles.label}>Cliente</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={payerClientId}
+              onValueChange={setPayerClientId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(c => (
+                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
+
+      {payerType === 'provider' && (
+        <>
+          <Text style={styles.label}>Proveedor</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={payerProviderId}
+              onValueChange={setPayerProviderId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(p => (
+                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
+
+      {payerType === 'other' && (
+        <>
+          <Text style={styles.label}>Pagador</Text>
+          <TextInput
+            style={styles.input}
+            value={payerOther}
+            onChangeText={setPayerOther}
+            placeholder="Nombre del pagador"
+          />
+        </>
+      )}
 
       <Text style={styles.label}>Descripción</Text>
       <TextInput style={styles.input} value={description} onChangeText={setDescription} />
