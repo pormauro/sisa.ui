@@ -1,6 +1,6 @@
 // app/payments/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
+import { getDisplayCategories } from '@/utils/categories';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -53,6 +54,11 @@ export default function PaymentDetailPage() {
   const [chargeClient, setChargeClient] = useState(false);
   const [chargeClientId, setChargeClientId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const displayCategories = useMemo(
+    () => getDisplayCategories(categories, 'expense'),
+    [categories]
+  );
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -300,8 +306,12 @@ export default function PaymentDetailPage() {
           enabled={canEdit}
         >
           <Picker.Item label="-- Selecciona categoría --" value="" />
-          {categories.map(c => (
-            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          {displayCategories.map(c => (
+            <Picker.Item
+              key={c.id}
+              label={`${' '.repeat(c.level * 2)}${c.name}`}
+              value={c.id.toString()}
+            />
           ))}
         </Picker>
       </View>

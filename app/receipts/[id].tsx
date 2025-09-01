@@ -1,6 +1,6 @@
 // app/receipts/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
+import { getDisplayCategories } from '@/utils/categories';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -52,6 +53,11 @@ export default function ReceiptDetailPage() {
   const [payerProviderId, setPayerProviderId] = useState('');
   const [payerOther, setPayerOther] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const displayCategories = useMemo(
+    () => getDisplayCategories(categories, 'income'),
+    [categories]
+  );
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -293,8 +299,12 @@ export default function ReceiptDetailPage() {
           style={styles.picker}
         >
           <Picker.Item label="-- Selecciona categoría --" value="" />
-          {categories.map(c => (
-            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          {displayCategories.map(c => (
+            <Picker.Item
+              key={c.id}
+              label={`${' '.repeat(c.level * 2)}${c.name}`}
+              value={c.id.toString()}
+            />
           ))}
         </Picker>
       </View>

@@ -1,6 +1,6 @@
 // app/categories/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { getDisplayCategories } from '@/utils/categories';
 
 export default function CategoryDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -31,6 +32,11 @@ export default function CategoryDetailPage() {
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const displayCategories = useMemo(
+    () => getDisplayCategories(categories),
+    [categories]
+  );
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -125,10 +131,14 @@ export default function CategoryDetailPage() {
           style={styles.picker}
         >
           <Picker.Item label="-- Sin padre --" value="" />
-          {categories
+          {displayCategories
             .filter(c => c.id !== categoryId)
             .map(c => (
-              <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+              <Picker.Item
+                key={c.id}
+                label={`${' '.repeat(c.level * 2)}${c.name}`}
+                value={c.id.toString()}
+              />
             ))}
         </Picker>
       </View>
