@@ -19,6 +19,8 @@ import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { toMySQLDateTime } from '@/utils/date';
 
 export default function CreatePayment() {
   const router = useRouter();
@@ -29,8 +31,11 @@ export default function CreatePayment() {
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
 
+  const [paymentDate, setPaymentDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [paidWithAccount, setPaidWithAccount] = useState('');
-  const [creditorType, setCreditorType] = useState<'client' | 'provider' | 'other'>('other');
+  const [creditorType, setCreditorType] =
+    useState<'client' | 'provider' | 'other'>('provider');
   const [creditorClientId, setCreditorClientId] = useState('');
   const [creditorProviderId, setCreditorProviderId] = useState('');
   const [creditorOther, setCreditorOther] = useState('');
@@ -55,6 +60,7 @@ export default function CreatePayment() {
     }
     setLoading(true);
     const newPayment = await addPayment({
+      payment_date: toMySQLDateTime(paymentDate),
       paid_with_account: paidWithAccount,
       creditor_type: creditorType,
       creditor_client_id:
@@ -88,6 +94,27 @@ export default function CreatePayment() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.label}>Fecha y hora</Text>
+      <TouchableOpacity
+        style={styles.input}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <Text>{toMySQLDateTime(paymentDate)}</Text>
+      </TouchableOpacity>
+      {showDatePicker && (
+        <DateTimePicker
+          value={paymentDate}
+          mode="datetime"
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              setPaymentDate(selectedDate);
+            }
+          }}
+        />
+      )}
+
       <Text style={styles.label}>Cuenta utilizada</Text>
       <View style={styles.pickerWrap}>
         <Picker

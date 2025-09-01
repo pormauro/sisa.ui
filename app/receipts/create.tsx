@@ -19,6 +19,8 @@ import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { toMySQLDateTime } from '@/utils/date';
 
 export default function CreateReceipt() {
   const router = useRouter();
@@ -29,6 +31,8 @@ export default function CreateReceipt() {
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
 
+  const [receiptDate, setReceiptDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [paidInAccount, setPaidInAccount] = useState('');
   const [payerType, setPayerType] = useState<'client' | 'provider' | 'other'>('client');
   const [description, setDescription] = useState('');
@@ -55,6 +59,7 @@ export default function CreateReceipt() {
     }
     setLoading(true);
     const newReceipt = await addReceipt({
+      receipt_date: toMySQLDateTime(receiptDate),
       paid_in_account: paidInAccount,
       payer_type: payerType,
       payer_client_id:
@@ -86,10 +91,31 @@ export default function CreateReceipt() {
     }
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Cuenta de ingreso</Text>
-      <View style={styles.pickerWrap}>
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.label}>Fecha y hora</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <Text>{toMySQLDateTime(receiptDate)}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={receiptDate}
+            mode="datetime"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                setReceiptDate(selectedDate);
+              }
+            }}
+          />
+        )}
+
+        <Text style={styles.label}>Cuenta de ingreso</Text>
+        <View style={styles.pickerWrap}>
         <Picker
           selectedValue={paidInAccount}
           onValueChange={setPaidInAccount}

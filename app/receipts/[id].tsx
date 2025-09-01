@@ -19,6 +19,8 @@ import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { toMySQLDateTime } from '@/utils/date';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -36,6 +38,8 @@ export default function ReceiptDetailPage() {
 
   const receipt = receipts.find(r => r.id === receiptId);
 
+  const [receiptDate, setReceiptDate] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [paidInAccount, setPaidInAccount] = useState('');
   const [payerType, setPayerType] = useState<'client' | 'provider' | 'other'>('client');
   const [description, setDescription] = useState('');
@@ -57,9 +61,12 @@ export default function ReceiptDetailPage() {
 
   useEffect(() => {
     if (receipt) {
+      setReceiptDate(new Date(receipt.receipt_date.replace(' ', 'T')));
       setPaidInAccount(receipt.paid_in_account);
       setPayerType(receipt.payer_type);
-      setPayerClientId(receipt.payer_client_id ? String(receipt.payer_client_id) : '');
+      setPayerClientId(
+        receipt.payer_client_id ? String(receipt.payer_client_id) : ''
+      );
       setPayerProviderId(
         receipt.payer_provider_id ? String(receipt.payer_provider_id) : ''
       );
@@ -93,9 +100,10 @@ export default function ReceiptDetailPage() {
         text: 'Actualizar',
         onPress: async () => {
           setLoading(true);
-          const success = await updateReceipt(receiptId, {
-            paid_in_account: paidInAccount,
-            payer_type: payerType,
+            const success = await updateReceipt(receiptId, {
+              receipt_date: toMySQLDateTime(receiptDate),
+              paid_in_account: paidInAccount,
+              payer_type: payerType,
             payer_client_id:
               payerType === 'client' && payerClientId
                 ? parseInt(payerClientId, 10)
@@ -149,10 +157,32 @@ export default function ReceiptDetailPage() {
     ]);
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Cuenta de ingreso</Text>
-      <View style={styles.pickerWrap}>
+    return (
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.label}>Fecha y hora</Text>
+        <TouchableOpacity
+          style={styles.input}
+          onPress={() => canEdit && setShowDatePicker(true)}
+          disabled={!canEdit}
+        >
+          <Text>{toMySQLDateTime(receiptDate)}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={receiptDate}
+            mode="datetime"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                setReceiptDate(selectedDate);
+              }
+            }}
+          />
+        )}
+
+        <Text style={styles.label}>Cuenta de ingreso</Text>
+        <View style={styles.pickerWrap}>
         <Picker
           selectedValue={paidInAccount}
           onValueChange={setPaidInAccount}
