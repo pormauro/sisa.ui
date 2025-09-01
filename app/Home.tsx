@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -12,23 +12,18 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  { title: 'Clientes', route: '/clients', requiredPermissions: ['listClients'] },
+  { title: 'Trabajos', route: '/jobs', requiredPermissions: ['listJobs'] },
   { title: 'Cajas', route: '/cash_boxes', requiredPermissions: ['listCashBoxes'] },
   { title: 'Recibos', route: '/receipts', requiredPermissions: ['listReceipts'] },
   { title: 'Pagos', route: '/payments', requiredPermissions: ['listPayments'] },
-  { title: 'Clientes', route: '/clients', requiredPermissions: ['listClients'] },
+  { title: 'Carpetas', route: '/folders', requiredPermissions: ['listFolders'] },
+  { title: 'Tarifas', route: '/tariffs', requiredPermissions: ['listTariffs'] },
   { title: 'Proveedores', route: '/providers', requiredPermissions: ['listProviders'] },
   { title: 'Categorías', route: '/categories', requiredPermissions: ['listCategories'] },
-  { title: 'Trabajos', route: '/jobs', requiredPermissions: ['listJobs'] },
-  { title: 'Citas', route: '/appointments', requiredPermissions: ['listAppointments'] },
- // { title: 'Notificaciones', route: '/notifications' }, // Sin restricción
-  { title: 'Cierres Contables', route: '/accounting_closings', requiredPermissions: ['listClosings'] },
-  { title: 'Perfil', route: '/user/ProfileScreen' }, // Sin restricción
-  { title: 'Configuración', route: '/user/ConfigScreen' }, // Sin restricción
-  { title: 'Productos / Servicios', route: '/products_services', requiredPermissions: ['listProductsServices'] },
-  { title: 'Carpetas', route: '/folders', requiredPermissions: ['listFolders'] },
   { title: 'Estados', route: '/statuses', requiredPermissions: ['listStatuses'] },
-  { title: 'Tarifas', route: '/tariffs', requiredPermissions: ['listTariffs'] },
-  { title: 'Errors', route: '/ErrorLogsList', requiredPermissions: ['viewErrors'] },
+  { title: 'Perfil', route: '/user/ProfileScreen' },
+  { title: 'Config', route: '/user/ConfigScreen' },
   { title: 'Permisos', route: '/permission', requiredPermissions: ['listPermissions'] },
 ];
 
@@ -51,31 +46,32 @@ const Menu: React.FC = () => {
   const visibleMenuItems = menuItems.filter(isEnabled);
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Menú Principal</Text>
-      {visibleMenuItems.map((item: MenuItem, index: number) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.menuItem}
-          onPress={() => router.push(item.route as any)}
-        >
-          <Text style={styles.menuText}>{item.title}</Text>
-        </TouchableOpacity>
-      ))}
-      <View>
-        <Text></Text>
-      </View>
-    </ScrollView>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Menú Principal</Text>
+        {visibleMenuItems.map((item: MenuItem, index: number) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.menuItem}
+            onPress={() => router.push(item.route as any)}
+          >
+            <Text style={styles.menuText}>{item.title}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default Menu;
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#f2f2f2',
+  },
+  container: {
+    padding: 20,
   },
   title: {
     fontSize: 28,
