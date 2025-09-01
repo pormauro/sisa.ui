@@ -18,7 +18,7 @@ export interface Payment {
   creditor_provider_id?: number | null;
   creditor_other?: string | null;
   description?: string | null;
-  items: PaymentItem[];
+  items?: PaymentItem[];
 }
 
 interface PaymentsContextValue {

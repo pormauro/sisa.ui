@@ -37,7 +37,7 @@ export default function PaymentDetailPage() {
       setPaidWithAccount(payment.paid_with_account);
       setCreditorType(payment.creditor_type);
       setDescription(payment.description || '');
-      if (payment.items[0]) {
+      if (payment.items && payment.items[0]) {
         setCategoryId(String(payment.items[0].category_id));
         setPrice(String(payment.items[0].price));
         setChargeClient(payment.items[0].charge_client);
@@ -64,7 +64,13 @@ export default function PaymentDetailPage() {
             paid_with_account: paidWithAccount,
             creditor_type: creditorType,
             description,
-            items: [{ category_id: parseInt(categoryId, 10), price: parseFloat(price), charge_client: chargeClient }],
+            items: [
+              {
+                category_id: parseInt(categoryId, 10),
+                price: parseFloat(price),
+                charge_client: chargeClient,
+              },
+            ],
           });
           setLoading(false);
           if (success) {

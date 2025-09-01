@@ -1,7 +1,17 @@
 // app/categories/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 
@@ -19,6 +29,7 @@ export default function CategoryDetailPage() {
 
   const [name, setName] = useState('');
   const [type, setType] = useState<'income' | 'expense'>('income');
+  const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -32,6 +43,7 @@ export default function CategoryDetailPage() {
     if (category) {
       setName(category.name);
       setType(category.type);
+      setParentId(category.parent_id ? String(category.parent_id) : '');
     }
   }, [category]);
 
@@ -50,7 +62,11 @@ export default function CategoryDetailPage() {
         text: 'Actualizar',
         onPress: async () => {
           setLoading(true);
-          const success = await updateCategory(categoryId, { name, type, parent_id: category.parent_id });
+          const success = await updateCategory(categoryId, {
+            name,
+            type,
+            parent_id: parentId ? parseInt(parentId, 10) : null,
+          });
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Categoría actualizada');
@@ -89,8 +105,33 @@ export default function CategoryDetailPage() {
       <Text style={styles.label}>Nombre</Text>
       <TextInput style={styles.input} value={name} onChangeText={setName} />
 
-      <Text style={styles.label}>Tipo (income/expense)</Text>
-      <TextInput style={styles.input} value={type} onChangeText={(t) => setType(t as 'income' | 'expense')} />
+      <Text style={styles.label}>Tipo</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={type}
+          onValueChange={(val) => setType(val as 'income' | 'expense')}
+          style={styles.picker}
+        >
+          <Picker.Item label="Ingreso" value="income" />
+          <Picker.Item label="Gasto" value="expense" />
+        </Picker>
+      </View>
+
+      <Text style={styles.label}>Categoría padre</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={parentId}
+          onValueChange={setParentId}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Sin padre --" value="" />
+          {categories
+            .filter(c => c.id !== categoryId)
+            .map(c => (
+              <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+            ))}
+        </Picker>
+      </View>
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
@@ -109,6 +150,14 @@ export default function CategoryDetailPage() {
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: '#fff' },
   label: { marginVertical: 8, fontSize: 16 },
+  pickerWrap: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },

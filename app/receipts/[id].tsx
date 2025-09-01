@@ -1,9 +1,23 @@
 // app/receipts/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Switch,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { CategoriesContext } from '@/contexts/CategoriesContext';
+import { ProvidersContext } from '@/contexts/ProvidersContext';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -14,6 +28,9 @@ export default function ReceiptDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const receiptId = Number(id);
   const { receipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
+  const { cashBoxes } = useContext(CashBoxesContext);
+  const { categories } = useContext(CategoriesContext);
+  const { providers } = useContext(ProvidersContext);
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -23,6 +40,7 @@ export default function ReceiptDetailPage() {
   const [categoryId, setCategoryId] = useState('');
   const [price, setPrice] = useState('');
   const [payProvider, setPayProvider] = useState(false);
+  const [providerId, setProviderId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -41,6 +59,11 @@ export default function ReceiptDetailPage() {
         setCategoryId(String(receipt.items[0].category_id));
         setPrice(String(receipt.items[0].price));
         setPayProvider(receipt.items[0].pay_provider);
+        setProviderId(
+          receipt.items[0].provider_id
+            ? String(receipt.items[0].provider_id)
+            : ''
+        );
       }
     }
   }, [receipt]);
@@ -64,7 +87,15 @@ export default function ReceiptDetailPage() {
             paid_in_account: paidInAccount,
             payer_type: payerType,
             description,
-            items: [{ category_id: parseInt(categoryId, 10), price: parseFloat(price), pay_provider: payProvider }],
+            items: [
+              {
+                category_id: parseInt(categoryId, 10),
+                price: parseFloat(price),
+                pay_provider: payProvider,
+                provider_id:
+                  payProvider && providerId ? parseInt(providerId, 10) : null,
+              },
+            ],
           });
           setLoading(false);
           if (success) {
@@ -102,16 +133,48 @@ export default function ReceiptDetailPage() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Cuenta de ingreso</Text>
-      <TextInput style={styles.input} value={paidInAccount} onChangeText={setPaidInAccount} />
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={paidInAccount}
+          onValueChange={setPaidInAccount}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Selecciona cuenta --" value="" />
+          {cashBoxes.map(cb => (
+            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
       <Text style={styles.label}>Tipo de pagador</Text>
-      <TextInput style={styles.input} value={payerType} onChangeText={(t) => setPayerType(t as any)} />
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={payerType}
+          onValueChange={(val) => setPayerType(val as any)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Cliente" value="client" />
+          <Picker.Item label="Proveedor" value="provider" />
+          <Picker.Item label="Otro" value="other" />
+        </Picker>
+      </View>
 
       <Text style={styles.label}>Descripción</Text>
       <TextInput style={styles.input} value={description} onChangeText={setDescription} />
 
-      <Text style={styles.label}>ID Categoría</Text>
-      <TextInput style={styles.input} value={categoryId} onChangeText={setCategoryId} keyboardType="numeric" />
+      <Text style={styles.label}>Categoría</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={categoryId}
+          onValueChange={setCategoryId}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Selecciona categoría --" value="" />
+          {categories.map(c => (
+            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
       <Text style={styles.label}>Precio</Text>
       <TextInput style={styles.input} value={price} onChangeText={setPrice} keyboardType="numeric" />
@@ -120,6 +183,24 @@ export default function ReceiptDetailPage() {
         <Text>Pagar al proveedor</Text>
         <Switch value={payProvider} onValueChange={setPayProvider} />
       </View>
+
+      {payProvider && (
+        <>
+          <Text style={styles.label}>Proveedor</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={providerId}
+              onValueChange={setProviderId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(p => (
+                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
@@ -138,6 +219,14 @@ export default function ReceiptDetailPage() {
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: '#fff' },
   label: { marginVertical: 8, fontSize: 16 },
+  pickerWrap: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },

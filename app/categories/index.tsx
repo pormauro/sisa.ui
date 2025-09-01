@@ -1,6 +1,15 @@
 // app/categories/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { CategoriesContext, Category } from '@/contexts/CategoriesContext';
@@ -29,6 +38,28 @@ export default function CategoriesScreen() {
     return result.map(r => r.item);
   }, [search, categories]);
 
+  const categoryTree = useMemo(() => {
+    const buildTree = (cats: Category[], parentId: number | null = null) =>
+      cats
+        .filter(c => c.parent_id === parentId)
+        .map(c => ({ ...c, children: buildTree(cats, c.id) }));
+    return buildTree(filteredCategories);
+  }, [filteredCategories]);
+
+  const displayCategories = useMemo(() => {
+    const flatten = (nodes: any[], level = 0): (Category & { level: number })[] => {
+      let res: (Category & { level: number })[] = [];
+      nodes.forEach(n => {
+        res.push({ ...n, level });
+        if (n.children && n.children.length) {
+          res = res.concat(flatten(n.children, level + 1));
+        }
+      });
+      return res;
+    };
+    return flatten(categoryTree);
+  }, [categoryTree]);
+
   const canDelete = permissions.includes('deleteCategory');
   const canAdd = permissions.includes('addCategory');
 
@@ -47,15 +78,24 @@ export default function CategoriesScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: Category }) => (
-    <TouchableOpacity style={styles.item} onLongPress={() => router.push(`/categories/${item.id}`)}>
-      <View style={styles.itemInfo}>
-        <Text style={styles.name}>{item.name}</Text>
+  const renderItem = ({ item }: { item: Category & { level: number } }) => (
+    <TouchableOpacity
+      style={styles.item}
+      onLongPress={() => router.push(`/categories/${item.id}`)}
+    >
+      <View style={[styles.itemInfo, { paddingLeft: item.level * 16 }]}>
+        <Text style={[styles.name, item.level === 0 ? styles.parent : null]}>
+          {item.name}
+        </Text>
         <Text>{item.type}</Text>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-          {loadingId === item.id ? <ActivityIndicator /> : <Text style={styles.deleteText}>🗑️</Text>}
+          {loadingId === item.id ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.deleteText}>🗑️</Text>
+          )}
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -70,7 +110,7 @@ export default function CategoriesScreen() {
         onChangeText={setSearch}
       />
       <FlatList
-        data={filteredCategories}
+        data={displayCategories}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         ListEmptyComponent={<Text style={styles.empty}>No se encontraron categorías</Text>}
@@ -89,7 +129,8 @@ const styles = StyleSheet.create({
   search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#eee' },
   itemInfo: { flex: 1 },
-  name: { fontSize: 16, fontWeight: 'bold' },
+  name: { fontSize: 16 },
+  parent: { fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
   addButton: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#007BFF', padding: 16, borderRadius: 50, alignItems: 'center' },
