@@ -1,21 +1,44 @@
 // app/payments/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Switch,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { CategoriesContext } from '@/contexts/CategoriesContext';
+import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 
 export default function CreatePayment() {
   const router = useRouter();
   const { addPayment } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { cashBoxes } = useContext(CashBoxesContext);
+  const { categories } = useContext(CategoriesContext);
+  const { providers } = useContext(ProvidersContext);
+  const { clients } = useContext(ClientsContext);
 
-  const [paidWithAccount, setPaidWithAccount] = useState('cash');
+  const [paidWithAccount, setPaidWithAccount] = useState('');
   const [creditorType, setCreditorType] = useState<'client' | 'provider' | 'other'>('other');
+  const [creditorClientId, setCreditorClientId] = useState('');
+  const [creditorProviderId, setCreditorProviderId] = useState('');
+  const [creditorOther, setCreditorOther] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [price, setPrice] = useState('');
   const [chargeClient, setChargeClient] = useState(false);
+  const [chargeClientId, setChargeClientId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -34,8 +57,25 @@ export default function CreatePayment() {
     const newPayment = await addPayment({
       paid_with_account: paidWithAccount,
       creditor_type: creditorType,
+      creditor_client_id:
+        creditorType === 'client' && creditorClientId
+          ? parseInt(creditorClientId, 10)
+          : null,
+      creditor_provider_id:
+        creditorType === 'provider' && creditorProviderId
+          ? parseInt(creditorProviderId, 10)
+          : null,
+      creditor_other: creditorType === 'other' ? creditorOther : null,
       description,
-      items: [{ category_id: parseInt(categoryId, 10), price: parseFloat(price), charge_client: chargeClient }],
+      items: [
+        {
+          category_id: parseInt(categoryId, 10),
+          price: parseFloat(price),
+          charge_client: chargeClient,
+          client_id:
+            chargeClient && chargeClientId ? parseInt(chargeClientId, 10) : null,
+        },
+      ],
     });
     setLoading(false);
     if (newPayment) {
@@ -49,27 +89,140 @@ export default function CreatePayment() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Cuenta utilizada</Text>
-      <TextInput style={styles.input} value={paidWithAccount} onChangeText={setPaidWithAccount} placeholder="Cuenta" />
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={paidWithAccount}
+          onValueChange={setPaidWithAccount}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Selecciona cuenta --" value="" />
+          {cashBoxes.map(cb => (
+            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
-      <Text style={styles.label}>Tipo de acreedor (client/provider/other)</Text>
-      <TextInput style={styles.input} value={creditorType} onChangeText={(t) => setCreditorType(t as any)} placeholder="Tipo" />
+      <Text style={styles.label}>Tipo de acreedor</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={creditorType}
+          onValueChange={(val) => setCreditorType(val as any)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Cliente" value="client" />
+          <Picker.Item label="Proveedor" value="provider" />
+          <Picker.Item label="Otro" value="other" />
+        </Picker>
+      </View>
+
+      {creditorType === 'client' && (
+        <>
+          <Text style={styles.label}>Cliente</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={creditorClientId}
+              onValueChange={setCreditorClientId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(c => (
+                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
+
+      {creditorType === 'provider' && (
+        <>
+          <Text style={styles.label}>Proveedor</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={creditorProviderId}
+              onValueChange={setCreditorProviderId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(p => (
+                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
+
+      {creditorType === 'other' && (
+        <>
+          <Text style={styles.label}>Acreedor</Text>
+          <TextInput
+            style={styles.input}
+            value={creditorOther}
+            onChangeText={setCreditorOther}
+            placeholder="Nombre del acreedor"
+          />
+        </>
+      )}
 
       <Text style={styles.label}>Descripción</Text>
-      <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder="Descripción" />
+      <TextInput
+        style={styles.input}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Descripción"
+      />
 
-      <Text style={styles.label}>ID Categoría</Text>
-      <TextInput style={styles.input} value={categoryId} onChangeText={setCategoryId} placeholder="ID" keyboardType="numeric" />
+      <Text style={styles.label}>Categoría</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={categoryId}
+          onValueChange={setCategoryId}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Selecciona categoría --" value="" />
+          {categories.map(c => (
+            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
       <Text style={styles.label}>Precio</Text>
-      <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Precio" keyboardType="numeric" />
+      <TextInput
+        style={styles.input}
+        value={price}
+        onChangeText={setPrice}
+        placeholder="Precio"
+        keyboardType="numeric"
+      />
 
       <View style={styles.switchRow}>
         <Text>Cobrar al cliente</Text>
         <Switch value={chargeClient} onValueChange={setChargeClient} />
       </View>
 
+      {chargeClient && (
+        <>
+          <Text style={styles.label}>Cliente a cobrar</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={chargeClientId}
+              onValueChange={setChargeClientId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(c => (
+                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
+
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Pago</Text>}
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.submitButtonText}>Crear Pago</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -79,7 +232,27 @@ const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: '#fff' },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
+  pickerWrap: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  picker: { height: 50, width: '100%' },
+  submitButton: {
+    marginTop: 16,
+    backgroundColor: '#28a745',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
   submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
 });
+
