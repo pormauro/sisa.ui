@@ -40,6 +40,7 @@ export default function ReceiptDetailPage() {
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [paidInAccount, setPaidInAccount] = useState('');
   const [payerType, setPayerType] = useState<'client' | 'provider' | 'other'>('client');
   const [description, setDescription] = useState('');
@@ -170,12 +171,37 @@ export default function ReceiptDetailPage() {
         {showDatePicker && (
           <DateTimePicker
             value={receiptDate}
-            mode="datetime"
+            mode="date"
             display="default"
-            onChange={(event, selectedDate) => {
+            onChange={(_, selectedDate) => {
               setShowDatePicker(false);
               if (selectedDate) {
-                setReceiptDate(selectedDate);
+                const current = new Date(receiptDate);
+                current.setFullYear(
+                  selectedDate.getFullYear(),
+                  selectedDate.getMonth(),
+                  selectedDate.getDate()
+                );
+                setReceiptDate(current);
+                setShowTimePicker(true);
+              }
+            }}
+          />
+        )}
+        {showTimePicker && (
+          <DateTimePicker
+            value={receiptDate}
+            mode="time"
+            display="default"
+            onChange={(_, selectedTime) => {
+              setShowTimePicker(false);
+              if (selectedTime) {
+                const current = new Date(receiptDate);
+                current.setHours(
+                  selectedTime.getHours(),
+                  selectedTime.getMinutes()
+                );
+                setReceiptDate(current);
               }
             }}
           />

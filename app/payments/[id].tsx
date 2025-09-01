@@ -40,6 +40,7 @@ export default function PaymentDetailPage() {
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [paidWithAccount, setPaidWithAccount] = useState('');
   const [creditorType, setCreditorType] =
     useState<'client' | 'provider' | 'other'>('provider');
@@ -171,12 +172,37 @@ export default function PaymentDetailPage() {
         {showDatePicker && (
           <DateTimePicker
             value={paymentDate}
-            mode="datetime"
+            mode="date"
             display="default"
-            onChange={(event, selectedDate) => {
+            onChange={(_, selectedDate) => {
               setShowDatePicker(false);
               if (selectedDate) {
-                setPaymentDate(selectedDate);
+                const current = new Date(paymentDate);
+                current.setFullYear(
+                  selectedDate.getFullYear(),
+                  selectedDate.getMonth(),
+                  selectedDate.getDate()
+                );
+                setPaymentDate(current);
+                setShowTimePicker(true);
+              }
+            }}
+          />
+        )}
+        {showTimePicker && (
+          <DateTimePicker
+            value={paymentDate}
+            mode="time"
+            display="default"
+            onChange={(_, selectedTime) => {
+              setShowTimePicker(false);
+              if (selectedTime) {
+                const current = new Date(paymentDate);
+                current.setHours(
+                  selectedTime.getHours(),
+                  selectedTime.getMinutes()
+                );
+                setPaymentDate(current);
               }
             }}
           />
