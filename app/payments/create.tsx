@@ -1,5 +1,5 @@
 // app/payments/create.tsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
+import { getDisplayCategories } from '@/utils/categories';
 
 export default function CreatePayment() {
   const router = useRouter();
@@ -46,6 +47,11 @@ export default function CreatePayment() {
   const [chargeClient, setChargeClient] = useState(false);
   const [chargeClientId, setChargeClientId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const displayCategories = useMemo(
+    () => getDisplayCategories(categories, 'expense'),
+    [categories]
+  );
 
   useEffect(() => {
     if (!permissions.includes('addPayment')) {
@@ -232,8 +238,12 @@ export default function CreatePayment() {
           style={styles.picker}
         >
           <Picker.Item label="-- Selecciona categoría --" value="" />
-          {categories.map(c => (
-            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          {displayCategories.map(c => (
+            <Picker.Item
+              key={c.id}
+              label={`${' '.repeat(c.level * 2)}${c.name}`}
+              value={c.id.toString()}
+            />
           ))}
         </Picker>
       </View>

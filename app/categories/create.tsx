@@ -1,5 +1,5 @@
 // app/categories/create.tsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { getDisplayCategories } from '@/utils/categories';
 
 export default function CreateCategory() {
   const router = useRouter();
@@ -24,6 +25,11 @@ export default function CreateCategory() {
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const displayCategories = useMemo(
+    () => getDisplayCategories(categories),
+    [categories]
+  );
 
   useEffect(() => {
     if (!permissions.includes('addCategory')) {
@@ -77,8 +83,12 @@ export default function CreateCategory() {
           style={styles.picker}
         >
           <Picker.Item label="-- Sin padre --" value="" />
-          {categories.map(c => (
-            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          {displayCategories.map(c => (
+            <Picker.Item
+              key={c.id}
+              label={`${' '.repeat(c.level * 2)}${c.name}`}
+              value={c.id.toString()}
+            />
           ))}
         </Picker>
       </View>
