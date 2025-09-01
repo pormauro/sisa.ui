@@ -18,15 +18,23 @@ export default function ProvidersListPage() {
   const canDelete = permissions.includes('deleteProvider');
 
   useEffect(() => {
-    loadProviders();
-  }, []);
+    if (!permissions.includes('listProviders')) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para ver proveedores.');
+      router.back();
+    } else {
+      loadProviders();
+    }
+  }, [permissions, loadProviders, router]);
 
-  const fuse = new Fuse(providers, { keys: ['business_name', 'tax_id', 'email', 'address'] });
+  const fuse = useMemo(
+    () => new Fuse(providers, { keys: ['business_name', 'tax_id', 'email', 'address'] }),
+    [providers]
+  );
   const filteredProviders = useMemo(() => {
     if (!searchQuery) return providers;
     const results = fuse.search(searchQuery);
     return results.map(r => r.item);
-  }, [searchQuery, providers]);
+  }, [searchQuery, providers, fuse]);
 
   const handleDelete = (id: number) => {
     Alert.alert('Confirmar eliminación', '¿Eliminar este proveedor?', [
