@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 export const menuStyles = StyleSheet.create({
   menuContainer: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
     backgroundColor: '#f2f2f2',
   },
   menuTitle: {
