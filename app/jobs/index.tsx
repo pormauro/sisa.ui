@@ -39,6 +39,7 @@ export default function JobsScreen() {
 
   // Función para buscar el objeto status que corresponda al trabajo
   const getJobStatus = (job: Job): Status | undefined => {
+    if (job.status_id == null) return undefined;
     return statuses.find(s => s.id === job.status_id);
   };
 
@@ -108,7 +109,7 @@ export default function JobsScreen() {
         </View>
         <View style={styles.itemRight}>
           <Text style={styles.statusText}>
-            {jobStatus ? jobStatus.label : `Estado: ${item.status_id}`}
+            {jobStatus ? jobStatus.label : `Estado: ${item.status_id ?? 'N/A'}`}
           </Text>
           <TouchableOpacity onPress={() => handleDelete(item.id)}>
             {loadingId === item.id ? (

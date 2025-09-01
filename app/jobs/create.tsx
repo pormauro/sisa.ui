@@ -108,7 +108,7 @@ export default function CreateJobScreen() {
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
-        status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
+        status_id: selectedStatus ? Number(selectedStatus.id) : null,
       };
       setLoading(true);
       const created = await addJob(jobData);
