@@ -46,6 +46,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const { token } = useContext(AuthContext);
 
+  const normalizeTime = (time: string) => (time && time.length === 5 ? `${time}:00` : time);
+
   const loadJobs = async () => {
     try {
       const res = await fetch(`${BASE_URL}/jobs`, {
@@ -60,15 +62,20 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   const addJob = async (jobData: Omit<Job, 'id' | 'user_id'>): Promise<Job | null> => {
     try {
+      const payload = {
+        ...jobData,
+        start_time: normalizeTime(jobData.start_time),
+        end_time: normalizeTime(jobData.end_time),
+      };
       const res = await fetch(`${BASE_URL}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(jobData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.job_id) {
         await loadJobs(); // asegura consistencia
-        return { id: data.job_id, user_id: 0, ...jobData };
+        return { id: data.job_id, user_id: 0, ...payload };
       }
     } catch (err) {
       console.error('Error adding job:', err);
@@ -78,14 +85,19 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateJob = async (id: number, jobData: Omit<Job, 'id' | 'user_id'>): Promise<boolean> => {
     try {
+      const payload = {
+        ...jobData,
+        start_time: normalizeTime(jobData.start_time),
+        end_time: normalizeTime(jobData.end_time),
+      };
       const res = await fetch(`${BASE_URL}/jobs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(jobData),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.message === 'Job updated successfully') {
-        setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...jobData } : j)));
+        await loadJobs(); // recarga para obtener datos frescos del servidor
         return true;
       }
     } catch (err) {
