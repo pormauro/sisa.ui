@@ -16,7 +16,7 @@ export interface Job {
   end_time: string;
   type_of_work?: string;
   /** Identificador de estado asociado */
-  status_id: number;
+  status_id: number | null;
   folder_id?: number | null;
   product_service_id?: number | null;
   multiplicative_value?: number;

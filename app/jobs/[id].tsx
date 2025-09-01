@@ -88,8 +88,12 @@ export default function EditJobScreen() {
     const fol = folders.find(f => f.id === job.folder_id);
     setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
 
-    const statusObj = statuses.find(s => s.id === job.status_id);
-    setSelectedStatus(statusObj ? { id: statusObj.id, name: statusObj.label, backgroundColor: statusObj.background_color } : null);
+    const statusObj = job.status_id != null ? statuses.find(s => s.id === job.status_id) : undefined;
+    setSelectedStatus(
+      statusObj
+        ? { id: statusObj.id, name: statusObj.label, backgroundColor: statusObj.background_color }
+        : null
+    );
 
     const extractDate = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[0] : dt || '');
     const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
@@ -145,7 +149,7 @@ export default function EditJobScreen() {
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
-        status_id: selectedStatus ? Number(selectedStatus.id) : statuses[0]?.id,
+        status_id: selectedStatus ? Number(selectedStatus.id) : null,
       });
       setLoading(false);
 
