@@ -1,21 +1,39 @@
 // app/receipts/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Switch } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Switch,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { CategoriesContext } from '@/contexts/CategoriesContext';
+import { ProvidersContext } from '@/contexts/ProvidersContext';
 
 export default function CreateReceipt() {
   const router = useRouter();
   const { addReceipt } = useContext(ReceiptsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { cashBoxes } = useContext(CashBoxesContext);
+  const { categories } = useContext(CategoriesContext);
+  const { providers } = useContext(ProvidersContext);
 
-  const [paidInAccount, setPaidInAccount] = useState('bank');
+  const [paidInAccount, setPaidInAccount] = useState('');
   const [payerType, setPayerType] = useState<'client' | 'provider' | 'other'>('client');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [price, setPrice] = useState('');
   const [payProvider, setPayProvider] = useState(false);
+  const [providerId, setProviderId] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -35,7 +53,15 @@ export default function CreateReceipt() {
       paid_in_account: paidInAccount,
       payer_type: payerType,
       description,
-      items: [{ category_id: parseInt(categoryId, 10), price: parseFloat(price), pay_provider: payProvider }],
+      items: [
+        {
+          category_id: parseInt(categoryId, 10),
+          price: parseFloat(price),
+          pay_provider: payProvider,
+          provider_id:
+            payProvider && providerId ? parseInt(providerId, 10) : null,
+        },
+      ],
     });
     setLoading(false);
     if (newReceipt) {
@@ -49,16 +75,48 @@ export default function CreateReceipt() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Cuenta de ingreso</Text>
-      <TextInput style={styles.input} value={paidInAccount} onChangeText={setPaidInAccount} placeholder="Cuenta" />
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={paidInAccount}
+          onValueChange={setPaidInAccount}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Selecciona cuenta --" value="" />
+          {cashBoxes.map(cb => (
+            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
-      <Text style={styles.label}>Tipo de pagador (client/provider/other)</Text>
-      <TextInput style={styles.input} value={payerType} onChangeText={(t) => setPayerType(t as any)} placeholder="Tipo" />
+      <Text style={styles.label}>Tipo de pagador</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={payerType}
+          onValueChange={(val) => setPayerType(val as any)}
+          style={styles.picker}
+        >
+          <Picker.Item label="Cliente" value="client" />
+          <Picker.Item label="Proveedor" value="provider" />
+          <Picker.Item label="Otro" value="other" />
+        </Picker>
+      </View>
 
       <Text style={styles.label}>Descripción</Text>
       <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder="Descripción" />
 
-      <Text style={styles.label}>ID Categoría</Text>
-      <TextInput style={styles.input} value={categoryId} onChangeText={setCategoryId} placeholder="ID" keyboardType="numeric" />
+      <Text style={styles.label}>Categoría</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={categoryId}
+          onValueChange={setCategoryId}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Selecciona categoría --" value="" />
+          {categories.map(c => (
+            <Picker.Item key={c.id} label={c.name} value={c.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
       <Text style={styles.label}>Precio</Text>
       <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Precio" keyboardType="numeric" />
@@ -67,6 +125,24 @@ export default function CreateReceipt() {
         <Text>Pagar al proveedor</Text>
         <Switch value={payProvider} onValueChange={setPayProvider} />
       </View>
+
+      {payProvider && (
+        <>
+          <Text style={styles.label}>Proveedor</Text>
+          <View style={styles.pickerWrap}>
+            <Picker
+              selectedValue={providerId}
+              onValueChange={setProviderId}
+              style={styles.picker}
+            >
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(p => (
+                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
+              ))}
+            </Picker>
+          </View>
+        </>
+      )}
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Recibo</Text>}
@@ -78,6 +154,14 @@ export default function CreateReceipt() {
 const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: '#fff' },
   label: { marginVertical: 8, fontSize: 16 },
+  pickerWrap: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },

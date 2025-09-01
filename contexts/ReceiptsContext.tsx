@@ -7,6 +7,7 @@ export interface ReceiptItem {
   category_id: number;
   price: number;
   pay_provider: boolean;
+  provider_id?: number | null;
 }
 
 export interface Receipt {

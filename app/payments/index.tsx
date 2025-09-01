@@ -48,7 +48,9 @@ export default function PaymentsScreen() {
   };
 
   const renderItem = ({ item }: { item: Payment }) => {
-    const total = item.items.reduce((sum, it) => sum + it.price, 0);
+    const total = Array.isArray(item.items)
+      ? item.items.reduce((sum, it) => sum + it.price, 0)
+      : 0;
     return (
       <TouchableOpacity style={styles.item} onLongPress={() => router.push(`/payments/${item.id}`)}>
         <View style={styles.itemInfo}>
