@@ -1,8 +1,8 @@
-import React, { useContext } from 'react';
-import { Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
-import { useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { useRouter } from 'expo-router';
+import React, { useContext } from 'react';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 interface MenuItem {
   title: string;
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f2f2f2',
   },
   container: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
   },
   title: {
     fontSize: 28,

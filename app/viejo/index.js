@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Image, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import logo from '../assets/images/logo.png';
+import logo from '@/assets/images/logo.png';
 // <-- IMPORTAMOS BASE_URL
 import { BASE_URL } from '../../src/config/index';
 
