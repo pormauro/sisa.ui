@@ -36,11 +36,11 @@ export default function ProviderDetailPage() {
   useEffect(() => {
     if (provider) {
       setBusinessName(provider.business_name);
-      setTaxId(provider.tax_id);
-      setEmail(provider.email);
-      setPhone(provider.phone);
-      setAddress(provider.address);
-      setBrandFileId(provider.brand_file_id);
+      setTaxId(provider.tax_id || '');
+      setEmail(provider.email || '');
+      setPhone(provider.phone || '');
+      setAddress(provider.address || '');
+      setBrandFileId(provider.brand_file_id || null);
     }
   }, [provider]);
 
@@ -61,11 +61,11 @@ export default function ProviderDetailPage() {
           setLoading(true);
           const success = await updateProvider(providerId, {
             business_name: businessName,
-            tax_id: taxId,
-            email,
-            phone,
-            address,
-            brand_file_id: brandFileId,
+            ...(taxId ? { tax_id: taxId } : {}),
+            ...(email ? { email } : {}),
+            ...(phone ? { phone } : {}),
+            ...(address ? { address } : {}),
+            ...(brandFileId ? { brand_file_id: brandFileId } : {}),
           });
           setLoading(false);
           if (success) {

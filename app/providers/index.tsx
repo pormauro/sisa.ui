@@ -56,7 +56,7 @@ export default function ProvidersListPage() {
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.business_name}</Text>
-        <Text>{item.email}</Text>
+        <Text>{item.email || ''}</Text>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>

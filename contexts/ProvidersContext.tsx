@@ -6,11 +6,11 @@ import { AuthContext } from '@/contexts/AuthContext';
 export interface Provider {
   id: number;
   business_name: string;
-  tax_id: string;
-  email: string;
-  brand_file_id: string | null;
-  phone: string;
-  address: string;
+  tax_id?: string;
+  email?: string;
+  brand_file_id?: string | null;
+  phone?: string;
+  address?: string;
 }
 
 interface ProvidersContextValue {
