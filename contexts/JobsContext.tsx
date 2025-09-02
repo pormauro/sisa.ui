@@ -66,6 +66,12 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         ...jobData,
         start_time: normalizeTime(jobData.start_time),
         end_time: normalizeTime(jobData.end_time),
+        tariff_id: jobData.tariff_id ?? null,
+        manual_amount: jobData.manual_amount ?? null,
+        status_id: jobData.status_id ?? null,
+        attached_files: jobData.attached_files ?? null,
+        folder_id: jobData.folder_id ?? null,
+        job_date: jobData.job_date ?? null,
       };
       const res = await fetch(`${BASE_URL}/jobs`, {
         method: 'POST',
@@ -89,6 +95,12 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         ...jobData,
         start_time: normalizeTime(jobData.start_time),
         end_time: normalizeTime(jobData.end_time),
+        tariff_id: jobData.tariff_id ?? null,
+        manual_amount: jobData.manual_amount ?? null,
+        status_id: jobData.status_id ?? null,
+        attached_files: jobData.attached_files ?? null,
+        folder_id: jobData.folder_id ?? null,
+        job_date: jobData.job_date ?? null,
       };
       const res = await fetch(`${BASE_URL}/jobs/${id}`, {
         method: 'PUT',
