@@ -27,18 +27,18 @@ export default function CreateProvider() {
   }, [permissions]);
 
   const handleSubmit = async () => {
-    if (!businessName || !taxId || !email) {
-      Alert.alert('Error', 'Completa los campos obligatorios.');
+    if (!businessName) {
+      Alert.alert('Error', 'La razón social es obligatoria.');
       return;
     }
     setLoading(true);
     const newProvider = await addProvider({
       business_name: businessName,
-      tax_id: taxId,
-      email,
-      phone,
-      address,
-      brand_file_id: brandFileId,
+      ...(taxId ? { tax_id: taxId } : {}),
+      ...(email ? { email } : {}),
+      ...(phone ? { phone } : {}),
+      ...(address ? { address } : {}),
+      ...(brandFileId ? { brand_file_id: brandFileId } : {}),
     });
     setLoading(false);
     if (newProvider) {
