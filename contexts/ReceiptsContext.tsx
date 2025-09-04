@@ -3,15 +3,9 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 
-export interface ReceiptItem {
-  category_id: number;
-  price: number;
-  pay_provider: boolean;
-  provider_id?: number | null;
-}
-
 export interface Receipt {
   id: number;
+  user_id?: number;
   receipt_date: string;
   payer_type: 'client' | 'provider' | 'other';
   payer_client_id?: number | null;
@@ -21,7 +15,10 @@ export interface Receipt {
   description?: string | null;
   /** IDs de archivos adjuntos en formato JSON */
   attached_files?: number[] | string | null;
-  items: ReceiptItem[];
+  category_id: number;
+  price: number;
+  pay_provider: boolean;
+  provider_id?: number | null;
 }
 
 interface ReceiptsContextValue {

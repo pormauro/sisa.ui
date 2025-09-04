@@ -87,16 +87,14 @@ export default function ReceiptDetailPage() {
             : receipt.attached_files)
         : [];
       setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
-      if (receipt.items[0]) {
-        setCategoryId(String(receipt.items[0].category_id));
-        setPrice(String(receipt.items[0].price));
-        setPayProvider(receipt.items[0].pay_provider);
-        setProviderId(
-          receipt.items[0].provider_id
-            ? String(receipt.items[0].provider_id)
-            : ''
-        );
-      }
+      setCategoryId(String(receipt.category_id));
+      setPrice(String(receipt.price));
+      setPayProvider(receipt.pay_provider);
+      setProviderId(
+        receipt.provider_id
+          ? String(receipt.provider_id)
+          : ''
+      );
     }
   }, [receipt]);
 
@@ -130,15 +128,11 @@ export default function ReceiptDetailPage() {
             payer_other: payerType === 'other' ? payerOther : null,
             description,
             attached_files: attachedFiles || null,
-            items: [
-              {
-                category_id: parseInt(categoryId, 10),
-                price: parseFloat(price),
-                pay_provider: payProvider,
-                provider_id:
-                  payProvider && providerId ? parseInt(providerId, 10) : null,
-              },
-            ],
+            category_id: parseInt(categoryId, 10),
+            price: parseFloat(price),
+            pay_provider: payProvider,
+            provider_id:
+              payProvider && providerId ? parseInt(providerId, 10) : null,
           });
           setLoading(false);
           if (success) {

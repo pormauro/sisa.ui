@@ -88,14 +88,12 @@ export default function PaymentDetailPage() {
             : payment.attached_files)
         : [];
       setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
-      if (payment.items && payment.items[0]) {
-        setCategoryId(String(payment.items[0].category_id));
-        setPrice(String(payment.items[0].price));
-        setChargeClient(payment.items[0].charge_client);
-        setChargeClientId(
-          payment.items[0].client_id ? String(payment.items[0].client_id) : ''
-        );
-      }
+      setCategoryId(String(payment.category_id));
+      setPrice(String(payment.price));
+      setChargeClient(payment.charge_client);
+      setChargeClientId(
+        payment.client_id ? String(payment.client_id) : ''
+      );
     }
   }, [payment]);
 
@@ -129,17 +127,13 @@ export default function PaymentDetailPage() {
             creditor_other: creditorType === 'other' ? creditorOther : null,
             description,
             attached_files: attachedFiles || null,
-            items: [
-              {
-                category_id: parseInt(categoryId, 10),
-                price: parseFloat(price),
-                charge_client: chargeClient,
-                client_id:
-                  chargeClient && chargeClientId
-                    ? parseInt(chargeClientId, 10)
-                    : null,
-              },
-            ],
+            category_id: parseInt(categoryId, 10),
+            price: parseFloat(price),
+            charge_client: chargeClient,
+            client_id:
+              chargeClient && chargeClientId
+                ? parseInt(chargeClientId, 10)
+                : null,
           });
           setLoading(false);
           if (success) {
