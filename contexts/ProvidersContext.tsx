@@ -82,8 +82,15 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         },
         body: JSON.stringify(provider),
       });
-      const data = await response.json();
-      if (data.message === 'Provider updated successfully') {
+
+      if (response.ok) {
+        // Some endpoints may return 204 without a body. Attempt to parse JSON but ignore errors.
+        try {
+          await response.json();
+        } catch {
+          /* ignore body parsing errors */
+        }
+
         setProviders(prev => prev.map(p => (p.id === id ? { id, ...provider } : p)));
         return true;
       }
