@@ -22,6 +22,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
+import FileCarousel from '@/components/FileCarousel';
 
 export default function CreatePayment() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function CreatePayment() {
   const [price, setPrice] = useState('');
   const [chargeClient, setChargeClient] = useState(false);
   const [chargeClientId, setChargeClientId] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const displayCategories = useMemo(
@@ -80,6 +82,7 @@ export default function CreatePayment() {
           : null,
       creditor_other: creditorType === 'other' ? creditorOther : null,
       description,
+      attached_files: attachedFiles || null,
       items: [
         {
           category_id: parseInt(categoryId, 10),
@@ -279,6 +282,8 @@ export default function CreatePayment() {
           </View>
         </>
       )}
+
+      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
         {loading ? (

@@ -22,6 +22,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
+import FileCarousel from '@/components/FileCarousel';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -52,6 +53,7 @@ export default function ReceiptDetailPage() {
   const [payerClientId, setPayerClientId] = useState('');
   const [payerProviderId, setPayerProviderId] = useState('');
   const [payerOther, setPayerOther] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const displayCategories = useMemo(
@@ -79,6 +81,12 @@ export default function ReceiptDetailPage() {
       );
       setPayerOther(receipt.payer_other || '');
       setDescription(receipt.description || '');
+      const attachments = receipt.attached_files
+        ? (typeof receipt.attached_files === 'string'
+            ? JSON.parse(receipt.attached_files)
+            : receipt.attached_files)
+        : [];
+      setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
       if (receipt.items[0]) {
         setCategoryId(String(receipt.items[0].category_id));
         setPrice(String(receipt.items[0].price));
@@ -121,6 +129,7 @@ export default function ReceiptDetailPage() {
                 : null,
             payer_other: payerType === 'other' ? payerOther : null,
             description,
+            attached_files: attachedFiles || null,
             items: [
               {
                 category_id: parseInt(categoryId, 10),
@@ -334,6 +343,8 @@ export default function ReceiptDetailPage() {
           </View>
         </>
       )}
+
+      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>

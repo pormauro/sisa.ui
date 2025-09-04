@@ -19,6 +19,8 @@ export interface Payment {
   creditor_provider_id?: number | null;
   creditor_other?: string | null;
   description?: string | null;
+  /** IDs de archivos adjuntos en formato JSON */
+  attached_files?: number[] | string | null;
   items?: PaymentItem[];
 }
 
@@ -61,17 +63,26 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
 
   const addPayment = async (payment: Omit<Payment, 'id'>): Promise<Payment | null> => {
     try {
+      const payload = {
+        ...payment,
+        attached_files:
+          typeof payment.attached_files === 'string'
+            ? payment.attached_files
+            : payment.attached_files
+            ? JSON.stringify(payment.attached_files)
+            : null,
+      };
       const response = await fetch(`${BASE_URL}/payments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payment),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (data.payment_id) {
-        const newPayment: Payment = { id: parseInt(data.payment_id, 10), ...payment };
+        const newPayment: Payment = { id: parseInt(data.payment_id, 10), ...payload };
         setPayments(prev => [...prev, newPayment]);
         return newPayment;
       }
@@ -83,17 +94,26 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
 
   const updatePayment = async (id: number, payment: Omit<Payment, 'id'>): Promise<boolean> => {
     try {
+      const payload = {
+        ...payment,
+        attached_files:
+          typeof payment.attached_files === 'string'
+            ? payment.attached_files
+            : payment.attached_files
+            ? JSON.stringify(payment.attached_files)
+            : null,
+      };
       const response = await fetch(`${BASE_URL}/payments/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payment),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (data.message === 'Payment updated successfully') {
-        setPayments(prev => prev.map(p => (p.id === id ? { id, ...payment } : p)));
+        setPayments(prev => prev.map(p => (p.id === id ? { id, ...payload } : p)));
         return true;
       }
     } catch (error) {

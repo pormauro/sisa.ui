@@ -19,6 +19,8 @@ export interface Receipt {
   payer_other?: string | null;
   paid_in_account: string;
   description?: string | null;
+  /** IDs de archivos adjuntos en formato JSON */
+  attached_files?: number[] | string | null;
   items: ReceiptItem[];
 }
 
@@ -61,17 +63,26 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
 
   const addReceipt = async (receipt: Omit<Receipt, 'id'>): Promise<Receipt | null> => {
     try {
+      const payload = {
+        ...receipt,
+        attached_files:
+          typeof receipt.attached_files === 'string'
+            ? receipt.attached_files
+            : receipt.attached_files
+            ? JSON.stringify(receipt.attached_files)
+            : null,
+      };
       const response = await fetch(`${BASE_URL}/receipts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(receipt),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (data.receipt_id) {
-        const newReceipt: Receipt = { id: parseInt(data.receipt_id, 10), ...receipt };
+        const newReceipt: Receipt = { id: parseInt(data.receipt_id, 10), ...payload };
         setReceipts(prev => [...prev, newReceipt]);
         return newReceipt;
       }
@@ -83,17 +94,26 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateReceipt = async (id: number, receipt: Omit<Receipt, 'id'>): Promise<boolean> => {
     try {
+      const payload = {
+        ...receipt,
+        attached_files:
+          typeof receipt.attached_files === 'string'
+            ? receipt.attached_files
+            : receipt.attached_files
+            ? JSON.stringify(receipt.attached_files)
+            : null,
+      };
       const response = await fetch(`${BASE_URL}/receipts/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(receipt),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (data.message === 'Receipt updated successfully') {
-        setReceipts(prev => prev.map(r => (r.id === id ? { id, ...receipt } : r)));
+        setReceipts(prev => prev.map(r => (r.id === id ? { id, ...payload } : r)));
         return true;
       }
     } catch (error) {

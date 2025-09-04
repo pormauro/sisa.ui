@@ -22,6 +22,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
+import FileCarousel from '@/components/FileCarousel';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -53,6 +54,7 @@ export default function PaymentDetailPage() {
   const [price, setPrice] = useState('');
   const [chargeClient, setChargeClient] = useState(false);
   const [chargeClientId, setChargeClientId] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
 
   const displayCategories = useMemo(
@@ -80,6 +82,12 @@ export default function PaymentDetailPage() {
       );
       setCreditorOther(payment.creditor_other || '');
       setDescription(payment.description || '');
+      const attachments = payment.attached_files
+        ? (typeof payment.attached_files === 'string'
+            ? JSON.parse(payment.attached_files)
+            : payment.attached_files)
+        : [];
+      setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
       if (payment.items && payment.items[0]) {
         setCategoryId(String(payment.items[0].category_id));
         setPrice(String(payment.items[0].price));
@@ -120,6 +128,7 @@ export default function PaymentDetailPage() {
                 : null,
             creditor_other: creditorType === 'other' ? creditorOther : null,
             description,
+            attached_files: attachedFiles || null,
             items: [
               {
                 category_id: parseInt(categoryId, 10),
@@ -348,6 +357,8 @@ export default function PaymentDetailPage() {
           </View>
         </>
       )}
+
+      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
