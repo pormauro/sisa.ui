@@ -20,7 +20,8 @@ export async function createLocalClientsTable() {
         email TEXT,
         brand_file_id INTEGER,
         phone TEXT,
-        address TEXT
+        address TEXT,
+        tariff_id INTEGER
       );
     `);
   } catch (error) {
@@ -34,17 +35,18 @@ export async function createLocalClientsTable() {
  * @returns {number} - El id insertado.
  */
 export async function insertClientLocal(clientData) {
-  const { business_name, tax_id, email, brand_file_id, phone, address } = clientData;
+  const { business_name, tax_id, email, brand_file_id, phone, address, tariff_id } = clientData;
   try {
     const result = await db.runAsync(
-      `INSERT INTO clients (business_name, tax_id, email, brand_file_id, phone, address)
-       VALUES (?, ?, ?, ?, ?, ?);`,
+      `INSERT INTO clients (business_name, tax_id, email, brand_file_id, phone, address, tariff_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
       business_name,
       tax_id,
       email,
       brand_file_id,
       phone,
-      address
+      address,
+      tariff_id
     );
     return result.lastInsertRowId;
   } catch (error) {
@@ -130,6 +132,7 @@ export async function syncFromServer() {
           brand_file_id: c.brand_file_id,
           phone: c.phone,
           address: c.address,
+          tariff_id: c.tariff_id ?? null,
         });
       }
     } else {

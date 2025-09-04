@@ -2,9 +2,11 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { TariffsContext } from '@/contexts/TariffsContext';
 
 
 export default function ClientDetailPage() {
@@ -16,6 +18,7 @@ export default function ClientDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
   const clientId = Number(id);
   const { clients, updateClient, deleteClient } = useContext(ClientsContext);
+  const { tariffs } = useContext(TariffsContext);
 
   const client = clients.find(c => c.id === clientId);
 
@@ -26,6 +29,7 @@ export default function ClientDetailPage() {
   const [address, setAddress] = useState('');
   const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tariffId, setTariffId] = useState<string>('');
 
   useEffect(() => {
     if (!canEditClient && !canDeleteClient) {
@@ -42,6 +46,7 @@ export default function ClientDetailPage() {
       setPhone(client.phone);
       setAddress(client.address);
       setBrandFileId(client.brand_file_id);
+      setTariffId(client.tariff_id ? client.tariff_id.toString() : '');
     }
   }, [client]);
 
@@ -75,6 +80,7 @@ export default function ClientDetailPage() {
               phone,
               address,
               brand_file_id: brandFileId,
+              tariff_id: tariffId ? parseInt(tariffId, 10) : null,
             });
             setLoading(false);
             if (success) {
@@ -162,6 +168,20 @@ export default function ClientDetailPage() {
         value={address}
         onChangeText={setAddress}
       />
+
+      <Text style={styles.label}>Tarifa</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={tariffId}
+          onValueChange={setTariffId}
+          style={styles.picker}
+        >
+          <Picker.Item label="Sin Tarifa" value="" />
+          {tariffs.map(t => (
+            <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
+          ))}
+        </Picker>
+      </View>
       {canEditClient && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar Cliente</Text>}
@@ -187,6 +207,14 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  pickerWrap: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
     backgroundColor: '#007BFF',
