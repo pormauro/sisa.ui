@@ -151,7 +151,7 @@ export default function EditJobScreen() {
         end_time: endTime,
         tariff_id: selectedTariff && selectedTariff.id !== '' ? Number(selectedTariff.id) : null,
         manual_amount: manualAmount ? Number(manualAmount) : null,
-        attached_files: attachedFiles ? JSON.parse(attachedFiles) : null,
+        attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
