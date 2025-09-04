@@ -11,6 +11,7 @@ export interface Client {
   brand_file_id: string | null;
   phone: string;
   address: string;
+  tariff_id: number | null;
 }
 
 interface ClientsContextValue {
@@ -44,7 +45,11 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.clients) {
-        setClients(data.clients);
+        const loaded: Client[] = data.clients.map((c: any) => ({
+          ...c,
+          tariff_id: c.tariff_id ?? null,
+        }));
+        setClients(loaded);
       }
     } catch (error) {
       console.error("Error loading clients:", error);

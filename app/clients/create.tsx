@@ -1,14 +1,17 @@
 // /app/clients/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { TariffsContext } from '@/contexts/TariffsContext';
 
 export default function CreateClientPage() {
   const { permissions } = useContext(PermissionsContext);
   const { addClient } = useContext(ClientsContext);
+  const { tariffs } = useContext(TariffsContext);
   const router = useRouter();
 
   const [businessName, setBusinessName] = useState('');
@@ -18,6 +21,7 @@ export default function CreateClientPage() {
   const [address, setAddress] = useState('');
   const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [tariffId, setTariffId] = useState<string>('');
 
   useEffect(() => {
     if (!permissions.includes('addClient')) {
@@ -38,6 +42,7 @@ export default function CreateClientPage() {
       phone,
       address,
       brand_file_id: brandFileId,
+      tariff_id: tariffId ? parseInt(tariffId, 10) : null,
     });
     setLoading(false);
     if (newClient) {
@@ -98,6 +103,20 @@ export default function CreateClientPage() {
         onChangeText={setAddress}
       />
 
+      <Text style={styles.label}>Tarifa</Text>
+      <View style={styles.pickerWrap}>
+        <Picker
+          selectedValue={tariffId}
+          onValueChange={setTariffId}
+          style={styles.picker}
+        >
+          <Picker.Item label="Sin Tarifa" value="" />
+          {tariffs.map(t => (
+            <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
+          ))}
+        </Picker>
+      </View>
+
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
         <Text style={styles.submitButtonText}>{loading ? 'Creando...' : 'Crear Cliente'}</Text>
       </TouchableOpacity>
@@ -115,6 +134,14 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  pickerWrap: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+  },
+  picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
     backgroundColor: '#28a745',
