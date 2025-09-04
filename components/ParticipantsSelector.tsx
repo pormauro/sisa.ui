@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Alert,
+  Pressable,
 } from 'react-native';
 import { UsersContext, AppUser } from '@/contexts/UsersContext';
 import { FileContext } from '@/contexts/FilesContext';
@@ -23,12 +24,14 @@ interface UserItem extends AppUser {
 }
 
 export default function ParticipantsSelector({ participants, onChange }: ParticipantsSelectorProps) {
-  const { users } = useContext(UsersContext);
+  const { users, loadUsers } = useContext(UsersContext);
   const { getFile } = useContext(FileContext);
   const [userItems, setUserItems] = useState<UserItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
+    if (!users.length) void loadUsers();
+
     const load = async () => {
       const mapped: UserItem[] = [];
       for (const u of users) {
@@ -42,7 +45,7 @@ export default function ParticipantsSelector({ participants, onChange }: Partici
       setUserItems(mapped);
     };
     void load();
-  }, [users, getFile]);
+  }, [users, getFile, loadUsers]);
 
   const addParticipant = (id: number) => {
     if (!participants.includes(id)) {
@@ -77,13 +80,24 @@ export default function ParticipantsSelector({ participants, onChange }: Partici
             </TouchableOpacity>
           );
         })}
-        <TouchableOpacity style={[styles.avatar, styles.add]} onPress={() => setModalVisible(true)}>
+        <Pressable
+          style={[styles.avatar, styles.add]}
+          onPress={e => {
+            e.stopPropagation();
+            setModalVisible(true);
+          }}
+        >
           <Text style={styles.addText}>+</Text>
-        </TouchableOpacity>
+        </Pressable>
       </ScrollView>
       <Modal transparent visible={modalVisible} animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <View style={styles.modalBox}>
+        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+          <Pressable
+            style={styles.modalBox}
+            onPress={e => {
+              e.stopPropagation();
+            }}
+          >
             <FlatList
               data={availableUsers}
               keyExtractor={item => item.id.toString()}
@@ -106,8 +120,8 @@ export default function ParticipantsSelector({ participants, onChange }: Partici
                 </TouchableOpacity>
               )}
             />
-          </View>
-        </TouchableOpacity>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
