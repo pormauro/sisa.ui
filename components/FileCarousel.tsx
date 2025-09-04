@@ -100,7 +100,7 @@ const handleAddCameraFile = async () => {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
       quality: 0.7,
       base64: false,
     });

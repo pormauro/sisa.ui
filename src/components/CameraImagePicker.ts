@@ -23,7 +23,7 @@ export async function pickImageFromSource(fromCamera: boolean) {
         quality: 0.7,
         allowsEditing: false,
         exif: false,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'] as ImagePicker.MediaType[],
       });
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -35,7 +35,7 @@ export async function pickImageFromSource(fromCamera: boolean) {
         quality: 0.7,
         allowsEditing: false,
         exif: false,
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'] as ImagePicker.MediaType[],
       });
     }
   } catch (error: any) {
