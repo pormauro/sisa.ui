@@ -23,6 +23,7 @@ import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatTimeInterval } from '@/utils/time';
+import ParticipantsSelector from '@/components/ParticipantsSelector';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -54,6 +55,7 @@ export default function EditJobScreen() {
   const [jobDate,       setJobDate] = useState('');
   const [startTime,     setStartTime] = useState('');
   const [endTime,       setEndTime] = useState('');
+  const [participants, setParticipants] = useState<number[]>([]);
   const [showDatePicker,      setShowDatePicker]   = useState(false);
   const [showStartPicker,     setShowStartPicker]  = useState(false);
   const [showEndPicker,       setShowEndPicker]    = useState(false);
@@ -108,6 +110,10 @@ export default function EditJobScreen() {
     setJobDate(extractDate(job.job_date));
     setStartTime(extractTime(job.start_time));
     setEndTime(extractTime(job.end_time));
+    const parts = job.participants
+      ? (typeof job.participants === 'string' ? JSON.parse(job.participants) : job.participants)
+      : [];
+    setParticipants(parts);
 
     const tar = tariffs.find(t => t.id === job.tariff_id);
     setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
@@ -155,6 +161,7 @@ export default function EditJobScreen() {
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
+        participants,
       });
       setLoading(false);
 
@@ -286,6 +293,11 @@ export default function EditJobScreen() {
           />
         </>
       )}
+
+      <ParticipantsSelector
+        participants={participants}
+        onChange={canEdit ? setParticipants : (_p: number[]) => {}}
+      />
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>

@@ -22,6 +22,8 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
+import { AuthContext } from '@/contexts/AuthContext';
+import ParticipantsSelector from '@/components/ParticipantsSelector';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { formatTimeInterval } from '@/utils/time';
 
@@ -33,6 +35,7 @@ export default function CreateJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
+  const { userId } = useContext(AuthContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -45,6 +48,7 @@ export default function CreateJobScreen() {
   const defaultTime = useMemo(() => new Date().toTimeString().slice(0, 5), []);
   const [startTime, setStartTime]             = useState<string>(defaultTime);
   const [endTime, setEndTime]                 = useState<string>(defaultTime);
+  const [participants, setParticipants]       = useState<number[]>([]);
   const [startTimeTouched, setStartTimeTouched] = useState(false);
   const [endTimeTouched, setEndTimeTouched]     = useState(false);
   const [showDatePicker, setShowDatePicker]   = useState(false);
@@ -91,6 +95,12 @@ export default function CreateJobScreen() {
     }
   }, [statuses, selectedStatus]);
 
+  useEffect(() => {
+    if (userId) {
+      setParticipants([parseInt(userId, 10)]);
+    }
+  }, [userId]);
+
 
   const handleSubmit = async () => {
     if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
@@ -109,6 +119,7 @@ export default function CreateJobScreen() {
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
+        participants,
       };
       setLoading(true);
       const created = await addJob(jobData);
@@ -231,6 +242,8 @@ export default function CreateJobScreen() {
           />
         </>
       )}
+
+      <ParticipantsSelector participants={participants} onChange={setParticipants} />
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
