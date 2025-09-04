@@ -25,6 +25,7 @@ export default function ProviderDetailPage() {
   const [address, setAddress] = useState('');
   const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -34,15 +35,16 @@ export default function ProviderDetailPage() {
   }, [permissions]);
 
   useEffect(() => {
-    if (provider) {
+    if (provider && !initialized) {
       setBusinessName(provider.business_name);
       setTaxId(provider.tax_id || '');
       setEmail(provider.email || '');
       setPhone(provider.phone || '');
       setAddress(provider.address || '');
       setBrandFileId(provider.brand_file_id || null);
+      setInitialized(true);
     }
-  }, [provider]);
+  }, [provider, initialized]);
 
   if (!provider) {
     return (
