@@ -105,7 +105,7 @@ export default function CreateJobScreen() {
         end_time: endTime,
         tariff_id: selectedTariff ? parseInt(selectedTariff, 10) : null,
         manual_amount: manualAmount ? parseFloat(manualAmount) : null,
-        attached_files: attachedFiles || null,
+        attached_files: attachedFiles ? JSON.parse(attachedFiles) : null,
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
