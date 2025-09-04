@@ -82,15 +82,11 @@ export default function CreateReceipt() {
       payer_other: payerType === 'other' ? payerOther : null,
       description,
       attached_files: attachedFiles || null,
-      items: [
-        {
-          category_id: parseInt(categoryId, 10),
-          price: parseFloat(price),
-          pay_provider: payProvider,
-          provider_id:
-            payProvider && providerId ? parseInt(providerId, 10) : null,
-        },
-      ],
+      category_id: parseInt(categoryId, 10),
+      price: parseFloat(price),
+      pay_provider: payProvider,
+      provider_id:
+        payProvider && providerId ? parseInt(providerId, 10) : null,
     });
     setLoading(false);
     if (newReceipt) {

@@ -83,15 +83,11 @@ export default function CreatePayment() {
       creditor_other: creditorType === 'other' ? creditorOther : null,
       description,
       attached_files: attachedFiles || null,
-      items: [
-        {
-          category_id: parseInt(categoryId, 10),
-          price: parseFloat(price),
-          charge_client: chargeClient,
-          client_id:
-            chargeClient && chargeClientId ? parseInt(chargeClientId, 10) : null,
-        },
-      ],
+      category_id: parseInt(categoryId, 10),
+      price: parseFloat(price),
+      charge_client: chargeClient,
+      client_id:
+        chargeClient && chargeClientId ? parseInt(chargeClientId, 10) : null,
     });
     setLoading(false);
     if (newPayment) {

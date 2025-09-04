@@ -3,15 +3,9 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 
-export interface PaymentItem {
-  category_id: number;
-  price: number;
-  charge_client: boolean;
-  client_id?: number | null;
-}
-
 export interface Payment {
   id: number;
+  user_id?: number;
   payment_date: string;
   paid_with_account: string;
   creditor_type: 'client' | 'provider' | 'other';
@@ -21,7 +15,10 @@ export interface Payment {
   description?: string | null;
   /** IDs de archivos adjuntos en formato JSON */
   attached_files?: number[] | string | null;
-  items?: PaymentItem[];
+  category_id: number;
+  price: number;
+  charge_client: boolean;
+  client_id?: number | null;
 }
 
 interface PaymentsContextValue {
