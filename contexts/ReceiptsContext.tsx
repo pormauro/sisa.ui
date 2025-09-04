@@ -49,6 +49,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch(`${BASE_URL}/receipts`, {
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
@@ -76,6 +77,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
@@ -107,6 +109,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
@@ -128,6 +131,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
