@@ -69,7 +69,12 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         tariff_id: jobData.tariff_id ?? null,
         manual_amount: jobData.manual_amount ?? null,
         status_id: jobData.status_id ?? null,
-        attached_files: jobData.attached_files ?? null,
+        attached_files:
+          typeof jobData.attached_files === 'string'
+            ? jobData.attached_files
+            : jobData.attached_files
+            ? JSON.stringify(jobData.attached_files)
+            : null,
         folder_id: jobData.folder_id ?? null,
         job_date: jobData.job_date ?? null,
       };
@@ -98,7 +103,12 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         tariff_id: jobData.tariff_id ?? null,
         manual_amount: jobData.manual_amount ?? null,
         status_id: jobData.status_id ?? null,
-        attached_files: jobData.attached_files ?? null,
+        attached_files:
+          typeof jobData.attached_files === 'string'
+            ? jobData.attached_files
+            : jobData.attached_files
+            ? JSON.stringify(jobData.attached_files)
+            : null,
         folder_id: jobData.folder_id ?? null,
         job_date: jobData.job_date ?? null,
       };
