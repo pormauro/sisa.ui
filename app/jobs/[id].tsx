@@ -99,7 +99,12 @@ export default function EditJobScreen() {
     const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
 
     setDescription(job.description || '');
-    setAttachedFiles(job.attached_files || '');
+    const attachments = job.attached_files
+      ? (typeof job.attached_files === 'string'
+          ? JSON.parse(job.attached_files)
+          : job.attached_files)
+      : [];
+    setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
     setJobDate(extractDate(job.job_date));
     setStartTime(extractTime(job.start_time));
     setEndTime(extractTime(job.end_time));
@@ -146,7 +151,7 @@ export default function EditJobScreen() {
         end_time: endTime,
         tariff_id: selectedTariff && selectedTariff.id !== '' ? Number(selectedTariff.id) : null,
         manual_amount: manualAmount ? Number(manualAmount) : null,
-        attached_files: attachedFiles || null,
+        attached_files: attachedFiles ? JSON.parse(attachedFiles) : null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,

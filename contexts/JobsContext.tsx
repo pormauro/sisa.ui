@@ -22,8 +22,8 @@ export interface Job {
   multiplicative_value?: number;
   tariff_id?: number | null;
   manual_amount?: number | null;
-  /** Cadena JSON con archivos adjuntos */
-  attached_files?: string | null;
+  /** IDs de archivos adjuntos en formato JSON */
+  attached_files?: number[] | string | null;
 }
 
 interface JobsContextType {
