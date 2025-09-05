@@ -63,6 +63,10 @@ export default function CreateJobScreen() {
     () => tariffs.find(t => t.id.toString() === selectedTariff),
     [tariffs, selectedTariff]
   );
+  const filteredTariffs = useMemo(
+    () => tariffs.filter(t => new Date(jobDate) >= new Date(t.last_update)),
+    [tariffs, jobDate]
+  );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
     const end = new Date(`1970-01-01T${endTime}`);
@@ -83,6 +87,22 @@ export default function CreateJobScreen() {
     return folders.filter(f => f.client_id === cid);
   }, [folders, selectedClient]);
 
+  const handleClientChange = (val: string) => {
+    setSelectedClient(val);
+    setSelectedFolder('');
+    const client = clients.find(c => c.id.toString() === val);
+    if (client && client.tariff_id) {
+      const t = tariffs.find(t => t.id === client.tariff_id);
+      if (t && new Date(jobDate) >= new Date(t.last_update)) {
+        setSelectedTariff(t.id.toString());
+        setManualAmount(t.amount.toString());
+        return;
+      }
+    }
+    setSelectedTariff('');
+    setManualAmount('');
+  };
+
   const statusItems = useMemo(
     () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
     [statuses]
@@ -94,6 +114,16 @@ export default function CreateJobScreen() {
       setSelectedStatus({ id: first.id, name: first.label, backgroundColor: first.background_color });
     }
   }, [statuses, selectedStatus]);
+
+  useEffect(() => {
+    if (selectedTariff) {
+      const t = tariffs.find(t => t.id.toString() === selectedTariff);
+      if (t && new Date(jobDate) < new Date(t.last_update)) {
+        setSelectedTariff('');
+        setManualAmount('');
+      }
+    }
+  }, [jobDate, selectedTariff, tariffs]);
 
 
   const handleSubmit = async () => {
@@ -171,7 +201,7 @@ export default function CreateJobScreen() {
       <View style={styles.pickerWrap}>
         <Picker
           selectedValue={selectedClient}
-          onValueChange={setSelectedClient}
+          onValueChange={handleClientChange}
           style={styles.picker}
         >
           <Picker.Item label="-- Selecciona Cliente --" value="" />
@@ -220,16 +250,19 @@ export default function CreateJobScreen() {
       <View style={styles.pickerWrap}>
         <Picker
           selectedValue={selectedTariff}
-          enabled={selectedTariff === ''}
           onValueChange={(val) => {
             setSelectedTariff(val);
             const t = tariffs.find(t => t.id.toString() === val);
-            if (t) setManualAmount(t.amount.toString());
+            if (t) {
+              setManualAmount(t.amount.toString());
+            } else {
+              setManualAmount('');
+            }
           }}
           style={styles.picker}
         >
-          <Picker.Item label="-- Sin tarifa --" value="" />
-          {tariffs.map(t => (
+          <Picker.Item label="-- Tarifa manual --" value="" />
+          {filteredTariffs.map(t => (
             <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
           ))}
         </Picker>
@@ -239,14 +272,18 @@ export default function CreateJobScreen() {
       )}
 
       {/* Tarifa manual */}
-      <Text style={styles.label}>Tarifa manual *</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Ingresa tarifa manual"
-        value={manualAmount}
-        onChangeText={setManualAmount}
-        keyboardType="numeric"
-      />
+      {selectedTariff === '' && (
+        <>
+          <Text style={styles.label}>Tarifa manual *</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ingresa tarifa manual"
+            value={manualAmount}
+            onChangeText={setManualAmount}
+            keyboardType="numeric"
+          />
+        </>
+      )}
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
