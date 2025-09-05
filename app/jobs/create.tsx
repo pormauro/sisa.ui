@@ -22,8 +22,8 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
-import { AuthContext } from '@/contexts/AuthContext';
 import ParticipantsSelector from '@/components/ParticipantsSelector';
+import { ProfileContext } from '@/contexts/ProfileContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { formatTimeInterval } from '@/utils/time';
 
@@ -35,7 +35,7 @@ export default function CreateJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
-  const { userId } = useContext(AuthContext);
+  const { profileDetails } = useContext(ProfileContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -96,10 +96,10 @@ export default function CreateJobScreen() {
   }, [statuses, selectedStatus]);
 
   useEffect(() => {
-    if (userId) {
-      setParticipants([parseInt(userId, 10)]);
+    if (profileDetails?.profile_file_id) {
+      setParticipants([parseInt(profileDetails.profile_file_id, 10)]);
     }
-  }, [userId]);
+  }, [profileDetails]);
 
 
   const handleSubmit = async () => {

@@ -14,10 +14,17 @@ import { UsersContext } from '@/contexts/UsersContext';
 import CircleImagePicker from './CircleImagePicker';
 
 interface ParticipantsSelectorProps {
+  /** Lista de IDs de archivos de imagen de los usuarios seleccionados */
   participants: number[];
+  /** Callback cuando cambia la lista de IDs de imagen */
   onChange: (p: number[]) => void;
 }
 
+/**
+ * Selector de participantes basado en los IDs de imágenes (profile_file_id).
+ * Mantiene internamente un listado de IDs de archivo y expone un JSON
+ * sólo con estos identificadores, evitando mezclar los IDs de usuario.
+ */
 export default function ParticipantsSelector({ participants, onChange }: ParticipantsSelectorProps) {
   const { users, loadUsers } = useContext(UsersContext);
   const [modalVisible, setModalVisible] = useState(false);
@@ -26,37 +33,37 @@ export default function ParticipantsSelector({ participants, onChange }: Partici
     if (!users.length) void loadUsers();
   }, [users, loadUsers]);
 
-  const addParticipant = (id: number) => {
-    if (!participants.includes(id)) {
-      onChange([...participants, id]);
+  const addParticipant = (fileId: number) => {
+    if (!participants.includes(fileId)) {
+      onChange([...participants, fileId]);
     }
   };
 
-  const removeParticipant = (id: number) => {
+  const removeParticipant = (fileId: number) => {
     Alert.alert('Eliminar participante', '¿Deseas quitar este participante?', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: () => onChange(participants.filter(p => p !== id)) },
+      { text: 'Eliminar', style: 'destructive', onPress: () => onChange(participants.filter(p => p !== fileId)) },
     ]);
   };
 
-  const availableUsers = users.filter(u => !participants.includes(u.id));
+  const availableUsers = users.filter(u => {
+    if (!u.profile_file_id) return false;
+    return !participants.includes(parseInt(u.profile_file_id, 10));
+  });
 
   return (
     <View style={{ marginBottom: 15 }}>
       <Text style={styles.label}>Participantes</Text>
       <ScrollView horizontal contentContainerStyle={styles.row}>
-        {participants.map(id => {
-          const user = users.find(u => u.id === id);
-          return (
-            <TouchableOpacity key={id} onPress={() => removeParticipant(id)} style={styles.avatarWrap}>
-              <CircleImagePicker
-                fileId={user?.profile_file_id || undefined}
-                size={40}
-                editable={false}
-              />
-            </TouchableOpacity>
-          );
-        })}
+        {participants.map(fileId => (
+          <TouchableOpacity
+            key={fileId}
+            onPress={() => removeParticipant(fileId)}
+            style={styles.avatarWrap}
+          >
+            <CircleImagePicker fileId={fileId.toString()} size={40} editable={false} />
+          </TouchableOpacity>
+        ))}
         <Pressable
           style={[styles.avatar, styles.add]}
           onPress={e => {
@@ -82,8 +89,10 @@ export default function ParticipantsSelector({ participants, onChange }: Partici
                 <TouchableOpacity
                   style={styles.item}
                   onPress={() => {
-                    addParticipant(item.id);
-                    setModalVisible(false);
+                    if (item.profile_file_id) {
+                      addParticipant(parseInt(item.profile_file_id, 10));
+                      setModalVisible(false);
+                    }
                   }}
                 >
                   <CircleImagePicker
