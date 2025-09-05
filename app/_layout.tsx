@@ -11,6 +11,7 @@ import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
 import { ProfilesProvider } from '@/contexts/ProfilesContext';
+import { ProfilesListProvider } from '@/contexts/ProfilesListContext';
 import { ProvidersProvider } from '@/contexts/ProvidersContext';
 import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
@@ -64,8 +65,9 @@ export default function RootLayout() {
         <FilesProvider>
           <ProfileProvider>
             <ProfilesProvider>
-              <ConfigProvider>
-                <CashBoxesProvider>
+              <ProfilesListProvider>
+                <ConfigProvider>
+                  <CashBoxesProvider>
                   <ClientsProvider>
                     <ProvidersProvider>
                       <CategoriesProvider>
@@ -89,8 +91,9 @@ export default function RootLayout() {
                   </ClientsProvider>
                 </CashBoxesProvider>
               </ConfigProvider>
-            </ProfilesProvider>
-          </ProfileProvider>
+            </ProfilesListProvider>
+          </ProfilesProvider>
+        </ProfileProvider>
         </FilesProvider>
       </PermissionsProvider>
     </AuthProvider>

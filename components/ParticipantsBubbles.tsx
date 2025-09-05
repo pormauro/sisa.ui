@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ProfilesContext } from '@/contexts/ProfilesContext';
+import { ProfilesListContext } from '@/contexts/ProfilesListContext';
 
 interface ParticipantsBubblesProps {
   participants: number[];
@@ -15,6 +17,7 @@ interface ParticipantItem {
 
 export default function ParticipantsBubbles({ participants, onChange }: ParticipantsBubblesProps) {
   const { getProfile } = useContext(ProfilesContext);
+  const { profiles } = useContext(ProfilesListContext);
   const [items, setItems] = useState<ParticipantItem[]>([]);
   const [newId, setNewId] = useState('');
 
@@ -33,7 +36,7 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
   const handleAdd = async () => {
     const parsed = parseInt(newId, 10);
     if (isNaN(parsed)) {
-      Alert.alert('ID inválido');
+      Alert.alert('Seleccione un perfil');
       return;
     }
     if (items.some(it => it.id === parsed)) {
@@ -72,13 +75,16 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
         style={styles.list}
       />
       <View style={styles.addRow}>
-        <TextInput
-          style={styles.input}
-          value={newId}
-          onChangeText={setNewId}
-          placeholder="ID participante"
-          keyboardType="numeric"
-        />
+        <Picker
+          selectedValue={newId}
+          onValueChange={(value) => setNewId(String(value))}
+          style={styles.picker}
+        >
+          <Picker.Item label="Seleccionar perfil" value="" />
+          {profiles.map((p) => (
+            <Picker.Item key={p.id} label={p.username} value={p.id.toString()} />
+          ))}
+        </Picker>
         <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
           <Text style={styles.addButtonText}>Agregar</Text>
         </TouchableOpacity>
@@ -103,11 +109,7 @@ const styles = StyleSheet.create({
   },
   removeText: { color: '#fff', fontSize: 12, lineHeight: 12 },
   addRow: { flexDirection: 'row', alignItems: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 4,
-    padding: 8,
+  picker: {
     flex: 1,
     marginRight: 8,
   },
