@@ -5,10 +5,12 @@ import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { PaymentsContext, Payment } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 
 export default function PaymentsScreen() {
   const { payments, loadPayments, deletePayment } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { clients } = useContext(ClientsContext);
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -49,15 +51,29 @@ export default function PaymentsScreen() {
 
   const renderItem = ({ item }: { item: Payment }) => {
     const total = item.price;
+    const client = clients.find(
+      c => c.id === item.creditor_client_id || c.id === item.client_id
+    );
     return (
-      <TouchableOpacity style={styles.item} onLongPress={() => router.push(`/payments/${item.id}`)}>
+      <TouchableOpacity
+        style={styles.item}
+        onLongPress={() => router.push(`/payments/${item.id}`)}
+      >
         <View style={styles.itemInfo}>
-          <Text style={styles.name}>{item.description || 'Sin descripción'}</Text>
+          <Text style={styles.name}>{client?.business_name || 'Sin cliente'}</Text>
+          <Text>{item.description || 'Sin descripción'}</Text>
           <Text>Total: ${total}</Text>
         </View>
         {canDelete && (
-          <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-            {loadingId === item.id ? <ActivityIndicator /> : <Text style={styles.deleteText}>🗑️</Text>}
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDelete(item.id)}
+          >
+            {loadingId === item.id ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.deleteText}>🗑️</Text>
+            )}
           </TouchableOpacity>
         )}
       </TouchableOpacity>
