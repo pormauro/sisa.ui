@@ -15,11 +15,13 @@ import Fuse from 'fuse.js';
 import { ReceiptsContext, Receipt } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import { ProvidersContext } from '@/contexts/ProvidersContext';
 
 export default function ReceiptsScreen() {
   const { receipts, loadReceipts, deleteReceipt } = useContext(ReceiptsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
+  const { providers } = useContext(ProvidersContext);
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -60,14 +62,23 @@ export default function ReceiptsScreen() {
 
   const renderItem = ({ item }: { item: Receipt }) => {
     const total = item.price;
-    const client = clients.find(c => c.id === item.payer_client_id);
+    let title = '';
+    if (item.payer_type === 'client') {
+      const client = clients.find(c => c.id === item.payer_client_id);
+      title = client?.business_name || 'Sin cliente';
+    } else if (item.payer_type === 'provider') {
+      const provider = providers.find(p => p.id === item.payer_provider_id);
+      title = provider?.business_name || 'Sin proveedor';
+    } else {
+      title = item.payer_other || 'Sin pagador';
+    }
     return (
       <TouchableOpacity
         style={styles.item}
         onLongPress={() => router.push(`/receipts/${item.id}`)}
       >
         <View style={styles.itemInfo}>
-          <Text style={styles.name}>{client?.business_name || 'Sin cliente'}</Text>
+          <Text style={styles.name}>{title}</Text>
           <Text>{item.description || 'Sin descripción'}</Text>
           <Text>Total: ${total}</Text>
         </View>
