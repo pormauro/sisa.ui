@@ -24,6 +24,8 @@ export interface Job {
   manual_amount?: number | null;
   /** IDs de archivos adjuntos en formato JSON */
   attached_files?: number[] | string | null;
+  /** IDs de participantes en formato JSON */
+  participants?: number[] | string | null;
 }
 
 interface JobsContextType {
@@ -54,7 +56,17 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.jobs) setJobs(data.jobs);
+      if (data.jobs) {
+        const parsed = data.jobs.map((j: any) => ({
+          ...j,
+          participants: j.participants
+            ? typeof j.participants === 'string'
+              ? JSON.parse(j.participants)
+              : j.participants
+            : null,
+        }));
+        setJobs(parsed);
+      }
     } catch (err) {
       console.error('Error loading jobs:', err);
     }
@@ -75,6 +87,9 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             : jobData.attached_files
             ? JSON.stringify(jobData.attached_files)
             : null,
+        participants: jobData.participants
+          ? JSON.stringify(jobData.participants)
+          : null,
         folder_id: jobData.folder_id ?? null,
         job_date: jobData.job_date ?? null,
       };
@@ -109,6 +124,9 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             : jobData.attached_files
             ? JSON.stringify(jobData.attached_files)
             : null,
+        participants: jobData.participants
+          ? JSON.stringify(jobData.participants)
+          : null,
         folder_id: jobData.folder_id ?? null,
         job_date: jobData.job_date ?? null,
       };

@@ -23,6 +23,8 @@ import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatTimeInterval } from '@/utils/time';
+import ParticipantsBubbles from '@/components/ParticipantsBubbles';
+import { AuthContext } from '@/contexts/AuthContext';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -35,6 +37,7 @@ export default function EditJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
+  const { userId } = useContext(AuthContext);
 
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
@@ -59,6 +62,7 @@ export default function EditJobScreen() {
   const [showEndPicker,       setShowEndPicker]    = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [participants, setParticipants] = useState<number[]>([]);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const rate = useMemo(() => {
     if (selectedTariff && selectedTariff.id !== '') {
@@ -112,6 +116,15 @@ export default function EditJobScreen() {
     const tar = tariffs.find(t => t.id === job.tariff_id);
     setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
     setManualAmount(job.manual_amount ? job.manual_amount.toString() : '');
+
+    const parts = job.participants
+      ? (typeof job.participants === 'string'
+          ? JSON.parse(job.participants)
+          : job.participants)
+      : [];
+    const ids = parts.map((p: any) => (typeof p === 'number' ? p : p.id));
+    if (ids.length === 0 && userId) ids.push(Number(userId));
+    setParticipants(ids);
   }, [job, clients, folders, statuses, tariffs, manualTariffItem]);
 
   // opciones para pickers
@@ -155,6 +168,7 @@ export default function EditJobScreen() {
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
+        participants,
       });
       setLoading(false);
 
@@ -261,6 +275,13 @@ export default function EditJobScreen() {
           placeholder="-- Estado --"
         />
       </View>
+
+      {/* Participantes */}
+      <Text style={styles.label}>Participantes</Text>
+      <ParticipantsBubbles
+        participants={participants}
+        onChange={setParticipants}
+      />
 
       {/* Tarifa */}
       <Text style={styles.label}>Tarifa</Text>
@@ -384,15 +405,16 @@ export default function EditJobScreen() {
        // <-- Le decimos al FlatList que también re-renderice si cambia cualquiera de estos estados
          extraData={{
            selectedClient,
-           selectedFolder,
-           description,
-         attachedFiles,
-         jobDate,
-         startTime,
-         endTime,
-          selectedStatus,
-          selectedTariff,
+          selectedFolder,
+          description,
+        attachedFiles,
+        jobDate,
+        startTime,
+        endTime,
+         selectedStatus,
+         selectedTariff,
           manualAmount,
+          participants,
         }}
       />
   );
