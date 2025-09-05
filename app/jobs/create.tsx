@@ -24,6 +24,8 @@ import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { formatTimeInterval } from '@/utils/time';
+import ParticipantsBubbles from '@/components/ParticipantsBubbles';
+import { AuthContext } from '@/contexts/AuthContext';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function CreateJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
+  const { userId } = useContext(AuthContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -51,6 +54,9 @@ export default function CreateJobScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker]     = useState(false);
   const [loading, setLoading]                 = useState<boolean>(false);
+  const [participants, setParticipants]       = useState<number[]>(() =>
+    userId ? [Number(userId)] : []
+  );
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const rate = useMemo(() => {
     if (selectedTariff) {
@@ -109,6 +115,7 @@ export default function CreateJobScreen() {
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
+        participants,
       };
       setLoading(true);
       const created = await addJob(jobData);
@@ -202,6 +209,13 @@ export default function CreateJobScreen() {
           placeholder="-- Estado --"
         />
       </View>
+
+      {/* Participantes */}
+      <Text style={styles.label}>Participantes</Text>
+      <ParticipantsBubbles
+        participants={participants}
+        onChange={setParticipants}
+      />
 
       {/* Tarifa */}
       <Text style={styles.label}>Tarifa</Text>
