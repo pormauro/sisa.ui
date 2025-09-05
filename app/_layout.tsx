@@ -10,6 +10,7 @@ import { PaymentsProvider } from '@/contexts/PaymentsContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
+import { ProfilesProvider } from '@/contexts/ProfilesContext';
 import { ProvidersProvider } from '@/contexts/ProvidersContext';
 import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
@@ -62,31 +63,33 @@ export default function RootLayout() {
       <PermissionsProvider>
         <FilesProvider>
           <ProfileProvider>
-            <ConfigProvider>
-              <CashBoxesProvider>
-                <ClientsProvider>
-                  <ProvidersProvider>
-                    <CategoriesProvider>
-                      <ProductsServicesProvider>
-                        <StatusesProvider>
-                          <TariffsProvider>
-                            <JobsProvider>
-                              <PaymentsProvider>
-                                <ReceiptsProvider>
-                                  <FoldersProvider>
-                                    <RootLayoutContent />
-                                  </FoldersProvider>
-                                </ReceiptsProvider>
-                              </PaymentsProvider>
-                            </JobsProvider>
-                          </TariffsProvider>
-                        </StatusesProvider>
-                      </ProductsServicesProvider>
-                    </CategoriesProvider>
-                  </ProvidersProvider>
-                </ClientsProvider>
-              </CashBoxesProvider>
-            </ConfigProvider>
+            <ProfilesProvider>
+              <ConfigProvider>
+                <CashBoxesProvider>
+                  <ClientsProvider>
+                    <ProvidersProvider>
+                      <CategoriesProvider>
+                        <ProductsServicesProvider>
+                          <StatusesProvider>
+                            <TariffsProvider>
+                              <JobsProvider>
+                                <PaymentsProvider>
+                                  <ReceiptsProvider>
+                                    <FoldersProvider>
+                                      <RootLayoutContent />
+                                    </FoldersProvider>
+                                  </ReceiptsProvider>
+                                </PaymentsProvider>
+                              </JobsProvider>
+                            </TariffsProvider>
+                          </StatusesProvider>
+                        </ProductsServicesProvider>
+                      </CategoriesProvider>
+                    </ProvidersProvider>
+                  </ClientsProvider>
+                </CashBoxesProvider>
+              </ConfigProvider>
+            </ProfilesProvider>
           </ProfileProvider>
         </FilesProvider>
       </PermissionsProvider>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
-import { AuthContext } from '@/contexts/AuthContext';
-import { BASE_URL } from '@/config/Index';
+import { ProfilesContext } from '@/contexts/ProfilesContext';
 
 interface ParticipantsBubblesProps {
   participants: number[];
@@ -15,7 +14,7 @@ interface ParticipantItem {
 }
 
 export default function ParticipantsBubbles({ participants, onChange }: ParticipantsBubblesProps) {
-  const { token, userId } = useContext(AuthContext);
+  const { getProfile } = useContext(ProfilesContext);
   const [items, setItems] = useState<ParticipantItem[]>([]);
   const [newId, setNewId] = useState('');
 
@@ -23,32 +22,17 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
     const load = async () => {
       const list: ParticipantItem[] = [];
       for (const id of participants) {
-        const fileId = await fetchProfileImage(id);
-        list.push({ id, fileId });
+        const profile = await getProfile(id);
+        list.push({ id, fileId: profile?.profile_file_id ?? null });
       }
       setItems(list);
     };
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [participants, getProfile]);
 
   useEffect(() => {
     onChange(items.map(it => it.id));
   }, [items, onChange]);
-
-  const fetchProfileImage = async (uid: number): Promise<number | null> => {
-    if (!token) return null;
-    try {
-      const endpoint = uid === Number(userId) ? `${BASE_URL}/profile` : `${BASE_URL}/profiles/${uid}`;
-      const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) return null;
-      const data = await res.json();
-      const profile = data.profile || data.user || {};
-      return profile.profile_file_id ?? null;
-    } catch {
-      return null;
-    }
-  };
 
   const handleAdd = async () => {
     const parsed = parseInt(newId, 10);
@@ -60,8 +44,8 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
       setNewId('');
       return;
     }
-    const fileId = await fetchProfileImage(parsed);
-    setItems(prev => [...prev, { id: parsed, fileId }]);
+    const profile = await getProfile(parsed);
+    setItems(prev => [...prev, { id: parsed, fileId: profile?.profile_file_id ?? null }]);
     setNewId('');
   };
 
