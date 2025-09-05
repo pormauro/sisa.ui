@@ -87,9 +87,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             : jobData.attached_files
             ? JSON.stringify(jobData.attached_files)
             : null,
-        participants: jobData.participants
-          ? JSON.stringify(jobData.participants)
-          : null,
+        participants:
+          jobData.participants && jobData.participants.length > 0
+            ? JSON.stringify(jobData.participants)
+            : null,
         folder_id: jobData.folder_id ?? null,
         job_date: jobData.job_date ?? null,
       };
@@ -98,7 +99,14 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('Error adding job: invalid JSON response', text);
+        return null;
+      }
       if (data.job_id) {
         await loadJobs(); // asegura consistencia
         return { id: data.job_id, user_id: 0, ...payload };
@@ -124,9 +132,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             : jobData.attached_files
             ? JSON.stringify(jobData.attached_files)
             : null,
-        participants: jobData.participants
-          ? JSON.stringify(jobData.participants)
-          : null,
+        participants:
+          jobData.participants && jobData.participants.length > 0
+            ? JSON.stringify(jobData.participants)
+            : null,
         folder_id: jobData.folder_id ?? null,
         job_date: jobData.job_date ?? null,
       };
@@ -135,7 +144,14 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('Error updating job: invalid JSON response', text);
+        return false;
+      }
       if (data.message === 'Job updated successfully') {
         await loadJobs(); // recarga para obtener datos frescos del servidor
         return true;
@@ -152,7 +168,14 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        console.error('Error deleting job: invalid JSON response', text);
+        return false;
+      }
       if (data.message === 'Job deleted successfully') {
         setJobs((prev) => prev.filter((j) => j.id !== id));
         return true;
