@@ -57,6 +57,14 @@ export default function CreateJobScreen() {
   const [participants, setParticipants]       = useState<number[]>(() =>
     userId ? [Number(userId)] : []
   );
+
+  useEffect(() => {
+    if (userId) {
+      setParticipants(prev =>
+        prev.includes(Number(userId)) ? prev : [Number(userId), ...prev]
+      );
+    }
+  }, [userId]);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const rate = useMemo(() => {
     if (selectedTariff) {

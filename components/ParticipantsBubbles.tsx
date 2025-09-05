@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -19,24 +19,7 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
   const [items, setItems] = useState<ParticipantItem[]>([]);
   const [newId, setNewId] = useState('');
 
-  useEffect(() => {
-    const load = async () => {
-      const list: ParticipantItem[] = [];
-      for (const id of participants) {
-        const fileId = await fetchProfileImage(id);
-        list.push({ id, fileId });
-      }
-      setItems(list);
-    };
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    onChange(items.map(it => it.id));
-  }, [items, onChange]);
-
-  const fetchProfileImage = async (uid: number): Promise<number | null> => {
+  const fetchProfileImage = useCallback(async (uid: number): Promise<number | null> => {
     if (!token) return null;
     try {
       const endpoint = uid === Number(userId) ? `${BASE_URL}/profile` : `${BASE_URL}/profiles/${uid}`;
@@ -48,7 +31,34 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
     } catch {
       return null;
     }
-  };
+  }, [token, userId]);
+
+  useEffect(() => {
+    const currentIds = items.map(it => it.id);
+    const same =
+      participants.length === currentIds.length &&
+      participants.every((id, idx) => id === currentIds[idx]);
+    if (same) return;
+
+    const load = async () => {
+      const list: ParticipantItem[] = [];
+      for (const id of participants) {
+        const existing = items.find(it => it.id === id);
+        if (existing) {
+          list.push(existing);
+        } else {
+          const fileId = await fetchProfileImage(id);
+          list.push({ id, fileId });
+        }
+      }
+      setItems(list);
+    };
+    void load();
+  }, [participants, items, fetchProfileImage]);
+
+  useEffect(() => {
+    onChange(items.map(it => it.id));
+  }, [items, onChange]);
 
   const handleAdd = async () => {
     const parsed = parseInt(newId, 10);
