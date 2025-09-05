@@ -30,10 +30,6 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
     void load();
   }, [participants, getProfile]);
 
-  useEffect(() => {
-    onChange(items.map(it => it.id));
-  }, [items, onChange]);
-
   const handleAdd = async () => {
     const parsed = parseInt(newId, 10);
     if (isNaN(parsed)) {
@@ -45,12 +41,16 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
       return;
     }
     const profile = await getProfile(parsed);
-    setItems(prev => [...prev, { id: parsed, fileId: profile?.profile_file_id ?? null }]);
+    const updated = [...items, { id: parsed, fileId: profile?.profile_file_id ?? null }];
+    setItems(updated);
+    onChange(updated.map(it => it.id));
     setNewId('');
   };
 
   const handleRemove = (id: number) => {
-    setItems(prev => prev.filter(it => it.id !== id));
+    const updated = items.filter(it => it.id !== id);
+    setItems(updated);
+    onChange(updated.map(it => it.id));
   };
 
   const renderItem = ({ item }: { item: ParticipantItem }) => (
