@@ -58,13 +58,11 @@ export default function CreateJobScreen() {
     userId ? [Number(userId)] : []
   );
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const rate = useMemo(() => {
-    if (selectedTariff) {
-      const t = tariffs.find(t => t.id.toString() === selectedTariff);
-      return t ? t.amount : 0;
-    }
-    return manualAmount ? parseFloat(manualAmount) : 0;
-  }, [selectedTariff, manualAmount, tariffs]);
+  const rate = useMemo(() => (manualAmount ? parseFloat(manualAmount) : 0), [manualAmount]);
+  const selectedTariffData = useMemo(
+    () => tariffs.find(t => t.id.toString() === selectedTariff),
+    [tariffs, selectedTariff]
+  );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
     const end = new Date(`1970-01-01T${endTime}`);
@@ -99,7 +97,7 @@ export default function CreateJobScreen() {
 
 
   const handleSubmit = async () => {
-    if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
+    if (!selectedClient || !description || !jobDate || !startTime || !endTime || !manualAmount) {
       Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
@@ -222,29 +220,33 @@ export default function CreateJobScreen() {
       <View style={styles.pickerWrap}>
         <Picker
           selectedValue={selectedTariff}
-          onValueChange={(val) => { setSelectedTariff(val); if (val) setManualAmount(''); }}
+          enabled={selectedTariff === ''}
+          onValueChange={(val) => {
+            setSelectedTariff(val);
+            const t = tariffs.find(t => t.id.toString() === val);
+            if (t) setManualAmount(t.amount.toString());
+          }}
           style={styles.picker}
         >
-          <Picker.Item label="-- Tarifa manual --" value="" />
+          <Picker.Item label="-- Sin tarifa --" value="" />
           {tariffs.map(t => (
             <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
           ))}
         </Picker>
       </View>
-
-      {selectedTariff === '' && (
-        <>
-          {/* Tarifa manual */}
-          <Text style={styles.label}>Tarifa manual</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ingresa tarifa manual"
-            value={manualAmount}
-            onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(''); }}
-            keyboardType="numeric"
-          />
-        </>
+      {selectedTariffData && (
+        <Text style={styles.tariffInfo}>Última actualización: {selectedTariffData.last_update}</Text>
       )}
+
+      {/* Tarifa manual */}
+      <Text style={styles.label}>Tarifa manual *</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Ingresa tarifa manual"
+        value={manualAmount}
+        onChangeText={setManualAmount}
+        keyboardType="numeric"
+      />
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
@@ -359,6 +361,7 @@ const styles = StyleSheet.create({
   },
   intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
   priceText: { textAlign: 'center', marginBottom: 12, color: '#007BFF', fontWeight: 'bold', fontSize: 16 },
+  tariffInfo: { marginBottom: 12, color: '#666' },
   submitBtn: {
     marginTop: 20,
     backgroundColor: '#28a745',

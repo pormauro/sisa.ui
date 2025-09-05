@@ -64,13 +64,11 @@ export default function EditJobScreen() {
   const [loading, setLoading] = useState(false);
   const [participants, setParticipants] = useState<number[]>([]);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const rate = useMemo(() => {
-    if (selectedTariff && selectedTariff.id !== '') {
-      const t = tariffs.find(t => t.id === selectedTariff.id);
-      return t ? t.amount : 0;
-    }
-    return manualAmount ? parseFloat(manualAmount) : 0;
-  }, [selectedTariff, manualAmount, tariffs]);
+  const rate = useMemo(() => (manualAmount ? parseFloat(manualAmount) : 0), [manualAmount]);
+  const selectedTariffData = useMemo(
+    () => tariffs.find(t => t.id === Number(selectedTariff?.id)),
+    [tariffs, selectedTariff]
+  );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
     const end = new Date(`1970-01-01T${endTime}`);
@@ -115,7 +113,9 @@ export default function EditJobScreen() {
 
     const tar = tariffs.find(t => t.id === job.tariff_id);
     setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
-    setManualAmount(job.manual_amount ? job.manual_amount.toString() : '');
+    setManualAmount(
+      job.manual_amount ? job.manual_amount.toString() : tar ? tar.amount.toString() : ''
+    );
 
     const parts = job.participants
       ? (typeof job.participants === 'string'
@@ -151,7 +151,7 @@ export default function EditJobScreen() {
 
   // submit
   const handleSubmit = async () => {
-    if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
+    if (!selectedClient || !description || !jobDate || !startTime || !endTime || !manualAmount) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
@@ -289,24 +289,30 @@ export default function EditJobScreen() {
         <ModalPicker
           items={tariffItems}
           selectedItem={selectedTariff}
-          onSelect={(item) => { setSelectedTariff(item); if (item.id) setManualAmount(''); }}
+          onSelect={(item) => {
+            setSelectedTariff(item);
+            if (item.id !== '') {
+              const t = tariffs.find(t => t.id === Number(item.id));
+              if (t) setManualAmount(t.amount.toString());
+            }
+          }}
           placeholder="-- Tarifa --"
+          disabled={selectedTariff?.id !== ''}
         />
       </View>
-
-      {selectedTariff?.id === '' && (
-        <>
-          {/* Tarifa manual */}
-          <Text style={styles.label}>Tarifa manual</Text>
-          <TextInput
-            style={styles.input}
-            value={manualAmount}
-            onChangeText={(text) => { setManualAmount(text); if (text) setSelectedTariff(manualTariffItem); }}
-            keyboardType="numeric"
-            editable={canEdit}
-          />
-        </>
+      {selectedTariffData && (
+        <Text style={styles.tariffInfo}>Última actualización: {selectedTariffData.last_update}</Text>
       )}
+
+      {/* Tarifa manual */}
+      <Text style={styles.label}>Tarifa manual *</Text>
+      <TextInput
+        style={styles.input}
+        value={manualAmount}
+        onChangeText={setManualAmount}
+        keyboardType="numeric"
+        editable={canEdit}
+      />
 
       {/* Descripción */}
       <Text style={styles.label}>Descripción *</Text>
@@ -427,6 +433,7 @@ const styles = StyleSheet.create({
   input:      { borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, backgroundColor: '#fff', marginBottom: 12, color: '#000' },
   intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
   priceText: { textAlign: 'center', marginBottom: 12, color: '#007BFF', fontWeight: 'bold', fontSize: 16 },
+  tariffInfo: { marginBottom: 12, color: '#666' },
   btnSave:    { marginTop: 20, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { color: '#fff', fontSize: 16, fontWeight: 'bold' },

@@ -22,6 +22,7 @@ interface ModalPickerProps {
   selectedItem?: ModalPickerItem | null;
   onSelect: (item: ModalPickerItem) => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export const ModalPicker: React.FC<ModalPickerProps> = ({
@@ -29,6 +30,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   selectedItem = null,
   onSelect,
   placeholder = "Selecciona un ítem",
+  disabled = false,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -51,8 +53,10 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
           computedSelectedItem && computedSelectedItem.backgroundColor
             ? { backgroundColor: computedSelectedItem.backgroundColor }
             : {},
+          disabled ? { opacity: 0.5 } : {},
         ]}
-        onPress={() => setModalVisible(true)}
+        onPress={() => !disabled && setModalVisible(true)}
+        disabled={disabled}
       >
         {computedSelectedItem ? (
           <Text
