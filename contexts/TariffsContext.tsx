@@ -7,13 +7,14 @@ export interface Tariff {
   id: number;
   name: string;
   amount: number;
+  last_update: string;
 }
 
 interface TariffsContextType {
   tariffs: Tariff[];
   loadTariffs: () => void;
-  addTariff: (tariff: Omit<Tariff, 'id'>) => Promise<Tariff | null>;
-  updateTariff: (id: number, tariff: Omit<Tariff, 'id'>) => Promise<boolean>;
+  addTariff: (tariff: Omit<Tariff, 'id' | 'last_update'>) => Promise<Tariff | null>;
+  updateTariff: (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>) => Promise<boolean>;
   deleteTariff: (id: number) => Promise<boolean>;
 }
 
@@ -39,14 +40,18 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.tariffs) {
-        setTariffs(data.tariffs);
+        const parsed = data.tariffs.map((t: any) => ({
+          ...t,
+          amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount,
+        }));
+        setTariffs(parsed);
       }
     } catch (error) {
       console.error('Error loading tariffs:', error);
     }
   };
 
-  const addTariff = async (tariff: Omit<Tariff, 'id'>): Promise<Tariff | null> => {
+  const addTariff = async (tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<Tariff | null> => {
     try {
       const response = await fetch(`${BASE_URL}/tariffs`, {
         method: 'POST',
@@ -58,7 +63,11 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.tariff_id) {
-        const newTariff: Tariff = { id: parseInt(data.tariff_id, 10), ...tariff };
+        const newTariff: Tariff = {
+          id: parseInt(data.tariff_id, 10),
+          last_update: data.last_update || '',
+          ...tariff,
+        };
         setTariffs(prev => [...prev, newTariff]);
         return newTariff;
       }
@@ -68,7 +77,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateTariff = async (id: number, tariff: Omit<Tariff, 'id'>): Promise<boolean> => {
+  const updateTariff = async (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/tariffs/${id}`, {
         method: 'PUT',
@@ -80,7 +89,11 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.message === 'Tariff updated successfully') {
-        setTariffs(prev => prev.map(t => (t.id === id ? { ...t, ...tariff } : t)));
+        setTariffs(prev =>
+          prev.map(t =>
+            t.id === id ? { ...t, ...tariff, last_update: data.last_update || t.last_update } : t
+          )
+        );
         return true;
       }
     } catch (error) {
