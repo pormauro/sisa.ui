@@ -2,6 +2,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import { Buffer } from 'buffer';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 
@@ -84,11 +85,36 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
       });
 
       if (response.ok) {
-        const json = await response.json();
-        if (json.content && json.file) {
-          await saveFileLocally(fileId, json.content, json.file);
-          return `data:${json.file.file_type};base64,${json.content}`;
+        const contentType =
+          response.headers.get('Content-Type') || 'application/octet-stream';
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const match = disposition.match(
+          /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i
+        );
+        let originalName = `file_${fileId}`;
+        if (match) {
+          try {
+            originalName = decodeURIComponent(match[1] || match[2]);
+          } catch {
+            originalName = match[1] || match[2];
+          }
         }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+        const file: FileData = {
+          id: fileId,
+          user_id: 0,
+          original_name: originalName,
+          file_type: contentType,
+          file_size: arrayBuffer.byteLength,
+          created_at: '',
+          updated_at: '',
+        };
+
+        await saveFileLocally(fileId, base64, file);
+        return `data:${contentType};base64,${base64}`;
       } else {
         Alert.alert('Error', 'No se pudo descargar el archivo.');
       }
