@@ -1,7 +1,7 @@
 // app/tariffs/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { TariffsContext, Tariff } from '@/contexts/TariffsContext';
@@ -89,17 +89,9 @@ export default function TariffsScreen() {
           <Text style={styles.addText}>➕ Agregar Tarifa</Text>
         </TouchableOpacity>
       )}
-      <ItemDetailModal
+      <DetailModal
         visible={selectedTariff !== null}
         item={selectedTariff}
-        fieldLabels={{
-          id: 'ID',
-          name: 'Nombre',
-          amount: 'Monto',
-          last_update: 'Última actualización',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedTariff(null)}
       />
     </View>

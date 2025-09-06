@@ -1,7 +1,7 @@
 // app/payments/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { PaymentsContext, Payment } from '@/contexts/PaymentsContext';
@@ -111,25 +111,9 @@ export default function PaymentsScreen() {
           <Text style={styles.addText}>➕ Agregar Pago</Text>
         </TouchableOpacity>
       )}
-      <ItemDetailModal
+      <DetailModal
         visible={selectedPayment !== null}
         item={selectedPayment}
-        fieldLabels={{
-          id: 'ID',
-          payment_date: 'Fecha',
-          paid_with_account: 'Pagado con cuenta',
-          creditor_type: 'Tipo acreedor',
-          creditor_client_id: 'Cliente acreedor',
-          creditor_provider_id: 'Proveedor acreedor',
-          creditor_other: 'Otro acreedor',
-          description: 'Descripción',
-          category_id: 'Categoría',
-          price: 'Precio',
-          charge_client: 'Cobrar al cliente',
-          client_id: 'Cliente',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedPayment(null)}
       />
     </View>

@@ -1,7 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/products_services/index.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -93,21 +93,9 @@ export default function ProductsServicesScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/products_services/create')}>
         <Text style={styles.addButtonText}>➕ Agregar</Text>
       </TouchableOpacity>
-      <ItemDetailModal
+      <DetailModal
         visible={selectedItem !== null}
         item={selectedItem}
-        fieldLabels={{
-          id: 'ID',
-          description: 'Descripción',
-          category: 'Categoría',
-          price: 'Precio',
-          cost: 'Costo',
-          difficulty: 'Dificultad',
-          item_type: 'Tipo',
-          stock: 'Stock',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedItem(null)}
       />
     </View>
