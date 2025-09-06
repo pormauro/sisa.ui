@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useContext } from 'react';
 import {
-  View,
   Text,
   Image,
   ScrollView,
@@ -25,17 +24,8 @@ interface AttachedFile {
   originalName: string;
 }
 
-const blobToDataURL = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
-
 const FileGallery: React.FC<FileGalleryProps> = ({ filesJson, onChangeFilesJson }) => {
-  const { getFile } = useContext(FileContext);
+  const { getFile, getFileMetadata } = useContext(FileContext);
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<AttachedFile | null>(null);
 
@@ -46,14 +36,16 @@ const FileGallery: React.FC<FileGalleryProps> = ({ filesJson, onChangeFilesJson 
         const fetched: AttachedFile[] = [];
 
         for (const id of ids) {
-          const fileResult = await getFile(id);
-          if (fileResult) {
-            const dataUri = await blobToDataURL(fileResult.blob);
+          const [fileUri, metadata] = await Promise.all([
+            getFile(id),
+            getFileMetadata(id),
+          ]);
+          if (fileUri && metadata) {
             fetched.push({
               id,
-              previewUri: dataUri,
-              fileType: fileResult.metadata.file_type,
-              originalName: fileResult.metadata.original_name,
+              previewUri: fileUri,
+              fileType: metadata.file_type,
+              originalName: metadata.original_name,
             });
           }
         }
@@ -66,7 +58,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({ filesJson, onChangeFilesJson 
     };
 
     fetchFiles();
-  }, [filesJson]);
+  }, [filesJson, getFile, getFileMetadata]);
 
   return (
     <>
