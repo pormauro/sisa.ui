@@ -24,7 +24,9 @@ interface FileContextType {
     fileSize: number
   ) => Promise<FileData | null>;
   getFile: (fileId: number) => Promise<string | null>;
-  getFileMetadata: (fileId: number) => Promise<FileData | null>;
+  getFileMetadata: (
+    fileId: number
+  ) => Promise<(FileData & { localUri: string }) | null>;
   clearLocalFiles: () => Promise<void>;
 }
 
@@ -143,17 +145,17 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     return null;
   };
 
-  const getFileMetadata = async (fileId: number): Promise<FileData | null> => {
+  const getFileMetadata = async (
+    fileId: number
+  ): Promise<(FileData & { localUri: string }) | null> => {
     const metaString = await AsyncStorage.getItem(fileMetaKey(fileId));
     if (metaString) {
-      const { localUri, ...file } = JSON.parse(metaString);
-      return file as FileData;
+      return JSON.parse(metaString) as FileData & { localUri: string };
     }
     await getFile(fileId);
     const newMeta = await AsyncStorage.getItem(fileMetaKey(fileId));
     if (newMeta) {
-      const { localUri, ...file } = JSON.parse(newMeta);
-      return file as FileData;
+      return JSON.parse(newMeta) as FileData & { localUri: string };
     }
     return null;
   };

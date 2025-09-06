@@ -14,8 +14,8 @@ import {
 import Video from 'react-native-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { FileContext } from '@/contexts/FilesContext';
-// eslint-disable-next-line import/no-unresolved
 // @ts-ignore - types are not provided for this library
 import ImageViewing from 'react-native-image-viewing';
 
@@ -31,6 +31,7 @@ interface AttachedFile {
   originalName: string;
   fileType: string;
   previewUri: string;
+  localUri: string;
   loading: boolean;
 }
 
@@ -55,11 +56,17 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
   const isImage = lowerType.includes('image');
   const isVideo = lowerType.includes('video');
 
-  const handlePress = () => {
+  const handlePress = async () => {
     if (isImage || isVideo) {
       onPreview(index);
     } else {
-      Linking.openURL(file.previewUri);
+      try {
+        const contentUri = await FileSystem.getContentUriAsync(file.localUri);
+        await Linking.openURL(contentUri);
+      } catch (e) {
+        console.error('Error opening file:', e);
+        Alert.alert('Error', 'No se pudo abrir el archivo.');
+      }
     }
   };
 
@@ -111,7 +118,7 @@ const handleAddCameraFile = async () => {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images', 'videos'] as ImagePicker.MediaType[],
+      mediaTypes: ImagePicker.MediaTypeOptions.All,
       quality: 0.7,
       base64: false,
     });
@@ -140,6 +147,7 @@ const handleAddCameraFile = async () => {
       previewUri: '',
       fileType: '',
       originalName: '',
+      localUri: '',
       loading: true,
     };
     setAttachedFiles(prev => {
@@ -158,6 +166,7 @@ const handleAddCameraFile = async () => {
               previewUri: dataUri ?? '',
               fileType: metadata?.file_type ?? '',
               originalName: metadata?.original_name ?? '',
+              localUri: metadata?.localUri ?? '',
               loading: false,
             }
           : f
@@ -173,7 +182,16 @@ const handleAddCameraFile = async () => {
     const loadPlaceholders = () => {
       try {
         const ids: number[] = filesJson ? JSON.parse(filesJson) : [];
-        const placeholders = ids.map(id => ({ id, previewUri: '', fileType: '', originalName: '', loading: true } as AttachedFile));
+        const placeholders = ids.map(
+          id => ({
+            id,
+            previewUri: '',
+            fileType: '',
+            originalName: '',
+            localUri: '',
+            loading: true,
+          } as AttachedFile)
+        );
         setAttachedFiles(placeholders);
 
         ids.forEach(async (id, idx) => {
@@ -185,6 +203,7 @@ const handleAddCameraFile = async () => {
 
             const fileType = metadata?.file_type ?? '';
             const originalName = metadata?.original_name ?? '';
+            const localUri = metadata?.localUri ?? '';
 
             setAttachedFiles(prev => {
               const copy = [...prev];
@@ -193,7 +212,8 @@ const handleAddCameraFile = async () => {
                 previewUri: dataUri || '',
                 fileType,
                 originalName,
-                loading: false
+                localUri,
+                loading: false,
               };
               return copy;
             });
@@ -237,18 +257,27 @@ const handleAddCameraFile = async () => {
     try {
       const picked = await pickFile();
       if (!picked) return;
-      if (!picked.uri.startsWith('file://')) {
-        Alert.alert('Error', 'El URI del archivo no es válido.');
-        return;
+      let fileUri = picked.uri;
+      if (!fileUri.startsWith('file://')) {
+        const newUri = FileSystem.cacheDirectory + picked.name;
+        await FileSystem.copyAsync({ from: fileUri, to: newUri });
+        fileUri = newUri;
       }
 
-      const fileData = await uploadFile(picked.uri, picked.name, picked.type, picked.size);
+      const fileData = await uploadFile(fileUri, picked.name, picked.type, picked.size);
       if (!fileData) {
         Alert.alert('Error', 'No se pudo subir el archivo.');
         return;
       }
 
-      const placeholder: AttachedFile = { id: fileData.id, previewUri: '', fileType: '', originalName: '', loading: true };
+      const placeholder: AttachedFile = {
+        id: fileData.id,
+        previewUri: '',
+        fileType: '',
+        originalName: '',
+        localUri: '',
+        loading: true,
+      };
       setAttachedFiles(prev => {
         const newArr = [...prev, placeholder];
         onChangeFilesJson(JSON.stringify(newArr.map(f => f.id)));
@@ -259,11 +288,13 @@ const handleAddCameraFile = async () => {
       const metadata = await getFileMetadata(fileData.id);
       const fileType = metadata?.file_type ?? '';
       const originalName = metadata?.original_name ?? '';
+      const localUri = metadata?.localUri ?? '';
 
       setAttachedFiles(prev =>
-        prev.map(f => f.id === fileData.id
-          ? { id: f.id, previewUri: dataUri ?? '', fileType, originalName, loading: false }
-          : f
+        prev.map(f =>
+          f.id === fileData.id
+            ? { id: f.id, previewUri: dataUri ?? '', fileType, originalName, localUri, loading: false }
+            : f
         )
       );
     } catch (error: any) {
