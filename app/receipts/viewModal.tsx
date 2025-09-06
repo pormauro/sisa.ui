@@ -5,6 +5,7 @@ import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import FileGallery from '@/components/FileGallery';
 
 export default function ViewReceiptModal() {
@@ -15,6 +16,7 @@ export default function ViewReceiptModal() {
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const { categories } = useContext(CategoriesContext);
+  const { cashBoxes } = useContext(CashBoxesContext);
 
   const receipt = receipts.find(r => r.id === receiptId);
   if (!receipt) {
@@ -52,6 +54,10 @@ export default function ViewReceiptModal() {
       : JSON.stringify(receipt.attached_files)
     : '';
 
+  const accountName =
+    cashBoxes.find(cb => cb.id === Number(receipt.paid_in_account))?.name ||
+    receipt.paid_in_account;
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Pagador</Text>
@@ -70,7 +76,7 @@ export default function ViewReceiptModal() {
       <Text style={styles.value}>${receipt.price}</Text>
 
       <Text style={styles.label}>Cuenta</Text>
-      <Text style={styles.value}>{receipt.paid_in_account}</Text>
+      <Text style={styles.value}>{accountName}</Text>
 
       <Text style={styles.label}>Categoría</Text>
       <Text style={styles.value}>{category?.name || 'Sin categoría'}</Text>

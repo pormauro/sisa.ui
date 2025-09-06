@@ -5,6 +5,7 @@ import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import FileGallery from '@/components/FileGallery';
 
 export default function ViewPaymentModal() {
@@ -15,6 +16,7 @@ export default function ViewPaymentModal() {
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const { categories } = useContext(CategoriesContext);
+  const { cashBoxes } = useContext(CashBoxesContext);
 
   const payment = payments.find(p => p.id === paymentId);
   if (!payment) {
@@ -52,6 +54,10 @@ export default function ViewPaymentModal() {
       : JSON.stringify(payment.attached_files)
     : '';
 
+  const accountName =
+    cashBoxes.find(cb => cb.id === Number(payment.paid_with_account))?.name ||
+    payment.paid_with_account;
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Acreedor</Text>
@@ -70,7 +76,7 @@ export default function ViewPaymentModal() {
       <Text style={styles.value}>${payment.price}</Text>
 
       <Text style={styles.label}>Cuenta</Text>
-      <Text style={styles.value}>{payment.paid_with_account}</Text>
+      <Text style={styles.value}>{accountName}</Text>
 
       <Text style={styles.label}>Categoría</Text>
       <Text style={styles.value}>{category?.name || 'Sin categoría'}</Text>
