@@ -279,7 +279,7 @@ export default function CreatePayment() {
         </>
       )}
 
-      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
+      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
         {loading ? (

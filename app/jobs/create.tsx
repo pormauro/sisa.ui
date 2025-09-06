@@ -349,7 +349,7 @@ export default function CreateJobScreen() {
 
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
-      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} />
+      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
       <TouchableOpacity
         style={styles.submitBtn}

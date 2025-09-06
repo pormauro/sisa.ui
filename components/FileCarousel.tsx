@@ -77,11 +77,12 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
   );
 };
 
-const FileCarousel: React.FC<FileCarouselProps> = ({ filesJson, onChangeFilesJson, editable = true }) => {
+const FileCarousel: React.FC<FileCarouselProps> = ({ filesJson, onChangeFilesJson, editable = false }) => {
   const { uploadFile, getFile, getFileMetadata } = useContext(FileContext);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const flatListRef = useRef<FlatList<AttachedFile>>(null);
+  const isEditable = !!editable;
 
   const handleSelectSource = () => {
     Alert.alert(
@@ -364,10 +365,10 @@ const handleAddCameraFile = async () => {
             index={idx}
             onDelete={handleDeleteFile}
             onPreview={setPreviewIndex}
-            editable={editable}
+            editable={isEditable}
           />
         ))}
-        {editable && (
+        {isEditable && (
           <TouchableOpacity style={[styles.fileItem, styles.addFileItem]} onPress={handleSelectSource}>
             <Text style={styles.addButtonText}>Add File</Text>
           </TouchableOpacity>
