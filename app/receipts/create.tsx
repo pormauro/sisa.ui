@@ -22,7 +22,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
-import FileCarousel from '@/components/FileCarousel';
+import FileGallery from '@/components/FileGallery';
 
 export default function CreateReceipt() {
   const router = useRouter();
@@ -267,7 +267,7 @@ export default function CreateReceipt() {
         </>
       )}
 
-      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
+      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
       <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
         {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Recibo</Text>}

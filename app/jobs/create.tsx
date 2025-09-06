@@ -15,7 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import FileCarousel from '@/components/FileCarousel';
+import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
@@ -349,7 +349,7 @@ export default function CreateJobScreen() {
 
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
-      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
+      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
       <TouchableOpacity
         style={styles.submitBtn}

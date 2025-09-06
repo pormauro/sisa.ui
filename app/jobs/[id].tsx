@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import FileCarousel from '@/components/FileCarousel';
+import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
@@ -416,7 +416,7 @@ export default function EditJobScreen() {
 
       {/* Archivos adjuntos */}
       <Text style={styles.label}>Archivos adjuntos</Text>
-      <FileCarousel
+      <FileGallery
         filesJson={attachedFiles}
         onChangeFilesJson={setAttachedFiles}
         editable={canEdit}

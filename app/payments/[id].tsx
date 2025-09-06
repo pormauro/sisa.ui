@@ -22,7 +22,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
-import FileCarousel from '@/components/FileCarousel';
+import FileGallery from '@/components/FileGallery';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -352,7 +352,7 @@ export default function PaymentDetailPage() {
         </>
       )}
 
-      <FileCarousel filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable={canEdit} />
+      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable={canEdit} />
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
