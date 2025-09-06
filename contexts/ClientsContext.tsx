@@ -12,13 +12,15 @@ export interface Client {
   phone: string;
   address: string;
   tariff_id: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ClientsContextValue {
   clients: Client[];
   loadClients: () => void;
-  addClient: (client: Omit<Client, 'id'>) => Promise<Client | null>;
-  updateClient: (id: number, client: Omit<Client, 'id'>) => Promise<boolean>;
+  addClient: (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => Promise<Client | null>;
+  updateClient: (id: number, client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
 }
 
@@ -48,6 +50,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         const loaded: Client[] = data.clients.map((c: any) => ({
           ...c,
           tariff_id: c.tariff_id ?? null,
+          created_at: c.created_at,
+          updated_at: c.updated_at,
         }));
         setClients(loaded);
       }
@@ -68,7 +72,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.client_id) {
-        const newClient: Client = { id: parseInt(data.client_id, 10), ...clientData };
+        const now = new Date().toISOString();
+        const newClient: Client = { id: parseInt(data.client_id, 10), ...clientData, created_at: now, updated_at: now };
         setClients(prev => [...prev, newClient]);
         return newClient;
       }
@@ -78,7 +83,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateClient = async (id: number, clientData: Omit<Client, 'id'>): Promise<boolean> => {
+  const updateClient = async (id: number, clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/clients/${id}`, {
         method: 'PUT',
@@ -91,7 +96,11 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
         if (data.message === 'Client updated successfully') {
         setClients(prev =>
-          prev.map(client => (client.id === id ? { id, ...clientData } : client))
+          prev.map(client => (
+            client.id === id
+              ? { ...client, ...clientData, updated_at: new Date().toISOString() }
+              : client
+          ))
         );
         return true;
       }
