@@ -66,6 +66,7 @@ export default function PaymentsScreen() {
     return (
       <TouchableOpacity
         style={styles.item}
+        onPress={() => router.push(`/payments/viewModal?id=${item.id}`)}
         onLongPress={() => router.push(`/payments/${item.id}`)}
       >
         <View style={styles.itemInfo}>
