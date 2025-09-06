@@ -1,7 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/CashBoxesScreen.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -92,16 +92,9 @@ export default function CashBoxesScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/cash_boxes/create')}>
         <Text style={styles.addButtonText}>➕ Agregar Caja</Text>
       </TouchableOpacity>
-      <ItemDetailModal
+      <DetailModal
         visible={selectedCashBox !== null}
         item={selectedCashBox}
-        fieldLabels={{
-          id: 'ID',
-          name: 'Nombre',
-          user_id: 'Usuario',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedCashBox(null)}
       />
     </View>

@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { CategoriesContext, Category } from '@/contexts/CategoriesContext';
@@ -123,7 +123,7 @@ export default function CategoriesScreen() {
           <Text style={styles.addText}>➕ Agregar Categoría</Text>
         </TouchableOpacity>
       )}
-      <ItemDetailModal
+      <DetailModal
         visible={selectedCategory !== null}
         item={selectedCategory ? {
           id: selectedCategory.id,
@@ -135,14 +135,6 @@ export default function CategoriesScreen() {
           created_at: selectedCategory.created_at,
           updated_at: selectedCategory.updated_at,
         } : null}
-        fieldLabels={{
-          id: 'ID',
-          name: 'Nombre',
-          type: 'Tipo',
-          parent: 'Categoría padre',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedCategory(null)}
       />
     </View>

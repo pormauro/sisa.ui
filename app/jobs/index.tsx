@@ -1,7 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { JobsContext, Job } from '@/contexts/JobsContext';
@@ -143,26 +143,9 @@ export default function JobsScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/jobs/create')}>
         <Text style={styles.addText}>➕ Nuevo Trabajo</Text>
       </TouchableOpacity>
-      <ItemDetailModal
+      <DetailModal
         visible={selectedJob !== null}
         item={selectedJob}
-        fieldLabels={{
-          id: 'ID',
-          client_id: 'Cliente',
-          description: 'Descripción',
-          job_date: 'Fecha',
-          start_time: 'Hora de inicio',
-          end_time: 'Hora de fin',
-          type_of_work: 'Tipo de trabajo',
-          status_id: 'Estado',
-          folder_id: 'Carpeta',
-          product_service_id: 'Producto/Servicio',
-          multiplicative_value: 'Valor multiplicador',
-          tariff_id: 'Tarifa',
-          manual_amount: 'Monto manual',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedJob(null)}
         showParticipants
       />

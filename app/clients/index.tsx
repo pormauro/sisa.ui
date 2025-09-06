@@ -1,7 +1,7 @@
 // /app/clients/index.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -91,20 +91,9 @@ export default function ClientsListPage() {
           <Text style={styles.addButtonText}>➕ Agregar Cliente</Text>
         </TouchableOpacity>
       )}
-      <ItemDetailModal
+      <DetailModal
         visible={selectedClient !== null}
         item={selectedClient}
-        fieldLabels={{
-          id: 'ID',
-          business_name: 'Razón Social',
-          tax_id: 'CUIT',
-          email: 'Email',
-          phone: 'Teléfono',
-          address: 'Dirección',
-          tariff_id: 'Tarifa',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedClient(null)}
       />
     </View>

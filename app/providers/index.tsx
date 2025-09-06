@@ -1,7 +1,7 @@
 // app/providers/index.tsx
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { ProvidersContext, Provider } from '@/contexts/ProvidersContext';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -91,19 +91,9 @@ export default function ProvidersListPage() {
           <Text style={styles.addButtonText}>➕ Agregar Proveedor</Text>
         </TouchableOpacity>
       )}
-      <ItemDetailModal
+      <DetailModal
         visible={selectedProvider !== null}
         item={selectedProvider}
-        fieldLabels={{
-          id: 'ID',
-          business_name: 'Razón Social',
-          tax_id: 'CUIT',
-          email: 'Email',
-          phone: 'Teléfono',
-          address: 'Dirección',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedProvider(null)}
       />
     </View>

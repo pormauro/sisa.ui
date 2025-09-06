@@ -1,7 +1,7 @@
 // app/statuses/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import ItemDetailModal from '@/components/ItemDetailModal';
+import DetailModal from './DetailModal';
 import { useRouter } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -92,18 +92,9 @@ export default function StatusesScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/statuses/create')}>
         <Text style={styles.addButtonText}>Agregar Estado</Text>
       </TouchableOpacity>
-      <ItemDetailModal
+      <DetailModal
         visible={selectedStatus !== null}
         item={selectedStatus}
-        fieldLabels={{
-          id: 'ID',
-          label: 'Etiqueta',
-          value: 'Valor',
-          background_color: 'Color de fondo',
-          order_index: 'Orden',
-          created_at: 'Fecha de creación',
-          updated_at: 'Fecha de edición',
-        }}
         onClose={() => setSelectedStatus(null)}
       />
     </View>
