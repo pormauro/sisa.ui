@@ -419,6 +419,7 @@ export default function EditJobScreen() {
       <FileCarousel
         filesJson={attachedFiles}
         onChangeFilesJson={setAttachedFiles}
+        editable={canEdit}
       />
 
       {/* Botones */}
