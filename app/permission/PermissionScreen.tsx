@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert, ActivityIndicator, Button } from 'react-native';
 import Checkbox from 'expo-checkbox';
 import UserSelector from './UserSelector'; // Asegúrate de que la ruta sea correcta
 import { AuthContext } from '@/contexts/AuthContext';
@@ -137,8 +137,7 @@ const PermissionScreen: React.FC = () => {
       });
   };
 
-  // Actualiza el estado de forma optimista y luego llama a la API,
-  // y finalmente recarga la lista de permisos.
+  // Actualiza el estado de forma optimista y luego llama a la API
   const togglePermission = (sector: string, value: boolean) => {
     // Actualización optimista: actualizamos el estado de inmediato
     setAssignedPermissions(prev => {
@@ -151,11 +150,11 @@ const PermissionScreen: React.FC = () => {
       return newState;
     });
 
-    // Luego se realiza la llamada a la API y se refresca la lista
+    // Luego se realiza la llamada a la API
     if (value) {
-      addPermission(sector).then(() => loadPermissions());
+      addPermission(sector);
     } else {
-      removePermission(sector).then(() => loadPermissions());
+      removePermission(sector);
     }
   };
 
@@ -174,6 +173,16 @@ const PermissionScreen: React.FC = () => {
     return groupPermissions.every(sector => !!assignedPermissions[sector]);
   };
 
+  const toggleAll = () => {
+    PERMISSION_GROUPS.forEach(group => {
+      group.permissions.forEach(sector => {
+        if (!assignedPermissions[sector]) {
+          togglePermission(sector, true);
+        }
+      });
+    });
+  };
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>Administración de Permisos</Text>
@@ -190,28 +199,33 @@ const PermissionScreen: React.FC = () => {
         loading ? (
           <ActivityIndicator size="large" color="#007BFF" />
         ) : (
-          PERMISSION_GROUPS.map(group => (
-            <View key={group.group} style={styles.groupContainer}>
-              <View style={styles.groupHeader}>
-                <Checkbox
-                  value={isGroupChecked(group.permissions)}
-                  onValueChange={(value) => toggleGroup(group.permissions, value)}
-                  style={styles.checkbox}
-                />
-                <Text style={styles.groupTitle}>{group.group}</Text>
-              </View>
-              {group.permissions.map(sector => (
-                <View key={sector} style={styles.permissionRow}>
+          <>
+            <View style={{ marginBottom: 10 }}>
+              <Button title="Activar todo" onPress={toggleAll} />
+            </View>
+            {PERMISSION_GROUPS.map(group => (
+              <View key={group.group} style={styles.groupContainer}>
+                <View style={styles.groupHeader}>
                   <Checkbox
-                    value={!!assignedPermissions[sector]}
-                    onValueChange={(value) => togglePermission(sector, value)}
+                    value={isGroupChecked(group.permissions)}
+                    onValueChange={(value) => toggleGroup(group.permissions, value)}
                     style={styles.checkbox}
                   />
-                  <Text style={styles.permissionLabel}>{sector}</Text>
+                  <Text style={styles.groupTitle}>{group.group}</Text>
                 </View>
-              ))}
-            </View>
-          ))
+                {group.permissions.map(sector => (
+                  <View key={sector} style={styles.permissionRow}>
+                    <Checkbox
+                      value={!!assignedPermissions[sector]}
+                      onValueChange={(value) => togglePermission(sector, value)}
+                      style={styles.checkbox}
+                    />
+                    <Text style={styles.permissionLabel}>{sector}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </>
         )
       ) : (
         <Text style={styles.infoText}>Selecciona un usuario o Global para administrar permisos.</Text>
