@@ -51,7 +51,11 @@ export default function TariffsScreen() {
   };
 
   const renderItem = ({ item }: { item: Tariff }) => (
-    <TouchableOpacity style={styles.item} onLongPress={() => router.push(`/tariffs/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() => router.push(`/tariffs/viewModal?id=${item.id}`)}
+      onLongPress={() => router.push(`/tariffs/${item.id}`)}
+    >
       <View style={styles.itemInfo}>
         <Text style={styles.name}>{item.name}</Text>
         <Text>${item.amount}</Text>

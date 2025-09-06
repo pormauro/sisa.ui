@@ -81,6 +81,7 @@ export default function CategoriesScreen() {
   const renderItem = ({ item }: { item: Category & { level: number } }) => (
     <TouchableOpacity
       style={styles.item}
+      onPress={() => router.push(`/categories/viewModal?id=${item.id}`)}
       onLongPress={() => router.push(`/categories/${item.id}`)}
     >
       <View style={[styles.itemInfo, { paddingLeft: item.level * 16 }]}>
