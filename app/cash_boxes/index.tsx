@@ -1,6 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/CashBoxesScreen.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -13,6 +14,7 @@ export default function CashBoxesScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedCashBox, setSelectedCashBox] = useState<CashBox | null>(null);
 
   useEffect(() => {
     // Verificamos el permiso para listar cajas
@@ -56,7 +58,11 @@ export default function CashBoxesScreen() {
   };
 
   const renderItem = ({ item }: { item: CashBox }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./cash_boxes/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => setSelectedCashBox(item)}
+      onLongPress={() => router.push(`./cash_boxes/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.image_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.name}</Text>
@@ -77,7 +83,7 @@ export default function CashBoxesScreen() {
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
-      <FlatList 
+      <FlatList
         data={filteredCashBoxes}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
@@ -86,6 +92,11 @@ export default function CashBoxesScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/cash_boxes/create')}>
         <Text style={styles.addButtonText}>➕ Agregar Caja</Text>
       </TouchableOpacity>
+      <ItemDetailModal
+        visible={selectedCashBox !== null}
+        item={selectedCashBox}
+        onClose={() => setSelectedCashBox(null)}
+      />
     </View>
   );
 }

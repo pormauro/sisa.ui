@@ -1,6 +1,7 @@
 // /app/clients/index.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -12,6 +13,7 @@ export default function ClientsListPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const { permissions, loading: permissionsLoading } = useContext(PermissionsContext);
 
   // Ejemplo de chequeo de permisos:
@@ -52,7 +54,11 @@ export default function ClientsListPage() {
     );
   };
   const renderItem = ({ item }: { item: Client }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./clients/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => setSelectedClient(item)}
+      onLongPress={() => router.push(`./clients/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.business_name}</Text>
@@ -85,7 +91,11 @@ export default function ClientsListPage() {
           <Text style={styles.addButtonText}>➕ Agregar Cliente</Text>
         </TouchableOpacity>
       )}
-
+      <ItemDetailModal
+        visible={selectedClient !== null}
+        item={selectedClient}
+        onClose={() => setSelectedClient(null)}
+      />
     </View>
   );
 }

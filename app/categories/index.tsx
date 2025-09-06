@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { CategoriesContext, Category } from '@/contexts/CategoriesContext';
@@ -21,6 +22,7 @@ export default function CategoriesScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listCategories')) {
@@ -81,6 +83,7 @@ export default function CategoriesScreen() {
   const renderItem = ({ item }: { item: Category & { level: number } }) => (
     <TouchableOpacity
       style={styles.item}
+      onPress={() => setSelectedCategory(item)}
       onLongPress={() => router.push(`/categories/${item.id}`)}
     >
       <View style={[styles.itemInfo, { paddingLeft: item.level * 16 }]}>
@@ -120,6 +123,11 @@ export default function CategoriesScreen() {
           <Text style={styles.addText}>➕ Agregar Categoría</Text>
         </TouchableOpacity>
       )}
+      <ItemDetailModal
+        visible={selectedCategory !== null}
+        item={selectedCategory}
+        onClose={() => setSelectedCategory(null)}
+      />
     </View>
   );
 }

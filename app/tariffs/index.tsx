@@ -1,6 +1,7 @@
 // app/tariffs/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { TariffsContext, Tariff } from '@/contexts/TariffsContext';
@@ -12,6 +13,7 @@ export default function TariffsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedTariff, setSelectedTariff] = useState<Tariff | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listTariffs')) {
@@ -51,7 +53,11 @@ export default function TariffsScreen() {
   };
 
   const renderItem = ({ item }: { item: Tariff }) => (
-    <TouchableOpacity style={styles.item} onLongPress={() => router.push(`/tariffs/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() => setSelectedTariff(item)}
+      onLongPress={() => router.push(`/tariffs/${item.id}`)}
+    >
       <View style={styles.itemInfo}>
         <Text style={styles.name}>{item.name}</Text>
         <Text>${item.amount}</Text>
@@ -83,6 +89,11 @@ export default function TariffsScreen() {
           <Text style={styles.addText}>➕ Agregar Tarifa</Text>
         </TouchableOpacity>
       )}
+      <ItemDetailModal
+        visible={selectedTariff !== null}
+        item={selectedTariff}
+        onClose={() => setSelectedTariff(null)}
+      />
     </View>
   );
 }

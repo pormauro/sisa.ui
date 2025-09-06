@@ -1,6 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { JobsContext, Job } from '@/contexts/JobsContext';
@@ -20,6 +21,7 @@ export default function JobsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listJobs')) {
@@ -88,6 +90,7 @@ export default function JobsScreen() {
     return (
       <TouchableOpacity
         style={[styles.itemContainer, jobStatus ? { backgroundColor: jobStatus.background_color } : {}]}
+        onPress={() => setSelectedJob(item)}
         onLongPress={() => router.push(`./jobs/${item.id}`)}
       >
         <View style={styles.itemContent}>
@@ -140,6 +143,12 @@ export default function JobsScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/jobs/create')}>
         <Text style={styles.addText}>➕ Nuevo Trabajo</Text>
       </TouchableOpacity>
+      <ItemDetailModal
+        visible={selectedJob !== null}
+        item={selectedJob}
+        onClose={() => setSelectedJob(null)}
+        showParticipants
+      />
     </View>
   );
 }
