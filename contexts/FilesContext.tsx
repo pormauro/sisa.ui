@@ -47,13 +47,18 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
 
   const fileMetaKey = (id: number): string => `file_meta_${id}`;
 
+  const sanitizeFileName = (name: string): string =>
+    name.replace(/[^a-zA-Z0-9._-]/g, '_');
+
   const saveFileLocally = async (
     fileId: number,
     base64: string,
     file: FileData
   ): Promise<string> => {
     const extension = file.file_type.split('/').pop() || 'bin';
-    const localUri = `${FileSystem.documentDirectory}file_${fileId}.${extension}`;
+    const defaultName = `file_${fileId}.${extension}`;
+    const sanitized = sanitizeFileName(file.original_name || defaultName);
+    const localUri = `${FileSystem.documentDirectory}${sanitized}`;
     await FileSystem.writeAsStringAsync(localUri, base64, {
       encoding: FileSystem.EncodingType.Base64,
     });
@@ -156,7 +161,11 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
       const data = await response.json();
       if (data.file) {
         const extension = fileType.split('/').pop() || 'bin';
-        const localUri = `${FileSystem.documentDirectory}file_${data.file.id}.${extension}`;
+        const defaultName = `file_${data.file.id}.${extension}`;
+        const sanitized = sanitizeFileName(
+          data.file.original_name || defaultName
+        );
+        const localUri = `${FileSystem.documentDirectory}${sanitized}`;
         await FileSystem.copyAsync({ from: fileUri, to: localUri });
         await AsyncStorage.setItem(
           fileMetaKey(data.file.id),
