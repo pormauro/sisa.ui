@@ -217,7 +217,9 @@ export default function CircleImagePicker({
   /**
    * Flujo completo: seleccionar imagen, (opcional) recortar, comprimir y retornar el URI.
    */
-  const pickAndProcessImage = async (fromCamera: boolean): Promise<string | null> => {
+  const pickAndProcessImage = async (
+    fromCamera: boolean
+  ): Promise<{ uri: string; fileName: string } | null> => {
     const result = await pickImageFromSource(fromCamera);
     if (!result || result.canceled === true || (result as any).cancelled === true) {
       return null;
@@ -231,7 +233,11 @@ export default function CircleImagePicker({
       processedUri = await cropImage(processedUri, cropAspect, asset.width, asset.height);
     }
     processedUri = await ensureUnderMaxSize(processedUri, asset.width, asset.height);
-    return processedUri;
+    const baseName = asset.fileName
+      ? asset.fileName.replace(/\.[^/.]+$/, '')
+      : 'photo';
+    const fileName = `${baseName}.jpg`;
+    return { uri: processedUri, fileName };
   };
 
   /**
@@ -257,11 +263,12 @@ export default function CircleImagePicker({
   const pickAndUpload = async (fromCamera: boolean) => {
     try {
       setLoading(true);
-      const newUri = await pickAndProcessImage(fromCamera);
-      if (!newUri) {
+      const processed = await pickAndProcessImage(fromCamera);
+      if (!processed) {
         setLoading(false);
         return;
       }
+      const { uri: newUri, fileName } = processed;
       if (!token) {
         Alert.alert('Error', 'No se encontró token');
         setLoading(false);
@@ -270,11 +277,7 @@ export default function CircleImagePicker({
       // Obtener el tamaño del archivo para subir
       const fileInfo = await FileSystem.getInfoAsync(newUri);
       const fileSize = fileInfo.exists && fileInfo.size ? fileInfo.size : 0;
-      let filename = newUri.split('/').pop() || 'photo.jpg';
-      if (!/\.\w+$/.test(filename)) {
-        filename = `${filename}.jpg`;
-      }
-      const match = /\.(\w+)$/.exec(filename);
+      const match = /\.(\w+)$/.exec(fileName);
       const fileType =
         match && match[1].toLowerCase() === 'jpg'
           ? 'image/jpeg'
@@ -283,7 +286,7 @@ export default function CircleImagePicker({
           : 'image/jpeg';
 
       // Llamada a uploadFile con los parámetros: URI, filename, fileType y fileSize
-      const fileData = await uploadFile(newUri, filename, fileType, fileSize);
+      const fileData = await uploadFile(newUri, fileName, fileType, fileSize);
       if (fileData) {
         setInternalUri(newUri);
         setHasError(false);
