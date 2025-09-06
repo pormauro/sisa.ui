@@ -7,6 +7,7 @@ export default function ClientsLayout() {
       <Stack.Screen name="index" options={{ title: 'Clientes' }} />
       <Stack.Screen name="create" options={{ title: 'Nuevo Cliente' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Cliente' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Cliente', presentation: 'modal' }} />
     </Stack>
   );
 }

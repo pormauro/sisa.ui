@@ -12,6 +12,8 @@ export interface Client {
   phone: string;
   address: string;
   tariff_id: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ClientsContextValue {
@@ -48,6 +50,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         const loaded: Client[] = data.clients.map((c: any) => ({
           ...c,
           tariff_id: c.tariff_id ?? null,
+          created_at: c.created_at,
+          updated_at: c.updated_at,
         }));
         setClients(loaded);
       }
@@ -68,7 +72,12 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.client_id) {
-        const newClient: Client = { id: parseInt(data.client_id, 10), ...clientData };
+        const newClient: Client = {
+          id: parseInt(data.client_id, 10),
+          ...clientData,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
         setClients(prev => [...prev, newClient]);
         return newClient;
       }
@@ -91,7 +100,11 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
         if (data.message === 'Client updated successfully') {
         setClients(prev =>
-          prev.map(client => (client.id === id ? { id, ...clientData } : client))
+          prev.map(client =>
+            client.id === id
+              ? { ...client, ...clientData, updated_at: data.updated_at }
+              : client
+          )
         );
         return true;
       }
