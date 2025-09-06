@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { VideoView, useVideoPlayer } from 'expo-video'; // eslint-disable-line import/no-unresolved
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -91,7 +91,12 @@ const ImagePreviewModal: React.FC<{
 const PdfPreviewModal: React.FC<{ uri: string; onClose: () => void }> = ({ uri, onClose }) => (
   <Modal visible transparent animationType="fade" onRequestClose={onClose}>
     <View style={styles.modalOverlay}>
-      <WebView style={styles.fullImage} source={{ uri }} />
+      <WebView
+        style={styles.fullImage}
+        source={{ uri }}
+        originWhitelist={['*']}
+        allowFileAccess
+      />
       <View style={styles.modalTopOverlay}>
         <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
           <Text style={styles.modalCloseText}>Cerrar</Text>
