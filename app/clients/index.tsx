@@ -52,7 +52,11 @@ export default function ClientsListPage() {
     );
   };
   const renderItem = ({ item }: { item: Client }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./clients/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => router.push(`/clients/viewModal?id=${item.id}`)}
+      onLongPress={() => router.push(`/clients/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.business_name}</Text>
