@@ -88,7 +88,8 @@ export default function JobsScreen() {
     return (
       <TouchableOpacity
         style={[styles.itemContainer, jobStatus ? { backgroundColor: jobStatus.background_color } : {}]}
-        onLongPress={() => router.push(`./jobs/${item.id}`)}
+        onPress={() => router.push(`/jobs/viewModal?id=${item.id}`)}
+        onLongPress={() => router.push(`/jobs/${item.id}`)}
       >
         <View style={styles.itemContent}>
           {/* Cliente */}

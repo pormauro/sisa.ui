@@ -8,6 +8,7 @@ export default function JobsLayout() {
       <Stack.Screen name="index" options={{ title: 'Trabajos' }} />
       <Stack.Screen name="create" options={{ title: 'Nueva Trabajo' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Trabajo' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Trabajo', presentation: 'modal' }} />
     </Stack>
   );
 }

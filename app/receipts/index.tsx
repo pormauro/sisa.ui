@@ -75,6 +75,7 @@ export default function ReceiptsScreen() {
     return (
       <TouchableOpacity
         style={styles.item}
+        onPress={() => router.push(`/receipts/viewModal?id=${item.id}`)}
         onLongPress={() => router.push(`/receipts/${item.id}`)}
       >
         <View style={styles.itemInfo}>

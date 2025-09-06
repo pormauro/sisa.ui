@@ -7,6 +7,7 @@ export default function ReceiptsLayout() {
       <Stack.Screen name="index" options={{ title: 'Recibos' }} />
       <Stack.Screen name="create" options={{ title: 'Nuevo Recibo' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Recibo' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Recibo', presentation: 'modal' }} />
     </Stack>
   );
 }
