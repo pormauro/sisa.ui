@@ -2,10 +2,12 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Button, Alert, TextInput, TouchableOpacity } from 'react-native';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
+import { FileContext } from '@/contexts/FilesContext';
 import globalStyles from '@/styles/GlobalStyles';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
+  const { clearLocalFiles } = useContext(FileContext);
   const [editConfig, setEditConfig] = useState<boolean>(false);
   const [configForm, setConfigForm] = useState<ConfigForm>({
     role: '',
@@ -29,6 +31,19 @@ const ConfigScreen: React.FC = () => {
       });
     }
   }, [configDetails]);
+
+  const handleClearFiles = (): void => {
+    Alert.alert('Confirmación', '¿Deseas borrar los datos de los archivos?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar',
+        style: 'destructive',
+        onPress: () => {
+          void clearLocalFiles();
+        },
+      },
+    ]);
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -80,6 +95,11 @@ const ConfigScreen: React.FC = () => {
               </TouchableOpacity>
             </>
           )}
+          <Button
+            title="Borrar datos de archivos"
+            color="#d9534f"
+            onPress={handleClearFiles}
+          />
         </View>
       ) : (
         <Text style={styles.infoText}>Cargando configuración...</Text>
