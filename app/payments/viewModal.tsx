@@ -60,26 +60,23 @@ export default function ViewPaymentModal() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Acreedor</Text>
-      <Text style={styles.value}>{creditorName}</Text>
-
-      <Text style={styles.label}>Tipo de cuenta</Text>
-      <Text style={styles.value}>{creditorTypeLabel}</Text>
-
       <Text style={styles.label}>Fecha</Text>
       <Text style={styles.value}>{payment.payment_date}</Text>
+
+      <Text style={styles.title}>{creditorTypeLabel}</Text>
+      <Text style={styles.name}>{creditorName}</Text>
 
       <Text style={styles.label}>Descripción</Text>
       <Text style={styles.value}>{payment.description || 'Sin descripción'}</Text>
 
-      <Text style={styles.label}>Total</Text>
-      <Text style={styles.value}>${payment.price}</Text>
+      <Text style={styles.label}>Categoría</Text>
+      <Text style={styles.value}>{category?.name || 'Sin categoría'}</Text>
 
       <Text style={styles.label}>Cuenta</Text>
       <Text style={styles.value}>{accountName}</Text>
 
-      <Text style={styles.label}>Categoría</Text>
-      <Text style={styles.value}>{category?.name || 'Sin categoría'}</Text>
+      <Text style={styles.label}>Total</Text>
+      <Text style={styles.value}>${payment.price}</Text>
 
       {filesJson ? (
         <>
@@ -102,5 +99,7 @@ const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
+  title: { marginTop: 8, fontSize: 20, fontWeight: 'bold' },
+  name: { fontSize: 18, marginBottom: 8 },
   editButton: { marginTop: 16 },
 });
