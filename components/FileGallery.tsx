@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import Video from 'react-native-video';
+import { Video, ResizeMode } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -74,8 +74,14 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
     <TouchableOpacity style={styles.fileItem} onPress={handlePress}>
       {isImage ? (
         <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
-      ) : isVideo ? (
-        <Video source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" paused />
+        ) : isVideo ? (
+        <Video
+          source={{ uri: file.previewUri }}
+          style={styles.media}
+          resizeMode={ResizeMode.COVER}
+          useNativeControls
+          shouldPlay={false}
+        />
       ) : (
         <View style={[styles.media, styles.defaultIcon]}>          
           <Text style={styles.iconText}>{file.originalName}</Text>
