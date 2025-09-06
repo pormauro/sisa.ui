@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { ReceiptsContext, Receipt } from '@/contexts/ReceiptsContext';
@@ -25,6 +26,7 @@ export default function ReceiptsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listReceipts')) {
@@ -75,6 +77,7 @@ export default function ReceiptsScreen() {
     return (
       <TouchableOpacity
         style={styles.item}
+        onPress={() => setSelectedReceipt(item)}
         onLongPress={() => router.push(`/receipts/${item.id}`)}
       >
         <View style={styles.itemInfo}>
@@ -117,6 +120,11 @@ export default function ReceiptsScreen() {
           <Text style={styles.addText}>➕ Agregar Recibo</Text>
         </TouchableOpacity>
       )}
+      <ItemDetailModal
+        visible={selectedReceipt !== null}
+        item={selectedReceipt}
+        onClose={() => setSelectedReceipt(null)}
+      />
     </View>
   );
 }

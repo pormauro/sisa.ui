@@ -1,6 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/products_services/index.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -13,6 +14,7 @@ export default function ProductsServicesScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ProductService | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listProductsServices')) {
@@ -55,7 +57,11 @@ export default function ProductsServicesScreen() {
   };
 
   const renderItem = ({ item }: { item: ProductService }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./products_services/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => setSelectedItem(item)}
+      onLongPress={() => router.push(`./products_services/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.product_image_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.description}</Text>
@@ -87,6 +93,11 @@ export default function ProductsServicesScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/products_services/create')}>
         <Text style={styles.addButtonText}>➕ Agregar</Text>
       </TouchableOpacity>
+      <ItemDetailModal
+        visible={selectedItem !== null}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+      />
     </View>
   );
 }

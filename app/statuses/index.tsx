@@ -1,6 +1,7 @@
 // app/statuses/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -13,6 +14,7 @@ export default function StatusesScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<any | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listStatuses')) {
@@ -55,7 +57,11 @@ export default function StatusesScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`/statuses/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => setSelectedStatus(item)}
+      onLongPress={() => router.push(`/statuses/${item.id}`)}
+    >
       <View style={[styles.colorBox, { backgroundColor: item.background_color }]} />
       <View style={styles.itemContent}>
         <Text style={styles.itemLabel}>{item.label}</Text>
@@ -86,6 +92,11 @@ export default function StatusesScreen() {
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/statuses/create')}>
         <Text style={styles.addButtonText}>Agregar Estado</Text>
       </TouchableOpacity>
+      <ItemDetailModal
+        visible={selectedStatus !== null}
+        item={selectedStatus}
+        onClose={() => setSelectedStatus(null)}
+      />
     </View>
   );
 }

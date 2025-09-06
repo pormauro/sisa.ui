@@ -1,6 +1,7 @@
 // app/payments/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { PaymentsContext, Payment } from '@/contexts/PaymentsContext';
@@ -16,6 +17,7 @@ export default function PaymentsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
 
   useEffect(() => {
     if (!permissions.includes('listPayments')) {
@@ -66,6 +68,7 @@ export default function PaymentsScreen() {
     return (
       <TouchableOpacity
         style={styles.item}
+        onPress={() => setSelectedPayment(item)}
         onLongPress={() => router.push(`/payments/${item.id}`)}
       >
         <View style={styles.itemInfo}>
@@ -108,6 +111,11 @@ export default function PaymentsScreen() {
           <Text style={styles.addText}>➕ Agregar Pago</Text>
         </TouchableOpacity>
       )}
+      <ItemDetailModal
+        visible={selectedPayment !== null}
+        item={selectedPayment}
+        onClose={() => setSelectedPayment(null)}
+      />
     </View>
   );
 }

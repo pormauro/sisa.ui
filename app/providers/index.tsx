@@ -1,6 +1,7 @@
 // app/providers/index.tsx
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import ItemDetailModal from '@/components/ItemDetailModal';
 import { ProvidersContext, Provider } from '@/contexts/ProvidersContext';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -13,6 +14,7 @@ export default function ProvidersListPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const { permissions } = useContext(PermissionsContext);
+  const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
 
   const canAdd = permissions.includes('addProvider');
   const canDelete = permissions.includes('deleteProvider');
@@ -52,7 +54,11 @@ export default function ProvidersListPage() {
   };
 
   const renderItem = ({ item }: { item: Provider }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./providers/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => setSelectedProvider(item)}
+      onLongPress={() => router.push(`./providers/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.business_name}</Text>
@@ -85,6 +91,11 @@ export default function ProvidersListPage() {
           <Text style={styles.addButtonText}>➕ Agregar Proveedor</Text>
         </TouchableOpacity>
       )}
+      <ItemDetailModal
+        visible={selectedProvider !== null}
+        item={selectedProvider}
+        onClose={() => setSelectedProvider(null)}
+      />
     </View>
   );
 }
