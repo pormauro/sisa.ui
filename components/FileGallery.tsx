@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -42,6 +42,50 @@ interface FileItemProps {
   index: number;
   editable: boolean;
 }
+
+const VideoThumbnail: React.FC<{ uri: string }> = ({ uri }) => {
+  const player = useVideoPlayer(uri);
+  return (
+    <VideoView player={player} style={styles.media} contentFit="cover" nativeControls />
+  );
+};
+
+const VideoPreviewModal: React.FC<{ uri: string; onClose: () => void }> = ({ uri, onClose }) => {
+  const player = useVideoPlayer(uri);
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <VideoView player={player} style={styles.fullImage} contentFit="contain" nativeControls />
+        <View style={styles.modalTopOverlay}>
+          <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+            <Text style={styles.modalCloseText}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const ImagePreviewModal: React.FC<{
+  images: AttachedFile[];
+  initialIndex: number;
+  onClose: () => void;
+}> = ({ images, initialIndex, onClose }) => (
+  <ImageViewing
+    images={images.map(f => ({ uri: f.previewUri }))}
+    imageIndex={initialIndex}
+    visible
+    onRequestClose={onClose}
+    FooterComponent={({ imageIndex }: { imageIndex: number }) => (
+      <View style={styles.modalTopOverlay}>
+        <Text style={styles.modalIndex}>{imageIndex + 1} / {images.length}</Text>
+        <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+          <Text style={styles.modalCloseText}>Cerrar</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+  />
+);
 
 const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, editable }) => {
   if (file.loading) {
@@ -74,16 +118,10 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
     <TouchableOpacity style={styles.fileItem} onPress={handlePress}>
       {isImage ? (
         <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
-        ) : isVideo ? (
-        <Video
-          source={{ uri: file.previewUri }}
-          style={styles.media}
-          resizeMode={ResizeMode.COVER}
-          useNativeControls
-          shouldPlay={false}
-        />
+      ) : isVideo ? (
+        <VideoThumbnail uri={file.previewUri} />
       ) : (
-        <View style={[styles.media, styles.defaultIcon]}>          
+        <View style={[styles.media, styles.defaultIcon]}>
           <Text style={styles.iconText}>{file.originalName}</Text>
         </View>
       )}
@@ -317,9 +355,8 @@ const handleAddCameraFile = async () => {
     });
   };
 
-  const renderPreviewModal = () => {
-    if (previewIndex === null) return null;
-
+  let previewModal = null;
+  if (previewIndex !== null) {
     const current = attachedFiles[previewIndex];
     const lowerType = current.fileType.toLowerCase();
     const isImage = lowerType.includes('image');
@@ -328,41 +365,19 @@ const handleAddCameraFile = async () => {
     if (isImage) {
       const imageFiles = attachedFiles.filter(f => f.fileType.toLowerCase().includes('image'));
       const imageIndex = imageFiles.findIndex(f => f.id === current.id);
-      return (
-        <ImageViewing
-          images={imageFiles.map(f => ({ uri: f.previewUri }))}
-          imageIndex={imageIndex}
-          visible={true}
-          onRequestClose={() => setPreviewIndex(null)}
-          FooterComponent={({ imageIndex }: { imageIndex: number }) => (
-            <View style={styles.modalTopOverlay}>
-              <Text style={styles.modalIndex}>{imageIndex + 1} / {imageFiles.length}</Text>
-              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setPreviewIndex(null)}>
-                <Text style={styles.modalCloseText}>Cerrar</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+      previewModal = (
+        <ImagePreviewModal
+          images={imageFiles}
+          initialIndex={imageIndex}
+          onClose={() => setPreviewIndex(null)}
         />
       );
-    }
-
-    if (isVideo) {
-      return (
-        <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
-          <View style={styles.modalOverlay}>
-            <Video source={{ uri: current.previewUri }} style={styles.fullImage} resizeMode="contain" controls />
-            <View style={styles.modalTopOverlay}>
-              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setPreviewIndex(null)}>
-                <Text style={styles.modalCloseText}>Cerrar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+    } else if (isVideo) {
+      previewModal = (
+        <VideoPreviewModal uri={current.previewUri} onClose={() => setPreviewIndex(null)} />
       );
     }
-
-    return null;
-  };
+  }
 
   return (
     <>
@@ -388,7 +403,7 @@ const handleAddCameraFile = async () => {
           </TouchableOpacity>
         )}
       </ScrollView>
-      {renderPreviewModal()}
+      {previewModal}
     </>
   );
 };
