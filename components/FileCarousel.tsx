@@ -10,13 +10,14 @@ import {
   Modal,
   Dimensions,
   FlatList,
-  Linking,
   ActivityIndicator
 } from 'react-native';
 import Video from 'react-native-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { FileContext } from '@/contexts/FilesContext';
+// eslint-disable-next-line import/no-unresolved
+import ImageViewing from 'react-native-image-viewing';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -24,6 +25,7 @@ const screenHeight = Dimensions.get('window').height;
 interface FileCarouselProps {
   filesJson: string;
   onChangeFilesJson: (updatedJson: string) => void;
+  editable?: boolean;
 }
 
 interface AttachedFile {
@@ -39,12 +41,13 @@ interface FileItemProps {
   onDelete: (fileId: number) => void;
   onPreview: (index: number) => void;
   index: number;
+  editable: boolean;
 }
 
-const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index }) => {
+const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, editable }) => {
   if (file.loading) {
     return (
-      <View style={[styles.fileItem, styles.loadingContainer]}>        
+      <View style={[styles.fileItem, styles.loadingContainer]}>
         <ActivityIndicator />
       </View>
     );
@@ -65,14 +68,16 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index })
           <Text style={styles.iconText}>{file.originalName}</Text>
         </View>
       )}
-      <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(file.id)}>
-        <Text style={styles.deleteButtonText}>Delete</Text>
-      </TouchableOpacity>
+      {editable && (
+        <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(file.id)}>
+          <Text style={styles.deleteButtonText}>Delete</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 };
 
-const FileCarousel: React.FC<FileCarouselProps> = ({ filesJson, onChangeFilesJson }) => {
+const FileCarousel: React.FC<FileCarouselProps> = ({ filesJson, onChangeFilesJson, editable = true }) => {
   const { uploadFile, getFile, getFileMetadata } = useContext(FileContext);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -271,6 +276,32 @@ const handleAddCameraFile = async () => {
 
   const renderPreviewModal = () => {
     if (previewIndex === null) return null;
+
+    const current = attachedFiles[previewIndex];
+    const lowerType = current.fileType.toLowerCase();
+    const isImage = lowerType.includes('image');
+
+    if (isImage) {
+      const imageFiles = attachedFiles.filter(f => f.fileType.toLowerCase().includes('image'));
+      const imageIndex = imageFiles.findIndex(f => f.id === current.id);
+      return (
+        <ImageViewing
+          images={imageFiles.map(f => ({ uri: f.previewUri }))}
+          imageIndex={imageIndex}
+          visible={true}
+          onRequestClose={() => setPreviewIndex(null)}
+          FooterComponent={({ imageIndex }) => (
+            <View style={styles.modalTopOverlay}>
+              <Text style={styles.modalIndex}>{imageIndex + 1} / {imageFiles.length}</Text>
+              <TouchableOpacity style={styles.modalCloseButton} onPress={() => setPreviewIndex(null)}>
+                <Text style={styles.modalCloseText}>Cerrar</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        />
+      );
+    }
+
     return (
       <Modal visible transparent animationType="fade" onRequestClose={() => setPreviewIndex(null)}>
         <FlatList
@@ -287,21 +318,26 @@ const handleAddCameraFile = async () => {
           }}
           keyExtractor={item => item.id.toString()}
           renderItem={({ item }) => {
-            const lowerType = item.fileType.toLowerCase();
-            const isImage = lowerType.includes('image');
-            const isVideo = lowerType.includes('video');
+            const lt = item.fileType.toLowerCase();
+            const isImg = lt.includes('image');
+            const isVid = lt.includes('video');
             return (
               <View style={styles.modalContent}>
-                {isImage
-                  ? <Image source={{ uri: item.previewUri }} style={styles.fullImage} resizeMode="contain" />
-                  : isVideo
-                    ? <Video source={{ uri: item.previewUri }} style={styles.fullImage} resizeMode="contain" controls />
-                    : <Text style={styles.fileNameText}>{item.originalName}</Text>
-                }
+                {isImg ? (
+                  <Image source={{ uri: item.previewUri }} style={styles.fullImage} resizeMode="contain" />
+                ) : isVid ? (
+                  <Video source={{ uri: item.previewUri }} style={styles.fullImage} resizeMode="contain" controls />
+                ) : (
+                  <Text style={styles.fileNameText}>{item.originalName}</Text>
+                )}
               </View>
             );
           }}
           style={styles.modalOverlay}
+          onMomentumScrollEnd={e => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+            setPreviewIndex(index);
+          }}
         />
         <View style={styles.modalTopOverlay}>
           <Text style={styles.modalIndex}>{previewIndex + 1} / {attachedFiles.length}</Text>
@@ -328,11 +364,14 @@ const handleAddCameraFile = async () => {
             index={idx}
             onDelete={handleDeleteFile}
             onPreview={setPreviewIndex}
+            editable={editable}
           />
         ))}
-        <TouchableOpacity style={[styles.fileItem, styles.addFileItem]} onPress={handleSelectSource} >
-          <Text style={styles.addButtonText}>Add File</Text>
-        </TouchableOpacity>
+        {editable && (
+          <TouchableOpacity style={[styles.fileItem, styles.addFileItem]} onPress={handleSelectSource}>
+            <Text style={styles.addButtonText}>Add File</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
       {renderPreviewModal()}
     </>
