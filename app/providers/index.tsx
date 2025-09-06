@@ -52,7 +52,11 @@ export default function ProvidersListPage() {
   };
 
   const renderItem = ({ item }: { item: Provider }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./providers/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => router.push(`/providers/viewModal?id=${item.id}`)}
+      onLongPress={() => router.push(`./providers/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle}>{item.business_name}</Text>

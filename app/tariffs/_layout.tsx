@@ -7,6 +7,7 @@ export default function TariffsLayout() {
       <Stack.Screen name="index" options={{ title: 'Tarifas' }} />
       <Stack.Screen name="create" options={{ title: 'Nueva Tarifa' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Tarifa' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Tarifa', presentation: 'modal' }} />
     </Stack>
   );
 }

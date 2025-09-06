@@ -7,6 +7,7 @@ export default function ProvidersLayout() {
       <Stack.Screen name="index" options={{ title: 'Proveedores' }} />
       <Stack.Screen name="create" options={{ title: 'Nuevo Proveedor' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Proveedor' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Proveedor', presentation: 'modal' }} />
     </Stack>
   );
 }

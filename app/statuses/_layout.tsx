@@ -8,6 +8,7 @@ export default function StatusesLayout() {
       <Stack.Screen name="index" options={{ title: 'Estados' }} />
       <Stack.Screen name="create" options={{ title: 'Nuevo Estado' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Estado' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Estado', presentation: 'modal' }} />
     </Stack>
   );
 }

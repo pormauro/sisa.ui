@@ -7,6 +7,7 @@ export default function CategoriesLayout() {
       <Stack.Screen name="index" options={{ title: 'Categorías' }} />
       <Stack.Screen name="create" options={{ title: 'Nueva Categoría' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Categoría' }} />
+      <Stack.Screen name="viewModal" options={{ title: 'Ver Categoría', presentation: 'modal' }} />
     </Stack>
   );
 }

@@ -55,7 +55,11 @@ export default function StatusesScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`/statuses/${item.id}`)}>
+    <TouchableOpacity
+      style={styles.itemContainer}
+      onPress={() => router.push(`/statuses/viewModal?id=${item.id}`)}
+      onLongPress={() => router.push(`/statuses/${item.id}`)}
+    >
       <View style={[styles.colorBox, { backgroundColor: item.background_color }]} />
       <View style={styles.itemContent}>
         <Text style={styles.itemLabel}>{item.label}</Text>
