@@ -4,6 +4,8 @@ import { ScrollView, View, Text, StyleSheet, Button } from 'react-native';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { CategoriesContext } from '@/contexts/CategoriesContext';
+import FileGallery from '@/components/FileGallery';
 
 export default function ViewReceiptModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -12,6 +14,7 @@ export default function ViewReceiptModal() {
   const { receipts } = useContext(ReceiptsContext);
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
+  const { categories } = useContext(CategoriesContext);
 
   const receipt = receipts.find(r => r.id === receiptId);
   if (!receipt) {
@@ -24,17 +27,38 @@ export default function ViewReceiptModal() {
 
   let payerName = '';
   if (receipt.payer_type === 'client') {
-    payerName = clients.find(c => c.id === receipt.payer_client_id)?.business_name || 'Sin cliente';
+    payerName =
+      clients.find(c => c.id === receipt.payer_client_id)?.business_name ||
+      'Sin cliente';
   } else if (receipt.payer_type === 'provider') {
-    payerName = providers.find(p => p.id === receipt.payer_provider_id)?.business_name || 'Sin proveedor';
+    payerName =
+      providers.find(p => p.id === receipt.payer_provider_id)?.business_name ||
+      'Sin proveedor';
   } else {
     payerName = receipt.payer_other || 'Sin pagador';
   }
+
+  const payerTypeLabel =
+    receipt.payer_type === 'client'
+      ? 'Cliente'
+      : receipt.payer_type === 'provider'
+      ? 'Proveedor'
+      : 'Otro';
+
+  const category = categories.find(c => c.id === receipt.category_id);
+  const filesJson = receipt.attached_files
+    ? typeof receipt.attached_files === 'string'
+      ? receipt.attached_files
+      : JSON.stringify(receipt.attached_files)
+    : '';
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>Pagador</Text>
       <Text style={styles.value}>{payerName}</Text>
+
+      <Text style={styles.label}>Tipo de cuenta</Text>
+      <Text style={styles.value}>{payerTypeLabel}</Text>
 
       <Text style={styles.label}>Fecha</Text>
       <Text style={styles.value}>{receipt.receipt_date}</Text>
@@ -48,8 +72,15 @@ export default function ViewReceiptModal() {
       <Text style={styles.label}>Cuenta</Text>
       <Text style={styles.value}>{receipt.paid_in_account}</Text>
 
-      <Text style={styles.label}>Categoría ID</Text>
-      <Text style={styles.value}>{receipt.category_id}</Text>
+      <Text style={styles.label}>Categoría</Text>
+      <Text style={styles.value}>{category?.name || 'Sin categoría'}</Text>
+
+      {filesJson ? (
+        <>
+          <Text style={styles.label}>Archivos</Text>
+          <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} />
+        </>
+      ) : null}
 
       <Text style={styles.label}>ID</Text>
       <Text style={styles.value}>{receipt.id}</Text>
