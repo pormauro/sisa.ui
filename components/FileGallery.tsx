@@ -18,7 +18,6 @@ import * as FileSystem from 'expo-file-system';
 import { FileContext } from '@/contexts/FilesContext';
 // @ts-ignore - types are not provided for this library
 import ImageViewing from 'react-native-image-viewing';
-import { WebView } from 'react-native-webview';
 
 
 interface FileGalleryProps {
@@ -88,24 +87,6 @@ const ImagePreviewModal: React.FC<{
   />
 );
 
-const PdfPreviewModal: React.FC<{ uri: string; onClose: () => void }> = ({ uri, onClose }) => (
-  <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-    <View style={styles.modalOverlay}>
-      <WebView
-        style={styles.fullImage}
-        source={{ uri }}
-        originWhitelist={['*']}
-        allowFileAccess
-      />
-      <View style={styles.modalTopOverlay}>
-        <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
-          <Text style={styles.modalCloseText}>Cerrar</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </Modal>
-);
-
 const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, editable }) => {
   if (file.loading) {
     return (
@@ -121,8 +102,21 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
   const isPdf = lowerType.includes('pdf');
 
   const handlePress = async () => {
-    if (isImage || isVideo || isPdf) {
+    if (isImage || isVideo) {
       onPreview(index);
+    } else if (isPdf) {
+      try {
+        const uri = file.localUri || file.previewUri;
+        if (uri.startsWith('file://')) {
+          const contentUri = await FileSystem.getContentUriAsync(uri);
+          await Linking.openURL(contentUri);
+        } else {
+          await Linking.openURL(uri);
+        }
+      } catch (e) {
+        console.error('Error opening PDF:', e);
+        Alert.alert('Error', 'No se pudo abrir el PDF.');
+      }
     } else {
       try {
         const contentUri = await FileSystem.getContentUriAsync(file.localUri);
@@ -381,7 +375,6 @@ const handleAddCameraFile = async () => {
     const lowerType = current.fileType.toLowerCase();
     const isImage = lowerType.includes('image');
     const isVideo = lowerType.includes('video');
-    const isPdf = lowerType.includes('pdf');
 
     if (isImage) {
       const imageFiles = attachedFiles.filter(f => f.fileType.toLowerCase().includes('image'));
@@ -396,11 +389,6 @@ const handleAddCameraFile = async () => {
     } else if (isVideo) {
       previewModal = (
         <VideoPreviewModal uri={current.previewUri} onClose={() => setPreviewIndex(null)} />
-      );
-    } else if (isPdf) {
-      const uri = current.localUri || current.previewUri;
-      previewModal = (
-        <PdfPreviewModal uri={uri} onClose={() => setPreviewIndex(null)} />
       );
     }
   }
