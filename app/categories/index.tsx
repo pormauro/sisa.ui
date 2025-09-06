@@ -125,7 +125,24 @@ export default function CategoriesScreen() {
       )}
       <ItemDetailModal
         visible={selectedCategory !== null}
-        item={selectedCategory}
+        item={selectedCategory ? {
+          id: selectedCategory.id,
+          name: selectedCategory.name,
+          type: selectedCategory.type === 'income' ? 'Ingreso' : 'Gasto',
+          parent: selectedCategory.parent_id
+            ? categories.find(c => c.id === selectedCategory.parent_id)?.name || selectedCategory.parent_id
+            : 'Sin padre',
+          created_at: selectedCategory.created_at,
+          updated_at: selectedCategory.updated_at,
+        } : null}
+        fieldLabels={{
+          id: 'ID',
+          name: 'Nombre',
+          type: 'Tipo',
+          parent: 'Categoría padre',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedCategory(null)}
       />
     </View>

@@ -19,13 +19,15 @@ export interface Payment {
   price: number;
   charge_client: boolean;
   client_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface PaymentsContextValue {
   payments: Payment[];
   loadPayments: () => void;
-  addPayment: (payment: Omit<Payment, 'id'>) => Promise<Payment | null>;
-  updatePayment: (id: number, payment: Omit<Payment, 'id'>) => Promise<boolean>;
+  addPayment: (payment: Omit<Payment, 'id' | 'created_at' | 'updated_at'>) => Promise<Payment | null>;
+  updatePayment: (id: number, payment: Omit<Payment, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deletePayment: (id: number) => Promise<boolean>;
 }
 
@@ -59,7 +61,9 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addPayment = async (payment: Omit<Payment, 'id'>): Promise<Payment | null> => {
+  const addPayment = async (
+    payment: Omit<Payment, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Payment | null> => {
     try {
       const payload = {
         ...payment,
@@ -91,7 +95,10 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updatePayment = async (id: number, payment: Omit<Payment, 'id'>): Promise<boolean> => {
+  const updatePayment = async (
+    id: number,
+    payment: Omit<Payment, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const payload = {
         ...payment,
@@ -113,7 +120,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.message === 'Payment updated successfully') {
-        setPayments(prev => prev.map(p => (p.id === id ? { id, ...payload } : p)));
+        setPayments(prev => prev.map(p => (p.id === id ? { ...p, ...payload } : p)));
         return true;
       }
     } catch (error) {

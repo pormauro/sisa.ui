@@ -11,13 +11,15 @@ export interface Provider {
   brand_file_id?: string | null;
   phone?: string;
   address?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ProvidersContextValue {
   providers: Provider[];
   loadProviders: () => void;
-  addProvider: (provider: Omit<Provider, 'id'>) => Promise<Provider | null>;
-  updateProvider: (id: number, provider: Omit<Provider, 'id'>) => Promise<boolean>;
+  addProvider: (provider: Omit<Provider, 'id' | 'created_at' | 'updated_at'>) => Promise<Provider | null>;
+  updateProvider: (id: number, provider: Omit<Provider, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteProvider: (id: number) => Promise<boolean>;
 }
 
@@ -50,7 +52,9 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addProvider = async (provider: Omit<Provider, 'id'>): Promise<Provider | null> => {
+  const addProvider = async (
+    provider: Omit<Provider, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Provider | null> => {
     try {
       const response = await fetch(`${BASE_URL}/providers`, {
         method: 'POST',
@@ -72,7 +76,10 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateProvider = async (id: number, provider: Omit<Provider, 'id'>): Promise<boolean> => {
+  const updateProvider = async (
+    id: number,
+    provider: Omit<Provider, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/providers/${id}`, {
         method: 'PUT',
@@ -91,7 +98,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
           /* ignore body parsing errors */
         }
 
-        setProviders(prev => prev.map(p => (p.id === id ? { id, ...provider } : p)));
+        setProviders(prev => prev.map(p => (p.id === id ? { ...p, ...provider } : p)));
         return true;
       }
     } catch (error) {

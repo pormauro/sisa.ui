@@ -8,14 +8,16 @@ export interface CashBox {
   name: string;
   image_file_id: string | null;
   user_id: number;
+  created_at?: string;
+  updated_at?: string;
   // Puedes agregar más campos si los requiere tu API
 }
 
 interface CashBoxesContextType {
   cashBoxes: CashBox[];
   loadCashBoxes: () => void;
-  addCashBox: (cashBox: Omit<CashBox, 'id' | 'user_id'>) => Promise<CashBox | null>;
-  updateCashBox: (id: number, cashBox: Omit<CashBox, 'id' | 'user_id'>) => Promise<boolean>;
+  addCashBox: (cashBox: Omit<CashBox, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<CashBox | null>;
+  updateCashBox: (id: number, cashBox: Omit<CashBox, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteCashBox: (id: number) => Promise<boolean>;
   listCashBoxHistory: (id: number) => Promise<any[]>; // Opcional, para historial
 }
@@ -50,7 +52,9 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addCashBox = async (cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<CashBox | null> => {
+  const addCashBox = async (
+    cashBoxData: Omit<CashBox, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ): Promise<CashBox | null> => {
     try {
       const response = await fetch(`${BASE_URL}/cash_boxes`, {
         method: 'POST',
@@ -72,7 +76,10 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateCashBox = async (id: number, cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<boolean> => {
+  const updateCashBox = async (
+    id: number,
+    cashBoxData: Omit<CashBox, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/cash_boxes/${id}`, {
         method: 'PUT',

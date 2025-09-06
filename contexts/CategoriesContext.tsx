@@ -8,13 +8,15 @@ export interface Category {
   parent_id: number | null;
   name: string;
   type: 'income' | 'expense';
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CategoriesContextValue {
   categories: Category[];
   loadCategories: () => void;
-  addCategory: (category: Omit<Category, 'id'>) => Promise<Category | null>;
-  updateCategory: (id: number, category: Omit<Category, 'id'>) => Promise<boolean>;
+  addCategory: (category: Omit<Category, 'id' | 'created_at' | 'updated_at'>) => Promise<Category | null>;
+  updateCategory: (id: number, category: Omit<Category, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteCategory: (id: number) => Promise<boolean>;
 }
 
@@ -47,7 +49,9 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addCategory = async (category: Omit<Category, 'id'>): Promise<Category | null> => {
+  const addCategory = async (
+    category: Omit<Category, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Category | null> => {
     try {
       const response = await fetch(`${BASE_URL}/categories`, {
         method: 'POST',
@@ -69,7 +73,10 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateCategory = async (id: number, category: Omit<Category, 'id'>): Promise<boolean> => {
+    const updateCategory = async (
+      id: number,
+      category: Omit<Category, 'id' | 'created_at' | 'updated_at'>
+    ): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/categories/${id}`, {
         method: 'PUT',
@@ -81,7 +88,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.message === 'Category updated successfully') {
-        setCategories(prev => prev.map(c => (c.id === id ? { id, ...category } : c)));
+        setCategories(prev => prev.map(c => (c.id === id ? { ...c, ...category } : c)));
         return true;
       }
     } catch (error) {

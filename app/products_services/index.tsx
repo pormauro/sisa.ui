@@ -96,6 +96,18 @@ export default function ProductsServicesScreen() {
       <ItemDetailModal
         visible={selectedItem !== null}
         item={selectedItem}
+        fieldLabels={{
+          id: 'ID',
+          description: 'Descripción',
+          category: 'Categoría',
+          price: 'Precio',
+          cost: 'Costo',
+          difficulty: 'Dificultad',
+          item_type: 'Tipo',
+          stock: 'Stock',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedItem(null)}
       />
     </View>

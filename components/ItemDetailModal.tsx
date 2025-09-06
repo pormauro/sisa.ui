@@ -6,23 +6,41 @@ interface ItemDetailModalProps {
   item: Record<string, any> | null;
   onClose: () => void;
   showParticipants?: boolean;
+  fieldLabels?: Record<string, string>;
 }
 
-export default function ItemDetailModal({ visible, item, onClose, showParticipants }: ItemDetailModalProps) {
+const defaultLabel = (key: string) => {
+  const map: Record<string, string> = {
+    id: 'ID',
+    created_at: 'Fecha de creación',
+    updated_at: 'Fecha de edición',
+  };
+  if (map[key]) return map[key];
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
+export default function ItemDetailModal({ visible, item, onClose, showParticipants, fieldLabels }: ItemDetailModalProps) {
   if (!item) return null;
 
-  const entries = Object.entries(item).filter(([key]) => key !== 'attached_files' && key !== 'participants');
+  const entries = Object.entries(item).filter(
+    ([key]) =>
+      key !== 'attached_files' &&
+      key !== 'participants' &&
+      !key.endsWith('_file_id')
+  );
 
   const attachments = item.attached_files
-    ? (typeof item.attached_files === 'string'
-        ? JSON.parse(item.attached_files)
-        : item.attached_files)
+    ? typeof item.attached_files === 'string'
+      ? JSON.parse(item.attached_files)
+      : item.attached_files
     : [];
 
   const participants = showParticipants && item.participants
-    ? (typeof item.participants === 'string'
-        ? JSON.parse(item.participants)
-        : item.participants)
+    ? typeof item.participants === 'string'
+      ? JSON.parse(item.participants)
+      : item.participants
     : [];
 
   return (
@@ -34,7 +52,7 @@ export default function ItemDetailModal({ visible, item, onClose, showParticipan
             keyExtractor={([k]) => k}
             renderItem={({ item: [k, v] }) => (
               <View style={styles.row}>
-                <Text style={styles.key}>{k}:</Text>
+                <Text style={styles.key}>{fieldLabels?.[k] ?? defaultLabel(k)}:</Text>
                 <Text style={styles.value}>{String(v)}</Text>
               </View>
             )}

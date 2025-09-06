@@ -26,13 +26,15 @@ export interface Job {
   attached_files?: number[] | string | null;
   /** IDs de participantes en formato JSON */
   participants?: number[] | string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface JobsContextType {
   jobs: Job[];
   loadJobs: () => void;
-  addJob: (job: Omit<Job, 'id' | 'user_id'>) => Promise<Job | null>;
-  updateJob: (id: number, job: Omit<Job, 'id' | 'user_id'>) => Promise<boolean>;
+  addJob: (job: Omit<Job, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<Job | null>;
+  updateJob: (id: number, job: Omit<Job, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteJob: (id: number) => Promise<boolean>;
 }
 
@@ -72,7 +74,9 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addJob = async (jobData: Omit<Job, 'id' | 'user_id'>): Promise<Job | null> => {
+  const addJob = async (
+    jobData: Omit<Job, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ): Promise<Job | null> => {
     try {
       const payload = {
         ...jobData,
@@ -117,7 +121,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateJob = async (id: number, jobData: Omit<Job, 'id' | 'user_id'>): Promise<boolean> => {
+  const updateJob = async (
+    id: number,
+    jobData: Omit<Job, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const payload = {
         ...jobData,

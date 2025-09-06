@@ -95,6 +95,15 @@ export default function StatusesScreen() {
       <ItemDetailModal
         visible={selectedStatus !== null}
         item={selectedStatus}
+        fieldLabels={{
+          id: 'ID',
+          label: 'Etiqueta',
+          value: 'Valor',
+          background_color: 'Color de fondo',
+          order_index: 'Orden',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedStatus(null)}
       />
     </View>

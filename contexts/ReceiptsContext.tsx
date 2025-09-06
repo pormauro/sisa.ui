@@ -19,13 +19,15 @@ export interface Receipt {
   price: number;
   pay_provider: boolean;
   provider_id?: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ReceiptsContextValue {
   receipts: Receipt[];
   loadReceipts: () => void;
-  addReceipt: (receipt: Omit<Receipt, 'id'>) => Promise<Receipt | null>;
-  updateReceipt: (id: number, receipt: Omit<Receipt, 'id'>) => Promise<boolean>;
+  addReceipt: (receipt: Omit<Receipt, 'id' | 'created_at' | 'updated_at'>) => Promise<Receipt | null>;
+  updateReceipt: (id: number, receipt: Omit<Receipt, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteReceipt: (id: number) => Promise<boolean>;
 }
 
@@ -59,7 +61,9 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addReceipt = async (receipt: Omit<Receipt, 'id'>): Promise<Receipt | null> => {
+  const addReceipt = async (
+    receipt: Omit<Receipt, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Receipt | null> => {
     try {
       const payload = {
         ...receipt,
@@ -91,7 +95,10 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateReceipt = async (id: number, receipt: Omit<Receipt, 'id'>): Promise<boolean> => {
+  const updateReceipt = async (
+    id: number,
+    receipt: Omit<Receipt, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const payload = {
         ...receipt,
@@ -113,7 +120,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.message === 'Receipt updated successfully') {
-        setReceipts(prev => prev.map(r => (r.id === id ? { id, ...payload } : r)));
+        setReceipts(prev => prev.map(r => (r.id === id ? { ...r, ...payload } : r)));
         return true;
       }
     } catch (error) {

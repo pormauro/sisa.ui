@@ -8,13 +8,15 @@ export interface Tariff {
   name: string;
   amount: number;
   last_update: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface TariffsContextType {
   tariffs: Tariff[];
   loadTariffs: () => void;
-  addTariff: (tariff: Omit<Tariff, 'id' | 'last_update'>) => Promise<Tariff | null>;
-  updateTariff: (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>) => Promise<boolean>;
+  addTariff: (tariff: Omit<Tariff, 'id' | 'last_update' | 'created_at' | 'updated_at'>) => Promise<Tariff | null>;
+  updateTariff: (id: number, tariff: Omit<Tariff, 'id' | 'last_update' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteTariff: (id: number) => Promise<boolean>;
 }
 
@@ -51,7 +53,9 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addTariff = async (tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<Tariff | null> => {
+  const addTariff = async (
+    tariff: Omit<Tariff, 'id' | 'last_update' | 'created_at' | 'updated_at'>
+  ): Promise<Tariff | null> => {
     try {
       const response = await fetch(`${BASE_URL}/tariffs`, {
         method: 'POST',
@@ -77,7 +81,10 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateTariff = async (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<boolean> => {
+  const updateTariff = async (
+    id: number,
+    tariff: Omit<Tariff, 'id' | 'last_update' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/tariffs/${id}`, {
         method: 'PUT',
