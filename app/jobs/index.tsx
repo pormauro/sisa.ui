@@ -146,6 +146,23 @@ export default function JobsScreen() {
       <ItemDetailModal
         visible={selectedJob !== null}
         item={selectedJob}
+        fieldLabels={{
+          id: 'ID',
+          client_id: 'Cliente',
+          description: 'Descripción',
+          job_date: 'Fecha',
+          start_time: 'Hora de inicio',
+          end_time: 'Hora de fin',
+          type_of_work: 'Tipo de trabajo',
+          status_id: 'Estado',
+          folder_id: 'Carpeta',
+          product_service_id: 'Producto/Servicio',
+          multiplicative_value: 'Valor multiplicador',
+          tariff_id: 'Tarifa',
+          manual_amount: 'Monto manual',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedJob(null)}
         showParticipants
       />

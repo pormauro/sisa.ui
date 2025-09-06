@@ -94,6 +94,17 @@ export default function ClientsListPage() {
       <ItemDetailModal
         visible={selectedClient !== null}
         item={selectedClient}
+        fieldLabels={{
+          id: 'ID',
+          business_name: 'Razón Social',
+          tax_id: 'CUIT',
+          email: 'Email',
+          phone: 'Teléfono',
+          address: 'Dirección',
+          tariff_id: 'Tarifa',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedClient(null)}
       />
     </View>

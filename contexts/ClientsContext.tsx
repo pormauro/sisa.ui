@@ -12,13 +12,15 @@ export interface Client {
   phone: string;
   address: string;
   tariff_id: number | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ClientsContextValue {
   clients: Client[];
   loadClients: () => void;
-  addClient: (client: Omit<Client, 'id'>) => Promise<Client | null>;
-  updateClient: (id: number, client: Omit<Client, 'id'>) => Promise<boolean>;
+  addClient: (client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => Promise<Client | null>;
+  updateClient: (id: number, client: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
 }
 
@@ -56,7 +58,9 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const addClient = async (clientData: Omit<Client, 'id'>): Promise<Client | null> => {
+  const addClient = async (
+    clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<Client | null> => {
     try {
       const response = await fetch(`${BASE_URL}/clients`, {
         method: 'POST',
@@ -78,7 +82,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     return null;
   };
 
-  const updateClient = async (id: number, clientData: Omit<Client, 'id'>): Promise<boolean> => {
+  const updateClient = async (
+    id: number,
+    clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/clients/${id}`, {
         method: 'PUT',
@@ -91,7 +98,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
         if (data.message === 'Client updated successfully') {
         setClients(prev =>
-          prev.map(client => (client.id === id ? { id, ...clientData } : client))
+          prev.map(client => (client.id === id ? { ...client, ...clientData } : client))
         );
         return true;
       }

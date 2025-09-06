@@ -94,6 +94,16 @@ export default function ProvidersListPage() {
       <ItemDetailModal
         visible={selectedProvider !== null}
         item={selectedProvider}
+        fieldLabels={{
+          id: 'ID',
+          business_name: 'Razón Social',
+          tax_id: 'CUIT',
+          email: 'Email',
+          phone: 'Teléfono',
+          address: 'Dirección',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedProvider(null)}
       />
     </View>

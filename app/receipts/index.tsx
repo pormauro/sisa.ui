@@ -123,6 +123,22 @@ export default function ReceiptsScreen() {
       <ItemDetailModal
         visible={selectedReceipt !== null}
         item={selectedReceipt}
+        fieldLabels={{
+          id: 'ID',
+          receipt_date: 'Fecha',
+          payer_type: 'Tipo pagador',
+          payer_client_id: 'Cliente pagador',
+          payer_provider_id: 'Proveedor pagador',
+          payer_other: 'Otro pagador',
+          paid_in_account: 'Pagado en cuenta',
+          description: 'Descripción',
+          category_id: 'Categoría',
+          price: 'Precio',
+          pay_provider: 'Pagar proveedor',
+          provider_id: 'Proveedor',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedReceipt(null)}
       />
     </View>

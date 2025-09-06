@@ -92,6 +92,14 @@ export default function TariffsScreen() {
       <ItemDetailModal
         visible={selectedTariff !== null}
         item={selectedTariff}
+        fieldLabels={{
+          id: 'ID',
+          name: 'Nombre',
+          amount: 'Monto',
+          last_update: 'Última actualización',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedTariff(null)}
       />
     </View>

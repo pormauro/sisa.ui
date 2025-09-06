@@ -14,13 +14,15 @@ export interface ProductService {
   stock: number | null;
   product_image_file_id: string | null;
   user_id: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface ProductsServicesContextType {
   productsServices: ProductService[];
   loadProductsServices: () => void;
-  addProductService: (item: Omit<ProductService, 'id' | 'user_id'>) => Promise<ProductService | null>;
-  updateProductService: (id: number, item: Omit<ProductService, 'id' | 'user_id'>) => Promise<boolean>;
+  addProductService: (item: Omit<ProductService, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<ProductService | null>;
+  updateProductService: (id: number, item: Omit<ProductService, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => Promise<boolean>;
   deleteProductService: (id: number) => Promise<boolean>;
 }
 
@@ -48,7 +50,9 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
     }
   };
 
-  const addProductService = async (item: Omit<ProductService, 'id' | 'user_id'>): Promise<ProductService | null> => {
+  const addProductService = async (
+    item: Omit<ProductService, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ): Promise<ProductService | null> => {
     try {
       const response = await fetch(`${BASE_URL}/products_services`, {
         method: 'POST',
@@ -67,7 +71,10 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
     return null;
   };
 
-  const updateProductService = async (id: number, item: Omit<ProductService, 'id' | 'user_id'>): Promise<boolean> => {
+  const updateProductService = async (
+    id: number,
+    item: Omit<ProductService, 'id' | 'user_id' | 'created_at' | 'updated_at'>
+  ): Promise<boolean> => {
     try {
       const response = await fetch(`${BASE_URL}/products_services/${id}`, {
         method: 'PUT',

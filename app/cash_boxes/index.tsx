@@ -95,6 +95,13 @@ export default function CashBoxesScreen() {
       <ItemDetailModal
         visible={selectedCashBox !== null}
         item={selectedCashBox}
+        fieldLabels={{
+          id: 'ID',
+          name: 'Nombre',
+          user_id: 'Usuario',
+          created_at: 'Fecha de creación',
+          updated_at: 'Fecha de edición',
+        }}
         onClose={() => setSelectedCashBox(null)}
       />
     </View>
