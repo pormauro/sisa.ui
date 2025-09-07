@@ -25,6 +25,7 @@ const menuItems: MenuItem[] = [
   { title: 'Proveedores', route: '/providers', requiredPermissions: ['listProviders'] },
   { title: 'Categorías', route: '/categories', requiredPermissions: ['listCategories'] },
   { title: 'Estados', route: '/statuses', requiredPermissions: ['listStatuses'] },
+  { title: 'Cola', route: '/sync_queue' },
   { title: 'Perfil', route: '/user/ProfileScreen' },
   { title: 'Configuración', route: '/user/ConfigScreen' },
   { title: 'Permisos', route: '/permission', requiredPermissions: ['listPermissions'] },
