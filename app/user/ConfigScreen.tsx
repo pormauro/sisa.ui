@@ -1,11 +1,13 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
+import { StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
@@ -47,21 +49,24 @@ const ConfigScreen: React.FC = () => {
     ]);
   };
 
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { backgroundColor: background }]}>
       <ThemedText style={styles.subtitle}>Configuración</ThemedText>
       {configDetails ? (
-        <View style={styles.dataContainer}>
+        <ThemedView style={styles.dataContainer} lightColor="#f5f5f5" darkColor="#1e1e1e">
           {editConfig ? (
             <>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={configForm.role}
                 onChangeText={(text) => setConfigForm({ ...configForm, role: text })}
                 placeholder="Rol"
               />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={configForm.view_type}
                 onChangeText={(text) => setConfigForm({ ...configForm, view_type: text })}
                 placeholder="Tipo de vista"
@@ -69,13 +74,13 @@ const ConfigScreen: React.FC = () => {
               <Picker
                 selectedValue={configForm.theme}
                 onValueChange={(value) => setConfigForm({ ...configForm, theme: value })}
-                style={styles.input}
+                style={[styles.input, { backgroundColor: inputBackground }]}
               >
                 <Picker.Item label="Claro" value="light" />
                 <Picker.Item label="Oscuro" value="dark" />
               </Picker>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={configForm.font_size}
                 onChangeText={(text) => setConfigForm({ ...configForm, font_size: text })}
                 placeholder="Tamaño de fuente"
@@ -106,7 +111,7 @@ const ConfigScreen: React.FC = () => {
             onPress={handleClearFiles}
             style={styles.editButton}
           />
-        </View>
+        </ThemedView>
       ) : (
         <ThemedText style={styles.infoText}>Cargando configuración...</ThemedText>
       )}
@@ -122,7 +127,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dataContainer: {
-    backgroundColor: '#f5f5f5',
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
@@ -135,7 +139,6 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     borderRadius: 5,
     fontSize: 16,
-    backgroundColor: '#fff',
   },
   editButton: { marginTop: 10 },
 });
