@@ -51,6 +51,8 @@ const ConfigScreen: React.FC = () => {
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: background }]}>
@@ -60,30 +62,33 @@ const ConfigScreen: React.FC = () => {
           {editConfig ? (
             <>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={configForm.role}
                 onChangeText={(text) => setConfigForm({ ...configForm, role: text })}
                 placeholder="Rol"
+                placeholderTextColor={placeholderTextColor}
               />
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={configForm.view_type}
                 onChangeText={(text) => setConfigForm({ ...configForm, view_type: text })}
                 placeholder="Tipo de vista"
+                placeholderTextColor={placeholderTextColor}
               />
               <Picker
                 selectedValue={configForm.theme}
                 onValueChange={(value) => setConfigForm({ ...configForm, theme: value })}
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
               >
                 <Picker.Item label="Claro" value="light" />
                 <Picker.Item label="Oscuro" value="dark" />
               </Picker>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={configForm.font_size}
                 onChangeText={(text) => setConfigForm({ ...configForm, font_size: text })}
                 placeholder="Tamaño de fuente"
+                placeholderTextColor={placeholderTextColor}
               />
               <ThemedButton
                 title="Guardar Configuración"

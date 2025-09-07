@@ -43,6 +43,8 @@ export default function ProfileScreen(): JSX.Element {
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: background }]}>
@@ -63,29 +65,33 @@ export default function ProfileScreen(): JSX.Element {
           {editProfile ? (
             <>
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={profileForm.full_name}
                 onChangeText={(text) => setProfileForm({ ...profileForm, full_name: text })}
                 placeholder="Nombre completo"
+                placeholderTextColor={placeholderTextColor}
               />
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={profileForm.phone}
                 onChangeText={(text) => setProfileForm({ ...profileForm, phone: text })}
                 placeholder="Teléfono"
+                placeholderTextColor={placeholderTextColor}
                 keyboardType="phone-pad"
               />
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={profileForm.address}
                 onChangeText={(text) => setProfileForm({ ...profileForm, address: text })}
                 placeholder="Dirección"
+                placeholderTextColor={placeholderTextColor}
               />
               <TextInput
-                style={[styles.input, { backgroundColor: inputBackground }]}
+                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
                 value={profileForm.cuit}
                 onChangeText={(text) => setProfileForm({ ...profileForm, cuit: text })}
                 placeholder="CUIT"
+                placeholderTextColor={placeholderTextColor}
                 keyboardType="numeric"
               />
               <ThemedButton
