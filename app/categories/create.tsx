@@ -2,7 +2,6 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -15,6 +14,8 @@ import { useRouter } from 'expo-router';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { getDisplayCategories } from '@/utils/categories';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateCategory() {
   const router = useRouter();
@@ -25,6 +26,15 @@ export default function CreateCategory() {
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories),
@@ -59,28 +69,36 @@ export default function CreateCategory() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Nombre</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Nombre" />
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Nombre</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={name}
+        onChangeText={setName}
+        placeholder="Nombre"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Tipo</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Tipo</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={type}
           onValueChange={(val) => setType(val as 'income' | 'expense')}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="Ingreso" value="income" />
           <Picker.Item label="Gasto" value="expense" />
         </Picker>
       </View>
 
-      <Text style={styles.label}>Categoría padre</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Categoría padre</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={parentId}
           onValueChange={setParentId}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Sin padre --" value="" />
           {displayCategories.map(c => (
@@ -93,25 +111,31 @@ export default function CreateCategory() {
         </Picker>
       </View>
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Categoría</Text>}
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: buttonColor }]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={buttonTextColor} />
+        ) : (
+          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear Categoría</ThemedText>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });
