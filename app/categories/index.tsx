@@ -2,7 +2,6 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import {
   View,
-  Text,
   FlatList,
   TouchableOpacity,
   TextInput,
@@ -14,6 +13,9 @@ import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { CategoriesContext, Category } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CategoriesScreen() {
   const { categories, loadCategories, deleteCategory } = useContext(CategoriesContext);
@@ -21,6 +23,14 @@ export default function CategoriesScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const spinnerColor = useThemeColor({}, 'tint');
+  const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
 
   useEffect(() => {
     if (!permissions.includes('listCategories')) {
@@ -80,22 +90,22 @@ export default function CategoriesScreen() {
 
   const renderItem = ({ item }: { item: Category & { level: number } }) => (
     <TouchableOpacity
-      style={styles.item}
+      style={[styles.item, { borderColor: itemBorderColor }]}
       onPress={() => router.push(`/categories/viewModal?id=${item.id}`)}
       onLongPress={() => router.push(`/categories/${item.id}`)}
     >
       <View style={[styles.itemInfo, { paddingLeft: item.level * 16 }]}>
-        <Text style={[styles.name, item.level === 0 ? styles.parent : null]}>
+        <ThemedText style={[styles.name, item.level === 0 ? styles.parent : null]}>
           {item.name}
-        </Text>
-        <Text>{item.type}</Text>
+        </ThemedText>
+        <ThemedText>{item.type}</ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? (
-            <ActivityIndicator />
+            <ActivityIndicator color={spinnerColor} />
           ) : (
-            <Text style={styles.deleteText}>🗑️</Text>
+            <ThemedText style={styles.deleteText}>🗑️</ThemedText>
           )}
         </TouchableOpacity>
       )}
@@ -103,32 +113,42 @@ export default function CategoriesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
       <TextInput
-        style={styles.search}
+        style={[
+          styles.search,
+          {
+            backgroundColor: inputBackground,
+            color: inputTextColor,
+            borderColor: borderColor,
+          },
+        ]}
         placeholder="Buscar categoría..."
         value={search}
         onChangeText={setSearch}
+        placeholderTextColor={placeholderColor}
       />
       <FlatList
         data={displayCategories}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No se encontraron categorías</Text>}
+        ListEmptyComponent={
+          <ThemedText style={styles.empty}>No se encontraron categorías</ThemedText>
+        }
       />
       {canAdd && (
         <TouchableOpacity style={styles.addButton} onPress={() => router.push('/categories/create')}>
-          <Text style={styles.addText}>➕ Agregar Categoría</Text>
+          <ThemedText style={styles.addText}>➕ Agregar Categoría</ThemedText>
         </TouchableOpacity>
       )}
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#eee' },
+  container: { flex: 1, padding: 16 },
+  search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   name: { fontSize: 16 },
   parent: { fontWeight: 'bold' },
