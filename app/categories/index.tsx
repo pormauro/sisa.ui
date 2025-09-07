@@ -154,7 +154,15 @@ const styles = StyleSheet.create({
   parent: { fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#007BFF', padding: 16, borderRadius: 50, alignItems: 'center' },
-  addText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  addButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 32,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 50,
+    alignItems: 'center',
+  },
+  addText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });
