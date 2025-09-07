@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 
@@ -19,6 +22,8 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect }) => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
 
   useEffect(() => {
     if (!token) return;
@@ -56,27 +61,27 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Selecciona un usuario:</Text>
-      <TouchableOpacity style={styles.selector} onPress={() => setModalVisible(true)}>
-        <Text>{selectedProfile ? selectedProfile.username : 'Elegir usuario...'}</Text>
+      <ThemedText style={styles.label}>Selecciona un usuario:</ThemedText>
+      <TouchableOpacity style={[styles.selector, { borderColor }]} onPress={() => setModalVisible(true)}>
+        <ThemedText>{selectedProfile ? selectedProfile.username : 'Elegir usuario...'}</ThemedText>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <ThemedView style={styles.modalContent} lightColor="#fff" darkColor="#1e1e1e">
             <FlatList
               data={profiles}
               keyExtractor={item => item.id.toString()}
               renderItem={({ item }) => (
                 <Pressable onPress={() => handleSelect(item)} style={styles.item}>
-                  <Text>{item.username}</Text>
+                  <ThemedText>{item.username}</ThemedText>
                 </Pressable>
               )}
             />
             <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.cancelButton}>
-              <Text style={{ color: 'white' }}>Cancelar</Text>
+              <ThemedText style={{ color: 'white' }}>Cancelar</ThemedText>
             </TouchableOpacity>
-          </View>
+          </ThemedView>
         </View>
       </Modal>
     </View>
@@ -104,7 +109,6 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     marginHorizontal: 30,
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 10,
     maxHeight: '70%',
