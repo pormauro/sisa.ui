@@ -1,13 +1,15 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Button, TextInput, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, StyleSheet, ScrollView, TextInput } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ProfileContext, ProfileForm } from '@/contexts/ProfileContext';
 import globalStyles from '@/styles/GlobalStyles';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedButton } from '@/components/ThemedButton';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ProfileScreen(): JSX.Element {
-  const router = useRouter();
   // Ahora extraemos email desde AuthContext
   const { username, email, logout } = useContext(AuthContext);
   const { profileDetails, loadProfile, updateProfile, updateImage, deleteAccount } = useContext(ProfileContext)!;
@@ -39,51 +41,54 @@ export default function ProfileScreen(): JSX.Element {
     }
   }, [profileDetails]);
 
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+
   return (
-    <ScrollView style={{ flex: 1, padding: 20 }}>
-      <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>Perfil</Text>
+    <ScrollView style={[styles.container, { backgroundColor: background }]}>
+      <ThemedText style={styles.subtitle}>Perfil</ThemedText>
 
       {profileDetails ? (
-        <View style={{ backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, marginBottom: 20 }}>
+        <ThemedView style={styles.dataContainer} lightColor="#f5f5f5" darkColor="#1e1e1e">
           <CircleImagePicker
             fileId={profileDetails.profile_file_id}
             editable={true}
             size={200}
-            onImageChange={newFileId => updateImage(newFileId, profileForm)}
+            onImageChange={(newFileId) => updateImage(newFileId, profileForm)}
           />
 
-          <Text style={{ fontSize: 18, marginVertical: 5 }}>Username: {username}</Text>
-          <Text style={{ fontSize: 18, marginVertical: 5 }}>Email: {email}</Text>
+          <ThemedText style={styles.infoText}>Username: {username}</ThemedText>
+          <ThemedText style={styles.infoText}>Email: {email}</ThemedText>
 
           {editProfile ? (
             <>
               <TextInput
-                style={{ borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 5, backgroundColor: '#fff' }}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={profileForm.full_name}
-                onChangeText={text => setProfileForm({ ...profileForm, full_name: text })}
+                onChangeText={(text) => setProfileForm({ ...profileForm, full_name: text })}
                 placeholder="Nombre completo"
               />
               <TextInput
-                style={{ borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 5, backgroundColor: '#fff' }}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={profileForm.phone}
-                onChangeText={text => setProfileForm({ ...profileForm, phone: text })}
+                onChangeText={(text) => setProfileForm({ ...profileForm, phone: text })}
                 placeholder="Teléfono"
                 keyboardType="phone-pad"
               />
               <TextInput
-                style={{ borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 5, backgroundColor: '#fff' }}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={profileForm.address}
-                onChangeText={text => setProfileForm({ ...profileForm, address: text })}
+                onChangeText={(text) => setProfileForm({ ...profileForm, address: text })}
                 placeholder="Dirección"
               />
               <TextInput
-                style={{ borderWidth: 1, padding: 10, marginVertical: 8, borderRadius: 5, backgroundColor: '#fff' }}
+                style={[styles.input, { backgroundColor: inputBackground }]}
                 value={profileForm.cuit}
-                onChangeText={text => setProfileForm({ ...profileForm, cuit: text })}
+                onChangeText={(text) => setProfileForm({ ...profileForm, cuit: text })}
                 placeholder="CUIT"
                 keyboardType="numeric"
               />
-              <Button
+              <ThemedButton
                 title="Guardar Perfil"
                 onPress={() => {
                   void updateProfile(profileForm);
@@ -93,28 +98,46 @@ export default function ProfileScreen(): JSX.Element {
             </>
           ) : (
             <>
-              <Text style={{ fontSize: 18, marginVertical: 5 }}>Nombre: {profileDetails.full_name}</Text>
-              <Text style={{ fontSize: 18, marginVertical: 5 }}>Teléfono: {profileDetails.phone}</Text>
-              <Text style={{ fontSize: 18, marginVertical: 5 }}>Dirección: {profileDetails.address}</Text>
-              <Text style={{ fontSize: 18, marginVertical: 5 }}>CUIT: {profileDetails.cuit}</Text>
-              <TouchableOpacity
-                style={{ backgroundColor: '#007BFF', borderRadius: 10, padding: 15, marginTop: 10, alignItems: 'center' }}
-                onPress={() => setEditProfile(true)}
-              >
-                <Text style={{ color: '#fff', fontSize: 18 }}>Editar Perfil</Text>
-              </TouchableOpacity>
+              <ThemedText style={styles.infoText}>Nombre: {profileDetails.full_name}</ThemedText>
+              <ThemedText style={styles.infoText}>Teléfono: {profileDetails.phone}</ThemedText>
+              <ThemedText style={styles.infoText}>Dirección: {profileDetails.address}</ThemedText>
+              <ThemedText style={styles.infoText}>CUIT: {profileDetails.cuit}</ThemedText>
+              <ThemedButton title="Editar Perfil" onPress={() => setEditProfile(true)} style={styles.editButton} />
             </>
           )}
-        </View>
+        </ThemedView>
       ) : (
-        <Text style={{ fontSize: 18, marginVertical: 5 }}>Cargando perfil...</Text>
+        <ThemedText style={styles.infoText}>Cargando perfil...</ThemedText>
       )}
       <View style={globalStyles.button}>
-        <Button title="Eliminar Cuenta" onPress={deleteAccount} color="red" />
+        <ThemedButton title="Eliminar Cuenta" onPress={deleteAccount} lightColor="#d9534f" darkColor="#d9534f" />
       </View>
       <View style={globalStyles.button}>
-        <Button title="Cerrar Sesión" onPress={logout} />
+        <ThemedButton title="Cerrar Sesión" onPress={logout} />
       </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 20 },
+  subtitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  dataContainer: {
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  infoText: { fontSize: 18, marginVertical: 5 },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginVertical: 8,
+    borderRadius: 5,
+    fontSize: 16,
+  },
+  editButton: { marginTop: 10 },
+});
