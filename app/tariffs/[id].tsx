@@ -1,9 +1,18 @@
 // app/tariffs/[id].tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function EditTariff() {
   const router = useRouter();
@@ -29,7 +38,7 @@ export default function EditTariff() {
     }
     setName(tariff.name);
     setAmount(String(tariff.amount));
-  }, [tariff]);
+  }, [tariff, router]);
 
   const handleSubmit = async () => {
     if (!canEdit) {
@@ -73,34 +82,61 @@ export default function EditTariff() {
     ]);
   };
 
+  const background = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'text');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#ff6b6b' }, 'button');
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Nombre</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
+      <ThemedText style={styles.label}>Nombre</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
         value={name}
         onChangeText={setName}
         editable={canEdit}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Monto</Text>
+      <ThemedText style={styles.label}>Monto</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
         value={amount}
         onChangeText={setAmount}
         keyboardType="numeric"
         editable={canEdit}
+        placeholderTextColor={placeholderColor}
       />
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Guardar Cambios</Text>}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Guardar Cambios</ThemedText>
+          )}
         </TouchableOpacity>
       )}
 
       {canDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Eliminar</Text>}
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: deleteButtonColor }]}
+          onPress={handleDelete}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.deleteButtonText, { color: buttonTextColor }]}>Eliminar</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -108,11 +144,11 @@ export default function EditTariff() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#007BFF', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
-  deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
+  deleteButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  deleteButtonText: { fontSize: 16, fontWeight: 'bold' },
 });

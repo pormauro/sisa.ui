@@ -1,10 +1,22 @@
 // app/tariffs/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import {
+  FlatList,
+  TouchableOpacity,
+  View,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { TariffsContext, Tariff } from '@/contexts/TariffsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedButton } from '@/components/ThemedButton';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function TariffsScreen() {
   const { tariffs, loadTariffs, deleteTariff } = useContext(TariffsContext);
@@ -20,11 +32,11 @@ export default function TariffsScreen() {
     } else {
       loadTariffs();
     }
-  }, [permissions]);
+  }, [permissions, loadTariffs, router]);
 
-  const fuse = new Fuse(tariffs, { keys: ['name'] });
   const filteredTariffs = useMemo(() => {
     if (!search) return tariffs;
+    const fuse = new Fuse(tariffs, { keys: ['name'] });
     const result = fuse.search(search);
     return result.map(r => r.item);
   }, [search, tariffs]);
@@ -50,29 +62,44 @@ export default function TariffsScreen() {
     ]);
   };
 
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'text');
+  const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+
   const renderItem = ({ item }: { item: Tariff }) => (
     <TouchableOpacity
-      style={styles.item}
+      style={[styles.item, { borderColor: itemBorderColor }]}
       onPress={() => router.push(`/tariffs/viewModal?id=${item.id}`)}
       onLongPress={() => router.push(`/tariffs/${item.id}`)}
     >
       <View style={styles.itemInfo}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text>${item.amount}</Text>
+        <ThemedText style={styles.name}>{item.name}</ThemedText>
+        <ThemedText>${item.amount}</ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
-          {loadingId === item.id ? <ActivityIndicator /> : <Text style={styles.deleteText}>🗑️</Text>}
+          {loadingId === item.id ? (
+            <ActivityIndicator color={textColor} />
+          ) : (
+            <ThemedText style={styles.deleteText}>🗑️</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       <TextInput
-        style={styles.search}
+        style={[
+          styles.search,
+          { borderColor, backgroundColor: inputBackground, color: textColor },
+        ]}
         placeholder="Buscar tarifa..."
+        placeholderTextColor={placeholderColor}
         value={search}
         onChangeText={setSearch}
       />
@@ -80,26 +107,30 @@ export default function TariffsScreen() {
         data={filteredTariffs}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No se encontraron tarifas</Text>}
+        ListEmptyComponent={
+          <ThemedText style={styles.empty}>No se encontraron tarifas</ThemedText>
+        }
       />
       {canAdd && (
-        <TouchableOpacity style={styles.addButton} onPress={() => router.push('/tariffs/create')}>
-          <Text style={styles.addText}>➕ Agregar Tarifa</Text>
-        </TouchableOpacity>
+        <ThemedButton
+          title="➕ Agregar Tarifa"
+          onPress={() => router.push('/tariffs/create')}
+          style={styles.addButton}
+          textStyle={{ color: buttonTextColor, fontSize: 16, fontWeight: 'bold' }}
+        />
       )}
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#eee' },
+  container: { flex: 1, padding: 16 },
+  search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   name: { fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#007BFF', padding: 16, borderRadius: 50, alignItems: 'center' },
-  addText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  addButton: { position: 'absolute', right: 16, bottom: 32, borderRadius: 50, padding: 16 },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });
