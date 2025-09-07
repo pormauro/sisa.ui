@@ -1,9 +1,11 @@
 // app/statuses/[id].tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function EditStatus() {
   const router = useRouter();
@@ -19,6 +21,14 @@ export default function EditStatus() {
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [orderIndex, setOrderIndex] = useState('0');
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canEdit = permissions.includes('updateStatus');
   const canDelete = permissions.includes('deleteStatus');
@@ -93,27 +103,64 @@ export default function EditStatus() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Etiqueta</Text>
-      <TextInput style={styles.input} value={label} onChangeText={setLabel} placeholder="Etiqueta" />
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Etiqueta</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={label}
+        onChangeText={setLabel}
+        placeholder="Etiqueta"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Valor</Text>
-      <TextInput style={styles.input} value={value} onChangeText={setValue} placeholder="Valor" />
+      <ThemedText style={styles.label}>Valor</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={value}
+        onChangeText={setValue}
+        placeholder="Valor"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Color de Fondo (HEX)</Text>
-      <TextInput style={styles.input} value={backgroundColor} onChangeText={setBackgroundColor} placeholder="#ffffff" />
+      <ThemedText style={styles.label}>Color de Fondo (HEX)</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={backgroundColor}
+        onChangeText={setBackgroundColor}
+        placeholder="#ffffff"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Orden (Índice)</Text>
-      <TextInput style={styles.input} value={orderIndex} keyboardType="numeric" onChangeText={setOrderIndex} placeholder="Orden" />
+      <ThemedText style={styles.label}>Orden (Índice)</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={orderIndex}
+        keyboardType="numeric"
+        onChangeText={setOrderIndex}
+        placeholder="Orden"
+        placeholderTextColor={placeholderColor}
+      />
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar Estado</Text>}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleUpdate}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar Estado</ThemedText>
+          )}
         </TouchableOpacity>
       )}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Eliminar Estado</Text>}
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <ThemedText style={styles.deleteButtonText}>Eliminar Estado</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -121,11 +168,11 @@ export default function EditStatus() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#007BFF', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

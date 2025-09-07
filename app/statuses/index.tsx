@@ -1,11 +1,13 @@
 // app/statuses/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import Fuse from 'fuse.js';
-import { Alert as RNAlert } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function StatusesScreen() {
   const { statuses, loadStatuses, deleteStatus } = useContext(StatusesContext);
@@ -13,6 +15,16 @@ export default function StatusesScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const spinnerColor = useThemeColor({}, 'tint');
+  const addButtonColor = useThemeColor({}, 'button');
+  const addButtonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     if (!permissions.includes('listStatuses')) {
@@ -54,51 +66,65 @@ export default function StatusesScreen() {
     );
   };
 
+  const secondaryTextColor = useThemeColor({ light: '#555', dark: '#ccc' }, 'text');
+
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity
-      style={styles.itemContainer}
+      style={[styles.itemContainer, { borderColor: itemBorderColor }]}
       onPress={() => router.push(`/statuses/viewModal?id=${item.id}`)}
       onLongPress={() => router.push(`/statuses/${item.id}`)}
     >
       <View style={[styles.colorBox, { backgroundColor: item.background_color }]} />
       <View style={styles.itemContent}>
-        <Text style={styles.itemLabel}>{item.label}</Text>
-        <Text style={styles.itemValue}>{item.value}</Text>
+        <ThemedText style={styles.itemLabel}>{item.label}</ThemedText>
+        <ThemedText style={[styles.itemValue, { color: secondaryTextColor }]}>{item.value}</ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
-          {loadingId === item.id ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Eliminar</Text>}
+          {loadingId === item.id ? (
+            <ActivityIndicator color={spinnerColor} />
+          ) : (
+            <ThemedText style={styles.deleteButtonText}>Eliminar</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <TextInput
-        style={styles.searchInput}
+        style={[
+          styles.searchInput,
+          { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+        ]}
         placeholder="Buscar estados..."
         value={search}
         onChangeText={setSearch}
+        placeholderTextColor={placeholderColor}
       />
       <FlatList
         data={filteredStatuses}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.emptyText}>No se encontraron estados</Text>}
+        ListEmptyComponent={
+          <ThemedText style={styles.emptyText}>No se encontraron estados</ThemedText>
+        }
       />
-      <TouchableOpacity style={styles.addButton} onPress={() => router.push('/statuses/create')}>
-        <Text style={styles.addButtonText}>Agregar Estado</Text>
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: addButtonColor }]}
+        onPress={() => router.push('/statuses/create')}
+      >
+        <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>Agregar Estado</ThemedText>
       </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  container: { flex: 1, padding: 16 },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
@@ -108,7 +134,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: '#eee',
   },
   colorBox: {
     width: 40,
@@ -125,7 +150,6 @@ const styles = StyleSheet.create({
   },
   itemValue: {
     fontSize: 14,
-    color: '#555',
   },
   deleteButton: {
     backgroundColor: '#dc3545',
@@ -139,13 +163,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 32,
-    backgroundColor: '#007BFF',
     padding: 16,
     borderRadius: 50,
     alignItems: 'center',
   },
   addButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },

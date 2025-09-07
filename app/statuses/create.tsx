@@ -1,9 +1,11 @@
 // app/statuses/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateStatus() {
   const router = useRouter();
@@ -15,6 +17,14 @@ export default function CreateStatus() {
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [orderIndex, setOrderIndex] = useState('0');
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     if (!permissions.includes('addStatus')) {
@@ -45,51 +55,63 @@ export default function CreateStatus() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Etiqueta</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Etiqueta</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Etiqueta del estado"
         value={label}
         onChangeText={setLabel}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Valor</Text>
+      <ThemedText style={styles.label}>Valor</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Valor del estado"
         value={value}
         onChangeText={setValue}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Color de Fondo (HEX)</Text>
+      <ThemedText style={styles.label}>Color de Fondo (HEX)</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="#ffffff"
         value={backgroundColor}
         onChangeText={setBackgroundColor}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Orden (Índice)</Text>
+      <ThemedText style={styles.label}>Orden (Índice)</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Orden de visualización"
         value={orderIndex}
         keyboardType="numeric"
         onChangeText={setOrderIndex}
+        placeholderTextColor={placeholderColor}
       />
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Estado</Text>}
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: buttonColor }]} 
+        onPress={handleSubmit} 
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={buttonTextColor} />
+        ) : (
+          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear Estado</ThemedText>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });
