@@ -1,15 +1,25 @@
 // app/providers/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateProvider() {
   const router = useRouter();
   const { addProvider } = useContext(ProvidersContext);
   const { permissions } = useContext(PermissionsContext);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const [businessName, setBusinessName] = useState('');
   const [taxId, setTaxId] = useState('');
@@ -50,8 +60,8 @@ export default function CreateProvider() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen del Proveedor</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Imagen del Proveedor</ThemedText>
       <CircleImagePicker
         fileId={brandFileId}
         editable={true}
@@ -59,32 +69,70 @@ export default function CreateProvider() {
         onImageChange={setBrandFileId}
       />
 
-      <Text style={styles.label}>Razón Social</Text>
-      <TextInput style={styles.input} value={businessName} onChangeText={setBusinessName} placeholder="Nombre" />
+      <ThemedText style={styles.label}>Razón Social</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={businessName}
+        onChangeText={setBusinessName}
+        placeholder="Nombre"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>CUIT</Text>
-      <TextInput style={styles.input} value={taxId} onChangeText={setTaxId} placeholder="CUIT" />
+      <ThemedText style={styles.label}>CUIT</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={taxId}
+        onChangeText={setTaxId}
+        placeholder="CUIT"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" />
+      <ThemedText style={styles.label}>Email</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Teléfono</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Teléfono" />
+      <ThemedText style={styles.label}>Teléfono</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={phone}
+        onChangeText={setPhone}
+        placeholder="Teléfono"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Dirección</Text>
-      <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Dirección" />
+      <ThemedText style={styles.label}>Dirección</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={address}
+        onChangeText={setAddress}
+        placeholder="Dirección"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Proveedor</Text>}
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: buttonColor }]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={buttonTextColor} />
+        ) : (
+          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear Proveedor</ThemedText>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });
