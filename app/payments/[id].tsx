@@ -3,7 +3,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -23,6 +22,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -56,6 +58,15 @@ export default function PaymentDetailPage() {
   const [chargeClientId, setChargeClientId] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories, 'expense'),
@@ -99,9 +110,9 @@ export default function PaymentDetailPage() {
 
   if (!payment) {
     return (
-      <View style={styles.container}>
-        <Text>Pago no encontrado</Text>
-      </View>
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
+        <ThemedText>Pago no encontrado</ThemedText>
+      </ThemedView>
     );
   }
 
@@ -168,15 +179,15 @@ export default function PaymentDetailPage() {
     ]);
   };
 
-    return (
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.label}>Fecha y hora</Text>
+  return (
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+        <ThemedText style={styles.label}>Fecha y hora</ThemedText>
         <TouchableOpacity
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
           onPress={() => canEdit && setShowDatePicker(true)}
           disabled={!canEdit}
         >
-          <Text>{toMySQLDateTime(paymentDate)}</Text>
+          <ThemedText style={{ color: inputTextColor }}>{toMySQLDateTime(paymentDate)}</ThemedText>
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -217,12 +228,13 @@ export default function PaymentDetailPage() {
           />
         )}
 
-        <Text style={styles.label}>Cuenta utilizada</Text>
-        <View style={styles.pickerWrap}>
+        <ThemedText style={styles.label}>Cuenta utilizada</ThemedText>
+        <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={paidWithAccount}
           onValueChange={setPaidWithAccount}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona cuenta --" value="" />
           {cashBoxes.map(cb => (
@@ -231,12 +243,13 @@ export default function PaymentDetailPage() {
         </Picker>
       </View>
 
-      <Text style={styles.label}>Tipo de acreedor</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Tipo de acreedor</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={creditorType}
           onValueChange={(val) => setCreditorType(val as any)}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="Cliente" value="client" />
           <Picker.Item label="Proveedor" value="provider" />
@@ -246,12 +259,13 @@ export default function PaymentDetailPage() {
 
       {creditorType === 'client' && (
         <>
-          <Text style={styles.label}>Cliente</Text>
-          <View style={styles.pickerWrap}>
+          <ThemedText style={styles.label}>Cliente</ThemedText>
+          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={creditorClientId}
               onValueChange={setCreditorClientId}
-              style={styles.picker}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
               {clients.map(c => (
@@ -264,12 +278,13 @@ export default function PaymentDetailPage() {
 
       {creditorType === 'provider' && (
         <>
-          <Text style={styles.label}>Proveedor</Text>
-          <View style={styles.pickerWrap}>
+          <ThemedText style={styles.label}>Proveedor</ThemedText>
+          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={creditorProviderId}
               onValueChange={setCreditorProviderId}
-              style={styles.picker}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona proveedor --" value="" />
               {providers.map(p => (
@@ -282,31 +297,33 @@ export default function PaymentDetailPage() {
 
       {creditorType === 'other' && (
         <>
-          <Text style={styles.label}>Acreedor</Text>
+          <ThemedText style={styles.label}>Acreedor</ThemedText>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
             value={creditorOther}
             onChangeText={setCreditorOther}
             placeholder="Nombre del acreedor"
+            placeholderTextColor={placeholderColor}
           />
         </>
       )}
 
-      <Text style={styles.label}>Descripción</Text>
+      <ThemedText style={styles.label}>Descripción</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         value={description}
         onChangeText={setDescription}
         editable={canEdit}
       />
 
-      <Text style={styles.label}>Categoría</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Categoría</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={categoryId}
           onValueChange={setCategoryId}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
           enabled={canEdit}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona categoría --" value="" />
           {displayCategories.map(c => (
@@ -319,9 +336,9 @@ export default function PaymentDetailPage() {
         </Picker>
       </View>
 
-      <Text style={styles.label}>Precio</Text>
+      <ThemedText style={styles.label}>Precio</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         value={price}
         onChangeText={setPrice}
         keyboardType="numeric"
@@ -329,19 +346,20 @@ export default function PaymentDetailPage() {
       />
 
       <View style={styles.switchRow}>
-        <Text>Cobrar al cliente</Text>
+        <ThemedText>Cobrar al cliente</ThemedText>
         <Switch value={chargeClient} onValueChange={setChargeClient} disabled={!canEdit} />
       </View>
 
       {chargeClient && (
         <>
-          <Text style={styles.label}>Cliente a cobrar</Text>
-          <View style={styles.pickerWrap}>
+          <ThemedText style={styles.label}>Cliente a cobrar</ThemedText>
+          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={chargeClientId}
               onValueChange={setChargeClientId}
-              style={styles.picker}
+              style={[styles.picker, { color: inputTextColor }]}
               enabled={canEdit}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
               {clients.map(c => (
@@ -355,13 +373,13 @@ export default function PaymentDetailPage() {
       <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable={canEdit} />
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar</Text>}
+        <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate} disabled={loading}>
+          {loading ? <ActivityIndicator color={buttonTextColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar</ThemedText>}
         </TouchableOpacity>
       )}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Eliminar</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.submitButtonText}>Eliminar</ThemedText>}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -369,20 +387,17 @@ export default function PaymentDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
-    backgroundColor: '#007bff',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -394,7 +409,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
