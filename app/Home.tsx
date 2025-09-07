@@ -2,7 +2,10 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useRouter } from 'expo-router';
 import React, { useContext } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface MenuItem {
   title: string;
@@ -45,17 +48,20 @@ const Menu: React.FC = () => {
   // Filtramos el array de elementos para mostrar solo los habilitados.
   const visibleMenuItems = menuItems.filter(isEnabled);
 
+  const backgroundColor = useThemeColor({}, 'background');
+  const tintColor = useThemeColor({}, 'tint');
+
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }] }>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Menú Principal</Text>
+        <ThemedText style={styles.title}>Menú Principal</ThemedText>
         {visibleMenuItems.map((item: MenuItem, index: number) => (
           <TouchableOpacity
             key={index}
-            style={styles.menuItem}
+            style={[styles.menuItem, { backgroundColor: tintColor }]}
             onPress={() => router.push(item.route as any)}
           >
-            <Text style={styles.menuText}>{item.title}</Text>
+            <ThemedText style={styles.menuText}>{item.title}</ThemedText>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -68,7 +74,6 @@ export default Menu;
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f2f2f2',
   },
   container: {
     paddingHorizontal: 30,
@@ -80,7 +85,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   menuItem: {
-    backgroundColor: '#007BFF',
     paddingVertical: 15,
     paddingHorizontal: 10,
     borderRadius: 10,
@@ -88,7 +92,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuText: {
-    color: 'white',
     fontSize: 18,
   },
 });
