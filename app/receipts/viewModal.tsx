@@ -1,11 +1,13 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext } from 'react';
-import { ScrollView, View, Text, StyleSheet, Button } from 'react-native';
+import { ScrollView, View, StyleSheet, Button } from 'react-native';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 import FileGallery from '@/components/FileGallery';
 
 export default function ViewReceiptModal() {
@@ -18,11 +20,13 @@ export default function ViewReceiptModal() {
   const { categories } = useContext(CategoriesContext);
   const { cashBoxes } = useContext(CashBoxesContext);
 
+  const background = useThemeColor({}, 'background');
+
   const receipt = receipts.find(r => r.id === receiptId);
   if (!receipt) {
     return (
-      <View style={styles.container}>
-        <Text>Recibo no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <ThemedText>Recibo no encontrado</ThemedText>
       </View>
     );
   }
@@ -59,34 +63,34 @@ export default function ViewReceiptModal() {
     receipt.paid_in_account;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Fecha</Text>
-      <Text style={styles.value}>{receipt.receipt_date}</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
+      <ThemedText style={styles.label}>Fecha</ThemedText>
+      <ThemedText style={styles.value}>{receipt.receipt_date}</ThemedText>
 
-      <Text style={styles.title}>{payerTypeLabel}</Text>
-      <Text style={styles.name}>{payerName}</Text>
+      <ThemedText style={styles.title}>{payerTypeLabel}</ThemedText>
+      <ThemedText style={styles.name}>{payerName}</ThemedText>
 
-      <Text style={styles.label}>Descripción</Text>
-      <Text style={styles.value}>{receipt.description || 'Sin descripción'}</Text>
+      <ThemedText style={styles.label}>Descripción</ThemedText>
+      <ThemedText style={styles.value}>{receipt.description || 'Sin descripción'}</ThemedText>
 
-      <Text style={styles.label}>Categoría</Text>
-      <Text style={styles.value}>{category?.name || 'Sin categoría'}</Text>
+      <ThemedText style={styles.label}>Categoría</ThemedText>
+      <ThemedText style={styles.value}>{category?.name || 'Sin categoría'}</ThemedText>
 
-      <Text style={styles.label}>Cuenta</Text>
-      <Text style={styles.value}>{accountName}</Text>
+      <ThemedText style={styles.label}>Cuenta</ThemedText>
+      <ThemedText style={styles.value}>{accountName}</ThemedText>
 
-      <Text style={styles.label}>Total</Text>
-      <Text style={styles.value}>${receipt.price}</Text>
+      <ThemedText style={styles.label}>Total</ThemedText>
+      <ThemedText style={styles.value}>${receipt.price}</ThemedText>
 
       {filesJson ? (
         <>
-          <Text style={styles.label}>Archivos</Text>
+          <ThemedText style={styles.label}>Archivos</ThemedText>
           <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} />
         </>
       ) : null}
 
-      <Text style={styles.label}>ID</Text>
-      <Text style={styles.value}>{receipt.id}</Text>
+      <ThemedText style={styles.label}>ID</ThemedText>
+      <ThemedText style={styles.value}>{receipt.id}</ThemedText>
 
       <View style={styles.editButton}>
         <Button title="Editar" onPress={() => router.push(`/receipts/${receipt.id}`)} />
@@ -96,7 +100,7 @@ export default function ViewReceiptModal() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
   title: { marginTop: 8, fontSize: 20, fontWeight: 'bold' },
