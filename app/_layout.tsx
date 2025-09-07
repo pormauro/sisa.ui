@@ -20,10 +20,15 @@ import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { useThemeColor } from '@/hooks/useThemeColor';
+
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
   const router = useRouter();
+  const backgroundColor = useThemeColor({}, 'background');
+  const spinnerColor = useThemeColor({}, 'tint');
 
   useEffect(() => {
     if (!isLoading) {
@@ -37,8 +42,8 @@ function RootLayoutContent() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ffffff" />
+      <View style={[styles.loadingContainer, { backgroundColor }]}>
+        <ActivityIndicator size="large" color={spinnerColor} />
       </View>
     );
   }
@@ -67,34 +72,36 @@ export default function RootLayout() {
             <ProfilesProvider>
               <ProfilesListProvider>
                 <ConfigProvider>
-                  <CashBoxesProvider>
-                  <ClientsProvider>
-                    <ProvidersProvider>
-                      <CategoriesProvider>
-                        <ProductsServicesProvider>
-                          <StatusesProvider>
-                            <TariffsProvider>
-                              <JobsProvider>
-                                <PaymentsProvider>
-                                  <ReceiptsProvider>
-                                    <FoldersProvider>
-                                      <RootLayoutContent />
-                                    </FoldersProvider>
-                                  </ReceiptsProvider>
-                                </PaymentsProvider>
-                              </JobsProvider>
-                            </TariffsProvider>
-                          </StatusesProvider>
-                        </ProductsServicesProvider>
-                      </CategoriesProvider>
-                    </ProvidersProvider>
-                  </ClientsProvider>
-                </CashBoxesProvider>
-              </ConfigProvider>
-            </ProfilesListProvider>
-          </ProfilesProvider>
-        </ProfileProvider>
-        </FilesProvider>
+                  <ThemeProvider>
+                    <CashBoxesProvider>
+                      <ClientsProvider>
+                        <ProvidersProvider>
+                          <CategoriesProvider>
+                            <ProductsServicesProvider>
+                              <StatusesProvider>
+                                <TariffsProvider>
+                                  <JobsProvider>
+                                    <PaymentsProvider>
+                                      <ReceiptsProvider>
+                                        <FoldersProvider>
+                                          <RootLayoutContent />
+                                        </FoldersProvider>
+                                      </ReceiptsProvider>
+                                    </PaymentsProvider>
+                                  </JobsProvider>
+                                </TariffsProvider>
+                              </StatusesProvider>
+                            </ProductsServicesProvider>
+                          </CategoriesProvider>
+                        </ProvidersProvider>
+                      </ClientsProvider>
+                    </CashBoxesProvider>
+                  </ThemeProvider>
+                </ConfigProvider>
+              </ProfilesListProvider>
+            </ProfilesProvider>
+          </ProfileProvider>
+          </FilesProvider>
       </PermissionsProvider>
     </AuthProvider>
   );
@@ -103,7 +110,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#2f273e',
     justifyContent: 'center',
     alignItems: 'center',
   },
