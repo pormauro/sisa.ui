@@ -1,5 +1,6 @@
 // @/styles/MenuStyles.ts
 import { StyleSheet } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 export const menuStyles = StyleSheet.create({
   menuContainer: {
@@ -14,7 +15,7 @@ export const menuStyles = StyleSheet.create({
     textAlign: 'center',
   },
   menuItem: {
-    backgroundColor: '#007BFF',
+    backgroundColor: Colors.light.button,
     paddingVertical: 15,
     paddingHorizontal: 10,
     borderRadius: 10,
@@ -22,7 +23,7 @@ export const menuStyles = StyleSheet.create({
     alignItems: 'center',
   },
   menuText: {
-    color: 'white',
+    color: Colors.light.buttonText,
     fontSize: 18,
   },
 });
