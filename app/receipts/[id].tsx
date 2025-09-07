@@ -3,7 +3,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -23,6 +22,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -55,6 +57,15 @@ export default function ReceiptDetailPage() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories, 'income'),
@@ -100,9 +111,9 @@ export default function ReceiptDetailPage() {
 
   if (!receipt) {
     return (
-      <View style={styles.container}>
-        <Text>Recibo no encontrado</Text>
-      </View>
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
+        <ThemedText>Recibo no encontrado</ThemedText>
+      </ThemedView>
     );
   }
 
@@ -167,15 +178,15 @@ export default function ReceiptDetailPage() {
     ]);
   };
 
-    return (
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.label}>Fecha y hora</Text>
+  return (
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+        <ThemedText style={styles.label}>Fecha y hora</ThemedText>
         <TouchableOpacity
-          style={styles.input}
+          style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
           onPress={() => canEdit && setShowDatePicker(true)}
           disabled={!canEdit}
         >
-          <Text>{toMySQLDateTime(receiptDate)}</Text>
+          <ThemedText style={{ color: inputTextColor }}>{toMySQLDateTime(receiptDate)}</ThemedText>
         </TouchableOpacity>
         {showDatePicker && (
           <DateTimePicker
@@ -216,12 +227,13 @@ export default function ReceiptDetailPage() {
           />
         )}
 
-        <Text style={styles.label}>Cuenta de ingreso</Text>
-        <View style={styles.pickerWrap}>
+        <ThemedText style={styles.label}>Cuenta de ingreso</ThemedText>
+        <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={paidInAccount}
           onValueChange={setPaidInAccount}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona cuenta --" value="" />
           {cashBoxes.map(cb => (
@@ -230,12 +242,13 @@ export default function ReceiptDetailPage() {
         </Picker>
       </View>
 
-      <Text style={styles.label}>Tipo de pagador</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Tipo de pagador</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={payerType}
           onValueChange={(val) => setPayerType(val as any)}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="Cliente" value="client" />
           <Picker.Item label="Proveedor" value="provider" />
@@ -245,12 +258,13 @@ export default function ReceiptDetailPage() {
 
       {payerType === 'client' && (
         <>
-          <Text style={styles.label}>Cliente</Text>
-          <View style={styles.pickerWrap}>
+          <ThemedText style={styles.label}>Cliente</ThemedText>
+          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={payerClientId}
               onValueChange={setPayerClientId}
-              style={styles.picker}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
               {clients.map(c => (
@@ -263,12 +277,13 @@ export default function ReceiptDetailPage() {
 
       {payerType === 'provider' && (
         <>
-          <Text style={styles.label}>Proveedor</Text>
-          <View style={styles.pickerWrap}>
+          <ThemedText style={styles.label}>Proveedor</ThemedText>
+          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={payerProviderId}
               onValueChange={setPayerProviderId}
-              style={styles.picker}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona proveedor --" value="" />
               {providers.map(p => (
@@ -281,25 +296,27 @@ export default function ReceiptDetailPage() {
 
       {payerType === 'other' && (
         <>
-          <Text style={styles.label}>Pagador</Text>
+          <ThemedText style={styles.label}>Pagador</ThemedText>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
             value={payerOther}
             onChangeText={setPayerOther}
             placeholder="Nombre del pagador"
+            placeholderTextColor={placeholderColor}
           />
         </>
       )}
 
-      <Text style={styles.label}>Descripción</Text>
-      <TextInput style={styles.input} value={description} onChangeText={setDescription} />
+      <ThemedText style={styles.label}>Descripción</ThemedText>
+      <TextInput style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]} value={description} onChangeText={setDescription} />
 
-      <Text style={styles.label}>Categoría</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Categoría</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={categoryId}
           onValueChange={setCategoryId}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona categoría --" value="" />
           {displayCategories.map(c => (
@@ -312,22 +329,23 @@ export default function ReceiptDetailPage() {
         </Picker>
       </View>
 
-      <Text style={styles.label}>Precio</Text>
-      <TextInput style={styles.input} value={price} onChangeText={setPrice} keyboardType="numeric" />
+      <ThemedText style={styles.label}>Precio</ThemedText>
+      <TextInput style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]} value={price} onChangeText={setPrice} keyboardType="numeric" />
 
       <View style={styles.switchRow}>
-        <Text>Pagar al proveedor</Text>
+        <ThemedText>Pagar al proveedor</ThemedText>
         <Switch value={payProvider} onValueChange={setPayProvider} />
       </View>
 
       {payProvider && (
         <>
-          <Text style={styles.label}>Proveedor</Text>
-          <View style={styles.pickerWrap}>
+          <ThemedText style={styles.label}>Proveedor</ThemedText>
+          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={providerId}
               onValueChange={setProviderId}
-              style={styles.picker}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona proveedor --" value="" />
               {providers.map(p => (
@@ -341,13 +359,13 @@ export default function ReceiptDetailPage() {
       <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable={canEdit} />
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar</Text>}
+        <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate} disabled={loading}>
+          {loading ? <ActivityIndicator color={buttonTextColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar</ThemedText>}
         </TouchableOpacity>
       )}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Eliminar</Text>}
+          {loading ? <ActivityIndicator color="#fff" /> : <ThemedText style={styles.submitButtonText}>Eliminar</ThemedText>}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -355,19 +373,17 @@ export default function ReceiptDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
 });
