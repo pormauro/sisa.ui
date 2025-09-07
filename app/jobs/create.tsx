@@ -220,7 +220,8 @@ export default function CreateJobScreen() {
         <Picker
           selectedValue={selectedClient}
           onValueChange={handleClientChange}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona Cliente --" value="" />
           {clients.map(c => (
@@ -236,7 +237,8 @@ export default function CreateJobScreen() {
           selectedValue={selectedFolder}
           onValueChange={setSelectedFolder}
           enabled={!!selectedClient}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Sin carpeta --" value="" />
           {filteredFolders.map(f => (
@@ -277,7 +279,8 @@ export default function CreateJobScreen() {
               setManualAmount('');
             }
           }}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Tarifa manual --" value="" />
           {filteredTariffs.map(t => (

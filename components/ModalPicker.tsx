@@ -9,6 +9,7 @@ import {
   FlatList,
   Image,
 } from 'react-native';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export interface ModalPickerItem {
   id: number | string;
@@ -34,6 +35,11 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
+  const textColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#999', dark: '#aaa' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const backgroundColor = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+
   // Si se pasa el objeto completo se usa; si no, se intenta hallar a partir de selectedValue (si fuera necesario)
   const computedSelectedItem = useMemo(() => {
     return selectedItem;
@@ -50,6 +56,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
       <TouchableOpacity
         style={[
           styles.selectorButton,
+          { borderColor, backgroundColor },
           computedSelectedItem && computedSelectedItem.backgroundColor
             ? { backgroundColor: computedSelectedItem.backgroundColor }
             : {},
@@ -62,13 +69,16 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
           <Text
             style={[
               styles.selectorText,
+              { color: textColor },
               computedSelectedItem.backgroundColor ? { color: '#fff' } : {},
             ]}
           >
             {computedSelectedItem.name}
           </Text>
         ) : (
-          <Text style={styles.placeholderText}>{placeholder}</Text>
+          <Text style={[styles.placeholderText, { color: placeholderColor }]}>
+            {placeholder}
+          </Text>
         )}
       </TouchableOpacity>
 
@@ -79,7 +89,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
           activeOpacity={1}
           onPress={() => setModalVisible(false)}
         >
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { backgroundColor }]}>
             <FlatList
               data={items}
               keyExtractor={(item) => item.id.toString()}
@@ -87,7 +97,10 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.itemContainer,
-                    { backgroundColor: item.backgroundColor || "#fff" },
+                    {
+                      backgroundColor: item.backgroundColor || backgroundColor,
+                      borderBottomColor: borderColor,
+                    },
                   ]}
                   onPress={() => handleSelect(item)}
                 >
@@ -100,7 +113,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
                   <Text
                     style={[
                       styles.itemText,
-                      item.backgroundColor ? { color: '#fff' } : {},
+                      { color: item.backgroundColor ? '#fff' : textColor },
                     ]}
                   >
                     {item.name}

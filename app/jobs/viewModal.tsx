@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, StyleSheet, Button } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { JobsContext } from '@/contexts/JobsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
@@ -10,6 +10,7 @@ import { ProfilesContext } from '@/contexts/ProfilesContext';
 import FileGallery from '@/components/FileGallery';
 import { formatTimeInterval } from '@/utils/time';
 import { ThemedText } from '@/components/ThemedText';
+import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ViewJobModal() {
@@ -71,7 +72,6 @@ export default function ViewJobModal() {
 
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
-  const buttonColor = useThemeColor({}, 'button');
 
   if (!job) {
     return (
@@ -166,7 +166,7 @@ export default function ViewJobModal() {
       <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>
 
       <View style={styles.editButton}>
-        <Button title="Editar" onPress={() => router.push(`/jobs/${job.id}`)} color={buttonColor} />
+        <ThemedButton title="Editar" onPress={() => router.push(`/jobs/${job.id}`)} />
       </View>
     </ScrollView>
   );
