@@ -2,11 +2,14 @@
 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Modal, FlatList } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Modal, FlatList } from 'react-native';
 import { FoldersContext, Folder } from '@/contexts/FoldersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function FolderDetailPage() {
   const router = useRouter();
@@ -22,6 +25,20 @@ export default function FolderDetailPage() {
   const [folderImageFileId, setFolderImageFileId] = useState<string | null>(null);
   const [selectingParent, setSelectingParent] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#92272f' }, 'background');
+  const deleteButtonTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
+  const modalItemHighlight = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const itemBorderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
+  const cancelButtonColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const cancelTextColor = useThemeColor({}, 'text');
+  const spinnerColor = useThemeColor({}, 'tint');
 
   const canEdit = permissions.includes('updateFolder');
   const canDelete = permissions.includes('deleteFolder');
@@ -116,56 +133,62 @@ export default function FolderDetailPage() {
 
   if (!folder)
     return (
-      <View style={styles.container}>
-        <Text>Carpeta no encontrada</Text>
-      </View>
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
+        <ThemedText>Carpeta no encontrada</ThemedText>
+      </ThemedView>
     );
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen de la carpeta</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 
+      <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>
       <CircleImagePicker fileId={folderImageFileId} editable={true} size={200} onImageChange={setFolderImageFileId} />
 
-      <Text style={styles.label}>Nombre de la carpeta</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} />
+      <ThemedText style={styles.label}>Nombre de la carpeta</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={name}
+        onChangeText={setName}
+      />
 
-      <Text style={styles.label}>Ubicación</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setSelectingParent(true)}>
-        <Text>{getFolderPath(parentId)}</Text>
+      <ThemedText style={styles.label}>Ubicación</ThemedText>
+      <TouchableOpacity style={[styles.input, { backgroundColor: inputBackground, borderColor }]} onPress={() => setSelectingParent(true)}>
+        <ThemedText style={{ color: inputTextColor }}>{getFolderPath(parentId)}</ThemedText>
       </TouchableOpacity>
 
       <Modal visible={selectingParent} animationType="slide">
-        <View style={styles.modalContainer}>
-          <Text style={styles.label}>Selecciona carpeta padre</Text>
+        <ThemedView style={[styles.modalContainer, { backgroundColor: screenBackground }]}> 
+          <ThemedText style={styles.label}>Selecciona carpeta padre</ThemedText>
           <FlatList
             data={folderTree}
             keyExtractor={(item) => `folder-${item.id}`}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.item, item.id === null && { backgroundColor: '#eee' }]}
+                style={[styles.item, { borderColor: itemBorderColor }, item.id === null && { backgroundColor: modalItemHighlight }]}
                 onPress={() => {
                   setParentId(item.id);
                   setSelectingParent(false);
                 }}>
-                <Text>{'     '.repeat(item.level)}{item.id === null ? clientName : `─ ${item.name}`}</Text>
+                <ThemedText>
+                  {'     '.repeat(item.level)}{item.id === null ? clientName : `─ ${item.name}`}
+                </ThemedText>
               </TouchableOpacity>
             )}
           />
-          <TouchableOpacity onPress={() => setSelectingParent(false)} style={styles.cancelButton}>
-            <Text style={styles.cancelText}>Cancelar</Text>
+          <TouchableOpacity onPress={() => setSelectingParent(false)} style={[styles.cancelButton, { backgroundColor: cancelButtonColor }]}>
+            <ThemedText style={[styles.cancelText, { color: cancelTextColor }]}>Cancelar</ThemedText>
           </TouchableOpacity>
-        </View>
+        </ThemedView>
       </Modal>
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar Carpeta</Text>}
+        <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate}>
+          {loading ? <ActivityIndicator color={spinnerColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar Carpeta</ThemedText>}
         </TouchableOpacity>
       )}
 
       {canDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Eliminar Carpeta</Text>}
+        <TouchableOpacity style={[styles.deleteButton, { backgroundColor: deleteButtonColor }]} onPress={handleDelete}>
+          {loading ? <ActivityIndicator color={spinnerColor} /> : <ThemedText style={[styles.deleteButtonText, { color: deleteButtonTextColor }]}>Eliminar Carpeta</ThemedText>}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -173,15 +196,15 @@ export default function FolderDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#007BFF', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
-  deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  modalContainer: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  item: { padding: 12, borderBottomWidth: 1, borderColor: '#ddd' },
-  cancelButton: { marginTop: 20, padding: 12, backgroundColor: '#ccc', borderRadius: 8, alignItems: 'center' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
+  deleteButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  deleteButtonText: { fontSize: 16, fontWeight: 'bold' },
+  modalContainer: { flex: 1, padding: 16 },
+  item: { padding: 12, borderBottomWidth: 1 },
+  cancelButton: { marginTop: 20, padding: 12, borderRadius: 8, alignItems: 'center' },
   cancelText: { fontWeight: 'bold' },
 });
