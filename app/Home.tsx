@@ -37,8 +37,8 @@ const Menu: React.FC = () => {
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
-    // Si el usuario es super, se muestran todos.
-    if (userId === '1') return true;
+    // El botón de permisos siempre está disponible para el usuario maestro.
+    if (item.route === '/permission' && userId === '1') return true;
     // Si no hay permisos requeridos, se muestra.
     if (!item.requiredPermissions) return true;
     // De lo contrario, se verifica que el usuario tenga todos los permisos requeridos.
