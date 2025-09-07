@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Button } from 'react-native';
+import { ScrollView, View, StyleSheet, Button } from 'react-native';
 import { JobsContext } from '@/contexts/JobsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
@@ -9,6 +9,8 @@ import { FoldersContext } from '@/contexts/FoldersContext';
 import { ProfilesContext } from '@/contexts/ProfilesContext';
 import FileGallery from '@/components/FileGallery';
 import { formatTimeInterval } from '@/utils/time';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ViewJobModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,107 +69,111 @@ export default function ViewJobModal() {
       : JSON.stringify(job.attached_files)
     : '';
 
+  const background = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const buttonColor = useThemeColor({}, 'button');
+
   if (!job) {
     return (
-      <View style={styles.container}>
-        <Text>Trabajo no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: background }]}> 
+        <ThemedText style={{ color: textColor }}>Trabajo no encontrado</ThemedText>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Cliente</Text>
-      <Text style={styles.value}>{client?.business_name || 'Sin cliente'}</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}> 
+      <ThemedText style={[styles.label, { color: textColor }]}>Cliente</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>{client?.business_name || 'Sin cliente'}</ThemedText>
 
       {job.description ? (
         <>
-          <Text style={styles.label}>Descripción</Text>
-          <Text style={styles.value}>{job.description}</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}>{job.description}</ThemedText>
         </>
       ) : null}
 
       {job.job_date ? (
         <>
-          <Text style={styles.label}>Fecha</Text>
-          <Text style={styles.value}>{job.job_date}</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Fecha</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}>{job.job_date}</ThemedText>
         </>
       ) : null}
 
-      <Text style={styles.label}>Hora de inicio</Text>
-      <Text style={styles.value}>{job.start_time}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Hora de inicio</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>{job.start_time}</ThemedText>
 
-      <Text style={styles.label}>Hora de fin</Text>
-      <Text style={styles.value}>{job.end_time}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Hora de fin</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>{job.end_time}</ThemedText>
 
       {interval ? (
         <>
-          <Text style={styles.label}>Intervalo</Text>
-          <Text style={styles.value}>{interval}</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Intervalo</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}>{interval}</ThemedText>
         </>
       ) : null}
 
       {job.type_of_work ? (
         <>
-          <Text style={styles.label}>Tipo de trabajo</Text>
-          <Text style={styles.value}>{job.type_of_work}</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Tipo de trabajo</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}>{job.type_of_work}</ThemedText>
         </>
       ) : null}
 
-      <Text style={styles.label}>Estado</Text>
-      <Text
+      <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
+      <ThemedText
         style={[
           styles.statusValue,
           { backgroundColor: status?.background_color || '#ccc' },
         ]}
       >
         {status?.label || 'Sin estado'}
-      </Text>
+      </ThemedText>
 
-      <Text style={styles.label}>Carpeta</Text>
-      <Text style={styles.value}>{folder?.name || 'Sin carpeta'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>{folder?.name || 'Sin carpeta'}</ThemedText>
 
-      <Text style={styles.label}>Nombre de la tarifa</Text>
-      <Text style={styles.value}>{tariff ? tariff.name : 'Tarifa manual'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Nombre de la tarifa</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>{tariff ? tariff.name : 'Tarifa manual'}</ThemedText>
 
-      <Text style={styles.label}>Monto</Text>
-      <Text style={styles.value}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Monto</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>
         {tariff ? tariff.amount : job.manual_amount ?? 'Sin monto'}
-      </Text>
+      </ThemedText>
 
       {participantNames.length ? (
         <>
-          <Text style={styles.label}>Participantes</Text>
-          <Text style={styles.value}>{participantNames.join(', ')}</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}>{participantNames.join(', ')}</ThemedText>
         </>
       ) : null}
 
       {filesJson ? (
         <>
-          <Text style={styles.label}>Archivos</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Archivos</ThemedText>
           <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} />
         </>
       ) : null}
 
       {finalCost > 0 && (
         <>
-          <Text style={styles.label}>Costo final</Text>
-          <Text style={styles.value}>${finalCost.toFixed(2)}</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Costo final</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}>${finalCost.toFixed(2)}</ThemedText>
         </>
       )}
 
-      <Text style={styles.label}>ID</Text>
-      <Text style={styles.value}>{job.id}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>ID</ThemedText>
+      <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>
 
       <View style={styles.editButton}>
-        <Button title="Editar" onPress={() => router.push(`/jobs/${job.id}`)} />
+        <Button title="Editar" onPress={() => router.push(`/jobs/${job.id}`)} color={buttonColor} />
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
   statusValue: { fontSize: 16, marginBottom: 8, color: '#fff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start' },

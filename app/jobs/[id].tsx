@@ -1,7 +1,6 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/[id].tsx
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
-  Text,
   TextInput,
   TouchableOpacity,
   Alert,
@@ -25,6 +24,9 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatTimeInterval } from '@/utils/time';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 import { AuthContext } from '@/contexts/AuthContext';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -79,6 +81,17 @@ export default function EditJobScreen() {
     const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     return diffHours > 0 && rate ? diffHours * rate : 0;
   }, [startTime, endTime, rate]);
+
+  const background = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#999', dark: '#555' }, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#aaa' }, 'text');
+  const priceColor = useThemeColor({}, 'tint');
+  const btnSaveColor = useThemeColor({}, 'button');
+  const btnTextColor = useThemeColor({}, 'buttonText');
+  const tariffInfoColor = placeholderColor;
 
   // carga inicial del job
   useEffect(() => {
@@ -259,9 +272,14 @@ export default function EditJobScreen() {
       style={{ flex: 1 }}
     >
       {/* Fecha del trabajo */}
-      <Text style={styles.label}>Fecha</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-        <Text>{jobDate || 'Selecciona fecha'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Fecha</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <ThemedText style={{ color: jobDate ? inputTextColor : placeholderColor }}>
+          {jobDate || 'Selecciona fecha'}
+        </ThemedText>
       </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
@@ -279,8 +297,8 @@ export default function EditJobScreen() {
       )}
 
       {/* Cliente */}
-      <Text style={styles.label}>Cliente *</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <ModalPicker
           items={clientItems}
           selectedItem={selectedClient}
@@ -290,8 +308,8 @@ export default function EditJobScreen() {
       </View>
 
       {/* Carpeta */}
-      <Text style={styles.label}>Carpeta</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <ModalPicker
           items={folderItems}
           selectedItem={selectedFolder}
@@ -301,8 +319,8 @@ export default function EditJobScreen() {
       </View>
 
       {/* Estado */}
-      <Text style={styles.label}>Estado</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <ModalPicker
           items={statusItems}
           selectedItem={selectedStatus}
@@ -312,15 +330,15 @@ export default function EditJobScreen() {
       </View>
 
       {/* Participantes */}
-      <Text style={styles.label}>Participantes</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
       <ParticipantsBubbles
         participants={participants}
         onChange={setParticipants}
       />
 
       {/* Tarifa */}
-      <Text style={styles.label}>Tarifa</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <ModalPicker
           items={tariffItems}
           selectedItem={selectedTariff}
@@ -337,37 +355,44 @@ export default function EditJobScreen() {
         />
       </View>
       {selectedTariffData && (
-        <Text style={styles.tariffInfo}>Última actualización: {selectedTariffData.last_update}</Text>
+        <ThemedText style={[styles.tariffInfo, { color: tariffInfoColor }]}>Última actualización: {selectedTariffData.last_update}</ThemedText>
       )}
 
       {/* Tarifa manual */}
       {selectedTariff?.id === '' && (
         <>
-          <Text style={styles.label}>Tarifa manual *</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
             value={manualAmount}
             onChangeText={setManualAmount}
             keyboardType="numeric"
             editable={canEdit}
+            placeholderTextColor={placeholderColor}
           />
         </>
       )}
 
       {/* Descripción */}
-      <Text style={styles.label}>Descripción *</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
       <TextInput
-        style={[styles.input, { height: 80 }]}
+        style={[styles.input, { height: 80, backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
         multiline
         value={description}
         onChangeText={setDescription}
         editable={canEdit}
+        placeholderTextColor={placeholderColor}
       />
 
       {/* Hora de inicio */}
-      <Text style={styles.label}>Hora inicio</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowStartPicker(true)}>
-        <Text>{startTime || 'Selecciona hora de inicio'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Hora inicio</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => setShowStartPicker(true)}
+      >
+        <ThemedText style={{ color: startTime ? inputTextColor : placeholderColor }}>
+          {startTime || 'Selecciona hora de inicio'}
+        </ThemedText>
       </TouchableOpacity>
       {showStartPicker && (
         <DateTimePicker
@@ -386,9 +411,14 @@ export default function EditJobScreen() {
       )}
 
       {/* Hora de fin */}
-      <Text style={styles.label}>Hora fin</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowEndPicker(true)}>
-        <Text>{endTime || 'Selecciona hora de fin'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Hora fin</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => setShowEndPicker(true)}
+      >
+        <ThemedText style={{ color: endTime ? inputTextColor : placeholderColor }}>
+          {endTime || 'Selecciona hora de fin'}
+        </ThemedText>
       </TouchableOpacity>
       {showEndPicker && (
         <DateTimePicker
@@ -407,15 +437,15 @@ export default function EditJobScreen() {
       )}
 
       {startTime && endTime && (
-        <Text style={styles.intervalText}>Intervalo: {timeInterval}</Text>
+        <ThemedText style={[styles.intervalText, { color: textColor }]}>Intervalo: {timeInterval}</ThemedText>
       )}
 
       {price > 0 && (
-        <Text style={styles.priceText}>Costo estimado: ${price.toFixed(2)}</Text>
+        <ThemedText style={[styles.priceText, { color: priceColor }]}>Costo estimado: ${price.toFixed(2)}</ThemedText>
       )}
 
       {/* Archivos adjuntos */}
-      <Text style={styles.label}>Archivos adjuntos</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
       <FileGallery
         filesJson={attachedFiles}
         onChangeFilesJson={setAttachedFiles}
@@ -424,10 +454,10 @@ export default function EditJobScreen() {
 
       {/* Botones */}
       {canEdit && (
-        <TouchableOpacity style={styles.btnSave} onPress={handleSubmit} disabled={loading}>
+        <TouchableOpacity style={[styles.btnSave, { backgroundColor: btnSaveColor }]} onPress={handleSubmit} disabled={loading}>
           {loading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnText}>Guardar cambios</Text>
+            ? <ActivityIndicator color={btnTextColor} />
+            : <ThemedText style={[styles.btnText, { color: btnTextColor }]}>Guardar cambios</ThemedText>
           }
         </TouchableOpacity>
       )}
@@ -435,7 +465,7 @@ export default function EditJobScreen() {
         <TouchableOpacity style={styles.btnDelete} onPress={handleDelete} disabled={loading}>
           {loading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnText}>Eliminar trabajo</Text>
+            : <ThemedText style={[styles.btnText, { color: '#fff' }]}>Eliminar trabajo</ThemedText>
           }
         </TouchableOpacity>
       )}
@@ -443,39 +473,41 @@ export default function EditJobScreen() {
   );
 
   return (
-       <FlatList
-         data={[{}]}
-         keyExtractor={() => 'form'}
-         renderItem={renderForm}
-         contentContainerStyle={styles.container}
-         keyboardShouldPersistTaps="handled"
-       // <-- Le decimos al FlatList que también re-renderice si cambia cualquiera de estos estados
-         extraData={{
-           selectedClient,
-          selectedFolder,
-          description,
-        attachedFiles,
-        jobDate,
-        startTime,
-        endTime,
-         selectedStatus,
-         selectedTariff,
-          manualAmount,
-          participants,
-        }}
-      />
+       <ThemedView style={{ flex: 1 }}>
+         <FlatList
+           data={[{}]}
+           keyExtractor={() => 'form'}
+           renderItem={renderForm}
+           contentContainerStyle={[styles.container, { backgroundColor: background }]}
+           keyboardShouldPersistTaps="handled"
+           // <-- Le decimos al FlatList que también re-renderice si cambia cualquiera de estos estados
+           extraData={{
+             selectedClient,
+            selectedFolder,
+            description,
+          attachedFiles,
+          jobDate,
+          startTime,
+          endTime,
+           selectedStatus,
+           selectedTariff,
+            manualAmount,
+            participants,
+          }}
+        />
+       </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:  { padding: 16, backgroundColor: '#f7f7f7', flexGrow: 1 },
-  label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600', color: '#333' },
-  pickerWrap: { borderWidth: 1, borderColor: '#999', borderRadius: 8, marginBottom: 12, backgroundColor: '#fff' },
-  input:      { borderWidth: 1, borderColor: '#999', borderRadius: 8, padding: 12, backgroundColor: '#fff', marginBottom: 12, color: '#000' },
-  intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
-  priceText: { textAlign: 'center', marginBottom: 12, color: '#007BFF', fontWeight: 'bold', fontSize: 16 },
-  tariffInfo: { marginBottom: 12, color: '#666' },
-  btnSave:    { marginTop: 20, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
+  container:  { padding: 16, flexGrow: 1 },
+  label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
+  pickerWrap: { borderWidth: 1, borderRadius: 8, marginBottom: 12 },
+  input:      { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  intervalText: { textAlign: 'center', marginBottom: 12 },
+  priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
+  tariffInfo: { marginBottom: 12 },
+  btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
-  btnText:    { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  btnText:    { fontSize: 16, fontWeight: 'bold' },
 });

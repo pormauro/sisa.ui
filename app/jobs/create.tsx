@@ -1,7 +1,6 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
-  Text,
   TextInput,
   TouchableOpacity,
   Alert,
@@ -26,6 +25,9 @@ import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { formatTimeInterval } from '@/utils/time';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 import { AuthContext } from '@/contexts/AuthContext';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -73,6 +75,17 @@ export default function CreateJobScreen() {
     const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     return diffHours > 0 && rate ? diffHours * rate : 0;
   }, [startTime, endTime, rate]);
+
+  const background = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#999', dark: '#555' }, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#aaa' }, 'text');
+  const priceColor = useThemeColor({}, 'tint');
+  const submitBtnColor = useThemeColor({}, 'button');
+  const submitTextColor = useThemeColor({}, 'buttonText');
+  const tariffInfoColor = placeholderColor;
 
   useEffect(() => {
     if (!permissions.includes('addJob')) {
@@ -177,9 +190,14 @@ export default function CreateJobScreen() {
       style={{ flex: 1 }}
     >
       {/* Fecha del trabajo */}
-      <Text style={styles.label}>Fecha</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-        <Text>{jobDate || 'Selecciona fecha'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Fecha</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => setShowDatePicker(true)}
+      >
+        <ThemedText style={{ color: jobDate ? inputTextColor : placeholderColor }}>
+          {jobDate || 'Selecciona fecha'}
+        </ThemedText>
       </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
@@ -197,8 +215,8 @@ export default function CreateJobScreen() {
       )}
 
       {/* Cliente */}
-      <Text style={styles.label}>Cliente *</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <Picker
           selectedValue={selectedClient}
           onValueChange={handleClientChange}
@@ -212,8 +230,8 @@ export default function CreateJobScreen() {
       </View>
 
       {/* Carpeta */}
-      <Text style={styles.label}>Carpeta</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <Picker
           selectedValue={selectedFolder}
           onValueChange={setSelectedFolder}
@@ -228,8 +246,8 @@ export default function CreateJobScreen() {
       </View>
 
       {/* Estado */}
-      <Text style={styles.label}>Estado</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <ModalPicker
           items={statusItems}
           selectedItem={selectedStatus}
@@ -239,15 +257,15 @@ export default function CreateJobScreen() {
       </View>
 
       {/* Participantes */}
-      <Text style={styles.label}>Participantes</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
       <ParticipantsBubbles
         participants={participants}
         onChange={setParticipants}
       />
 
       {/* Tarifa */}
-      <Text style={styles.label}>Tarifa</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <Picker
           selectedValue={selectedTariff}
           onValueChange={(val) => {
@@ -268,16 +286,17 @@ export default function CreateJobScreen() {
         </Picker>
       </View>
       {selectedTariffData && (
-        <Text style={styles.tariffInfo}>Última actualización: {selectedTariffData.last_update}</Text>
+        <ThemedText style={[styles.tariffInfo, { color: tariffInfoColor }]}>Última actualización: {selectedTariffData.last_update}</ThemedText>
       )}
 
       {/* Tarifa manual */}
       {selectedTariff === '' && (
         <>
-          <Text style={styles.label}>Tarifa manual *</Text>
+          <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
             placeholder="Ingresa tarifa manual"
+            placeholderTextColor={placeholderColor}
             value={manualAmount}
             onChangeText={setManualAmount}
             keyboardType="numeric"
@@ -286,19 +305,25 @@ export default function CreateJobScreen() {
       )}
 
       {/* Descripción */}
-      <Text style={styles.label}>Descripción *</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
       <TextInput
-        style={[styles.input, { height: 80 }]}
+        style={[styles.input, { height: 80, backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
         placeholder="Describe este trabajo"
+        placeholderTextColor={placeholderColor}
         value={description}
         onChangeText={setDescription}
         multiline
       />
 
       {/* Hora de inicio */}
-      <Text style={styles.label}>Hora inicio</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowStartPicker(true)}>
-        <Text>{startTime || 'Selecciona hora de inicio'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Hora inicio</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => setShowStartPicker(true)}
+      >
+        <ThemedText style={{ color: startTime ? inputTextColor : placeholderColor }}>
+          {startTime || 'Selecciona hora de inicio'}
+        </ThemedText>
       </TouchableOpacity>
       {showStartPicker && (
         <DateTimePicker
@@ -318,9 +343,14 @@ export default function CreateJobScreen() {
       )}
 
       {/* Hora de fin */}
-      <Text style={styles.label}>Hora fin</Text>
-      <TouchableOpacity style={styles.input} onPress={() => setShowEndPicker(true)}>
-        <Text>{endTime || 'Selecciona hora de fin'}</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Hora fin</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => setShowEndPicker(true)}
+      >
+        <ThemedText style={{ color: endTime ? inputTextColor : placeholderColor }}>
+          {endTime || 'Selecciona hora de fin'}
+        </ThemedText>
       </TouchableOpacity>
       {showEndPicker && (
         <DateTimePicker
@@ -340,71 +370,67 @@ export default function CreateJobScreen() {
       )}
 
       {startTime && endTime && (
-        <Text style={styles.intervalText}>Intervalo: {timeInterval}</Text>
+        <ThemedText style={[styles.intervalText, { color: textColor }]}>Intervalo: {timeInterval}</ThemedText>
       )}
 
       {price > 0 && (
-        <Text style={styles.priceText}>Costo estimado: ${price.toFixed(2)}</Text>
+        <ThemedText style={[styles.priceText, { color: priceColor }]}>Costo estimado: ${price.toFixed(2)}</ThemedText>
       )}
 
       {/* Archivos adjuntos */}
-      <Text style={styles.label}>Archivos adjuntos</Text>
+      <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
       <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
       <TouchableOpacity
-        style={styles.submitBtn}
+        style={[styles.submitBtn, { backgroundColor: submitBtnColor }]}
         onPress={handleSubmit}
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={submitTextColor} />
         ) : (
-          <Text style={styles.submitText}>Crear Trabajo</Text>
+          <ThemedText style={[styles.submitText, { color: submitTextColor }]}>Crear Trabajo</ThemedText>
         )}
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 
   return (
-    <FlatList
-      data={[{}]}
-      keyExtractor={() => 'form'}
-      renderItem={renderForm}
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-    />
+    <ThemedView style={{ flex: 1 }}>
+      <FlatList
+        data={[{}]}
+        keyExtractor={() => 'form'}
+        renderItem={renderForm}
+        contentContainerStyle={[styles.container, { backgroundColor: background }]}
+        keyboardShouldPersistTaps="handled"
+      />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#f7f7f7' },
-  label: { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600', color: '#333' },
+  container: { padding: 16 },
+  label: { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#999',
     borderRadius: 8,
     marginBottom: 12,
-    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
   input: {
     borderWidth: 1,
-    borderColor: '#999',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
-    backgroundColor: '#fff',
-    color: '#000',
   },
-  intervalText: { textAlign: 'center', marginBottom: 12, color: '#333' },
-  priceText: { textAlign: 'center', marginBottom: 12, color: '#007BFF', fontWeight: 'bold', fontSize: 16 },
-  tariffInfo: { marginBottom: 12, color: '#666' },
+  intervalText: { textAlign: 'center', marginBottom: 12 },
+  priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
+  tariffInfo: { marginBottom: 12 },
   submitBtn: {
     marginTop: 20,
-    backgroundColor: '#28a745',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  submitText: { fontSize: 16, fontWeight: 'bold' },
 });
