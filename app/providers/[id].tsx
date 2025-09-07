@@ -1,10 +1,12 @@
 // app/providers/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ProviderDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -17,6 +19,16 @@ export default function ProviderDetailPage() {
   const { providers, updateProvider, deleteProvider } = useContext(ProvidersContext);
 
   const provider = providers.find(p => p.id === providerId);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#92272f' }, 'background');
+  const deleteButtonTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
 
   const [businessName, setBusinessName] = useState('');
   const [taxId, setTaxId] = useState('');
@@ -48,8 +60,8 @@ export default function ProviderDetailPage() {
 
   if (!provider) {
     return (
-      <View style={styles.container}>
-        <Text>Proveedor no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: screenBackground }]}>
+        <ThemedText>Proveedor no encontrado</ThemedText>
       </View>
     );
   }
@@ -103,33 +115,74 @@ export default function ProviderDetailPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Imagen</ThemedText>
       <CircleImagePicker fileId={brandFileId} editable={true} size={200} onImageChange={setBrandFileId} />
 
-      <Text style={styles.label}>Razón Social</Text>
-      <TextInput style={styles.input} value={businessName} onChangeText={setBusinessName} />
+      <ThemedText style={styles.label}>Razón Social</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={businessName}
+        onChangeText={setBusinessName}
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>CUIT</Text>
-      <TextInput style={styles.input} value={taxId} onChangeText={setTaxId} />
+      <ThemedText style={styles.label}>CUIT</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={taxId}
+        onChangeText={setTaxId}
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Email</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} />
+      <ThemedText style={styles.label}>Email</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={email}
+        onChangeText={setEmail}
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Teléfono</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} />
+      <ThemedText style={styles.label}>Teléfono</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={phone}
+        onChangeText={setPhone}
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Dirección</Text>
-      <TextInput style={styles.input} value={address} onChangeText={setAddress} />
+      <ThemedText style={styles.label}>Dirección</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={address}
+        onChangeText={setAddress}
+        placeholderTextColor={placeholderColor}
+      />
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar</Text>}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleUpdate}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar</ThemedText>
+          )}
         </TouchableOpacity>
       )}
       {canDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Eliminar</Text>}
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: deleteButtonColor }]}
+          onPress={handleDelete}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={deleteButtonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: deleteButtonTextColor }]}>Eliminar</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -137,10 +190,10 @@ export default function ProviderDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
-  deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  deleteButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });

@@ -1,8 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext } from 'react';
-import { ScrollView, View, Text, StyleSheet, Button } from 'react-native';
+import { ScrollView, View, StyleSheet, Button } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ViewProviderModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -12,51 +14,53 @@ export default function ViewProviderModal() {
 
   const provider = providers.find(p => p.id === providerId);
 
+  const background = useThemeColor({}, 'background');
+
   if (!provider) {
     return (
-      <View style={styles.container}>
-        <Text>Proveedor no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <ThemedText>Proveedor no encontrado</ThemedText>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
       <CircleImagePicker fileId={provider.brand_file_id} size={200} editable={false} />
 
-      <Text style={styles.label}>Nombre</Text>
-      <Text style={styles.value}>{provider.business_name}</Text>
+      <ThemedText style={styles.label}>Nombre</ThemedText>
+      <ThemedText style={styles.value}>{provider.business_name}</ThemedText>
 
       {provider.tax_id ? (
         <>
-          <Text style={styles.label}>Tax ID</Text>
-          <Text style={styles.value}>{provider.tax_id}</Text>
+          <ThemedText style={styles.label}>Tax ID</ThemedText>
+          <ThemedText style={styles.value}>{provider.tax_id}</ThemedText>
         </>
       ) : null}
 
       {provider.email ? (
         <>
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.value}>{provider.email}</Text>
+          <ThemedText style={styles.label}>Email</ThemedText>
+          <ThemedText style={styles.value}>{provider.email}</ThemedText>
         </>
       ) : null}
 
       {provider.phone ? (
         <>
-          <Text style={styles.label}>Teléfono</Text>
-          <Text style={styles.value}>{provider.phone}</Text>
+          <ThemedText style={styles.label}>Teléfono</ThemedText>
+          <ThemedText style={styles.value}>{provider.phone}</ThemedText>
         </>
       ) : null}
 
       {provider.address ? (
         <>
-          <Text style={styles.label}>Dirección</Text>
-          <Text style={styles.value}>{provider.address}</Text>
+          <ThemedText style={styles.label}>Dirección</ThemedText>
+          <ThemedText style={styles.value}>{provider.address}</ThemedText>
         </>
       ) : null}
 
-      <Text style={styles.label}>ID</Text>
-      <Text style={styles.value}>{provider.id}</Text>
+      <ThemedText style={styles.label}>ID</ThemedText>
+      <ThemedText style={styles.value}>{provider.id}</ThemedText>
 
       <View style={styles.editButton}>
         <Button title="Editar" onPress={() => router.push(`/providers/${provider.id}`)} />
@@ -66,7 +70,7 @@ export default function ViewProviderModal() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
   editButton: { marginTop: 16 },

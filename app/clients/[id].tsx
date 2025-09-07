@@ -1,12 +1,14 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 
 export default function ClientDetailPage() {
@@ -21,6 +23,17 @@ export default function ClientDetailPage() {
   const { tariffs } = useContext(TariffsContext);
 
   const client = clients.find(c => c.id === clientId);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#92272f' }, 'background');
+  const deleteButtonTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
 
   const [businessName, setBusinessName] = useState('');
   const [taxId, setTaxId] = useState('');
@@ -52,8 +65,8 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <View style={styles.container}>
-        <Text>Cliente no encontrado</Text>
+      <View style={[styles.container, { backgroundColor: screenBackground }]}> 
+        <ThemedText>Cliente no encontrado</ThemedText>
       </View>
     );
   }
@@ -120,61 +133,66 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen del Cliente</Text>
-      <CircleImagePicker 
-        fileId={brandFileId} 
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Imagen del Cliente</ThemedText>
+      <CircleImagePicker
+        fileId={brandFileId}
         editable={true}
-        size={200} 
-        onImageChange={(newFileId) => setBrandFileId(newFileId)} 
+        size={200}
+        onImageChange={(newFileId) => setBrandFileId(newFileId)}
       />
 
-      <Text style={styles.label}>Nombre del Negocio</Text>
+      <ThemedText style={styles.label}>Nombre del Negocio</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Nombre del negocio"
         value={businessName}
         onChangeText={setBusinessName}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Tax ID</Text>
+      <ThemedText style={styles.label}>Tax ID</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Tax ID"
         value={taxId}
         onChangeText={setTaxId}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Email</Text>
+      <ThemedText style={styles.label}>Email</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Teléfono</Text>
+      <ThemedText style={styles.label}>Teléfono</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Teléfono"
         value={phone}
         onChangeText={setPhone}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Dirección</Text>
+      <ThemedText style={styles.label}>Dirección</ThemedText>
       <TextInput
-        style={styles.input}
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Dirección"
         value={address}
         onChangeText={setAddress}
+        placeholderTextColor={placeholderColor}
       />
 
-      <Text style={styles.label}>Tarifa</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Tarifa</ThemedText>
+      <View style={[styles.pickerWrap, { backgroundColor: pickerBackground, borderColor }]}> 
         <Picker
           selectedValue={tariffId}
           onValueChange={setTariffId}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
         >
           <Picker.Item label="Sin Tarifa" value="" />
           {tariffs.map(t => (
@@ -183,14 +201,28 @@ export default function ClientDetailPage() {
         </Picker>
       </View>
       {canEditClient && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar Cliente</Text>}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleUpdate}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar Cliente</ThemedText>
+          )}
         </TouchableOpacity>
       )}
 
       {canDeleteClient && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Eliminar Cliente</Text>}
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: deleteButtonColor }]}
+          onPress={handleDelete}
+        >
+          {loading ? (
+            <ActivityIndicator color={deleteButtonTextColor} />
+          ) : (
+            <ThemedText style={[styles.deleteButtonText, { color: deleteButtonTextColor }]}>Eliminar Cliente</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -198,37 +230,32 @@ export default function ClientDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
   },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
-    backgroundColor: '#007BFF',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: {
     marginTop: 16,
-    backgroundColor: '#dc3545',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  deleteButtonText: { fontSize: 16, fontWeight: 'bold' },
 });
