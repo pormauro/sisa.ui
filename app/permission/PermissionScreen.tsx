@@ -1,9 +1,19 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert, ActivityIndicator, Button } from 'react-native';
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Button,
+} from 'react-native';
 import Checkbox from 'expo-checkbox';
 import UserSelector from './UserSelector'; // Asegúrate de que la ruta sea correcta
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 // Definición de grupos de permisos. Cada grupo contiene una lista de "sectors" (cadenas que representan los permisos)
 const PERMISSION_GROUPS = [
@@ -38,6 +48,10 @@ const PermissionScreen: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
+
+  const background = useThemeColor({}, 'background');
+  const spinnerColor = useThemeColor({}, 'tint');
+  const groupBorderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
 
   // Función para cargar permisos del usuario seleccionado (o global si id === 0)
   const loadPermissions = useCallback(() => {
@@ -184,8 +198,8 @@ const PermissionScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Administración de Permisos</Text>
+    <ScrollView style={[styles.container, { backgroundColor: background }]}>
+      <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
       <UserSelector onSelect={(user) => {
         if (user) {
           setSelectedUser({ id: user.id, username: user.username });
@@ -197,21 +211,26 @@ const PermissionScreen: React.FC = () => {
       
       {selectedUser ? (
         loading ? (
-          <ActivityIndicator size="large" color="#007BFF" />
+          <ActivityIndicator size="large" color={spinnerColor} />
         ) : (
           <>
             <View style={{ marginBottom: 10 }}>
               <Button title="Activar todo" onPress={toggleAll} />
             </View>
             {PERMISSION_GROUPS.map(group => (
-              <View key={group.group} style={styles.groupContainer}>
+              <ThemedView
+                key={group.group}
+                style={[styles.groupContainer, { borderColor: groupBorderColor }]}
+                lightColor="#f9f9f9"
+                darkColor="#1e1e1e"
+              >
                 <View style={styles.groupHeader}>
                   <Checkbox
                     value={isGroupChecked(group.permissions)}
                     onValueChange={(value) => toggleGroup(group.permissions, value)}
                     style={styles.checkbox}
                   />
-                  <Text style={styles.groupTitle}>{group.group}</Text>
+                  <ThemedText style={styles.groupTitle}>{group.group}</ThemedText>
                 </View>
                 {group.permissions.map(sector => (
                   <View key={sector} style={styles.permissionRow}>
@@ -220,15 +239,17 @@ const PermissionScreen: React.FC = () => {
                       onValueChange={(value) => togglePermission(sector, value)}
                       style={styles.checkbox}
                     />
-                    <Text style={styles.permissionLabel}>{sector}</Text>
+                    <ThemedText style={styles.permissionLabel}>{sector}</ThemedText>
                   </View>
                 ))}
-              </View>
+              </ThemedView>
             ))}
           </>
         )
       ) : (
-        <Text style={styles.infoText}>Selecciona un usuario o Global para administrar permisos.</Text>
+        <ThemedText style={styles.infoText}>
+          Selecciona un usuario o Global para administrar permisos.
+        </ThemedText>
       )}
     </ScrollView>
   );
@@ -240,7 +261,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff'
   },
   title: {
     fontSize: 26,
@@ -256,10 +276,8 @@ const styles = StyleSheet.create({
   groupContainer: {
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     padding: 10,
-    backgroundColor: '#f9f9f9'
   },
   groupHeader: {
     flexDirection: 'row',

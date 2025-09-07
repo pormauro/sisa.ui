@@ -3,7 +3,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -15,6 +14,8 @@ import { Picker } from '@react-native-picker/picker';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { getDisplayCategories } from '@/utils/categories';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CategoryDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -32,6 +33,15 @@ export default function CategoryDetailPage() {
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const spinnerColor = useThemeColor({}, 'tint');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories),
@@ -55,8 +65,8 @@ export default function CategoryDetailPage() {
 
   if (!category) {
     return (
-      <View style={styles.container}>
-        <Text>Categoría no encontrada</Text>
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <ThemedText>Categoría no encontrada</ThemedText>
       </View>
     );
   }
@@ -107,12 +117,17 @@ export default function CategoryDetailPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Nombre</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} />
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
+      <ThemedText style={styles.label}>Nombre</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={name}
+        onChangeText={setName}
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Tipo</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Tipo</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={type}
           onValueChange={(val) => setType(val as 'income' | 'expense')}
@@ -123,8 +138,8 @@ export default function CategoryDetailPage() {
         </Picker>
       </View>
 
-      <Text style={styles.label}>Categoría padre</Text>
-      <View style={styles.pickerWrap}>
+      <ThemedText style={styles.label}>Categoría padre</ThemedText>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={parentId}
           onValueChange={setParentId}
@@ -145,12 +160,20 @@ export default function CategoryDetailPage() {
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar</Text>}
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar</ThemedText>
+          )}
         </TouchableOpacity>
       )}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Eliminar</Text>}
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Eliminar</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -158,18 +181,16 @@ export default function CategoryDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   pickerWrap: {
     borderWidth: 1,
-    borderColor: '#ccc',
     borderRadius: 8,
     marginBottom: 8,
-    backgroundColor: '#fff',
   },
   picker: { height: 50, width: '100%' },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });
