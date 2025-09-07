@@ -4,6 +4,7 @@ import { Picker } from '@react-native-picker/picker';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ProfilesContext } from '@/contexts/ProfilesContext';
 import { ProfilesListContext } from '@/contexts/ProfilesListContext';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface ParticipantsBubblesProps {
   participants: number[];
@@ -20,6 +21,10 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
   const { profiles } = useContext(ProfilesListContext);
   const [items, setItems] = useState<ParticipantItem[]>([]);
   const [newId, setNewId] = useState('');
+
+  const textColor = useThemeColor({}, 'text');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     const load = async () => {
@@ -78,15 +83,19 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
         <Picker
           selectedValue={newId}
           onValueChange={(value) => setNewId(String(value))}
-          style={styles.picker}
+          style={[styles.picker, { color: textColor }]}
+          dropdownIconColor={textColor}
         >
           <Picker.Item label="Seleccionar perfil" value="" />
           {profiles.map((p) => (
             <Picker.Item key={p.id} label={p.username} value={p.id.toString()} />
           ))}
         </Picker>
-        <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-          <Text style={styles.addButtonText}>Agregar</Text>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: buttonColor }]}
+          onPress={handleAdd}
+        >
+          <Text style={[styles.addButtonText, { color: buttonTextColor }]}>Agregar</Text>
         </TouchableOpacity>
       </View>
     </View>
