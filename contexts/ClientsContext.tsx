@@ -2,6 +2,13 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import {
+  createSyncQueueTable,
+  enqueueOperation,
+  getAllQueueItems,
+  deleteQueueItem,
+  updateQueueItemStatus,
+} from '@/database/syncQueueDB';
 
 export interface Client {
   id: number;
@@ -14,27 +21,55 @@ export interface Client {
   tariff_id: number | null;
   created_at?: string;
   updated_at?: string;
+  syncStatus?: 'pending' | 'error';
+  pendingDelete?: boolean;
+}
+
+export interface QueueItem {
+  id: number;
+  table_name: string;
+  op: string;
+  record_id: number | null;
+  local_temp_id: number | null;
+  payload_json: string;
+  status: string;
+  last_error?: string | null;
 }
 
 interface ClientsContextValue {
   clients: Client[];
+  queue: QueueItem[];
   loadClients: () => void;
   addClient: (client: Omit<Client, 'id'>) => Promise<Client | null>;
   updateClient: (id: number, client: Omit<Client, 'id'>) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
+  processQueue: () => Promise<void>;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
   clients: [],
+  queue: [],
   loadClients: () => {},
   addClient: async () => null,
   updateClient: async () => false,
   deleteClient: async () => false,
+  processQueue: async () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useState<Client[]>([]);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
   const { token } = useContext(AuthContext);
+
+  const loadQueue = async () => {
+    const items = await getAllQueueItems();
+    setQueue(items);
+  };
+
+  useEffect(() => {
+    createSyncQueueTable();
+    loadQueue();
+  }, []);
 
   const loadClients = async () => {
     
@@ -61,87 +96,117 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addClient = async (clientData: Omit<Client, 'id'>): Promise<Client | null> => {
-    try {
-      const response = await fetch(`${BASE_URL}/clients`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(clientData)
-      });
-      const data = await response.json();
-      if (data.client_id) {
-        const newClient: Client = {
-          id: parseInt(data.client_id, 10),
-          ...clientData,
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-        };
-        setClients(prev => [...prev, newClient]);
-        return newClient;
-      }
-    } catch (error) {
-      console.error("Error adding client:", error);
-    }
-    return null;
+    const tempId = Date.now() * -1;
+    const newClient: Client = { id: tempId, ...clientData, syncStatus: 'pending' };
+    setClients(prev => [...prev, newClient]);
+    await enqueueOperation('clients', 'create', clientData, null, tempId);
+    await loadQueue();
+    processQueue();
+    return newClient;
   };
 
   const updateClient = async (id: number, clientData: Omit<Client, 'id'>): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/clients/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(clientData)
-      });
-      const data = await response.json();
-        if (data.message === 'Client updated successfully') {
-        setClients(prev =>
-          prev.map(client =>
-            client.id === id
-              ? { ...client, ...clientData, updated_at: data.updated_at }
-              : client
-          )
-        );
-        return true;
-      }
-    } catch (error) {
-      console.error("Error updating client:", error);
-    }
-    return false;
+    setClients(prev =>
+      prev.map(client =>
+        client.id === id ? { ...client, ...clientData, syncStatus: 'pending' } : client
+      )
+    );
+    await enqueueOperation('clients', 'update', clientData, id, null);
+    await loadQueue();
+    processQueue();
+    return true;
   };
 
   const deleteClient = async (id: number): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/clients/${id}`, {
-        method: 'DELETE',
-        headers: {
+    setClients(prev =>
+      prev.map(client =>
+        client.id === id ? { ...client, pendingDelete: true, syncStatus: 'pending' } : client
+      )
+    );
+    await enqueueOperation('clients', 'delete', {}, id, null);
+    await loadQueue();
+    processQueue();
+    return true;
+  };
+
+  const processQueue = async () => {
+    if (!token) return;
+    const items = await getAllQueueItems();
+    for (const item of items) {
+      try {
+        const headers = {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+        };
+        if (item.table_name === 'clients') {
+          if (item.op === 'create') {
+            const response = await fetch(`${BASE_URL}/clients`, {
+              method: 'POST',
+              headers,
+              body: item.payload_json,
+            });
+            if (response.ok) {
+              const data = await response.json();
+              const newId = parseInt(data.client_id, 10);
+              setClients(prev =>
+                prev.map(c =>
+                  c.id === item.local_temp_id ? { ...c, id: newId, syncStatus: undefined } : c
+                )
+              );
+              await deleteQueueItem(item.id);
+            } else {
+              await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
+              break;
+            }
+          } else if (item.op === 'update') {
+            const response = await fetch(`${BASE_URL}/clients/${item.record_id}`, {
+              method: 'PUT',
+              headers,
+              body: item.payload_json,
+            });
+            if (response.ok) {
+              const payload = JSON.parse(item.payload_json);
+              setClients(prev =>
+                prev.map(c =>
+                  c.id === item.record_id ? { ...c, ...payload, syncStatus: undefined } : c
+                )
+              );
+              await deleteQueueItem(item.id);
+            } else {
+              await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
+              break;
+            }
+          } else if (item.op === 'delete') {
+            const response = await fetch(`${BASE_URL}/clients/${item.record_id}`, {
+              method: 'DELETE',
+              headers,
+            });
+            if (response.ok) {
+              setClients(prev => prev.filter(c => c.id !== item.record_id));
+              await deleteQueueItem(item.id);
+            } else {
+              await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
+              break;
+            }
+          }
         }
-      });
-      const data = await response.json();
-      if (data.message === 'Client deleted successfully') {
-        setClients(prev => prev.filter(client => client.id !== id));
-        return true;
+      } catch (err: any) {
+        await updateQueueItemStatus(item.id, 'error', String(err));
+        break;
       }
-    } catch (error) {
-      console.error("Error deleting client:", error);
     }
-    return false;
+    await loadQueue();
   };
 
   useEffect(() => {
     if (token) {
       loadClients();
+      processQueue();
     }
   }, [token]);
 
   return (
-    <ClientsContext.Provider value={{ clients, loadClients, addClient, updateClient, deleteClient }}>
+    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue }}>
       {children}
     </ClientsContext.Provider>
   );

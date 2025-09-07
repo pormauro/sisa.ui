@@ -14,7 +14,6 @@ export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [loadingId, setLoadingId] = useState<number | null>(null);
   const { permissions, loading: permissionsLoading } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
@@ -56,9 +55,7 @@ export default function ClientsListPage() {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            setLoadingId(id);
             await deleteClient(id);
-            setLoadingId(null);
           },
         },
       ]
@@ -72,16 +69,13 @@ export default function ClientsListPage() {
     >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
-        <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-        <ThemedText>{item.email}</ThemedText>
+        <ThemedText style={[styles.itemTitle, item.pendingDelete && styles.deletedText]}>{item.business_name}</ThemedText>
+        <ThemedText style={item.pendingDelete ? styles.deletedText : undefined}>{item.email}</ThemedText>
       </View>
-      {canDeleteClient && (
+      {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
+      {canDeleteClient && !item.pendingDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
-          {loadingId === item.id ? (
-            <ActivityIndicator color={spinnerColor} />
-          ) : (
-            <ThemedText style={styles.deleteText}>🗑️</ThemedText>
-          )}
+          <ThemedText style={styles.deleteText}>🗑️</ThemedText>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -134,6 +128,7 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 18 },
+  deletedText: { textDecorationLine: 'line-through' },
   addButton: {
     position: 'absolute',
     right: 16,
