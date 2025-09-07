@@ -131,7 +131,8 @@ export default function CategoryDetailPage() {
         <Picker
           selectedValue={type}
           onValueChange={(val) => setType(val as 'income' | 'expense')}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="Ingreso" value="income" />
           <Picker.Item label="Gasto" value="expense" />
@@ -143,7 +144,8 @@ export default function CategoryDetailPage() {
         <Picker
           selectedValue={parentId}
           onValueChange={setParentId}
-          style={styles.picker}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Sin padre --" value="" />
           {displayCategories
