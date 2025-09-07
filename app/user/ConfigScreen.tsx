@@ -1,9 +1,11 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Button, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedButton } from '@/components/ThemedButton';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
@@ -47,7 +49,7 @@ const ConfigScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.subtitle}>Configuración</Text>
+      <ThemedText style={styles.subtitle}>Configuración</ThemedText>
       {configDetails ? (
         <View style={styles.dataContainer}>
           {editConfig ? (
@@ -78,7 +80,7 @@ const ConfigScreen: React.FC = () => {
                 onChangeText={(text) => setConfigForm({ ...configForm, font_size: text })}
                 placeholder="Tamaño de fuente"
               />
-              <Button
+              <ThemedButton
                 title="Guardar Configuración"
                 onPress={() => {
                   void updateConfig(configForm);
@@ -88,25 +90,25 @@ const ConfigScreen: React.FC = () => {
             </>
           ) : (
             <>
-              <Text style={styles.infoText}>Rol: {configDetails.role}</Text>
-              <Text style={styles.infoText}>Tipo de vista: {configDetails.view_type}</Text>
-              <Text style={styles.infoText}>
+              <ThemedText style={styles.infoText}>Rol: {configDetails.role}</ThemedText>
+              <ThemedText style={styles.infoText}>Tipo de vista: {configDetails.view_type}</ThemedText>
+              <ThemedText style={styles.infoText}>
                 Tema: {configDetails.theme === 'dark' ? 'Oscuro' : 'Claro'}
-              </Text>
-              <Text style={styles.infoText}>Tamaño de fuente: {configDetails.font_size}</Text>
-              <TouchableOpacity style={styles.editButton} onPress={() => setEditConfig(true)}>
-                <Text style={styles.editButtonText}>Editar Configuración</Text>
-              </TouchableOpacity>
+              </ThemedText>
+              <ThemedText style={styles.infoText}>Tamaño de fuente: {configDetails.font_size}</ThemedText>
+              <ThemedButton title="Editar Configuración" onPress={() => setEditConfig(true)} style={styles.editButton} />
             </>
           )}
-          <Button
+          <ThemedButton
             title="Borrar datos de archivos"
-            color="#d9534f"
+            lightColor="#d9534f"
+            darkColor="#d9534f"
             onPress={handleClearFiles}
+            style={styles.editButton}
           />
         </View>
       ) : (
-        <Text style={styles.infoText}>Cargando configuración...</Text>
+        <ThemedText style={styles.infoText}>Cargando configuración...</ThemedText>
       )}
     </ScrollView>
   );
@@ -135,17 +137,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-  editButton: {
-    backgroundColor: '#007BFF',
-    borderRadius: 10,
-    padding: 15,
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 18,
-  },
+  editButton: { marginTop: 10 },
 });
 
 export default ConfigScreen;

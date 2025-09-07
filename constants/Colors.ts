@@ -18,6 +18,8 @@ export const Colors = {
     icon: deprosPurple,
     tabIconDefault: '#9389a3',
     tabIconSelected: tintColorLight,
+    button: deprosOrange,
+    buttonText: '#ffffff',
   },
   dark: {
     text: '#ffffff',
@@ -26,5 +28,7 @@ export const Colors = {
     icon: '#ffffff',
     tabIconDefault: '#b3b3b3',
     tabIconSelected: tintColorDark,
+    button: '#ffffff',
+    buttonText: deprosPurple,
   },
 };
