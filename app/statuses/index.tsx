@@ -23,8 +23,6 @@ export default function StatusesScreen() {
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
-  const addButtonColor = useThemeColor({}, 'button');
-  const addButtonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     if (!permissions.includes('listStatuses')) {
@@ -112,10 +110,10 @@ export default function StatusesScreen() {
         }
       />
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: addButtonColor }]}
+        style={styles.addButton}
         onPress={() => router.push('/statuses/create')}
       >
-        <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>Agregar Estado</ThemedText>
+        <ThemedText style={styles.addButtonText}>Agregar Estado</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );
@@ -163,6 +161,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 32,
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 50,
     alignItems: 'center',
@@ -170,6 +169,7 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#000',
   },
   emptyText: {
     textAlign: 'center',
