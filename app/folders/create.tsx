@@ -1,9 +1,11 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateFolderPage() {
   const router = useRouter();
@@ -16,6 +18,14 @@ export default function CreateFolderPage() {
   const [clientId] = useState<number | null>(
     client_id ? Number(client_id) : folderParent ? folderParent.client_id : null
   );
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const [name, setName] = useState('');
   const [folderImageFileId, setFolderImageFileId] = useState<string | null>(null);
@@ -50,24 +60,36 @@ export default function CreateFolderPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen de la carpeta</Text>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 
+      <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>
       <CircleImagePicker fileId={folderImageFileId} editable={true} size={200} onImageChange={setFolderImageFileId} />
 
-      <Text style={styles.label}>Nombre de la carpeta</Text>
-      <TextInput style={styles.input} placeholder="Nombre" value={name} onChangeText={setName} />
+      <ThemedText style={styles.label}>Nombre de la carpeta</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        placeholder="Nombre"
+        value={name}
+        onChangeText={setName}
+        placeholderTextColor={placeholderColor}
+      />
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        <Text style={styles.submitButtonText}>{loading ? 'Creando...' : 'Crear Carpeta'}</Text>
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: buttonColor }]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>
+          {loading ? 'Creando...' : 'Crear Carpeta'}
+        </ThemedText>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });

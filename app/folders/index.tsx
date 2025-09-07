@@ -1,13 +1,16 @@
 // Archivo: app/folders/index.tsx
 
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, FlatList, TextInput, TouchableOpacity, StyleSheet, Text, Alert, ActivityIndicator } from 'react-native';
+import { FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { FoldersContext, Folder } from '@/contexts/FoldersContext';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ThemedView } from '@/components/ThemedView';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function FoldersPage() {
   const { folders, loadFolders, deleteFolder } = useContext(FoldersContext);
@@ -17,6 +20,18 @@ export default function FoldersPage() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const router = useRouter();
   const params = useLocalSearchParams();
+
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const addButtonColor = useThemeColor({}, 'button');
+  const addButtonTextColor = useThemeColor({}, 'buttonText');
+  const backButtonColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const spinnerColor = useThemeColor({}, 'tint');
 
   const client_id = params.client_id as string | undefined;
   const parent_id = params.parent_id as string | undefined;
@@ -62,9 +77,9 @@ export default function FoldersPage() {
   };
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
       {(client_id || parent_id) && (
-        <TouchableOpacity style={styles.backButton} onPress={() => {
+        <TouchableOpacity style={[styles.backButton, { backgroundColor: backButtonColor }]} onPress={() => {
           if (parent_id) {
             const parentFolder = folders.find(f => f.id === Number(parent_id));
             if (parentFolder?.parent_id) {
@@ -76,15 +91,16 @@ export default function FoldersPage() {
             router.push('/folders');
           }
         }}>
-          <Text style={styles.backButtonText}>← Volver</Text>
+          <ThemedText style={styles.backButtonText}>← Volver</ThemedText>
         </TouchableOpacity>
       )}
 
       <TextInput
         placeholder="Buscar..."
-        style={styles.search}
+        style={[styles.search, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         value={searchQuery}
         onChangeText={setSearchQuery}
+        placeholderTextColor={placeholderColor}
       />
 
       {client_id || parent_id ? (
@@ -93,14 +109,18 @@ export default function FoldersPage() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.item}
+              style={[styles.item, { borderColor: itemBorderColor }]}
               onPress={() => router.push({ pathname: '/folders', params: { parent_id: String(item.id) } })}
               onLongPress={() => canEditFolder && router.push(`/folders/${item.id}`)}>
               <CircleImagePicker fileId={item.folder_image_file_id} size={50} />
-              <Text style={styles.text}>{item.name}</Text>
+              <ThemedText style={[styles.text, { color: textColor }]}>{item.name}</ThemedText>
               {canDeleteFolder && (
                 <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                  {loadingId === item.id ? <ActivityIndicator /> : <Text style={styles.delete}>🗑️</Text>}
+                  {loadingId === item.id ? (
+                    <ActivityIndicator color={spinnerColor} />
+                  ) : (
+                    <ThemedText style={styles.delete}>🗑️</ThemedText>
+                  )}
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
@@ -112,10 +132,10 @@ export default function FoldersPage() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.item}
+              style={[styles.item, { borderColor: itemBorderColor }]}
               onPress={() => router.push({ pathname: '/folders', params: { client_id: String(item.id) } })}>
               <CircleImagePicker fileId={item.brand_file_id} size={50} />
-              <Text style={styles.text}>{item.business_name}</Text>
+              <ThemedText style={[styles.text, { color: textColor }]}>{item.business_name}</ThemedText>
             </TouchableOpacity>
           )}
         />
@@ -123,28 +143,28 @@ export default function FoldersPage() {
 
       {canAddFolder && (client_id || parent_id) && (
         <TouchableOpacity
-          style={styles.add}
+          style={[styles.add, { backgroundColor: addButtonColor }]}
           onPress={() => {
             const params: Record<string, string> = {};
             if (client_id) params.client_id = client_id;
             if (parent_id) params.parent_id = parent_id;
             router.push({ pathname: '/folders/create', params });
           }}>
-          <Text style={styles.addText}>＋ Agregar carpeta</Text>
+          <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>＋ Agregar carpeta</ThemedText>
         </TouchableOpacity>
       )}
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  search: { padding: 10, borderWidth: 1, borderRadius: 8, borderColor: '#ddd', marginBottom: 10 },
-  item: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1, borderColor: '#eee' },
+  search: { padding: 10, borderWidth: 1, borderRadius: 8, marginBottom: 10 },
+  item: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1 },
   text: { flex: 1, marginLeft: 10 },
   delete: { fontSize: 18 },
-  add: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#007BFF', padding: 16, borderRadius: 30 },
-  addText: { color: '#fff', fontWeight: 'bold' },
-  backButton: { marginBottom: 10, padding: 8, backgroundColor: '#eee', borderRadius: 8 },
+  add: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 30 },
+  addText: { fontWeight: 'bold' },
+  backButton: { marginBottom: 10, padding: 8, borderRadius: 8 },
   backButtonText: { fontSize: 16 },
-}); 
+});
