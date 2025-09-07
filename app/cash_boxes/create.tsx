@@ -1,10 +1,12 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateCashBox() {
   const router = useRouter();
@@ -14,6 +16,14 @@ export default function CreateCashBox() {
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     if (!permissions.includes('addCashBox')) {
@@ -40,34 +50,43 @@ export default function CreateCashBox() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen de la Caja</Text>
-      <CircleImagePicker 
-        fileId={imageFileId} 
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Imagen de la Caja</ThemedText>
+      <CircleImagePicker
+        fileId={imageFileId}
         editable={true}
-        size={200} 
+        size={200}
         onImageChange={(newId) => setImageFileId(newId)}
       />
 
-      <Text style={styles.label}>Nombre de la Caja</Text>
-      <TextInput 
-        style={styles.input}
+      <ThemedText style={styles.label}>Nombre de la Caja</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Nombre de la caja"
         value={name}
         onChangeText={setName}
+        placeholderTextColor={placeholderColor}
       />
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear Caja</Text>}
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: buttonColor }]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={buttonTextColor} />
+        ) : (
+          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear Caja</ThemedText>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });

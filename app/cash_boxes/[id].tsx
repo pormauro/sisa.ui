@@ -1,10 +1,12 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/[id].tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CashBoxesContext, CashBox } from '@/contexts/CashBoxesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CashBoxDetail() {
   const router = useRouter();
@@ -15,6 +17,14 @@ export default function CashBoxDetail() {
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const screenBackground = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canEdit = permissions.includes('updateCashBox');
   const canDelete = permissions.includes('deleteCashBox');
@@ -91,31 +101,44 @@ export default function CashBoxDetail() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen de la Caja</Text>
-      <CircleImagePicker 
-        fileId={imageFileId} 
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Imagen de la Caja</ThemedText>
+      <CircleImagePicker
+        fileId={imageFileId}
         editable={true}
-        size={200} 
+        size={200}
         onImageChange={(newId) => setImageFileId(newId)}
       />
 
-      <Text style={styles.label}>Nombre de la Caja</Text>
-      <TextInput 
-        style={styles.input}
+      <ThemedText style={styles.label}>Nombre de la Caja</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         value={name}
         onChangeText={setName}
+        placeholder="Nombre de la caja"
+        placeholderTextColor={placeholderColor}
       />
 
       {canEdit && (
-        <TouchableOpacity style={styles.submitButton} onPress={handleUpdate}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Actualizar Caja</Text>}
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleUpdate}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar Caja</ThemedText>
+          )}
         </TouchableOpacity>
       )}
 
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Eliminar Caja</Text>}
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <ThemedText style={styles.deleteButtonText}>Eliminar Caja</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -123,11 +146,11 @@ export default function CashBoxDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff', flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
-  submitButton: { marginTop: 16, backgroundColor: '#007BFF', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
