@@ -6,8 +6,9 @@
 // Depros brand colors
 const deprosOrange = '#f15a29';
 const deprosPurple = '#2f273e';
+const deprosBlue = '#007BFF';
 
-const tintColorLight = deprosOrange;
+const tintColorLight = deprosBlue;
 const tintColorDark = deprosOrange;
 
 export const Colors = {
@@ -18,7 +19,7 @@ export const Colors = {
     icon: deprosPurple,
     tabIconDefault: '#9389a3',
     tabIconSelected: tintColorLight,
-    button: deprosOrange,
+    button: deprosBlue,
     buttonText: '#ffffff',
   },
   dark: {
