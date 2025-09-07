@@ -1,6 +1,9 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import { JobsContext, Job } from '@/contexts/JobsContext';
@@ -20,6 +23,18 @@ export default function JobsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const itemBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const itemBorderColor = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
+  const itemTextColor = useThemeColor({}, 'text');
+  const spinnerColor = useThemeColor({}, 'tint');
+  const addButtonColor = useThemeColor({}, 'button');
+  const addButtonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     if (!permissions.includes('listJobs')) {
@@ -85,38 +100,46 @@ export default function JobsScreen() {
       cost = diffHours > 0 ? diffHours * rate : 0;
     }
 
+    const itemTextStyle = { color: jobStatus ? '#fff' : itemTextColor };
     return (
       <TouchableOpacity
-        style={[styles.itemContainer, jobStatus ? { backgroundColor: jobStatus.background_color } : {}]}
+        style={[
+          styles.itemContainer,
+          { borderColor: itemBorderColor, backgroundColor: jobStatus ? jobStatus.background_color : itemBackground }
+        ]}
         onPress={() => router.push(`/jobs/viewModal?id=${item.id}`)}
         onLongPress={() => router.push(`/jobs/${item.id}`)}
       >
         <View style={styles.itemContent}>
           {/* Cliente */}
-          <Text style={styles.title}>{clientName ? clientName : 'Cliente desconocido'}</Text>
+          <ThemedText style={[styles.title, itemTextStyle]}>
+            {clientName ? clientName : 'Cliente desconocido'}
+          </ThemedText>
 
           {/* Descripción */}
           {item.description ? (
-            <Text style={styles.subTitle}>{item.description}</Text>
+            <ThemedText style={[styles.subTitle, itemTextStyle]}>{item.description}</ThemedText>
           ) : null}
 
           {/* Fecha y horario */}
           {(dateStr || startStr || endStr) && (
-            <Text style={styles.date}>{`${dateStr} ${startStr} - ${endStr}${intervalStr ? ` (${intervalStr})` : ''}`}</Text>
+            <ThemedText style={[styles.date, itemTextStyle]}>
+              {`${dateStr} ${startStr} - ${endStr}${intervalStr ? ` (${intervalStr})` : ''}`}
+            </ThemedText>
           )}
           {cost > 0 && (
-            <Text style={styles.cost}>Costo: ${cost.toFixed(2)}</Text>
+            <ThemedText style={[styles.cost, itemTextStyle]}>Costo: ${cost.toFixed(2)}</ThemedText>
           )}
         </View>
         <View style={styles.itemRight}>
-          <Text style={styles.statusText}>
+          <ThemedText style={[styles.statusText, itemTextStyle]}>
             {jobStatus ? jobStatus.label : `Estado: ${item.status_id ?? 'N/A'}`}
-          </Text>
+          </ThemedText>
           <TouchableOpacity onPress={() => handleDelete(item.id)}>
             {loadingId === item.id ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={itemTextColor} />
             ) : (
-              <Text style={styles.trash}>🗑️</Text>
+              <ThemedText style={[styles.trash, itemTextStyle]}>🗑️</ThemedText>
             )}
           </TouchableOpacity>
         </View>
@@ -125,35 +148,45 @@ export default function JobsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <TextInput
-        style={styles.search}
+        style={[
+          styles.search,
+          { backgroundColor: inputBackground, color: inputTextColor, borderColor }
+        ]}
         value={search}
         onChangeText={setSearch}
         placeholder="Buscar trabajo..."
+        placeholderTextColor={placeholderColor}
       />
       <FlatList
         data={filteredJobs}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No hay trabajos cargados</Text>}
+        ListEmptyComponent={
+          <ThemedText style={styles.empty}>No hay trabajos cargados</ThemedText>
+        }
       />
-      <TouchableOpacity style={styles.addButton} onPress={() => router.push('/jobs/create')}>
-        <Text style={styles.addText}>➕ Nuevo Trabajo</Text>
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: addButtonColor }]}
+        onPress={() => router.push('/jobs/create')}
+      >
+        <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>
+          ➕ Nuevo Trabajo
+        </ThemedText>
       </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f7f7f7' },
-  search: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12, backgroundColor: '#fff', color: '#000' },
+  container: { flex: 1, padding: 16 },
+  search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#ddd',
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
@@ -162,14 +195,13 @@ const styles = StyleSheet.create({
   },
   itemContent: { flex: 1, marginRight: 10 },
   itemRight: { justifyContent: 'space-between', alignItems: 'flex-end' },
-  title: { fontWeight: 'bold', fontSize: 16, color: '#fff' },
-  subTitle: { fontSize: 14, color: '#fff', marginVertical: 4 },
-  date: { fontSize: 12, color: '#fff' },
-  cost: { fontSize: 12, color: '#fff', fontWeight: 'bold', marginTop: 4 },
-  statusText: { fontSize: 12, color: '#fff', fontWeight: 'bold', marginBottom: 4 },
-  trash: { fontSize: 18, color: '#fff', paddingHorizontal: 12 },
+  title: { fontWeight: 'bold', fontSize: 16 },
+  subTitle: { fontSize: 14, marginVertical: 4 },
+  date: { fontSize: 12 },
+  cost: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
+  statusText: { fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
+  trash: { fontSize: 18, paddingHorizontal: 12 },
   addButton: {
-    backgroundColor: '#007BFF',
     padding: 16,
     borderRadius: 30,
     position: 'absolute',
@@ -177,6 +209,6 @@ const styles = StyleSheet.create({
     bottom: 32,
     alignItems: 'center'
   },
-  addText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  addText: { fontWeight: 'bold', fontSize: 16 },
   empty: { marginTop: 20, textAlign: 'center', fontSize: 16 },
 });
