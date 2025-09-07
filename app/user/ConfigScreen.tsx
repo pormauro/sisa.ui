@@ -1,9 +1,9 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Button, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
-import globalStyles from '@/styles/GlobalStyles';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
@@ -12,7 +12,7 @@ const ConfigScreen: React.FC = () => {
   const [configForm, setConfigForm] = useState<ConfigForm>({
     role: '',
     view_type: '',
-    theme: '',
+    theme: 'light',
     font_size: '',
   });
 
@@ -26,7 +26,7 @@ const ConfigScreen: React.FC = () => {
       setConfigForm({
         role: configDetails.role || '',
         view_type: configDetails.view_type || '',
-        theme: configDetails.theme || '',
+        theme: configDetails.theme || 'light',
         font_size: configDetails.font_size || '',
       });
     }
@@ -64,12 +64,14 @@ const ConfigScreen: React.FC = () => {
                 onChangeText={(text) => setConfigForm({ ...configForm, view_type: text })}
                 placeholder="Tipo de vista"
               />
-              <TextInput
+              <Picker
+                selectedValue={configForm.theme}
+                onValueChange={(value) => setConfigForm({ ...configForm, theme: value })}
                 style={styles.input}
-                value={configForm.theme}
-                onChangeText={(text) => setConfigForm({ ...configForm, theme: text })}
-                placeholder="Tema"
-              />
+              >
+                <Picker.Item label="Claro" value="light" />
+                <Picker.Item label="Oscuro" value="dark" />
+              </Picker>
               <TextInput
                 style={styles.input}
                 value={configForm.font_size}
@@ -88,7 +90,9 @@ const ConfigScreen: React.FC = () => {
             <>
               <Text style={styles.infoText}>Rol: {configDetails.role}</Text>
               <Text style={styles.infoText}>Tipo de vista: {configDetails.view_type}</Text>
-              <Text style={styles.infoText}>Tema: {configDetails.theme}</Text>
+              <Text style={styles.infoText}>
+                Tema: {configDetails.theme === 'dark' ? 'Oscuro' : 'Claro'}
+              </Text>
               <Text style={styles.infoText}>Tamaño de fuente: {configDetails.font_size}</Text>
               <TouchableOpacity style={styles.editButton} onPress={() => setEditConfig(true)}>
                 <Text style={styles.editButtonText}>Editar Configuración</Text>
