@@ -64,7 +64,7 @@ export async function deleteFolderLocal(folderId) {
   }
 }
 
-async function clearLocalFolders() {
+export async function clearLocalFolders() {
   try {
     await db.execAsync('DELETE FROM folders;');
   } catch (error) {

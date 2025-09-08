@@ -15,6 +15,8 @@ import {
 import {
   createLocalJobsTable,
   getAllJobsLocal,
+  clearLocalJobs,
+  insertJobLocal,
 } from '@/src/database/jobsLocalDB';
 
 export interface Job {
@@ -145,6 +147,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
               : j.participants
             : null,
         }));
+        await clearLocalJobs();
+        for (const job of parsed) {
+          await insertJobLocal(job);
+        }
         setJobs(parsed);
       }
     } catch (err) {

@@ -15,6 +15,8 @@ import { Alert } from 'react-native';
 import {
   createLocalProvidersTable,
   getAllProvidersLocal,
+  clearLocalProviders,
+  insertProviderLocal,
 } from '@/src/database/providersLocalDB';
 
 export interface Provider {
@@ -109,6 +111,10 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
           created_at: p.created_at,
           updated_at: p.updated_at,
         }));
+        await clearLocalProviders();
+        for (const provider of loaded) {
+          await insertProviderLocal(provider);
+        }
         setProviders(loaded);
       }
     } catch (error) {

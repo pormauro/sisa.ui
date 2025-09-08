@@ -64,7 +64,7 @@ export async function deleteStatusLocal(id) {
   }
 }
 
-async function clearLocalStatuses() {
+export async function clearLocalStatuses() {
   try {
     await db.execAsync('DELETE FROM statuses;');
   } catch (error) {

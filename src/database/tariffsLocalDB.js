@@ -59,7 +59,7 @@ export async function deleteTariffLocal(tariffId) {
   }
 }
 
-async function clearLocalTariffs() {
+export async function clearLocalTariffs() {
   try {
     await db.execAsync('DELETE FROM tariffs;');
   } catch (error) {

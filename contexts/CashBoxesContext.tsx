@@ -15,6 +15,8 @@ import {
 import {
   createLocalCashBoxesTable,
   getAllCashBoxesLocal,
+  clearLocalCashBoxes,
+  insertCashBoxLocal,
 } from '@/src/database/cashBoxesLocalDB';
 
 export interface CashBox {
@@ -101,6 +103,10 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.cash_boxes) {
+        await clearLocalCashBoxes();
+        for (const box of data.cash_boxes) {
+          await insertCashBoxLocal(box);
+        }
         setCashBoxes(data.cash_boxes);
       }
     } catch (error) {

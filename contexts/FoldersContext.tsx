@@ -17,6 +17,8 @@ import {
 import {
   createLocalFoldersTable,
   getAllFoldersLocal,
+  clearLocalFolders,
+  insertFolderLocal,
 } from '@/src/database/foldersLocalDB';
 
 export interface Folder {
@@ -112,6 +114,10 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.folders) {
+        await clearLocalFolders();
+        for (const folder of data.folders) {
+          await insertFolderLocal(folder);
+        }
         setFolders(data.folders);
       }
     } catch (error) {
