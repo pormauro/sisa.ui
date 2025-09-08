@@ -11,6 +11,11 @@ import {
 } from '@/src/database/syncQueueDB';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import { Alert } from 'react-native';
+import {
+  createLocalClientsTable,
+  getAllClientsLocal,
+} from '@/src/database/clientsLocalDB';
 
 export interface Client {
   id: number;
@@ -72,17 +77,31 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     createSyncQueueTable();
+    createLocalClientsTable();
     loadQueue();
   }, []);
 
-  const loadClients = async () => {
-    
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000;
+
+  const fetchClients = async (attempt = 0): Promise<void> => {
+    const state = await NetInfo.fetch();
+    if (!state.isConnected) {
+      const localClients = await getAllClientsLocal();
+      setClients(localClients as Client[]);
+      Alert.alert('Sin conexión', 'Mostrando datos locales.');
+      if (attempt < MAX_RETRIES) {
+        setTimeout(() => fetchClients(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
+      }
+      return;
+    }
+
     try {
       const response = await fetch(`${BASE_URL}/clients`, {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
       const data = await response.json();
       if (data.clients) {
@@ -95,8 +114,19 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         setClients(loaded);
       }
     } catch (error) {
-      console.error("Error loading clients:", error);
+      if (__DEV__) {
+        console.log('Error loading clients:', error);
+      }
+      if (attempt < MAX_RETRIES) {
+        setTimeout(() => fetchClients(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
+      } else {
+        Alert.alert('Error de red', 'No se pudieron cargar los clientes.');
+      }
     }
+  };
+
+  const loadClients = async () => {
+    await fetchClients();
   };
 
   const addClient = async (clientData: Omit<Client, 'id'>): Promise<Client | null> => {
