@@ -15,6 +15,8 @@ import {
 import {
   createLocalTariffsTable,
   getAllTariffsLocal,
+  clearLocalTariffs,
+  insertTariffLocal,
 } from '@/src/database/tariffsLocalDB';
 
 export interface Tariff {
@@ -103,6 +105,10 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
           ...t,
           amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount,
         }));
+        await clearLocalTariffs();
+        for (const tariff of parsed) {
+          await insertTariffLocal(tariff);
+        }
         setTariffs(parsed);
       }
     } catch (error) {

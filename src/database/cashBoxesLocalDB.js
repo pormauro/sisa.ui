@@ -55,7 +55,7 @@ export async function deleteCashBoxLocal(cashBoxId) {
   }
 }
 
-async function clearLocalCashBoxes() {
+export async function clearLocalCashBoxes() {
   try {
     await db.execAsync('DELETE FROM cash_boxes;');
   } catch (error) {

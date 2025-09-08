@@ -100,7 +100,7 @@ export async function deleteJobLocal(jobId) {
   }
 }
 
-async function clearLocalJobs() {
+export async function clearLocalJobs() {
   try {
     await db.execAsync('DELETE FROM jobs;');
   } catch (error) {

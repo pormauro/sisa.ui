@@ -85,7 +85,7 @@ export async function deleteProviderLocal(providerId) {
 /**
  * Borra todos los proveedores de la BD local.
  */
-async function clearLocalProviders() {
+export async function clearLocalProviders() {
   try {
     await db.execAsync('DELETE FROM providers;');
   } catch (error) {

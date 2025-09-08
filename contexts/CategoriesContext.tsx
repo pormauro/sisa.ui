@@ -14,6 +14,8 @@ import {
 import {
   createLocalCategoriesTable,
   getAllCategoriesLocal,
+  clearLocalCategories,
+  insertCategoryLocal,
 } from '@/src/database/categoriesLocalDB';
 
 export interface Category {
@@ -98,6 +100,10 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.categories) {
+        await clearLocalCategories();
+        for (const category of data.categories) {
+          await insertCategoryLocal(category);
+        }
         setCategories(data.categories);
       }
     } catch (error) {

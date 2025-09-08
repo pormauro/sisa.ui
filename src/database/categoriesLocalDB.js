@@ -59,7 +59,7 @@ export async function deleteCategoryLocal(categoryId) {
   }
 }
 
-async function clearLocalCategories() {
+export async function clearLocalCategories() {
   try {
     await db.execAsync('DELETE FROM categories;');
   } catch (error) {

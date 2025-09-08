@@ -15,6 +15,8 @@ import { Alert } from 'react-native';
 import {
   createLocalClientsTable,
   getAllClientsLocal,
+  clearLocalClients,
+  insertClientLocal,
 } from '@/src/database/clientsLocalDB';
 
 export interface Client {
@@ -111,6 +113,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           created_at: c.created_at,
           updated_at: c.updated_at,
         }));
+        await clearLocalClients();
+        for (const client of loaded) {
+          await insertClientLocal(client);
+        }
         setClients(loaded);
       }
     } catch (error) {

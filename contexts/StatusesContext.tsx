@@ -15,6 +15,8 @@ import {
 import {
   createLocalStatusesTable,
   getAllStatusesLocal,
+  clearLocalStatuses,
+  insertStatusLocal,
 } from '@/src/database/statusesLocalDB';
 
 export interface Status {
@@ -107,6 +109,10 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.statuses) {
+        await clearLocalStatuses();
+        for (const status of data.statuses) {
+          await insertStatusLocal(status);
+        }
         setStatuses(data.statuses);
       }
     } catch (error) {
