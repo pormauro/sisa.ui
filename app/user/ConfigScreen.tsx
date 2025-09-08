@@ -1,6 +1,6 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
+import { StyleSheet, ScrollView, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
@@ -12,13 +12,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
   const { clearLocalFiles } = useContext(FileContext);
-  const [editConfig, setEditConfig] = useState<boolean>(false);
-  const [configForm, setConfigForm] = useState<ConfigForm>({
-    role: '',
-    view_type: '',
-    theme: 'light',
-    font_size: '',
-  });
+  const [selectedTheme, setSelectedTheme] = useState<string>('light');
 
   useEffect(() => {
     // Cargamos la configuración (loadConfig se ejecuta al montar el provider, pero aquí se puede refrescar)
@@ -26,13 +20,8 @@ const ConfigScreen: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (configDetails) {
-      setConfigForm({
-        role: configDetails.role || '',
-        view_type: configDetails.view_type || '',
-        theme: configDetails.theme || 'light',
-        font_size: configDetails.font_size || '',
-      });
+    if (configDetails?.theme) {
+      setSelectedTheme(configDetails.theme);
     }
   }, [configDetails]);
 
@@ -52,63 +41,34 @@ const ConfigScreen: React.FC = () => {
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
-  const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+
+  const handleThemeChange = (value: string): void => {
+    setSelectedTheme(value);
+    if (configDetails) {
+      const updated: ConfigForm = {
+        role: configDetails.role,
+        view_type: configDetails.view_type,
+        theme: value,
+        font_size: configDetails.font_size,
+      };
+      void updateConfig(updated);
+    }
+  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: background }]}>
       <ThemedText style={styles.subtitle}>Configuración</ThemedText>
       {configDetails ? (
         <ThemedView style={styles.dataContainer} lightColor="#f5f5f5" darkColor="#1e1e1e">
-          {editConfig ? (
-            <>
-              <TextInput
-                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
-                value={configForm.role}
-                onChangeText={(text) => setConfigForm({ ...configForm, role: text })}
-                placeholder="Rol"
-                placeholderTextColor={placeholderTextColor}
-              />
-              <TextInput
-                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
-                value={configForm.view_type}
-                onChangeText={(text) => setConfigForm({ ...configForm, view_type: text })}
-                placeholder="Tipo de vista"
-                placeholderTextColor={placeholderTextColor}
-              />
-              <Picker
-                selectedValue={configForm.theme}
-                onValueChange={(value) => setConfigForm({ ...configForm, theme: value })}
-                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
-              >
-                <Picker.Item label="Claro" value="light" />
-                <Picker.Item label="Oscuro" value="dark" />
-              </Picker>
-              <TextInput
-                style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
-                value={configForm.font_size}
-                onChangeText={(text) => setConfigForm({ ...configForm, font_size: text })}
-                placeholder="Tamaño de fuente"
-                placeholderTextColor={placeholderTextColor}
-              />
-              <ThemedButton
-                title="Guardar Configuración"
-                onPress={() => {
-                  void updateConfig(configForm);
-                  setEditConfig(false);
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <ThemedText style={styles.infoText}>Rol: {configDetails.role}</ThemedText>
-              <ThemedText style={styles.infoText}>Tipo de vista: {configDetails.view_type}</ThemedText>
-              <ThemedText style={styles.infoText}>
-                Tema: {configDetails.theme === 'dark' ? 'Oscuro' : 'Claro'}
-              </ThemedText>
-              <ThemedText style={styles.infoText}>Tamaño de fuente: {configDetails.font_size}</ThemedText>
-              <ThemedButton title="Editar Configuración" onPress={() => setEditConfig(true)} style={styles.editButton} />
-            </>
-          )}
+          <ThemedText style={styles.infoText}>Tema</ThemedText>
+          <Picker
+            selectedValue={selectedTheme}
+            onValueChange={handleThemeChange}
+            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
+          >
+            <Picker.Item label="Claro" value="light" />
+            <Picker.Item label="Oscuro" value="dark" />
+          </Picker>
           <ThemedButton
             title="Borrar datos de archivos"
             lightColor="#d9534f"
