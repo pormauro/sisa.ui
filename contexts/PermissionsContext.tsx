@@ -1,5 +1,4 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
-import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 
@@ -56,7 +55,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setPermissions(mergedPermissions);
     } catch (error) {
       console.error("Error fetching permissions", error);
-      Alert.alert("Error", "No se pudieron cargar los permisos.");
+      console.error('Error: No se pudieron cargar los permisos.');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,5 @@
 // contexts/TariffsContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -85,7 +84,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     if (!state.isConnected) {
       const localTariffs = await getAllTariffsLocal();
       setTariffs(localTariffs as Tariff[]);
-      Alert.alert('Sin conexión', 'Mostrando datos locales.');
+      console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchTariffs(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       }
@@ -118,7 +117,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchTariffs(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       } else {
-        Alert.alert('Error de red', 'No se pudieron cargar las tarifas.');
+        console.error('Error de red: No se pudieron cargar las tarifas.');
       }
     }
   };

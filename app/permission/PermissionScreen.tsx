@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   Button,
 } from 'react-native';
@@ -81,7 +80,7 @@ const PermissionScreen: React.FC = () => {
         permissionsMap[perm.sector] = { id: perm.id, sector: perm.sector };
       });
       setAssignedPermissions(permissionsMap);
-      Alert.alert('Sin conexión', 'Mostrando permisos locales.');
+      console.log('Sin conexión: Mostrando permisos locales.');
       setLoading(false);
       return;
     }
@@ -109,7 +108,7 @@ const PermissionScreen: React.FC = () => {
       }
     } catch (err) {
       console.error('Error loading permissions:', err);
-      Alert.alert('Error', 'No se pudieron cargar los permisos.');
+      console.error('Error: No se pudieron cargar los permisos.');
     } finally {
       setLoading(false);
     }
@@ -228,7 +227,7 @@ const PermissionScreen: React.FC = () => {
       }
     } catch (err) {
       console.error(`Error adding permission ${sector}:`, err);
-      Alert.alert('Error', `No se pudo agregar el permiso ${sector}`);
+      console.error(`Error: No se pudo agregar el permiso ${sector}`);
     }
     await processQueue();
   };
@@ -269,7 +268,7 @@ const PermissionScreen: React.FC = () => {
       await deletePermissionLocal(perm.id);
     } catch (err) {
       console.error(`Error deleting permission ${sector}:`, err);
-      Alert.alert('Error', `No se pudo eliminar el permiso ${sector}`);
+      console.error(`Error: No se pudo eliminar el permiso ${sector}`);
     }
     await processQueue();
   };

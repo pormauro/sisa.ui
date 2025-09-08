@@ -1,6 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/contexts/JobsContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -126,7 +125,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     if (!state.isConnected) {
       const localJobs = await getAllJobsLocal();
       setJobs(localJobs as Job[]);
-      Alert.alert('Sin conexión', 'Mostrando datos locales.');
+      console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchJobs(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       }
@@ -160,7 +159,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchJobs(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       } else {
-        Alert.alert('Error de red', 'No se pudieron cargar los trabajos.');
+        console.error('Error de red: No se pudieron cargar los trabajos.');
       }
     }
   };
