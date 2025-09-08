@@ -14,6 +14,21 @@ import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import NetInfo from '@react-native-community/netinfo';
+import {
+  enqueueOperation,
+  createSyncQueueTable,
+  deleteQueueItem,
+  getAllQueueItems,
+  updateQueueItemStatus,
+} from '@/src/database/syncQueueDB';
+import {
+  createLocalPermissionsTable,
+  getPermissionsByUserLocal,
+  insertPermissionLocal,
+  deletePermissionLocal,
+  clearPermissionsByUserLocal,
+} from '@/src/database/permissionsLocalDB';
 
 // Definición de grupos de permisos. Cada grupo contiene una lista de "sectors" (cadenas que representan los permisos)
 const PERMISSION_GROUPS = [
@@ -41,6 +56,7 @@ const PERMISSION_GROUPS = [
 interface AssignedPermission {
   id: number;
   sector: string;
+  syncStatus?: 'pending' | 'error';
 }
 
 const PermissionScreen: React.FC = () => {
@@ -54,33 +70,105 @@ const PermissionScreen: React.FC = () => {
   const groupBorderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
 
   // Función para cargar permisos del usuario seleccionado (o global si id === 0)
-  const loadPermissions = useCallback(() => {
+  const loadPermissions = useCallback(async () => {
     if (!token || selectedUser === null) return;
     setLoading(true);
-    const url = selectedUser.id === 0 
-      ? `${BASE_URL}/permissions/global` 
+    const state = await NetInfo.fetch();
+    if (!state.isConnected) {
+      const localPerms = await getPermissionsByUserLocal(selectedUser.id);
+      const permissionsMap: Record<string, AssignedPermission> = {};
+      localPerms.forEach((perm: any) => {
+        permissionsMap[perm.sector] = { id: perm.id, sector: perm.sector };
+      });
+      setAssignedPermissions(permissionsMap);
+      Alert.alert('Sin conexión', 'Mostrando permisos locales.');
+      setLoading(false);
+      return;
+    }
+
+    const url = selectedUser.id === 0
+      ? `${BASE_URL}/permissions/global`
       : `${BASE_URL}/permissions/user/${selectedUser.id}`;
 
-    return fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      const permissionsMap: Record<string, AssignedPermission> = {};
+      data.permissions.forEach((perm: AssignedPermission) => {
+        permissionsMap[perm.sector] = perm;
+      });
+      setAssignedPermissions(permissionsMap);
+      await clearPermissionsByUserLocal(selectedUser.id);
+      for (const perm of data.permissions) {
+        await insertPermissionLocal({ id: perm.id, user_id: selectedUser.id, sector: perm.sector });
       }
-    })
-      .then(res => res.json())
-      .then(data => {
-        const permissionsMap: Record<string, AssignedPermission> = {};
-        data.permissions.forEach((perm: AssignedPermission) => {
-          permissionsMap[perm.sector] = perm;
-        });
-        setAssignedPermissions(permissionsMap);
-      })
-      .catch(err => {
-        console.error('Error loading permissions:', err);
-        Alert.alert('Error', 'No se pudieron cargar los permisos.');
-      })
-      .finally(() => setLoading(false));
+    } catch (err) {
+      console.error('Error loading permissions:', err);
+      Alert.alert('Error', 'No se pudieron cargar los permisos.');
+    } finally {
+      setLoading(false);
+    }
   }, [token, selectedUser]);
+
+  const processQueue = async () => {
+    if (!token) return;
+    const items = await getAllQueueItems();
+    for (const item of items) {
+      if (item.table_name !== 'permissions') continue;
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        };
+        if (item.op === 'create') {
+          const res = await fetch(`${BASE_URL}/permissions`, {
+            method: 'POST',
+            headers,
+            body: item.payload_json,
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const perm = data.permission || data;
+            setAssignedPermissions(prev => ({
+              ...prev,
+              [perm.sector]: { id: perm.id, sector: perm.sector },
+            }));
+            await deletePermissionLocal(item.local_temp_id);
+            const payload = JSON.parse(item.payload_json);
+            await insertPermissionLocal({ id: perm.id, user_id: payload.user_id || 0, sector: perm.sector });
+            await deleteQueueItem(item.id);
+          } else {
+            await updateQueueItemStatus(item.id, 'error', `HTTP ${res.status}`);
+            break;
+          }
+        } else if (item.op === 'delete') {
+          const res = await fetch(`${BASE_URL}/permissions/${item.record_id}`, {
+            method: 'DELETE',
+            headers,
+          });
+          if (res.ok) {
+            await deleteQueueItem(item.id);
+          } else {
+            await updateQueueItemStatus(item.id, 'error', `HTTP ${res.status}`);
+            break;
+          }
+        }
+      } catch (err) {
+        await updateQueueItemStatus(item.id, 'error', String(err));
+        break;
+      }
+    }
+  };
+
+  useEffect(() => {
+    createSyncQueueTable();
+    createLocalPermissionsTable();
+  }, []);
 
   useEffect(() => {
     if (selectedUser) {
@@ -90,65 +178,100 @@ const PermissionScreen: React.FC = () => {
     }
   }, [selectedUser, loadPermissions]);
 
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        processQueue().catch(() => {});
+      }
+    });
+    return () => unsubscribe();
+  }, [token]);
+
   // Función para agregar un permiso; se retorna la promesa
-  const addPermission = (sector: string) => {
-    if (!token || selectedUser === null) return Promise.resolve();
+  const addPermission = async (sector: string) => {
+    if (!token || selectedUser === null) return;
     const bodyData: any = { sector };
-  
     if (selectedUser.id !== 0) {
       bodyData.user_id = selectedUser.id;
     }
-  
-    return fetch(`${BASE_URL}/permissions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(bodyData),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.id) {
-          setAssignedPermissions(prev => ({
-            ...prev,
-            [sector]: { id: data.id, sector }
-          }));
-        }
-      })
-      .catch(err => {
-        console.error(`Error adding permission ${sector}:`, err);
-        Alert.alert('Error', `No se pudo agregar el permiso ${sector}`);
+
+    const state = await NetInfo.fetch();
+    const current = assignedPermissions[sector];
+    const tempId = current?.id ?? -Date.now();
+    if (!state.isConnected) {
+      if (!current) {
+        setAssignedPermissions(prev => ({
+          ...prev,
+          [sector]: { id: tempId, sector, syncStatus: 'pending' },
+        }));
+      }
+      await insertPermissionLocal({ id: tempId, user_id: selectedUser.id, sector });
+      await enqueueOperation('permissions', 'create', bodyData, null, tempId);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BASE_URL}/permissions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyData),
       });
+      const data = await res.json();
+      if (data.id || data.permission) {
+        const id = data.id ?? data.permission.id;
+        setAssignedPermissions(prev => ({ ...prev, [sector]: { id, sector } }));
+        await deletePermissionLocal(tempId);
+        await insertPermissionLocal({ id, user_id: selectedUser.id, sector });
+      }
+    } catch (err) {
+      console.error(`Error adding permission ${sector}:`, err);
+      Alert.alert('Error', `No se pudo agregar el permiso ${sector}`);
+    }
+    await processQueue();
   };
   
   // Función para eliminar un permiso; se retorna la promesa
-  const removePermission = (sector: string) => {
-    if (!token || selectedUser === null) return Promise.resolve();
+  const removePermission = async (sector: string) => {
+    if (!token || selectedUser === null) return;
     const perm = assignedPermissions[sector];
-    if (!perm) return Promise.resolve();
-    return fetch(`${BASE_URL}/permissions/${perm.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-    })
-      .then(async res => {
-        const text = await res.text();
-        return text ? JSON.parse(text) : {};
-      })
-      .then(() => {
-        setAssignedPermissions(prev => {
-          const newPerms = { ...prev };
-          delete newPerms[sector];
-          return newPerms;
-        });
-      })
-      .catch(err => {
-        console.error(`Error deleting permission ${sector}:`, err);
-        Alert.alert('Error', `No se pudo eliminar el permiso ${sector}`);
+    if (!perm) return;
+    const state = await NetInfo.fetch();
+
+    if (perm.id < 0) {
+      const items = await getAllQueueItems();
+      const createItem = items.find(
+        (i: any) => i.table_name === 'permissions' && i.op === 'create' && i.local_temp_id === perm.id
+      );
+      if (createItem) {
+        await deleteQueueItem(createItem.id);
+      }
+      await deletePermissionLocal(perm.id);
+      return;
+    }
+
+    if (!state.isConnected) {
+      await deletePermissionLocal(perm.id);
+      await enqueueOperation('permissions', 'delete', {}, perm.id, null);
+      return;
+    }
+
+    try {
+      await fetch(`${BASE_URL}/permissions/${perm.id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
+      await deletePermissionLocal(perm.id);
+    } catch (err) {
+      console.error(`Error deleting permission ${sector}:`, err);
+      Alert.alert('Error', `No se pudo eliminar el permiso ${sector}`);
+    }
+    await processQueue();
   };
 
   // Actualiza el estado de forma optimista y luego llama a la API
@@ -157,14 +280,13 @@ const PermissionScreen: React.FC = () => {
     setAssignedPermissions(prev => {
       const newState = { ...prev };
       if (value) {
-        newState[sector] = { id: -Date.now(), sector }; // id temporal
+        newState[sector] = { id: -Date.now(), sector, syncStatus: 'pending' };
       } else {
         delete newState[sector];
       }
       return newState;
     });
 
-    // Luego se realiza la llamada a la API
     if (value) {
       addPermission(sector);
     } else {
