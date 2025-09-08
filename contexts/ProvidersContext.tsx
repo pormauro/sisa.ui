@@ -11,7 +11,6 @@ import {
 } from '@/src/database/syncQueueDB';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { Alert } from 'react-native';
 import {
   createLocalProvidersTable,
   getAllProvidersLocal,
@@ -90,7 +89,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     if (!state.isConnected) {
       const localProviders = await getAllProvidersLocal();
       setProviders(localProviders as Provider[]);
-      Alert.alert('Sin conexión', 'Mostrando datos locales.');
+      console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchProviders(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       }
@@ -124,7 +123,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchProviders(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       } else {
-        Alert.alert('Error de red', 'No se pudieron cargar los proveedores.');
+        console.error('Error de red: No se pudieron cargar los proveedores.');
       }
     }
   };

@@ -1,6 +1,5 @@
 // src/contexts/ConfigContext.tsx
 import React, { createContext, useState, ReactNode, useEffect, useContext } from 'react';
-import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -94,7 +93,7 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
     if (state.isConnected) {
       await processQueue();
     } else {
-      Alert.alert('Sin conexión', 'La operación se encoló y se sincronizará cuando vuelva la conexión.');
+      console.log('Sin conexión: La operación se encoló y se sincronizará cuando vuelva la conexión.');
     }
   };
 

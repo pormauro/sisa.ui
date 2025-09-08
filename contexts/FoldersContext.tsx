@@ -1,7 +1,6 @@
 // Archivo: contexts/FoldersContext.tsx
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -98,7 +97,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
     if (!state.isConnected) {
       const localFolders = await getAllFoldersLocal();
       setFolders(localFolders as Folder[]);
-      Alert.alert('Sin conexión', 'Mostrando datos locales.');
+      console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchFolders(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       }
@@ -124,7 +123,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchFolders(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
       } else {
-        Alert.alert('Error de red', 'No se pudieron cargar las carpetas.');
+        console.error('Error de red: No se pudieron cargar las carpetas.');
       }
     }
   };
