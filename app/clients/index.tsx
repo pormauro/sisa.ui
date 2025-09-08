@@ -11,7 +11,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ClientsListPage() {
-  const { clients, loadClients, deleteClient } = useContext(ClientsContext);
+  const { clients, loadClients, deleteClient, processQueue } = useContext(ClientsContext);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const { permissions, loading: permissionsLoading } = useContext(PermissionsContext);
@@ -31,7 +31,19 @@ export default function ClientsListPage() {
   const canDeleteClient = permissions.includes('deleteClient');
 
   useEffect(() => {
-    loadClients();
+    const syncAndLoad = async () => {
+      try {
+        await processQueue();
+      } catch (e) {
+        // ignore
+      }
+      try {
+        await loadClients();
+      } catch (e) {
+        // ignore
+      }
+    };
+    syncAndLoad();
   }, []);
 
   // Configuración de Fuse para búsqueda en business_name, tax_id, email y address
