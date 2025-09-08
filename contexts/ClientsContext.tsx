@@ -8,7 +8,7 @@ import {
   getAllQueueItems,
   deleteQueueItem,
   updateQueueItemStatus,
-} from '@/database/syncQueueDB';
+} from '@/src/database/syncQueueDB';
 
 export interface Client {
   id: number;
