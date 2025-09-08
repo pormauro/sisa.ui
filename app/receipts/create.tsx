@@ -33,6 +33,7 @@ export default function CreateReceipt() {
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
+  const activeClients = useMemo(() => clients.filter(c => !c.pendingDelete), [clients]);
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -195,7 +196,7 @@ export default function CreateReceipt() {
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
               ))}
             </Picker>

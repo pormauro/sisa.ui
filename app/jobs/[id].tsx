@@ -36,6 +36,7 @@ export default function EditJobScreen() {
   const { jobs, updateJob, deleteJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
+  const activeClients = useMemo(() => clients.filter(c => !c.pendingDelete), [clients]);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
@@ -156,8 +157,8 @@ export default function EditJobScreen() {
 
   // opciones para pickers
   const clientItems = useMemo(
-    () => clients.map(c => ({ id: c.id, name: c.business_name })),
-    [clients]
+    () => activeClients.map(c => ({ id: c.id, name: c.business_name })),
+    [activeClients]
   );
   const folderItems = useMemo(
     () => folders
@@ -184,7 +185,7 @@ export default function EditJobScreen() {
       setManualAmount('');
       return;
     }
-    const client = clients.find(c => c.id === Number(item.id));
+    const client = activeClients.find(c => c.id === Number(item.id));
     if (client && client.tariff_id) {
       const t = tariffs.find(t => t.id === client.tariff_id);
       if (t && new Date(jobDate) >= new Date(t.last_update)) {

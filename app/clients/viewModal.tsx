@@ -22,8 +22,16 @@ export default function ViewClientModal() {
 
   if (!client) {
     return (
-      <View style={[styles.container, { backgroundColor: background }]}> 
+      <View style={[styles.container, { backgroundColor: background }]}>
         <ThemedText>Cliente no encontrado</ThemedText>
+      </View>
+    );
+  }
+
+  if (client.pendingDelete) {
+    return (
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <ThemedText>Este cliente está pendiente de eliminación.</ThemedText>
       </View>
     );
   }

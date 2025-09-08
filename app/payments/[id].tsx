@@ -39,6 +39,7 @@ export default function PaymentDetailPage() {
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
+  const activeClients = useMemo(() => clients.filter(c => !c.pendingDelete), [clients]);
 
   const payment = payments.find(p => p.id === paymentId);
 
@@ -268,7 +269,7 @@ export default function PaymentDetailPage() {
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
               ))}
             </Picker>
@@ -362,7 +363,7 @@ export default function PaymentDetailPage() {
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
               ))}
             </Picker>

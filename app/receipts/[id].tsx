@@ -39,6 +39,7 @@ export default function ReceiptDetailPage() {
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
+  const activeClients = useMemo(() => clients.filter(c => !c.pendingDelete), [clients]);
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -267,7 +268,7 @@ export default function ReceiptDetailPage() {
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
               ))}
             </Picker>

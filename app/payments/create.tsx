@@ -33,6 +33,7 @@ export default function CreatePayment() {
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
+  const activeClients = useMemo(() => clients.filter(c => !c.pendingDelete), [clients]);
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -196,7 +197,7 @@ export default function CreatePayment() {
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
               ))}
             </Picker>
@@ -290,7 +291,7 @@ export default function CreatePayment() {
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
+              {activeClients.map(c => (
                 <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
               ))}
             </Picker>

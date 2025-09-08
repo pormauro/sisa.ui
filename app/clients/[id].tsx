@@ -65,8 +65,16 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <View style={[styles.container, { backgroundColor: screenBackground }]}> 
+      <View style={[styles.container, { backgroundColor: screenBackground }]}>
         <ThemedText>Cliente no encontrado</ThemedText>
+      </View>
+    );
+  }
+
+  if (client.pendingDelete) {
+    return (
+      <View style={[styles.container, { backgroundColor: screenBackground }]}>
+        <ThemedText>Este cliente está pendiente de eliminación y no permite operaciones.</ThemedText>
       </View>
     );
   }

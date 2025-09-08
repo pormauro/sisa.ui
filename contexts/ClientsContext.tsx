@@ -106,6 +106,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateClient = async (id: number, clientData: Omit<Client, 'id'>): Promise<boolean> => {
+    const existing = clients.find(c => c.id === id);
+    if (existing?.pendingDelete) return false;
     setClients(prev =>
       prev.map(client =>
         client.id === id ? { ...client, ...clientData, syncStatus: 'pending' } : client
@@ -118,6 +120,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const deleteClient = async (id: number): Promise<boolean> => {
+    const existing = clients.find(c => c.id === id);
+    if (existing?.pendingDelete) return false;
     setClients(prev =>
       prev.map(client =>
         client.id === id ? { ...client, pendingDelete: true, syncStatus: 'pending' } : client

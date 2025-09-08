@@ -64,8 +64,9 @@ export default function ClientsListPage() {
   const renderItem = ({ item }: { item: Client }) => (
     <TouchableOpacity
       style={[styles.itemContainer, { borderColor: itemBorderColor }]}
-      onPress={() => router.push(`/clients/viewModal?id=${item.id}`)}
-      onLongPress={() => router.push(`/clients/${item.id}`)}
+      onPress={item.pendingDelete ? undefined : () => router.push(`/clients/viewModal?id=${item.id}`)}
+      onLongPress={item.pendingDelete ? undefined : () => router.push(`/clients/${item.id}`)}
+      disabled={item.pendingDelete}
     >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>

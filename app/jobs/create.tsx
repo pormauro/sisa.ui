@@ -34,6 +34,7 @@ export default function CreateJobScreen() {
   const { addJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
+  const activeClients = useMemo(() => clients.filter(c => !c.pendingDelete), [clients]);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
@@ -103,7 +104,7 @@ export default function CreateJobScreen() {
   const handleClientChange = (val: string) => {
     setSelectedClient(val);
     setSelectedFolder('');
-    const client = clients.find(c => c.id.toString() === val);
+    const client = activeClients.find(c => c.id.toString() === val);
     if (client && client.tariff_id) {
       const t = tariffs.find(t => t.id === client.tariff_id);
       if (t && new Date(jobDate) >= new Date(t.last_update)) {
@@ -224,7 +225,7 @@ export default function CreateJobScreen() {
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona Cliente --" value="" />
-          {clients.map(c => (
+          {activeClients.map(c => (
             <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
           ))}
         </Picker>
