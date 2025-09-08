@@ -10,6 +10,7 @@ import {
   updateQueueItemStatus,
 } from '@/src/database/syncQueueDB';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 
 export interface Client {
   id: number;
@@ -207,10 +208,27 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    if (token) {
-      loadClients();
-      processQueue();
-    }
+    if (!token) return;
+
+    const sync = async () => {
+      try {
+        await processQueue();
+      } catch (e) {}
+      try {
+        await loadClients();
+      } catch (e) {}
+    };
+    sync();
+
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        processQueue()
+          .then(() => loadClients().catch(() => {}))
+          .catch(() => {});
+      }
+    });
+
+    return () => unsubscribe();
   }, [token]);
 
   return (
