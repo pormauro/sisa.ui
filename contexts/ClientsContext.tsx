@@ -1,15 +1,15 @@
 // /contexts/ClientsContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import {
+  clearQueue as clearQueueDB,
   createSyncQueueTable,
+  deleteQueueItem,
   enqueueOperation,
   getAllQueueItems,
-  deleteQueueItem,
   updateQueueItemStatus,
-  clearQueue as clearQueueDB,
-} from '@/database/syncQueueDB';
+} from '@/src/database/syncQueueDB';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 export interface Client {
   id: number;
