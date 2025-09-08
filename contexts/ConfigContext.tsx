@@ -45,10 +45,12 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
         const configuration = data.configuration as ConfigDetails;
         setConfigDetails(configuration);
       } else {
-        console.error('Error al obtener la configuración');
+        // Se evita usar console.error para prevenir pantallas rojas en ausencia de conexión
+        console.log('Error al obtener la configuración');
       }
     } catch (error: any) {
-      console.error('Error en fetch de configuración:', error);
+      // Se evita usar console.error para prevenir pantallas rojas en ausencia de conexión
+      console.log('Error en fetch de configuración:', error);
     }
   };
 
