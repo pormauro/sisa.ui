@@ -103,7 +103,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     const tempId = Date.now() * -1;
     const newClient: Client = { id: tempId, ...clientData, syncStatus: 'pending' };
     setClients(prev => [...prev, newClient]);
-    await enqueueOperation('clients', 'create', clientData, null, tempId);
+    const payloadWithId = { id: tempId, ...clientData };
+    await enqueueOperation('clients', 'create', payloadWithId, null, tempId);
     await loadQueue();
     processQueue();
     return newClient;
