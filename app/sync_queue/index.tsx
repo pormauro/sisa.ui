@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function SyncQueuePage() {
-  const { queue, processQueue } = useContext(ClientsContext);
+  const { queue, processQueue, clearQueue } = useContext(ClientsContext);
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
@@ -27,6 +27,9 @@ export default function SyncQueuePage() {
       />
       <TouchableOpacity style={[styles.button, { backgroundColor: buttonColor }]} onPress={processQueue}>
         <ThemedText style={{ color: buttonTextColor }}>Reintentar</ThemedText>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.button, { backgroundColor: buttonColor }]} onPress={clearQueue}>
+        <ThemedText style={{ color: buttonTextColor }}>Borrar cola</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );

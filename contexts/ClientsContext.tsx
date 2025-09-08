@@ -8,6 +8,7 @@ import {
   getAllQueueItems,
   deleteQueueItem,
   updateQueueItemStatus,
+  clearQueue as clearQueueDB,
 } from '@/database/syncQueueDB';
 
 export interface Client {
@@ -44,6 +45,7 @@ interface ClientsContextValue {
   updateClient: (id: number, client: Omit<Client, 'id'>) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
   processQueue: () => Promise<void>;
+  clearQueue: () => Promise<void>;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
@@ -54,6 +56,7 @@ export const ClientsContext = createContext<ClientsContextValue>({
   updateClient: async () => false,
   deleteClient: async () => false,
   processQueue: async () => {},
+  clearQueue: async () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
@@ -127,6 +130,11 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     await loadQueue();
     processQueue();
     return true;
+  };
+
+  const clearQueue = async (): Promise<void> => {
+    await clearQueueDB();
+    await loadQueue();
   };
 
   const processQueue = async () => {
@@ -206,7 +214,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   return (
-    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue }}>
+    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue, clearQueue }}>
       {children}
     </ClientsContext.Provider>
   );

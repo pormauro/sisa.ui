@@ -83,3 +83,11 @@ export async function deleteQueueItem(id) {
     await logErrorToLocal(error);
   }
 }
+
+export async function clearQueue() {
+  try {
+    await db.runAsync('DELETE FROM sync_queue;');
+  } catch (error) {
+    await logErrorToLocal(error);
+  }
+}
