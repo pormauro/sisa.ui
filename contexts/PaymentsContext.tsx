@@ -16,6 +16,7 @@ import {
   createLocalPaymentsTable,
   getAllPaymentsLocal,
   insertPaymentLocal,
+  deletePaymentLocal,
   clearLocalPayments,
 } from '@/src/database/paymentsLocalDB';
 
@@ -143,6 +144,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     const tempId = Date.now() * -1;
     const newPayment: Payment = { id: tempId, ...paymentData, syncStatus: 'pending' };
     setPayments(prev => [...prev, newPayment]);
+    await insertPaymentLocal(newPayment);
     await enqueueOperation('payments', 'create', paymentData, null, tempId);
     await loadQueue();
     processQueue();
@@ -163,6 +165,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     setPayments(prev =>
       prev.map(p => (p.id === id ? { ...p, pendingDelete: true, syncStatus: 'pending' } : p))
     );
+    await deletePaymentLocal(id);
     await enqueueOperation('payments', 'delete', {}, id, null);
     await loadQueue();
     processQueue();

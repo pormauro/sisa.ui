@@ -16,6 +16,7 @@ import {
   createLocalReceiptsTable,
   getAllReceiptsLocal,
   insertReceiptLocal,
+  deleteReceiptLocal,
   clearLocalReceipts,
 } from '@/src/database/receiptsLocalDB';
 
@@ -143,6 +144,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     const tempId = Date.now() * -1;
     const newReceipt: Receipt = { id: tempId, ...receiptData, syncStatus: 'pending' };
     setReceipts(prev => [...prev, newReceipt]);
+    await insertReceiptLocal(newReceipt);
     await enqueueOperation('receipts', 'create', receiptData, null, tempId);
     await loadQueue();
     processQueue();
@@ -163,6 +165,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     setReceipts(prev =>
       prev.map(r => (r.id === id ? { ...r, pendingDelete: true, syncStatus: 'pending' } : r))
     );
+    await deleteReceiptLocal(id);
     await enqueueOperation('receipts', 'delete', {}, id, null);
     await loadQueue();
     processQueue();
