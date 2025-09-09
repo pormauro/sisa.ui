@@ -225,6 +225,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/clients/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setClients(prev => prev.filter(c => c.id !== item.record_id));

@@ -228,6 +228,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/folders/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setFolders(prev => prev.filter(f => f.id !== item.record_id));

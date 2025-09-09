@@ -240,6 +240,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/statuses/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setStatuses(prev => prev.filter(s => s.id !== item.record_id));

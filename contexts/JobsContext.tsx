@@ -261,6 +261,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/jobs/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setJobs(prev => prev.filter(j => j.id !== item.record_id));
