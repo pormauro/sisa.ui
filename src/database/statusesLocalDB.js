@@ -15,7 +15,7 @@ export async function createLocalStatusesTable() {
         value TEXT,
         background_color TEXT,
         order_index INTEGER,
-        created_at TEXT,
+        timestamp TEXT,
         updated_at TEXT
       );
     `);
@@ -25,16 +25,16 @@ export async function createLocalStatusesTable() {
 }
 
 export async function insertStatusLocal(statusData) {
-  const { label, value, background_color, order_index, created_at, updated_at } = statusData;
+  const { label, value, background_color, order_index, timestamp, updated_at } = statusData;
   try {
     const result = await db.runAsync(
-      `INSERT INTO statuses (label, value, background_color, order_index, created_at, updated_at)
+      `INSERT INTO statuses (label, value, background_color, order_index, timestamp, updated_at)
        VALUES (?, ?, ?, ?, ?, ?);`,
       label,
       value,
       background_color,
       order_index,
-      created_at,
+      timestamp,
       updated_at
     );
     return result.lastInsertRowId;
@@ -99,7 +99,7 @@ export async function syncFromServer() {
           value: s.value,
           background_color: s.background_color,
           order_index: s.order_index,
-          created_at: s.created_at,
+          timestamp: s.timestamp,
           updated_at: s.updated_at,
         });
       }

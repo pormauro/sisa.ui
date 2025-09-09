@@ -18,7 +18,7 @@ interface QueueItem {
   nonce?: string;
   status: string;
   last_error?: string;
-  created_at?: number;
+  timestamp?: number;
 }
 
 export default function SyncQueuePage() {
@@ -74,7 +74,7 @@ export default function SyncQueuePage() {
               <ThemedText>ID Temp: {item.local_temp_id ?? '-'}</ThemedText>
               <ThemedText>Estado: {item.status}</ThemedText>
               <ThemedText>
-                Creado: {item.created_at ? new Date(item.created_at).toLocaleString() : '-'}
+                Creado: {item.timestamp ? new Date(item.timestamp).toLocaleString() : '-'}
               </ThemedText>
             </TouchableOpacity>
             <TouchableOpacity

@@ -17,7 +17,7 @@ export async function createSyncQueueTable() {
         nonce TEXT,
         status TEXT NOT NULL,
         last_error TEXT,
-        created_at INTEGER
+        timestamp INTEGER
       );
     `);
   } catch (error) {
@@ -46,10 +46,10 @@ export async function enqueueOperation(
     const requestId =
       globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const nonce = generateNonce(10);
-    const createdAt = timestamp ?? payload?.timestamp ?? Date.now();
-    const payloadWithTimestamp = { ...payload, timestamp: createdAt };
+    const finalTimestamp = timestamp ?? payload?.timestamp ?? Date.now();
+    const payloadWithTimestamp = { ...payload, timestamp: finalTimestamp };
     const result = await db.runAsync(
-      `INSERT INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, request_id, nonce, status, created_at)
+      `INSERT INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, request_id, nonce, status, timestamp)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?);`,
       tableName,
       op,
@@ -58,7 +58,7 @@ export async function enqueueOperation(
       JSON.stringify(payloadWithTimestamp),
       requestId,
       nonce,
-      createdAt
+      finalTimestamp
     );
     return result.lastInsertRowId;
   } catch (error) {

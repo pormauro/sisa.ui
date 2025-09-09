@@ -25,7 +25,7 @@ export interface Status {
   value: string;
   background_color: string;
   order_index: number;
-  created_at: string;
+  timestamp: string;
   updated_at: string;
   syncStatus?: 'pending' | 'error';
   pendingDelete?: boolean;
@@ -46,10 +46,10 @@ interface StatusesContextType {
   statuses: Status[];
   queue: QueueItem[];
   loadStatuses: () => void;
-  addStatus: (status: Omit<Status, 'id' | 'created_at' | 'updated_at'>) => Promise<Status | null>;
+  addStatus: (status: Omit<Status, 'id' | 'timestamp' | 'updated_at'>) => Promise<Status | null>;
   updateStatus: (
     id: number,
-    status: Omit<Status, 'id' | 'created_at' | 'updated_at'>
+    status: Omit<Status, 'id' | 'timestamp' | 'updated_at'>
   ) => Promise<boolean>;
   deleteStatus: (id: number) => Promise<boolean>;
   reorderStatuses: (orderedIds: number[]) => Promise<boolean>;
@@ -132,12 +132,12 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addStatus = async (
-    statusData: Omit<Status, 'id' | 'created_at' | 'updated_at'>
+    statusData: Omit<Status, 'id' | 'timestamp' | 'updated_at'>
   ): Promise<Status | null> => {
     const tempId = Date.now() * -1;
     const newStatus: Status = {
       id: tempId,
-      created_at: '',
+      timestamp: '',
       updated_at: '',
       ...statusData,
       syncStatus: 'pending',
@@ -151,7 +151,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
 
   const updateStatus = async (
     id: number,
-    statusData: Omit<Status, 'id' | 'created_at' | 'updated_at'>
+    statusData: Omit<Status, 'id' | 'timestamp' | 'updated_at'>
   ): Promise<boolean> => {
     setStatuses(prev =>
       prev.map(s => (s.id === id ? { ...s, ...statusData, syncStatus: 'pending' } : s))

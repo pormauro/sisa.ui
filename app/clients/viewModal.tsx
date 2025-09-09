@@ -54,7 +54,7 @@ export default function ViewClientModal() {
       <ThemedText style={styles.value}>{client.id}</ThemedText>
 
       <ThemedText style={styles.label}>Fecha de creación</ThemedText>
-      <ThemedText style={styles.value}>{client.created_at}</ThemedText>
+      <ThemedText style={styles.value}>{client.timestamp}</ThemedText>
 
       <ThemedText style={styles.label}>Fecha de modificación</ThemedText>
       <ThemedText style={styles.value}>{client.updated_at}</ThemedText>
