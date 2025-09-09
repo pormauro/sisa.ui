@@ -43,6 +43,7 @@ export async function enqueueOperation(
   timestamp
 ) {
   try {
+    await createSyncQueueTable();
     const requestId =
       globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const nonce = generateNonce(10);
@@ -69,6 +70,7 @@ export async function enqueueOperation(
 
 export async function getAllQueueItems() {
   try {
+    await createSyncQueueTable();
     const result = await db.getAllAsync('SELECT * FROM sync_queue ORDER BY id ASC;');
     return result;
   } catch (error) {
@@ -79,6 +81,7 @@ export async function getAllQueueItems() {
 
 export async function updateQueueItemStatus(id, status, lastError = null) {
   try {
+    await createSyncQueueTable();
     await db.runAsync('UPDATE sync_queue SET status = ?, last_error = ? WHERE id = ?;', status, lastError, id);
   } catch (error) {
     await logErrorToLocal(error);
@@ -87,6 +90,7 @@ export async function updateQueueItemStatus(id, status, lastError = null) {
 
 export async function deleteQueueItem(id) {
   try {
+    await createSyncQueueTable();
     await db.runAsync('DELETE FROM sync_queue WHERE id = ?;', id);
   } catch (error) {
     await logErrorToLocal(error);
@@ -95,6 +99,7 @@ export async function deleteQueueItem(id) {
 
 export async function clearQueue() {
   try {
+    await createSyncQueueTable();
     await db.runAsync('DELETE FROM sync_queue;');
   } catch (error) {
     await logErrorToLocal(error);
