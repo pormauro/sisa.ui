@@ -17,6 +17,7 @@ import {
   clearLocalCashBoxes,
   insertCashBoxLocal,
 } from '@/src/database/cashBoxesLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface CashBox {
   id: number;
@@ -85,7 +86,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localBoxes = await getAllCashBoxesLocal();
-      setCashBoxes(localBoxes as CashBox[]);
+      setCashBoxes(prev => mergeOfflineData(localBoxes as CashBox[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchCashBoxes(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

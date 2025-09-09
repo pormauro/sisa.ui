@@ -17,6 +17,7 @@ import {
   clearLocalStatuses,
   insertStatusLocal,
 } from '@/src/database/statusesLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Status {
   id: number;
@@ -91,7 +92,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localStatuses = await getAllStatusesLocal();
-      setStatuses(localStatuses as Status[]);
+      setStatuses(prev => mergeOfflineData(localStatuses as Status[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchStatuses(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
