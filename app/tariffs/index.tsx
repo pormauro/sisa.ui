@@ -79,6 +79,7 @@ export default function TariffsScreen() {
         <ThemedText style={styles.name}>{item.name}</ThemedText>
         <ThemedText>${item.amount}</ThemedText>
       </View>
+      {item.syncStatus === 'pending' && <ActivityIndicator color={textColor} />}
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? (

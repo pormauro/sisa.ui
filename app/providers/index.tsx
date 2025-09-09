@@ -75,6 +75,7 @@ export default function ProvidersListPage() {
         <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
         <ThemedText>{item.email || ''}</ThemedText>
       </View>
+      {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? (

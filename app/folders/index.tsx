@@ -114,6 +114,7 @@ export default function FoldersPage() {
               onLongPress={() => canEditFolder && router.push(`/folders/${item.id}`)}>
               <CircleImagePicker fileId={item.folder_image_file_id} size={50} />
               <ThemedText style={[styles.text, { color: textColor }]}>{item.name}</ThemedText>
+              {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
               {canDeleteFolder && (
                 <TouchableOpacity onPress={() => handleDelete(item.id)}>
                   {loadingId === item.id ? (
@@ -136,6 +137,7 @@ export default function FoldersPage() {
               onPress={() => router.push({ pathname: '/folders', params: { client_id: String(item.id) } })}>
               <CircleImagePicker fileId={item.brand_file_id} size={50} />
               <ThemedText style={[styles.text, { color: textColor }]}>{item.business_name}</ThemedText>
+              {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
             </TouchableOpacity>
           )}
         />

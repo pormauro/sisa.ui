@@ -85,6 +85,7 @@ export default function CashBoxesScreen() {
       <View style={styles.itemInfo}>
         <ThemedText style={styles.itemTitle}>{item.name}</ThemedText>
       </View>
+      {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
       {canDeleteCashBox && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? (

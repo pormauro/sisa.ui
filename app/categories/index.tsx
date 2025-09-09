@@ -100,6 +100,7 @@ export default function CategoriesScreen() {
         </ThemedText>
         <ThemedText>{item.type}</ThemedText>
       </View>
+      {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? (

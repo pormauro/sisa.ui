@@ -135,6 +135,7 @@ export default function JobsScreen() {
           <ThemedText style={[styles.statusText, itemTextStyle]}>
             {jobStatus ? jobStatus.label : `Estado: ${item.status_id ?? 'N/A'}`}
           </ThemedText>
+          {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
           <TouchableOpacity onPress={() => handleDelete(item.id)}>
             {loadingId === item.id ? (
               <ActivityIndicator color={itemTextColor} />
