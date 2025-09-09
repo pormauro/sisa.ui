@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { JobsContext } from '@/contexts/JobsContext';
 import { deleteQueueItem, getAllQueueItems } from '@/src/database/syncQueueDB';
@@ -11,7 +11,14 @@ interface QueueItem {
   id: number;
   table_name: string;
   op: string;
+  record_id?: number;
+  local_temp_id?: number;
+  payload_json?: string;
+  request_id?: string;
+  nonce?: string;
   status: string;
+  last_error?: string;
+  created_at?: number;
 }
 
 export default function SyncQueuePage() {
@@ -49,6 +56,10 @@ export default function SyncQueuePage() {
     await loadQueue();
   };
 
+  const showDetails = (item: QueueItem) => {
+    Alert.alert('Detalles de la operación', JSON.stringify(item, null, 2));
+  };
+
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <FlatList
@@ -56,10 +67,16 @@ export default function SyncQueuePage() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={[styles.item, { borderBottomColor: borderColor }]}>
-            <View>
-              <ThemedText>{item.table_name} - {item.op}</ThemedText>
-              <ThemedText>{item.status}</ThemedText>
-            </View>
+            <TouchableOpacity style={styles.itemContent} onPress={() => showDetails(item)}>
+              <ThemedText>Tabla: {item.table_name}</ThemedText>
+              <ThemedText>Operación: {item.op}</ThemedText>
+              <ThemedText>ID Registro: {item.record_id ?? '-'}</ThemedText>
+              <ThemedText>ID Temp: {item.local_temp_id ?? '-'}</ThemedText>
+              <ThemedText>Estado: {item.status}</ThemedText>
+              <ThemedText>
+                Creado: {item.created_at ? new Date(item.created_at).toLocaleString() : '-'}
+              </ThemedText>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.deleteButton, { backgroundColor: buttonColor }]}
               onPress={() => removeItem(item.id)}
@@ -89,6 +106,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  itemContent: { flex: 1 },
   deleteButton: { padding: 8, borderRadius: 4 },
   button: { marginTop: 16, padding: 12, borderRadius: 8, alignItems: 'center' },
 });
