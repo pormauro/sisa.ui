@@ -21,7 +21,7 @@ export interface FileData {
   original_name: string;
   file_type: string;
   file_size: number;
-  created_at: string;
+  timestamp: string;
   updated_at: string;
   syncStatus?: 'pending' | 'error';
 }
@@ -192,7 +192,7 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
           original_name: originalName,
           file_type: contentType,
           file_size: arrayBuffer.byteLength,
-          created_at: '',
+          timestamp: '',
           updated_at: '',
         };
 
@@ -228,7 +228,7 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
           original_name: originalName,
           file_type: fileType,
           file_size: fileSize,
-          created_at: '',
+          timestamp: '',
           updated_at: '',
           syncStatus: 'pending',
         };

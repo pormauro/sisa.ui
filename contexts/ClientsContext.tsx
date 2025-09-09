@@ -28,7 +28,7 @@ export interface Client {
   phone: string;
   address: string;
   tariff_id: number | null;
-  created_at?: string;
+  timestamp?: string;
   updated_at?: string;
   syncStatus?: 'pending' | 'error';
   pendingDelete?: boolean;
@@ -110,7 +110,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         const loaded: Client[] = data.clients.map((c: any) => ({
           ...c,
           tariff_id: c.tariff_id ?? null,
-          created_at: c.created_at,
+          timestamp: c.timestamp,
           updated_at: c.updated_at,
         }));
         await clearLocalClients();

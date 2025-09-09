@@ -11,7 +11,7 @@ export interface UserProfile {
   address: string;
   cuit: string;
   profile_file_id: number | null;
-  created_at?: string;
+  timestamp?: string;
   updated_at?: string;
 }
 

@@ -27,7 +27,7 @@ export interface Provider {
   brand_file_id?: string | null;
   phone?: string;
   address?: string;
-  created_at?: string;
+  timestamp?: string;
   updated_at?: string;
   syncStatus?: 'pending' | 'error';
   pendingDelete?: boolean;
@@ -108,7 +108,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       if (data.providers) {
         const loaded: Provider[] = data.providers.map((p: any) => ({
           ...p,
-          created_at: p.created_at,
+          timestamp: p.timestamp,
           updated_at: p.updated_at,
         }));
         await clearLocalProviders();
