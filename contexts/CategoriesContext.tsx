@@ -104,7 +104,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
         for (const category of data.categories) {
           await insertCategoryLocal(category);
         }
-        setCategories(data.categories);
+        setCategories(prev => mergeOfflineData(data.categories, prev));
       }
     } catch (error) {
       if (__DEV__) {

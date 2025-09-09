@@ -107,7 +107,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
         for (const box of data.cash_boxes) {
           await insertCashBoxLocal(box);
         }
-        setCashBoxes(data.cash_boxes);
+        setCashBoxes(prev => mergeOfflineData(data.cash_boxes, prev));
       }
     } catch (error) {
       if (__DEV__) {

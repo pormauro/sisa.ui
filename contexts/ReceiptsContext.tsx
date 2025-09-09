@@ -117,7 +117,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           syncStatus: undefined,
           pendingDelete: undefined,
         }));
-        setReceipts(loaded);
+        setReceipts(prev => mergeOfflineData(loaded, prev));
         await clearLocalReceipts();
         await createLocalReceiptsTable();
         for (let r of loaded) {

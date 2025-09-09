@@ -113,7 +113,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         for (const status of data.statuses) {
           await insertStatusLocal(status);
         }
-        setStatuses(data.statuses);
+        setStatuses(prev => mergeOfflineData(data.statuses, prev));
       }
     } catch (error) {
       if (__DEV__) {

@@ -151,7 +151,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         for (const job of parsed) {
           await insertJobLocal(job);
         }
-        setJobs(parsed);
+        setJobs(prev => mergeOfflineData(parsed, prev));
       }
     } catch (err) {
       if (__DEV__) {

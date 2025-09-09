@@ -115,7 +115,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         for (const provider of loaded) {
           await insertProviderLocal(provider);
         }
-        setProviders(loaded);
+        setProviders(prev => mergeOfflineData(loaded, prev));
       }
     } catch (error) {
       if (__DEV__) {
