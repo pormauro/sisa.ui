@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { JobsContext } from '@/contexts/JobsContext';
-import { getAllQueueItems } from '@/src/database/syncQueueDB';
+import { deleteQueueItem, getAllQueueItems } from '@/src/database/syncQueueDB';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -44,6 +44,11 @@ export default function SyncQueuePage() {
     await loadQueue();
   };
 
+  const removeItem = async (id: number) => {
+    await deleteQueueItem(id);
+    await loadQueue();
+  };
+
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <FlatList
@@ -51,8 +56,16 @@ export default function SyncQueuePage() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={[styles.item, { borderBottomColor: borderColor }]}>
-            <ThemedText>{item.table_name} - {item.op}</ThemedText>
-            <ThemedText>{item.status}</ThemedText>
+            <View>
+              <ThemedText>{item.table_name} - {item.op}</ThemedText>
+              <ThemedText>{item.status}</ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.deleteButton, { backgroundColor: buttonColor }]}
+              onPress={() => removeItem(item.id)}
+            >
+              <ThemedText style={{ color: buttonTextColor }}>Eliminar</ThemedText>
+            </TouchableOpacity>
           </View>
         )}
         ListEmptyComponent={<ThemedText>No hay operaciones en la cola</ThemedText>}
@@ -69,6 +82,13 @@ export default function SyncQueuePage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
-  item: { paddingVertical: 8, borderBottomWidth: 1 },
+  item: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  deleteButton: { padding: 8, borderRadius: 4 },
   button: { marginTop: 16, padding: 12, borderRadius: 8, alignItems: 'center' },
 });
