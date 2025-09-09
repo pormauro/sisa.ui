@@ -86,7 +86,7 @@ export default function ProductsServicesScreen() {
         ListEmptyComponent={<Text style={styles.emptyText}>No se encontraron registros</Text>}
       />
       <TouchableOpacity style={styles.addButton} onPress={() => router.push('/products_services/create')}>
-        <Text style={styles.addButtonText}>➕ Agregar</Text>
+        <Text style={styles.addButtonText}>➕</Text>
       </TouchableOpacity>
     </View>
   );
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#28a745', padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  addButton: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#28a745', padding: 20, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
+  addButtonText: { color: '#fff', fontSize: 24, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

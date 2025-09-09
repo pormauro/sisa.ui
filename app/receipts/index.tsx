@@ -129,7 +129,7 @@ export default function ReceiptsScreen() {
       />
       {canAdd && (
         <TouchableOpacity style={[styles.addButton, { backgroundColor: addButtonColor }]} onPress={() => router.push('/receipts/create')}>
-          <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>➕ Agregar Recibo</ThemedText>
+          <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>➕</ThemedText>
         </TouchableOpacity>
       )}
     </ThemedView>
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center' },
-  addText: { fontSize: 16, fontWeight: 'bold' },
+  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 20, borderRadius: 50, alignItems: 'center' },
+  addText: { fontSize: 24, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

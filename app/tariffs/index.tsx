@@ -114,10 +114,10 @@ export default function TariffsScreen() {
       />
       {canAdd && (
         <ThemedButton
-          title="➕ Agregar Tarifa"
+          title="➕"
           onPress={() => router.push('/tariffs/create')}
           style={styles.addButton}
-          textStyle={{ color: buttonTextColor, fontSize: 16, fontWeight: 'bold' }}
+          textStyle={{ color: buttonTextColor, fontSize: 24, fontWeight: 'bold' }}
         />
       )}
     </ThemedView>
@@ -132,6 +132,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, borderRadius: 50, padding: 16 },
+  addButton: { position: 'absolute', right: 16, bottom: 32, borderRadius: 50, padding: 20 },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

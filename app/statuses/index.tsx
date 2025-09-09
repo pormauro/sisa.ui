@@ -114,7 +114,7 @@ export default function StatusesScreen() {
         style={styles.addButton}
         onPress={() => router.push('/statuses/create')}
       >
-        <ThemedText style={styles.addButtonText}>Agregar Estado</ThemedText>
+        <ThemedText style={styles.addButtonText}>➕</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );
@@ -163,12 +163,12 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 32,
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 20,
     borderRadius: 50,
     alignItems: 'center',
   },
   addButtonText: {
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#000',
   },

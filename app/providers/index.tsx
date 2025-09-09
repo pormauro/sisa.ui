@@ -108,7 +108,7 @@ export default function ProvidersListPage() {
           style={[styles.addButton, { backgroundColor: addButtonColor }]}
           onPress={() => router.push('/providers/create')}
         >
-          <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar Proveedor</ThemedText>
+          <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕</ThemedText>
         </TouchableOpacity>
       )}
     </ThemedView>
@@ -138,9 +138,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 32,
-    padding: 16,
+    padding: 20,
     borderRadius: 50,
   },
-  addButtonText: { fontSize: 16, fontWeight: 'bold' },
+  addButtonText: { fontSize: 24, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

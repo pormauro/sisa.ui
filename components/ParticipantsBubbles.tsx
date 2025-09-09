@@ -95,7 +95,7 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
           style={[styles.addButton, { backgroundColor: buttonColor }]}
           onPress={handleAdd}
         >
-          <Text style={[styles.addButtonText, { color: buttonTextColor }]}>Agregar</Text>
+          <Text style={[styles.addButtonText, { color: buttonTextColor }]}>➕</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -124,10 +124,10 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#007BFF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
-  addButtonText: { color: '#fff' },
+  addButtonText: { color: '#fff', fontSize: 20 },
 });
 

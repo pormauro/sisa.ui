@@ -271,30 +271,30 @@ export default function SchedulePicker({
         onPress={() => addTimeRange(item.id)}
         style={styles.addRangeBtn}
       >
-        <Text style={styles.addRange}>+ Nuevo Horario</Text>
+        <Text style={styles.addRange}>➕</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={groups}
-        keyExtractor={(g) => g.id}
-        renderItem={renderGroup}
-      />
-      <TouchableOpacity onPress={addDateGroup} style={styles.addDateBtn}>
-        <Text style={styles.addDate}>+ Nueva Fecha</Text>
-      </TouchableOpacity>
-      {pickerVisible && (
-        <DateTimePicker
-          value={getPickerValue()}
-          mode={pickerMode}
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onPickerChange}
+      <View style={styles.container}>
+        <FlatList
+          data={groups}
+          keyExtractor={(g) => g.id}
+          renderItem={renderGroup}
         />
-      )}
-    </View>
+        <TouchableOpacity onPress={addDateGroup} style={styles.addDateBtn}>
+          <Text style={styles.addDate}>➕</Text>
+        </TouchableOpacity>
+        {pickerVisible && (
+          <DateTimePicker
+            value={getPickerValue()}
+            mode={pickerMode}
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onPickerChange}
+          />
+        )}
+      </View>
   );
 }
 
@@ -303,12 +303,12 @@ const styles = StyleSheet.create({
   addDateBtn: {
     margin: 12,
     backgroundColor: '#28a745',
-    padding: 12,
+    padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
-  addDate: { color: '#fff', fontWeight: '600' },
-  addRange: { color: '#00f', fontWeight: '600' },
+  addDate: { color: '#fff', fontWeight: '600', fontSize: 20 },
+  addRange: { color: '#00f', fontWeight: '600', fontSize: 20 },
   groupCard: {
     marginVertical: 8,
     padding: 12,
@@ -349,5 +349,5 @@ const styles = StyleSheet.create({
     padding: 4,
     backgroundColor: '#fff',
   },
-  addRangeBtn: { marginTop: 8, alignSelf: 'flex-end' },
+  addRangeBtn: { marginTop: 8, alignSelf: 'flex-end', padding: 8, borderRadius: 4 },
 });
