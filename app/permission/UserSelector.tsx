@@ -5,6 +5,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import NetInfo from '@react-native-community/netinfo';
+import { saveProfilesLocal, getProfilesLocal } from '@/src/database/profilesLocalDB';
 
 interface Profile {
   id: number;
@@ -28,29 +30,44 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect }) => {
   useEffect(() => {
     if (!token) return;
 
-    fetch(`${BASE_URL}/profiles`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-      .then(response => response.json())
-      .then(data => {
-        const globalOption: Profile = {
-          id: 0,
-          username: 'Global',
-          email: '',
-          activated: 1,
-        };
+    const loadProfiles = async () => {
+      const globalOption: Profile = {
+        id: 0,
+        username: 'Global',
+        email: '',
+        activated: 1,
+      };
+      try {
+        const state = await NetInfo.fetch();
+        if (!state.isConnected) {
+          const localProfiles = await getProfilesLocal();
+          const mapped = localProfiles.map((p: any) => ({ ...p, id: Number(p.id) }));
+          setProfiles([globalOption, ...mapped]);
+          return;
+        }
+
+        const response = await fetch(`${BASE_URL}/profiles`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await response.json();
         const fetchedProfiles = data.profiles.map((profile: any) => ({
           ...profile,
           id: Number(profile.id),
         }));
         setProfiles([globalOption, ...fetchedProfiles]);
-      })
-      .catch(error => {
+        await saveProfilesLocal(fetchedProfiles);
+      } catch (error) {
         console.error('Error fetching profiles:', error);
-      });
+        const localProfiles = await getProfilesLocal();
+        const mapped = localProfiles.map((p: any) => ({ ...p, id: Number(p.id) }));
+        setProfiles([globalOption, ...mapped]);
+      }
+    };
+
+    loadProfiles();
   }, [token]);
 
   const handleSelect = (profile: Profile) => {
