@@ -191,11 +191,17 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             if (response.ok) {
               const data = await response.json();
               const newId = parseInt(data.provider_id, 10);
-              setProviders(prev =>
-                prev.map(p =>
+              setProviders(prev => {
+                const updated = prev.map(p =>
                   p.id === item.local_temp_id ? { ...p, id: newId, syncStatus: undefined } : p
-                )
-              );
+                );
+                const seen = new Set<number>();
+                return updated.filter(p => {
+                  if (seen.has(p.id)) return false;
+                  seen.add(p.id);
+                  return true;
+                });
+              });
               await deleteQueueItem(item.id);
             } else {
               await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
