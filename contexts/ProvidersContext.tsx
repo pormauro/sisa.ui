@@ -223,6 +223,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/providers/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setProviders(prev => prev.filter(p => p.id !== item.record_id));

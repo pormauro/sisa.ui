@@ -232,6 +232,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/tariffs/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setTariffs(prev => prev.filter(t => t.id !== item.record_id));

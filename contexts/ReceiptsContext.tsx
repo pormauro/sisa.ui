@@ -228,6 +228,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/receipts/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setReceipts(prev => prev.filter(r => r.id !== item.record_id));

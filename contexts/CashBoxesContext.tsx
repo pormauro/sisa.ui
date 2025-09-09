@@ -227,6 +227,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/cash_boxes/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setCashBoxes(prev => prev.filter(cb => cb.id !== item.record_id));

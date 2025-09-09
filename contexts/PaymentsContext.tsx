@@ -228,6 +228,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
             const response = await fetch(`${BASE_URL}/payments/${item.record_id}`, {
               method: 'DELETE',
               headers,
+              body: item.payload_json,
             });
             if (response.ok) {
               setPayments(prev => prev.filter(p => p.id !== item.record_id));
