@@ -1,10 +1,18 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
+import NetInfo from '@react-native-community/netinfo';
 import { Buffer } from 'buffer';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import {
+  createSyncQueueTable,
+  enqueueOperation,
+  getAllQueueItems,
+  deleteQueueItem,
+  updateQueueItemStatus,
+} from '@/src/database/syncQueueDB';
 
 // Tipo de archivo que devuelve el backend
 export interface FileData {
@@ -15,6 +23,7 @@ export interface FileData {
   file_size: number;
   created_at: string;
   updated_at: string;
+  syncStatus?: 'pending' | 'error';
 }
 
 interface FileContextType {
@@ -68,6 +77,75 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     );
     return localUri;
   };
+
+  const processQueue = async () => {
+    if (!token) return;
+    const items = await getAllQueueItems();
+    for (const item of items) {
+      if (item.table_name !== 'files') continue;
+      try {
+        const payload = JSON.parse(item.payload_json) as {
+          localUri: string;
+          original_name: string;
+          file_type: string;
+        };
+        const formData = new FormData();
+        formData.append('file', {
+          uri: payload.localUri,
+          name: payload.original_name,
+          type: payload.file_type,
+        } as any);
+        const response = await fetch(`${BASE_URL}/files`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const newId = data.file.id;
+          const oldKey = fileMetaKey(item.local_temp_id as number);
+          const metaString = await AsyncStorage.getItem(oldKey);
+          if (metaString) {
+            const meta = JSON.parse(metaString);
+            await AsyncStorage.setItem(
+              fileMetaKey(newId),
+              JSON.stringify({ ...meta, id: newId, syncStatus: undefined })
+            );
+            await AsyncStorage.removeItem(oldKey);
+          }
+          await deleteQueueItem(item.id);
+        } else {
+          await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
+          break;
+        }
+      } catch (err: any) {
+        await updateQueueItemStatus(item.id, 'error', String(err));
+        break;
+      }
+    }
+  };
+
+  useEffect(() => {
+    createSyncQueueTable();
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    const sync = async () => {
+      try {
+        await processQueue();
+      } catch {}
+    };
+    sync();
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        processQueue().catch(() => {});
+      }
+    });
+    return () => unsubscribe();
+  }, [token]);
 
   const getFile = async (fileId: number): Promise<string | null> => {
     try {
@@ -138,6 +216,36 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     fileSize: number
   ): Promise<FileData | null> => {
     try {
+      const state = await NetInfo.fetch();
+      if (!state.isConnected) {
+        const tempId = Date.now() * -1;
+        const sanitized = sanitizeFileName(originalName);
+        const localUri = `${FileSystem.documentDirectory}${tempId}_${sanitized}`;
+        await FileSystem.copyAsync({ from: fileUri, to: localUri });
+        const file: FileData = {
+          id: tempId,
+          user_id: 0,
+          original_name: originalName,
+          file_type: fileType,
+          file_size: fileSize,
+          created_at: '',
+          updated_at: '',
+          syncStatus: 'pending',
+        };
+        await AsyncStorage.setItem(
+          fileMetaKey(tempId),
+          JSON.stringify({ ...file, localUri })
+        );
+        await enqueueOperation(
+          'files',
+          'create',
+          { original_name: originalName, file_type: fileType, file_size: fileSize, localUri },
+          null,
+          tempId
+        );
+        return file;
+      }
+
       const formData = new FormData();
       formData.append('file', {
         uri: fileUri,
