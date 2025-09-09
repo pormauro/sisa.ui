@@ -52,8 +52,8 @@ const Menu: React.FC = () => {
   const visibleMenuItems = menuItems.filter(isEnabled);
 
   const backgroundColor = useThemeColor({}, 'background');
-  const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }] }>
@@ -62,11 +62,18 @@ const Menu: React.FC = () => {
         {visibleMenuItems.map((item: MenuItem, index: number) => (
           <TouchableOpacity
             key={index}
-            style={[styles.menuItem, { backgroundColor: tintColor }]}
+            style={[styles.menuItem, { backgroundColor: buttonColor }]}
             onPress={() => router.push(item.route as any)}
           >
-            <Ionicons name={item.icon} size={24} color={textColor} style={styles.menuIcon} />
-            <ThemedText style={styles.menuText}>{item.title}</ThemedText>
+            <Ionicons
+              name={item.icon}
+              size={24}
+              color={buttonTextColor}
+              style={styles.menuIcon}
+            />
+            <ThemedText style={[styles.menuText, { color: buttonTextColor }]}>
+              {item.title}
+            </ThemedText>
           </TouchableOpacity>
         ))}
       </ScrollView>
