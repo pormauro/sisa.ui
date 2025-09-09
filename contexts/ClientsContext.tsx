@@ -117,7 +117,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         for (const client of loaded) {
           await insertClientLocal(client);
         }
-        setClients(loaded);
+        setClients(prev => mergeOfflineData(loaded, prev));
       }
     } catch (error) {
       if (__DEV__) {

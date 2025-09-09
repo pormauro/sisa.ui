@@ -117,7 +117,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           syncStatus: undefined,
           pendingDelete: undefined,
         }));
-        setPayments(loaded);
+        setPayments(prev => mergeOfflineData(loaded, prev));
         await clearLocalPayments();
         await createLocalPaymentsTable();
         for (let p of loaded) {

@@ -118,7 +118,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
         for (const folder of data.folders) {
           await insertFolderLocal(folder);
         }
-        setFolders(data.folders);
+        setFolders(prev => mergeOfflineData(data.folders, prev));
       }
     } catch (error) {
       if (attempt < MAX_RETRIES) {

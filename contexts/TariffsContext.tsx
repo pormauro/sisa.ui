@@ -109,7 +109,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
         for (const tariff of parsed) {
           await insertTariffLocal(tariff);
         }
-        setTariffs(parsed);
+        setTariffs(prev => mergeOfflineData(parsed, prev));
       }
     } catch (error) {
       if (__DEV__) {
