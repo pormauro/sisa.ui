@@ -34,11 +34,20 @@ function generateNonce(length = 10) {
   return nonce;
 }
 
-export async function enqueueOperation(tableName, op, payload, recordId = null, localTempId = null) {
+export async function enqueueOperation(
+  tableName,
+  op,
+  payload,
+  recordId = null,
+  localTempId = null,
+  timestamp
+) {
   try {
-    const requestId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const nonce = generateNonce(10);
-    const createdAt = Date.now();
+    const createdAt = timestamp ?? payload?.timestamp ?? Date.now();
+    const payloadWithTimestamp = { ...payload, timestamp: createdAt };
     const result = await db.runAsync(
       `INSERT INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, request_id, nonce, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?);`,
@@ -46,7 +55,7 @@ export async function enqueueOperation(tableName, op, payload, recordId = null, 
       op,
       recordId,
       localTempId,
-      JSON.stringify(payload),
+      JSON.stringify(payloadWithTimestamp),
       requestId,
       nonce,
       createdAt
