@@ -318,6 +318,13 @@ const PermissionScreen: React.FC = () => {
     });
   };
 
+  const removeAll = () => {
+    const sectors = Object.keys(assignedPermissions);
+    sectors.forEach(sector => {
+      togglePermission(sector, false);
+    });
+  };
+
   return (
     <ScrollView style={[styles.container, { backgroundColor: background }]}>
       <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
@@ -337,6 +344,9 @@ const PermissionScreen: React.FC = () => {
           <>
             <View style={{ marginBottom: 10 }}>
               <Button title="Activar todo" onPress={toggleAll} />
+            </View>
+            <View style={{ marginBottom: 10 }}>
+              <Button title="Eliminar todo" onPress={removeAll} />
             </View>
             {PERMISSION_GROUPS.map(group => (
               <ThemedView
