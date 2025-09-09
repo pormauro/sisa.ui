@@ -413,7 +413,7 @@ const handleAddCameraFile = async () => {
         ))}
         {isEditable && (
           <TouchableOpacity style={[styles.fileItem, styles.addFileItem]} onPress={handleSelectSource}>
-            <Text style={styles.addButtonText}>Add File</Text>
+            <Text style={styles.addButtonText}>➕</Text>
           </TouchableOpacity>
         )}
       </ScrollView>
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: 'bold',
   },
   modalOverlay: {

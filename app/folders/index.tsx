@@ -152,7 +152,7 @@ export default function FoldersPage() {
             if (parent_id) params.parent_id = parent_id;
             router.push({ pathname: '/folders/create', params });
           }}>
-          <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>＋ Agregar carpeta</ThemedText>
+          <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>➕</ThemedText>
         </TouchableOpacity>
       )}
     </ThemedView>
@@ -165,8 +165,8 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1 },
   text: { flex: 1, marginLeft: 10 },
   delete: { fontSize: 18 },
-  add: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 30 },
-  addText: { fontWeight: 'bold' },
+  add: { position: 'absolute', right: 16, bottom: 32, padding: 20, borderRadius: 40 },
+  addText: { fontWeight: 'bold', fontSize: 24 },
   backButton: { marginBottom: 10, padding: 8, borderRadius: 8 },
   backButtonText: { fontSize: 16 },
 });

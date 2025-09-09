@@ -114,7 +114,7 @@ export default function ClientsListPage() {
           style={[styles.addButton, { backgroundColor: addButtonColor }]}
           onPress={() => router.push('/clients/create')}
         >
-          <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar Cliente</ThemedText>
+          <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕</ThemedText>
         </TouchableOpacity>
       )}
 
@@ -146,11 +146,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 32,
-    padding: 16,
+    padding: 20,
     borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addButtonText: { fontSize: 16, fontWeight: 'bold' },
+  addButtonText: { fontSize: 24, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

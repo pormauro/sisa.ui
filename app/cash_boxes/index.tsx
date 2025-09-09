@@ -122,7 +122,7 @@ export default function CashBoxesScreen() {
         style={[styles.addButton, { backgroundColor: addButtonColor }]}
         onPress={() => router.push('/cash_boxes/create')}
       >
-        <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar Caja</ThemedText>
+        <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
-  addButtonText: { fontSize: 16, fontWeight: 'bold' },
+  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 20, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
+  addButtonText: { fontSize: 24, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

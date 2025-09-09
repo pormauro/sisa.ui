@@ -139,7 +139,7 @@ export default function CategoriesScreen() {
       />
       {canAdd && (
         <TouchableOpacity style={styles.addButton} onPress={() => router.push('/categories/create')}>
-          <ThemedText style={styles.addText}>➕ Agregar Categoría</ThemedText>
+          <ThemedText style={styles.addText}>➕</ThemedText>
         </TouchableOpacity>
       )}
     </ThemedView>
@@ -160,10 +160,10 @@ const styles = StyleSheet.create({
     right: 16,
     bottom: 32,
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 20,
     borderRadius: 50,
     alignItems: 'center',
   },
-  addText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
+  addText: { color: '#000', fontSize: 24, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

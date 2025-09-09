@@ -172,9 +172,7 @@ export default function JobsScreen() {
         style={[styles.addButton, { backgroundColor: addButtonColor }]}
         onPress={() => router.push('/jobs/create')}
       >
-        <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>
-          ➕ Nuevo Trabajo
-        </ThemedText>
+        <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>➕</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );
@@ -203,13 +201,13 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
   trash: { fontSize: 18, paddingHorizontal: 12 },
   addButton: {
-    padding: 16,
-    borderRadius: 30,
+    padding: 20,
+    borderRadius: 40,
     position: 'absolute',
     right: 16,
     bottom: 32,
     alignItems: 'center'
   },
-  addText: { fontWeight: 'bold', fontSize: 16 },
+  addText: { fontWeight: 'bold', fontSize: 24 },
   empty: { marginTop: 20, textAlign: 'center', fontSize: 16 },
 });
