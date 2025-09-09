@@ -159,9 +159,9 @@ export default function CreateJobScreen() {
         participants,
       };
       setLoading(true);
-      const created = await addJob(jobData);
+      const newJob = await addJob(jobData);
       setLoading(false);
-      if (created) {
+      if (newJob) {
         Alert.alert('Éxito', 'Trabajo creado.');
         router.back();
       } else {

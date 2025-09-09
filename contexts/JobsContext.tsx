@@ -171,7 +171,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   const addJob = async (jobData: Omit<Job, 'id' | 'user_id'>): Promise<Job | null> => {
     const payload = buildPayload(jobData);
-    const tempId = Date.now() * -1;
+    const timestamp = Date.now();
+    const tempId = timestamp * -1; // use timestamp-based temp ID
     const newJob: Job = { id: tempId, user_id: 0, ...payload, syncStatus: 'pending' };
     setJobs(prev => [...prev, newJob]);
     await enqueueOperation('jobs', 'create', payload, null, tempId);
