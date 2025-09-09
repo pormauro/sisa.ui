@@ -3,6 +3,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useRouter } from 'expo-router';
 import React, { useContext } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -10,25 +11,26 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 interface MenuItem {
   title: string;
   route: string;
+  icon: keyof typeof Ionicons.glyphMap;
   // Si no se especifica, se asume que la sección siempre está habilitada.
   requiredPermissions?: string[];
 }
 
 const menuItems: MenuItem[] = [
-  { title: 'Clientes', route: '/clients', requiredPermissions: ['listClients'] },
-  { title: 'Trabajos', route: '/jobs', requiredPermissions: ['listJobs'] },
-  { title: 'Cajas', route: '/cash_boxes', requiredPermissions: ['listCashBoxes'] },
-  { title: 'Recibos', route: '/receipts', requiredPermissions: ['listReceipts'] },
-  { title: 'Pagos', route: '/payments', requiredPermissions: ['listPayments'] },
-  { title: 'Carpetas', route: '/folders', requiredPermissions: ['listFolders'] },
-  { title: 'Tarifas', route: '/tariffs', requiredPermissions: ['listTariffs'] },
-  { title: 'Proveedores', route: '/providers', requiredPermissions: ['listProviders'] },
-  { title: 'Categorías', route: '/categories', requiredPermissions: ['listCategories'] },
-  { title: 'Estados', route: '/statuses', requiredPermissions: ['listStatuses'] },
-  { title: 'Cola', route: '/sync_queue' },
-  { title: 'Perfil', route: '/user/ProfileScreen' },
-  { title: 'Configuración', route: '/user/ConfigScreen' },
-  { title: 'Permisos', route: '/permission', requiredPermissions: ['listPermissions'] },
+  { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
+  { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
+  { title: 'Cajas', route: '/cash_boxes', icon: 'cash', requiredPermissions: ['listCashBoxes'] },
+  { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
+  { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
+  { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
+  { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
+  { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
+  { title: 'Categorías', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
+  { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
+  { title: 'Cola', route: '/sync_queue', icon: 'sync' },
+  { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
+  { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
+  { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
 ];
 
 const Menu: React.FC = () => {
@@ -51,6 +53,7 @@ const Menu: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }] }>
@@ -62,6 +65,7 @@ const Menu: React.FC = () => {
             style={[styles.menuItem, { backgroundColor: tintColor }]}
             onPress={() => router.push(item.route as any)}
           >
+            <Ionicons name={item.icon} size={24} color={textColor} style={styles.menuIcon} />
             <ThemedText style={styles.menuText}>{item.title}</ThemedText>
           </TouchableOpacity>
         ))}
@@ -90,7 +94,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     marginBottom: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+  },
+  menuIcon: {
+    marginRight: 10,
   },
   menuText: {
     fontSize: 18,
