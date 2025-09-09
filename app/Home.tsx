@@ -19,9 +19,11 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
   { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
+  { title: 'Cajas', route: '/cash_boxes', icon: 'cash', requiredPermissions: ['listCashBoxes'] },
   { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
   { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
   { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
+  { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
   { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
   { title: 'Categorías', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
   { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
