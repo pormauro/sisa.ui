@@ -17,19 +17,17 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
-  { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
-  { title: 'Cajas', route: '/cash_boxes', icon: 'cash', requiredPermissions: ['listCashBoxes'] },
   { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
   { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
-  { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
-  { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
+  { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
   { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
+  { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
+  { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
   { title: 'Categorías', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
   { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
-  { title: 'Cola', route: '/sync_queue', icon: 'sync' },
   { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
   { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
+  { title: 'Cola', route: '/sync_queue', icon: 'sync' },
   { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
 ];
 
