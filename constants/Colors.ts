@@ -14,7 +14,7 @@ const tintColorDark = deprosOrange;
 export const Colors = {
   light: {
     text: deprosPurple,
-    background: '#ffffff',
+    background: '#f5f5f5',
     tint: tintColorLight,
     icon: deprosPurple,
     tabIconDefault: '#9389a3',
