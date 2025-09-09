@@ -2,7 +2,8 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useRouter } from 'expo-router';
 import React, { useContext } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -10,25 +11,24 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 interface MenuItem {
   title: string;
   route: string;
+  icon: keyof typeof Ionicons.glyphMap;
   // Si no se especifica, se asume que la sección siempre está habilitada.
   requiredPermissions?: string[];
 }
 
 const menuItems: MenuItem[] = [
-  { title: 'Clientes', route: '/clients', requiredPermissions: ['listClients'] },
-  { title: 'Trabajos', route: '/jobs', requiredPermissions: ['listJobs'] },
-  { title: 'Cajas', route: '/cash_boxes', requiredPermissions: ['listCashBoxes'] },
-  { title: 'Recibos', route: '/receipts', requiredPermissions: ['listReceipts'] },
-  { title: 'Pagos', route: '/payments', requiredPermissions: ['listPayments'] },
-  { title: 'Carpetas', route: '/folders', requiredPermissions: ['listFolders'] },
-  { title: 'Tarifas', route: '/tariffs', requiredPermissions: ['listTariffs'] },
-  { title: 'Proveedores', route: '/providers', requiredPermissions: ['listProviders'] },
-  { title: 'Categorías', route: '/categories', requiredPermissions: ['listCategories'] },
-  { title: 'Estados', route: '/statuses', requiredPermissions: ['listStatuses'] },
-  { title: 'Cola', route: '/sync_queue' },
-  { title: 'Perfil', route: '/user/ProfileScreen' },
-  { title: 'Configuración', route: '/user/ConfigScreen' },
-  { title: 'Permisos', route: '/permission', requiredPermissions: ['listPermissions'] },
+  { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
+  { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
+  { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
+  { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
+  { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
+  { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
+  { title: 'Categorías', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
+  { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
+  { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
+  { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
+  { title: 'Cola', route: '/sync_queue', icon: 'sync' },
+  { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
 ];
 
 const Menu: React.FC = () => {
@@ -51,20 +51,24 @@ const Menu: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
+  const textColor = useThemeColor({}, 'text');
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }] }>
       <ScrollView contentContainerStyle={styles.container}>
         <ThemedText style={styles.title}>Menú Principal</ThemedText>
-        {visibleMenuItems.map((item: MenuItem, index: number) => (
-          <TouchableOpacity
-            key={index}
-            style={[styles.menuItem, { backgroundColor: tintColor }]}
-            onPress={() => router.push(item.route as any)}
-          >
-            <ThemedText style={styles.menuText}>{item.title}</ThemedText>
-          </TouchableOpacity>
-        ))}
+        <View style={styles.menuContainer}>
+          {visibleMenuItems.map((item: MenuItem, index: number) => (
+            <TouchableOpacity
+              key={index}
+              style={[styles.menuItem, { backgroundColor: tintColor }]}
+              onPress={() => router.push(item.route as any)}
+            >
+              <Ionicons name={item.icon} size={40} color={textColor} style={styles.menuIcon} />
+              <ThemedText style={styles.menuText}>{item.title}</ThemedText>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -78,6 +82,12 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingHorizontal: 30,
+    paddingTop: 20,
+  },
+  menuContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 28,
@@ -90,9 +100,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
     marginBottom: 10,
+    width: '48%',
+    flexDirection: 'column',
     alignItems: 'center',
+  },
+  menuIcon: {
+    marginBottom: 5,
   },
   menuText: {
     fontSize: 18,
+    textAlign: 'center',
   },
 });

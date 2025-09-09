@@ -1,7 +1,7 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, Alert } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { StyleSheet, ScrollView, Alert, View, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
 import { ThemedText } from '@/components/ThemedText';
@@ -61,14 +61,36 @@ const ConfigScreen: React.FC = () => {
       {configDetails ? (
         <ThemedView style={styles.dataContainer} lightColor="#f5f5f5" darkColor="#1e1e1e">
           <ThemedText style={styles.infoText}>Tema</ThemedText>
-          <Picker
-            selectedValue={selectedTheme}
-            onValueChange={handleThemeChange}
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor }]}
-          >
-            <Picker.Item label="Claro" value="light" />
-            <Picker.Item label="Oscuro" value="dark" />
-          </Picker>
+          <View style={styles.themeSelector}>
+            <TouchableOpacity
+              style={[
+                styles.themeButton,
+                { backgroundColor: inputBackground },
+                selectedTheme === 'light' && styles.selectedThemeButton,
+              ]}
+              onPress={() => handleThemeChange('light')}
+            >
+              <Ionicons
+                name="sunny"
+                size={24}
+                color={selectedTheme === 'light' ? inputTextColor : '#888'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.themeButton,
+                { backgroundColor: inputBackground },
+                selectedTheme === 'dark' && styles.selectedThemeButton,
+              ]}
+              onPress={() => handleThemeChange('dark')}
+            >
+              <Ionicons
+                name="moon"
+                size={24}
+                color={selectedTheme === 'dark' ? inputTextColor : '#888'}
+              />
+            </TouchableOpacity>
+          </View>
           <ThemedButton
             title="Borrar datos de archivos"
             lightColor="#d9534f"
@@ -98,12 +120,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   infoText: { fontSize: 18, marginVertical: 5 },
-  input: {
+  themeSelector: { flexDirection: 'row', marginVertical: 8 },
+  themeButton: {
     borderWidth: 1,
     padding: 10,
-    marginVertical: 8,
     borderRadius: 5,
-    fontSize: 16,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedThemeButton: {
+    borderColor: '#007AFF',
   },
   editButton: { marginTop: 10 },
 });
