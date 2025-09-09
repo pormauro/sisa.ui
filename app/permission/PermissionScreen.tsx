@@ -361,6 +361,9 @@ const PermissionScreen: React.FC = () => {
                       style={styles.checkbox}
                     />
                     <ThemedText style={styles.permissionLabel}>{sector}</ThemedText>
+                    {assignedPermissions[sector]?.syncStatus === 'pending' && (
+                      <ActivityIndicator color={spinnerColor} />
+                    )}
                   </View>
                 ))}
               </ThemedView>

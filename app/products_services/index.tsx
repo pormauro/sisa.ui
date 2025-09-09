@@ -62,6 +62,7 @@ export default function ProductsServicesScreen() {
         {/*<Text>{item.category}</Text>*/}
         <Text>${item.price}</Text>
       </View>
+      {item.syncStatus === 'pending' && <ActivityIndicator />}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? <ActivityIndicator /> : <Text style={styles.deleteText}>🗑</Text>}

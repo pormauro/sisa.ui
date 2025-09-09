@@ -95,6 +95,7 @@ export default function PaymentsScreen() {
           <ThemedText>{item.description || 'Sin descripción'}</ThemedText>
           <ThemedText>Total: ${total}</ThemedText>
         </View>
+        {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
         {canDelete && (
           <TouchableOpacity
             style={styles.deleteBtn}

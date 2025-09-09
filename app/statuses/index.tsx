@@ -77,6 +77,7 @@ export default function StatusesScreen() {
         <ThemedText style={styles.itemLabel}>{item.label}</ThemedText>
         <ThemedText style={[styles.itemValue, { color: secondaryTextColor }]}>{item.value}</ThemedText>
       </View>
+      {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
           {loadingId === item.id ? (
