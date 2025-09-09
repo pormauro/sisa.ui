@@ -19,6 +19,7 @@ import {
   clearLocalFolders,
   insertFolderLocal,
 } from '@/src/database/foldersLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Folder {
   id: number;
@@ -96,7 +97,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localFolders = await getAllFoldersLocal();
-      setFolders(localFolders as Folder[]);
+      setFolders(prev => mergeOfflineData(localFolders as Folder[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchFolders(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

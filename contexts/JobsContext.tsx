@@ -17,6 +17,7 @@ import {
   clearLocalJobs,
   insertJobLocal,
 } from '@/src/database/jobsLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Job {
   id: number;
@@ -124,7 +125,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localJobs = await getAllJobsLocal();
-      setJobs(localJobs as Job[]);
+      setJobs(prev => mergeOfflineData(localJobs as Job[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchJobs(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

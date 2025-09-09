@@ -17,6 +17,7 @@ import {
   clearLocalClients,
   insertClientLocal,
 } from '@/src/database/clientsLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Client {
   id: number;
@@ -89,7 +90,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localClients = await getAllClientsLocal();
-      setClients(localClients as Client[]);
+      setClients(prev => mergeOfflineData(localClients as Client[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchClients(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

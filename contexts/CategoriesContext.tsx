@@ -16,6 +16,7 @@ import {
   clearLocalCategories,
   insertCategoryLocal,
 } from '@/src/database/categoriesLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Category {
   id: number;
@@ -82,7 +83,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localCategories = await getAllCategoriesLocal();
-      setCategories(localCategories as Category[]);
+      setCategories(prev => mergeOfflineData(localCategories as Category[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchCategories(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

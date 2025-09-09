@@ -18,6 +18,7 @@ import {
   deletePaymentLocal,
   clearLocalPayments,
 } from '@/src/database/paymentsLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Payment {
   id: number;
@@ -94,7 +95,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localPayments = await getAllPaymentsLocal();
-      setPayments(localPayments as Payment[]);
+      setPayments(prev => mergeOfflineData(localPayments as Payment[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchPayments(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

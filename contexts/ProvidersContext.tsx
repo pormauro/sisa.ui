@@ -17,6 +17,7 @@ import {
   clearLocalProviders,
   insertProviderLocal,
 } from '@/src/database/providersLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Provider {
   id: number;
@@ -88,7 +89,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localProviders = await getAllProvidersLocal();
-      setProviders(localProviders as Provider[]);
+      setProviders(prev => mergeOfflineData(localProviders as Provider[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchProviders(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));

@@ -18,6 +18,7 @@ import {
   deleteReceiptLocal,
   clearLocalReceipts,
 } from '@/src/database/receiptsLocalDB';
+import { mergeOfflineData } from '@/utils/offline';
 
 export interface Receipt {
   id: number;
@@ -94,7 +95,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localReceipts = await getAllReceiptsLocal();
-      setReceipts(localReceipts as Receipt[]);
+      setReceipts(prev => mergeOfflineData(localReceipts as Receipt[], prev));
       console.log('Sin conexión: Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
         setTimeout(() => fetchReceipts(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
