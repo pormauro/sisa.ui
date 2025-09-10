@@ -18,10 +18,23 @@ import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View, Alert, LogBox } from 'react-native';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { useThemeColor } from '@/hooks/useThemeColor';
+
+
+// Redirect alerts and errors to console only
+LogBox.ignoreAllLogs();
+(Alert as any).alert = (...args: any[]) => {
+  console.log('Alert:', ...args);
+};
+console.error = (...args: any[]) => {
+  console.log('Error:', ...args);
+};
+console.warn = (...args: any[]) => {
+  console.log('Warning:', ...args);
+};
 
 
 function RootLayoutContent() {
