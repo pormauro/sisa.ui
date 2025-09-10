@@ -24,17 +24,17 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 
-// Redirect alerts and errors to console only
+// Filter alerts and suppress console warnings/errors
 LogBox.ignoreAllLogs();
+const originalAlert = Alert.alert;
 (Alert as any).alert = (...args: any[]) => {
-  console.log('Alert:', ...args);
+  const buttons = args[2];
+  if (Array.isArray(buttons) && buttons.length > 1) {
+    originalAlert(...args);
+  }
 };
-console.error = (...args: any[]) => {
-  console.log('Error:', ...args);
-};
-console.warn = (...args: any[]) => {
-  console.log('Warning:', ...args);
-};
+console.error = () => {};
+console.warn = () => {};
 
 
 function RootLayoutContent() {
