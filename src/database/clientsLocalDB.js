@@ -31,27 +31,72 @@ export async function createLocalClientsTable() {
 
 /**
  * Inserta un cliente en la BD local.
- * @param {Object} clientData - Datos del cliente.
+ * Si se proporciona un id, se utiliza ese id (por ejemplo, para registros temporales).
+ * @param {Object} clientData - Datos del cliente, puede incluir `id`.
  * @returns {number} - El id insertado.
  */
 export async function insertClientLocal(clientData) {
+  const { id, business_name, tax_id, email, brand_file_id, phone, address, tariff_id } = clientData;
+  try {
+    let result;
+    if (id !== undefined && id !== null) {
+      result = await db.runAsync(
+        `INSERT INTO clients (id, business_name, tax_id, email, brand_file_id, phone, address, tariff_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        id,
+        business_name,
+        tax_id,
+        email,
+        brand_file_id,
+        phone,
+        address,
+        tariff_id
+      );
+      return id;
+    } else {
+      result = await db.runAsync(
+        `INSERT INTO clients (business_name, tax_id, email, brand_file_id, phone, address, tariff_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        business_name,
+        tax_id,
+        email,
+        brand_file_id,
+        phone,
+        address,
+        tariff_id
+      );
+      return result.lastInsertRowId;
+    }
+  } catch (error) {
+    await logErrorToLocal(error);
+    throw error;
+  }
+}
+
+/**
+ * Actualiza un cliente en la BD local.
+ * @param {number} clientId - Id del cliente a actualizar.
+ * @param {Object} clientData - Nuevos datos del cliente.
+ * @returns {number} - Cantidad de filas afectadas.
+ */
+export async function updateClientLocal(clientId, clientData) {
   const { business_name, tax_id, email, brand_file_id, phone, address, tariff_id } = clientData;
   try {
     const result = await db.runAsync(
-      `INSERT INTO clients (business_name, tax_id, email, brand_file_id, phone, address, tariff_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      `UPDATE clients SET business_name = ?, tax_id = ?, email = ?, brand_file_id = ?, phone = ?, address = ?, tariff_id = ? WHERE id = ?;`,
       business_name,
       tax_id,
       email,
       brand_file_id,
       phone,
       address,
-      tariff_id
+      tariff_id,
+      clientId
     );
-    return result.lastInsertRowId;
+    return result.changes;
   } catch (error) {
     await logErrorToLocal(error);
-    throw error;
+    return 0;
   }
 }
 
