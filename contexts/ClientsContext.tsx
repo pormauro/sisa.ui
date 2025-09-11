@@ -15,6 +15,9 @@ import { Alert } from 'react-native';
 import {
   createLocalClientsTable,
   getAllClientsLocal,
+  insertClientLocal,
+  updateClientLocal,
+  deleteClientLocal,
 } from '@/src/database/clientsLocalDB';
 
 export interface Client {
@@ -133,6 +136,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     const tempId = Date.now() * -1;
     const newClient: Client = { id: tempId, ...clientData, syncStatus: 'pending' };
     setClients(prev => [...prev, newClient]);
+    await insertClientLocal({ id: tempId, ...clientData });
     await enqueueOperation('clients', 'create', clientData, null, tempId);
     await loadQueue();
     processQueue();
@@ -145,6 +149,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         client.id === id ? { ...client, ...clientData, syncStatus: 'pending' } : client
       )
     );
+    await updateClientLocal(id, clientData);
     await enqueueOperation('clients', 'update', clientData, id, null);
     await loadQueue();
     processQueue();
@@ -157,6 +162,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         client.id === id ? { ...client, pendingDelete: true, syncStatus: 'pending' } : client
       )
     );
+    await deleteClientLocal(id);
     await enqueueOperation('clients', 'delete', {}, id, null);
     await loadQueue();
     processQueue();
