@@ -36,7 +36,11 @@ class SyncController
         }
 
         if (DB::table('sync_batches')->where('batch_id', $batchId)->exists()) {
-            return response()->json(['status' => 'duplicate'], 200);
+            return response()->json([
+                'ok' => true,
+                'batch_id' => $batchId,
+                'duplicate' => true,
+            ], 200);
         }
 
         $now = date('Y-m-d H:i:s');
@@ -70,7 +74,8 @@ class SyncController
         }
 
         $response = [
-            'status' => 'ok',
+            'ok' => true,
+            'batch_id' => $batchId,
             'results' => $results,
             'map' => [
                 'local_to_remote' => $localToRemote,
