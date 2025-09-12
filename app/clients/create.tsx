@@ -41,26 +41,31 @@ export default function CreateClientPage() {
     }
   }, []);
   const handleSubmit = async () => {
-  /*  if (!businessName || !taxId || !email) {
+    /*  if (!businessName || !taxId || !email) {
       Alert.alert('Error', 'Por favor ingresa Nombre de Negocio, Tax ID y Email');
       return;
     }*/
     setLoading(true);
-    const newClient = await addClient({
-      business_name: businessName,
-      tax_id: taxId,
-      email,
-      phone,
-      address,
-      brand_file_id: brandFileId,
-      tariff_id: tariffId ? parseInt(tariffId, 10) : null,
-    });
-    setLoading(false);
-    if (newClient) {
-      Alert.alert('Éxito', 'Cliente creado exitosamente');
-      router.back();
-    } else {
+    try {
+      const newClient = await addClient({
+        business_name: businessName,
+        tax_id: taxId,
+        email,
+        phone,
+        address,
+        brand_file_id: brandFileId,
+        tariff_id: tariffId ? parseInt(tariffId, 10) : null,
+      });
+      if (newClient) {
+        Alert.alert('Éxito', 'Cliente creado exitosamente');
+        router.back();
+      } else {
+        Alert.alert('Error', 'No se pudo crear el cliente');
+      }
+    } catch (error) {
       Alert.alert('Error', 'No se pudo crear el cliente');
+    } finally {
+      setLoading(false);
     }
   };
 

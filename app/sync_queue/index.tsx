@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function SyncQueuePage() {
-  const { queue, processQueue, clearQueue, removeQueueItem } = useContext(ClientsContext);
+  const { queue, processQueue, clearQueue, removeQueueItem, clearDatabases } = useContext(ClientsContext);
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
@@ -38,6 +38,9 @@ export default function SyncQueuePage() {
       </TouchableOpacity>
       <TouchableOpacity style={[styles.button, { backgroundColor: buttonColor }]} onPress={clearQueue}>
         <ThemedText style={{ color: buttonTextColor }}>Borrar cola</ThemedText>
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.button, { backgroundColor: buttonColor }]} onPress={clearDatabases}>
+        <ThemedText style={{ color: buttonTextColor }}>Borrar bases de datos</ThemedText>
       </TouchableOpacity>
     </ThemedView>
   );
