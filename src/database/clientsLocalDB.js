@@ -25,6 +25,15 @@ export async function createLocalClientsTable() {
         version INTEGER NOT NULL DEFAULT 1
       );
     `);
+
+    // Ensure the "version" column exists for older installations
+    const columns = await db.getAllAsync('PRAGMA table_info(clients);');
+    const hasVersion = columns.some((c) => c.name === 'version');
+    if (!hasVersion) {
+      await db.execAsync(
+        'ALTER TABLE clients ADD COLUMN version INTEGER NOT NULL DEFAULT 1;'
+      );
+    }
   } catch (error) {
     await logErrorToLocal(error);
   }
