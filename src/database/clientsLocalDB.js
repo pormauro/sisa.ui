@@ -21,7 +21,8 @@ export async function createLocalClientsTable() {
         brand_file_id INTEGER,
         phone TEXT,
         address TEXT,
-        tariff_id INTEGER
+        tariff_id INTEGER,
+        version INTEGER NOT NULL DEFAULT 1
       );
     `);
   } catch (error) {
@@ -36,13 +37,23 @@ export async function createLocalClientsTable() {
  * @returns {number} - El id insertado.
  */
 export async function insertClientLocal(clientData) {
-  const { id, business_name, tax_id, email, brand_file_id, phone, address, tariff_id } = clientData;
+  const {
+    id,
+    business_name,
+    tax_id,
+    email,
+    brand_file_id,
+    phone,
+    address,
+    tariff_id,
+    version = 1,
+  } = clientData;
   try {
     let result;
     if (id !== undefined && id !== null) {
       result = await db.runAsync(
-        `INSERT INTO clients (id, business_name, tax_id, email, brand_file_id, phone, address, tariff_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO clients (id, business_name, tax_id, email, brand_file_id, phone, address, tariff_id, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         id,
         business_name,
         tax_id,
@@ -50,20 +61,22 @@ export async function insertClientLocal(clientData) {
         brand_file_id,
         phone,
         address,
-        tariff_id
+        tariff_id,
+        version
       );
       return id;
     } else {
       result = await db.runAsync(
-        `INSERT INTO clients (business_name, tax_id, email, brand_file_id, phone, address, tariff_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO clients (business_name, tax_id, email, brand_file_id, phone, address, tariff_id, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
         business_name,
         tax_id,
         email,
         brand_file_id,
         phone,
         address,
-        tariff_id
+        tariff_id,
+        version
       );
       return result.lastInsertRowId;
     }
@@ -80,10 +93,19 @@ export async function insertClientLocal(clientData) {
  * @returns {number} - Cantidad de filas afectadas.
  */
 export async function updateClientLocal(clientId, clientData) {
-  const { business_name, tax_id, email, brand_file_id, phone, address, tariff_id } = clientData;
+  const {
+    business_name,
+    tax_id,
+    email,
+    brand_file_id,
+    phone,
+    address,
+    tariff_id,
+    version = null,
+  } = clientData;
   try {
     const result = await db.runAsync(
-      `UPDATE clients SET business_name = ?, tax_id = ?, email = ?, brand_file_id = ?, phone = ?, address = ?, tariff_id = ? WHERE id = ?;`,
+      `UPDATE clients SET business_name = ?, tax_id = ?, email = ?, brand_file_id = ?, phone = ?, address = ?, tariff_id = ?, version = COALESCE(?, version) WHERE id = ?;`,
       business_name,
       tax_id,
       email,
@@ -91,6 +113,7 @@ export async function updateClientLocal(clientId, clientData) {
       phone,
       address,
       tariff_id,
+      version,
       clientId
     );
     return result.changes;
@@ -171,6 +194,7 @@ export async function syncFromServer() {
   
       for (let c of serverClients) {
         await insertClientLocal({
+          id: c.id,
           business_name: c.business_name,
           tax_id: c.tax_id,
           email: c.email,
@@ -178,6 +202,7 @@ export async function syncFromServer() {
           phone: c.phone,
           address: c.address,
           tariff_id: c.tariff_id ?? null,
+          version: c.version ?? 1,
         });
       }
     } else {

@@ -45,10 +45,14 @@ class SyncController
 
         $sorted = $this->topologicalSort($ops);
 
+        $results = [];
         DB::beginTransaction();
         try {
             foreach ($sorted as $op) {
-                $handlers[$op['entity']]->handle($op, $batchId, $now);
+                $res = $handlers[$op['entity']]->handle($op, $batchId, $now);
+                if ($res) {
+                    $results[] = $res;
+                }
             }
             DB::commit();
         } catch (\Throwable $e) {
@@ -56,7 +60,7 @@ class SyncController
             throw $e;
         }
 
-        return response()->json(['status' => 'ok']);
+        return response()->json(['status' => 'ok', 'results' => $results]);
     }
 
     private function topologicalSort(array $ops): array

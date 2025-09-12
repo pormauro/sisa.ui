@@ -29,6 +29,7 @@ export interface Client {
   phone: string;
   address: string;
   tariff_id: number | null;
+  version: number;
   created_at?: string;
   updated_at?: string;
   syncStatus?: 'pending' | 'error';
@@ -50,8 +51,8 @@ interface ClientsContextValue {
   clients: Client[];
   queue: QueueItem[];
   loadClients: () => void;
-  addClient: (client: Omit<Client, 'id'>) => Promise<Client | null>;
-  updateClient: (id: number, client: Omit<Client, 'id'>) => Promise<boolean>;
+  addClient: (client: Omit<Client, 'id' | 'version'>) => Promise<Client | null>;
+  updateClient: (id: number, client: Omit<Client, 'id' | 'version'>) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
   processQueue: () => Promise<void>;
   clearQueue: () => Promise<void>;
@@ -116,6 +117,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           tariff_id: c.tariff_id ?? null,
           created_at: c.created_at,
           updated_at: c.updated_at,
+          version: c.version ?? 1,
         }));
         setClients(loaded);
       }
@@ -135,25 +137,37 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     await fetchClients();
   };
 
-  const addClient = async (clientData: Omit<Client, 'id'>): Promise<Client | null> => {
+  const addClient = async (
+    clientData: Omit<Client, 'id' | 'version'>
+  ): Promise<Client | null> => {
     const tempId = Date.now() * -1;
-    const newClient: Client = { id: tempId, ...clientData, syncStatus: 'pending' };
+    const newClient: Client = {
+      id: tempId,
+      ...clientData,
+      version: 1,
+      syncStatus: 'pending',
+    };
     setClients(prev => [...prev, newClient]);
-    await insertClientLocal({ id: tempId, ...clientData });
+    await insertClientLocal({ id: tempId, ...clientData, version: 1 });
     await enqueueOperation('clients', 'create', clientData, null, tempId);
     await loadQueue();
     processQueue();
     return newClient;
   };
 
-  const updateClient = async (id: number, clientData: Omit<Client, 'id'>): Promise<boolean> => {
+  const updateClient = async (
+    id: number,
+    clientData: Omit<Client, 'id' | 'version'>
+  ): Promise<boolean> => {
+    const current = clients.find(c => c.id === id);
+    const version = current?.version ?? 1;
     setClients(prev =>
       prev.map(client =>
         client.id === id ? { ...client, ...clientData, syncStatus: 'pending' } : client
       )
     );
-    await updateClientLocal(id, clientData);
-    await enqueueOperation('clients', 'update', clientData, id, null);
+    await updateClientLocal(id, { ...clientData, version });
+    await enqueueOperation('clients', 'update', { ...clientData, if_match_version: version }, id, null);
     await loadQueue();
     processQueue();
     return true;
@@ -196,11 +210,17 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             if (response.ok) {
               const data = await response.json();
               const newId = parseInt(data.client_id, 10);
+              const version = data.version ?? 1;
               setClients(prev =>
                 prev.map(c =>
-                  c.id === item.local_temp_id ? { ...c, id: newId, syncStatus: undefined } : c
+                  c.id === item.local_temp_id
+                    ? { ...c, id: newId, version, syncStatus: undefined }
+                    : c
                 )
               );
+              await deleteClientLocal(item.local_temp_id);
+              const payload = JSON.parse(item.payload_json);
+              await insertClientLocal({ id: newId, ...payload, version });
               await deleteQueueItem(item.id);
             } else {
               await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
@@ -213,12 +233,18 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
               body: item.payload_json,
             });
             if (response.ok) {
+              const data = await response.json();
               const payload = JSON.parse(item.payload_json);
+              const { if_match_version, ...rest } = payload;
+              const version = data.version ?? if_match_version;
               setClients(prev =>
                 prev.map(c =>
-                  c.id === item.record_id ? { ...c, ...payload, syncStatus: undefined } : c
+                  c.id === item.record_id
+                    ? { ...c, ...rest, version, syncStatus: undefined }
+                    : c
                 )
               );
+              await updateClientLocal(item.record_id, { ...rest, version });
               await deleteQueueItem(item.id);
             } else {
               await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
