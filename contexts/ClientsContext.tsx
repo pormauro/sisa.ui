@@ -141,6 +141,44 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const loadClients = async () => {
+    const localClients = await getAllClientsLocal();
+    setClients(prev => {
+      const pending = prev.filter(c => c.syncStatus === 'pending');
+      return [...(localClients as Client[]), ...pending];
+    });
+
+    const batchId = `${Date.now()}-${Math.random()}`;
+    try {
+      const sinceHistoryId = await getMaxHistoryId();
+      const payload = {
+        batch_id: batchId,
+        ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
+        ops: [],
+      };
+      const response = await fetch(`${BASE_URL}/sync/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': batchId,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.history?.max_history_id !== undefined) {
+          await setMaxHistoryId(data.history.max_history_id);
+        }
+        if (Array.isArray(data.history?.changes)) {
+          await applyHistoryChanges(data.history.changes);
+        }
+        return;
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.log('Incremental sync failed:', error);
+      }
+    }
     await fetchClients();
   };
 
