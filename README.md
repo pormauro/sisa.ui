@@ -56,7 +56,8 @@ local operation identifiers to their server-assigned IDs:
 
 ```json
 {
-  "status": "ok",
+  "ok": true,
+  "batch_id": "example-batch-id",
   "results": [],
   "map": {
     "local_to_remote": {
