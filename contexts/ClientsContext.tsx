@@ -147,49 +147,21 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const addClient = async (
     clientData: Omit<Client, 'id' | 'version'>
   ): Promise<Client | null> => {
-    const batchId = `${Date.now()}-${Math.random()}`;
+    const tempId = Date.now();
+    const newClient: Client = {
+      id: tempId,
+      ...clientData,
+      version: 1,
+      syncStatus: 'pending',
+    };
+
     try {
-      const sinceHistoryId = await getMaxHistoryId();
-      const payload = {
-        batch_id: batchId,
-        ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
-        ops: [
-          {
-            request_id: `create-${Date.now()}`,
-            entity: 'clients',
-            op: 'create',
-            local_id: 1,
-            data: clientData,
-          },
-        ],
-      };
-      const response = await fetch(`${BASE_URL}/sync/batch`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'Idempotency-Key': batchId,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.history?.max_history_id !== undefined) {
-          await setMaxHistoryId(data.history.max_history_id);
-        }
-        const result = data.results?.[0];
-        if (data.ok && result?.status === 'done') {
-          const newClient: Client = {
-            id: result.remote_id,
-            ...clientData,
-            version: result.version ?? 1,
-          };
-          setClients(prev => [...prev, newClient]);
-          await insertClientLocal({ id: newClient.id, ...clientData, version: newClient.version });
-          return newClient;
-        }
-      }
-      return null;
+      setClients(prev => [...prev, newClient]);
+      await insertClientLocal({ id: tempId, ...clientData, version: 1 });
+      await enqueueOperation('clients', 'create', clientData, null, tempId);
+      await loadQueue();
+      processQueue();
+      return newClient;
     } catch (error) {
       if (__DEV__) {
         console.log('Error adding client:', error);
