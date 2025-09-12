@@ -106,6 +106,9 @@ class SyncController
                 ->map(function ($row) {
                     $payload = json_decode($row->payload, true);
                     $payload['snapshot'] = json_decode($row->snapshot, true);
+                    $payload['history_id'] = $row->id;
+                    $payload['remote_id'] = $payload['remote_id'] ?? $row->entity_id;
+                    $payload['updated_at'] = $payload['updated_at'] ?? ($payload['snapshot']['updated_at'] ?? $row->created_at);
                     return $payload;
                 })
                 ->all();

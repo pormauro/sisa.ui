@@ -56,11 +56,15 @@ class ClientsHandler
             'updated_at' => $now,
         ]);
 
+        $historyPayload = $op;
+        $historyPayload['remote_id'] = $entityId;
+        $historyPayload['updated_at'] = $snapshot['updated_at'] ?? $now;
+
         DB::table('sync_history')->insert([
             'entity' => $op['entity'],
             'entity_id' => $entityId,
             'batch_id' => $batchId,
-            'payload' => json_encode($op),
+            'payload' => json_encode($historyPayload),
             'snapshot' => $snapshot ? json_encode($snapshot) : null,
             'created_at' => $now,
         ]);
