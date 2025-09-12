@@ -47,7 +47,7 @@ class SyncController
         DB::table('sync_batches')->insert([
             'batch_id' => $batchId,
             'payload' => json_encode($payload),
-            'status' => 'processed',
+            'status' => 'pending',
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -68,8 +68,20 @@ class SyncController
                 }
             }
             DB::commit();
+            DB::table('sync_batches')
+                ->where('batch_id', $batchId)
+                ->update([
+                    'status' => 'processed',
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
         } catch (\Throwable $e) {
             DB::rollBack();
+            DB::table('sync_batches')
+                ->where('batch_id', $batchId)
+                ->update([
+                    'status' => 'failed',
+                    'updated_at' => date('Y-m-d H:i:s'),
+                ]);
             throw $e;
         }
 
