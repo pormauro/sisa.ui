@@ -68,7 +68,11 @@ class ClientsHandlerTest extends TestCase
         $createResult = $handler->handle([
             'entity' => 'clients',
             'op' => 'create',
-            'business_name' => 'Acme Inc',
+            'request_id' => 'req-1',
+            'local_id' => 'local-1',
+            'data' => [
+                'business_name' => 'Acme Inc',
+            ],
         ], $batchId, $now);
 
         $this->assertArrayHasKey('id', $createResult);
@@ -81,7 +85,8 @@ class ClientsHandlerTest extends TestCase
         $deleteResult = $handler->handle([
             'entity' => 'clients',
             'op' => 'delete',
-            'id' => $id,
+            'request_id' => 'req-2',
+            'remote_id' => $id,
         ], $batchId, $now);
 
         $this->assertTrue($deleteResult['deleted']);
