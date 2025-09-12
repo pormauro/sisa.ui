@@ -24,18 +24,25 @@ class ClientsHandler
         $snapshot = null;
         $action = $op['op'] ?? null;
         $entityId = $op['remote_id'] ?? null;
-        if ($action === 'create') {
-            $res = $this->create($op, $now);
-            $entityId = $res['id'];
-            $snapshot = $res['snapshot'];
-        } elseif ($action === 'update') {
-            $res = $this->update($op, $now);
-            $entityId = $op['remote_id'];
-            $snapshot = $res['snapshot'];
-        } elseif ($action === 'delete') {
-            $res = $this->delete($op, $now);
-            $entityId = $op['remote_id'] ?? null;
-            $snapshot = $res['snapshot'];
+
+        switch ($action) {
+            case 'create':
+                $res = $this->create($op, $now);
+                $entityId = $res['id'];
+                $snapshot = $res['snapshot'];
+                break;
+            case 'update':
+                $res = $this->update($op, $now);
+                $entityId = $op['remote_id'];
+                $snapshot = $res['snapshot'];
+                break;
+            case 'delete':
+                $res = $this->delete($op, $now);
+                $entityId = $op['remote_id'] ?? null;
+                $snapshot = $res['snapshot'];
+                break;
+            default:
+                abort(400, 'unsupported op');
         }
 
         DB::table('sync_items')->insert([
