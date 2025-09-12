@@ -155,7 +155,7 @@ export async function deleteClientLocal(clientId) {
 /**
  * Borra todos los clientes de la BD local.
  */
-async function clearLocalClients() {
+export async function clearLocalClients() {
   try {
     await db.execAsync('DELETE FROM clients;');
   } catch (error) {

@@ -18,7 +18,9 @@ import {
   insertClientLocal,
   updateClientLocal,
   deleteClientLocal,
+  clearLocalClients,
 } from '@/src/database/clientsLocalDB';
+import { clearErrorLogs } from '@/src/database/errorLogger';
 
 export interface Client {
   id: number;
@@ -57,6 +59,7 @@ interface ClientsContextValue {
   processQueue: () => Promise<void>;
   clearQueue: () => Promise<void>;
   removeQueueItem: (id: number) => Promise<void>;
+  clearDatabases: () => Promise<void>;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
@@ -69,6 +72,7 @@ export const ClientsContext = createContext<ClientsContextValue>({
   processQueue: async () => {},
   clearQueue: async () => {},
   removeQueueItem: async () => {},
+  clearDatabases: async () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
@@ -149,12 +153,17 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       version: 1,
       syncStatus: 'pending',
     };
-    setClients(prev => [...prev, newClient]);
-    await insertClientLocal({ id: tempId, ...clientData, version: 1 });
-    await enqueueOperation('clients', 'create', clientData, null, tempId);
-    await loadQueue();
-    processQueue();
-    return newClient;
+    try {
+      setClients(prev => [...prev, newClient]);
+      await insertClientLocal({ id: tempId, ...clientData, version: 1 });
+      await enqueueOperation('clients', 'create', clientData, null, tempId);
+      await loadQueue();
+      processQueue();
+      return newClient;
+    } catch (error) {
+      setClients(prev => prev.filter(c => c.id !== tempId));
+      return null;
+    }
   };
 
   const updateClient = async (
@@ -196,6 +205,14 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const removeQueueItem = async (id: number): Promise<void> => {
     await deleteQueueItem(id);
     await loadQueue();
+  };
+
+  const clearDatabases = async (): Promise<void> => {
+    await clearQueueDB();
+    await clearLocalClients();
+    await clearErrorLogs();
+    setClients([]);
+    setQueue([]);
   };
 
   const processQueue = async () => {
@@ -304,7 +321,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   return (
-    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue, clearQueue, removeQueueItem }}>
+    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue, clearQueue, removeQueueItem, clearDatabases }}>
       {children}
     </ClientsContext.Provider>
   );
