@@ -146,22 +146,48 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const addClient = async (
     clientData: Omit<Client, 'id' | 'version'>
   ): Promise<Client | null> => {
-    const tempId = Date.now() * -1;
-    const newClient: Client = {
-      id: tempId,
-      ...clientData,
-      version: 1,
-      syncStatus: 'pending',
-    };
+    const batchId = `${Date.now()}-${Math.random()}`;
     try {
-      setClients(prev => [...prev, newClient]);
-      await insertClientLocal({ id: tempId, ...clientData, version: 1 });
-      await enqueueOperation('clients', 'create', clientData, null, tempId);
-      await loadQueue();
-      processQueue();
-      return newClient;
+      const payload = {
+        batch_id: batchId,
+        ops: [
+          {
+            request_id: `create-${Date.now()}`,
+            entity: 'clients',
+            op: 'create',
+            local_id: 1,
+            data: clientData,
+          },
+        ],
+      };
+      const response = await fetch(`${BASE_URL}/sync/batch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Idempotency-Key': batchId,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const result = data.results?.[0];
+        if (data.ok && result?.status === 'done') {
+          const newClient: Client = {
+            id: result.remote_id,
+            ...clientData,
+            version: result.version ?? 1,
+          };
+          setClients(prev => [...prev, newClient]);
+          await insertClientLocal({ id: newClient.id, ...clientData, version: newClient.version });
+          return newClient;
+        }
+      }
+      return null;
     } catch (error) {
-      setClients(prev => prev.filter(c => c.id !== tempId));
+      if (__DEV__) {
+        console.log('Error adding client:', error);
+      }
       return null;
     }
   };
@@ -225,67 +251,67 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         };
         if (item.table_name === 'clients') {
+          const batchId = `${Date.now()}-${Math.random()}`;
+          let op: any = {
+            request_id: `${item.op}-${item.id}`,
+            entity: 'clients',
+            op: item.op,
+          };
+          const payload = JSON.parse(item.payload_json);
           if (item.op === 'create') {
-            const response = await fetch(`${BASE_URL}/clients`, {
-              method: 'POST',
-              headers,
-              body: item.payload_json,
-            });
-            if (response.ok) {
-              const data = await response.json();
-              const newId = parseInt(data.client_id, 10);
-              const version = data.version ?? 1;
-              setClients(prev =>
-                prev.map(c =>
-                  c.id === item.local_temp_id
-                    ? { ...c, id: newId, version, syncStatus: undefined }
-                    : c
-                )
-              );
-              await deleteClientLocal(item.local_temp_id);
-              const payload = JSON.parse(item.payload_json);
-              await insertClientLocal({ id: newId, ...payload, version });
-              await deleteQueueItem(item.id);
-            } else {
-              await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
-              break;
-            }
+            op.local_id = item.local_temp_id;
+            op.data = payload;
           } else if (item.op === 'update') {
-            const response = await fetch(`${BASE_URL}/clients/${item.record_id}`, {
-              method: 'PUT',
-              headers,
-              body: item.payload_json,
-            });
-            if (response.ok) {
-              const data = await response.json();
-              const payload = JSON.parse(item.payload_json);
-              const { if_match_version, ...rest } = payload;
-              const version = data.version ?? if_match_version;
-              setClients(prev =>
-                prev.map(c =>
-                  c.id === item.record_id
-                    ? { ...c, ...rest, version, syncStatus: undefined }
-                    : c
-                )
-              );
-              await updateClientLocal(item.record_id, { ...rest, version });
-              await deleteQueueItem(item.id);
-            } else {
-              await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
-              break;
-            }
+            op.remote_id = item.record_id;
+            op.if_match_version = payload.if_match_version;
+            const { if_match_version, ...rest } = payload;
+            op.data = rest;
           } else if (item.op === 'delete') {
-            const response = await fetch(`${BASE_URL}/clients/${item.record_id}`, {
-              method: 'DELETE',
-              headers,
-            });
-            if (response.ok) {
-              setClients(prev => prev.filter(c => c.id !== item.record_id));
+            op.remote_id = item.record_id;
+          }
+          const response = await fetch(`${BASE_URL}/sync/batch`, {
+            method: 'POST',
+            headers: { ...headers, 'Idempotency-Key': batchId },
+            body: JSON.stringify({ batch_id: batchId, ops: [op] }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            const result = data.results?.[0];
+            if (data.ok && result?.status === 'done') {
+              if (item.op === 'create') {
+                const newId = result.remote_id;
+                const version = result.version ?? 1;
+                setClients(prev =>
+                  prev.map(c =>
+                    c.id === item.local_temp_id
+                      ? { ...c, id: newId, version, syncStatus: undefined }
+                      : c
+                  )
+                );
+                await deleteClientLocal(item.local_temp_id);
+                await insertClientLocal({ id: newId, ...payload, version });
+              } else if (item.op === 'update') {
+                const version = result.version ?? payload.if_match_version;
+                const { if_match_version, ...rest } = payload;
+                setClients(prev =>
+                  prev.map(c =>
+                    c.id === item.record_id
+                      ? { ...c, ...rest, version, syncStatus: undefined }
+                      : c
+                  )
+                );
+                await updateClientLocal(item.record_id, { ...rest, version });
+              } else if (item.op === 'delete') {
+                setClients(prev => prev.filter(c => c.id !== item.record_id));
+              }
               await deleteQueueItem(item.id);
             } else {
-              await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
+              await updateQueueItemStatus(item.id, 'error', 'Invalid response');
               break;
             }
+          } else {
+            await updateQueueItemStatus(item.id, 'error', `HTTP ${response.status}`);
+            break;
           }
         }
       } catch (err: any) {
