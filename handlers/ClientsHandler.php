@@ -58,12 +58,19 @@ class ClientsHandler
             'created_at' => $now,
         ]);
 
+        $updatedAt = $snapshot['updated_at'] ?? null;
+        $version = $snapshot['version'] ?? null;
+        if ($action === 'delete') {
+            $updatedAt = null;
+            $version = null;
+        }
+
         return [
             'request_id' => $requestId,
             'status' => 'done',
             'remote_id' => $entityId,
-            'updated_at' => $snapshot['updated_at'] ?? null,
-            'version' => $snapshot['version'] ?? null,
+            'updated_at' => $updatedAt,
+            'version' => $version,
         ];
     }
 
@@ -105,11 +112,13 @@ class ClientsHandler
             abort(404, 'Client not found');
         }
 
+        $snapshot = (array) $client;
+
         DB::table('clients')->where('id', $op['remote_id'])->delete();
 
         return [
             'id' => $op['remote_id'],
-            'snapshot' => null,
+            'snapshot' => $snapshot,
         ];
     }
 

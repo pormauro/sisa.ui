@@ -103,7 +103,9 @@ class ClientsHandlerTest extends TestCase
         $history = Capsule::table('sync_history')->where('entity', 'clients')->where('entity_id', $id)->orderBy('id')->get();
         $this->assertCount(2, $history); // create + delete
         $this->assertNotNull($history[0]->snapshot);
-        $this->assertNull($history[1]->snapshot);
+        $this->assertNotNull($history[1]->snapshot);
+        $deletedSnapshot = json_decode($history[1]->snapshot, true);
+        $this->assertSame('Acme Inc', $deletedSnapshot['business_name']);
     }
 }
 
