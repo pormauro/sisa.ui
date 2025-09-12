@@ -73,3 +73,19 @@ local operation identifiers to their server-assigned IDs:
 
 The `map.local_to_remote` object helps clients reconcile temporary `local_id`
 values with the corresponding remote identifiers returned by the server.
+
+### Operation handling
+
+Earlier drafts of this API mentioned a `processClientOp` routine. That logic has
+been replaced by an entity-based dispatch system inside `SyncController`. Each
+incoming operation is routed to a handler based on its `entity` value. For
+example, client operations are processed by `ClientsHandler`:
+
+```php
+$handlers = [
+    'clients' => new ClientsHandler(),
+];
+```
+
+This modular approach allows additional entities to plug in their own handlers
+while keeping `SyncController` focused on coordinating the batch.
