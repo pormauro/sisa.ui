@@ -7,5 +7,7 @@ CREATE TABLE IF NOT EXISTS clients (
     phone VARCHAR(50),
     address TEXT,
     tariff_id BIGINT UNSIGNED,
-    version INT NOT NULL DEFAULT 1
+    version INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL
 );
