@@ -70,7 +70,10 @@ export default function CreateClientPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
+    >
       <ThemedText style={styles.label}>Imagen del Cliente</ThemedText>
       <CircleImagePicker
         fileId={brandFileId}
