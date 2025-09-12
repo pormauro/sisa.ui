@@ -30,8 +30,8 @@ class SyncController
 
         foreach ($ops as $op) {
             $entity = $op['entity'] ?? null;
-            if (!$entity || !isset($handlers[$entity])) {
-                return response()->json(['error' => 'Unsupported entity'], 400);
+            if (!$entity || !isset($handlers[$entity]) || !isset($op['request_id'])) {
+                return response()->json(['error' => 'Unsupported entity or missing request_id'], 400);
             }
         }
 
@@ -98,9 +98,9 @@ class SyncController
         $graph = [];
         $idMap = [];
         foreach ($ops as $index => $op) {
-            $id = $op['id'] ?? (string) $index;
+            $id = $op['request_id'] ?? (string) $index;
             $idMap[$id] = $op;
-            $graph[$id] = $op['depends'] ?? [];
+            $graph[$id] = $op['refs'] ?? [];
         }
 
         $sorted = [];

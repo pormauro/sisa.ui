@@ -8,11 +8,13 @@ class ClientsHandler
 {
     public function handle(array $op, string $batchId, string $now): ?array
     {
-        $hash = md5(json_encode($op));
+        $requestId = $op['request_id'] ?? null;
+        if (!$requestId) {
+            abort(400, 'request_id required');
+        }
+
+        $hash = md5($requestId);
         $exists = DB::table('sync_items')
-            ->where('batch_id', $batchId)
-            ->where('entity', $op['entity'])
-            ->where('entity_id', $op['id'] ?? null)
             ->where('hash', $hash)
             ->exists();
         if ($exists) {
@@ -21,16 +23,16 @@ class ClientsHandler
 
         $result = null;
         $action = $op['op'] ?? null;
-        $entityId = $op['id'] ?? null;
+        $entityId = $op['remote_id'] ?? null;
         if ($action === 'create') {
             $result = $this->create($op, $now);
             $entityId = $result['id'];
         } elseif ($action === 'update') {
             $result = $this->update($op, $now);
-            $entityId = $op['id'];
+            $entityId = $op['remote_id'];
         } elseif ($action === 'delete') {
             $result = $this->delete($op, $now);
-            $entityId = $op['id'] ?? null;
+            $entityId = $op['remote_id'] ?? null;
         }
 
         DB::table('sync_items')->insert([
@@ -57,14 +59,15 @@ class ClientsHandler
 
     private function create(array $op, string $now): array
     {
+        $payload = $op['data'] ?? [];
         $data = [
-            'business_name' => $op['business_name'] ?? null,
-            'tax_id' => $op['tax_id'] ?? null,
-            'email' => $op['email'] ?? null,
-            'brand_file_id' => $op['brand_file_id'] ?? null,
-            'phone' => $op['phone'] ?? null,
-            'address' => $op['address'] ?? null,
-            'tariff_id' => $op['tariff_id'] ?? null,
+            'business_name' => $payload['business_name'] ?? null,
+            'tax_id' => $payload['tax_id'] ?? null,
+            'email' => $payload['email'] ?? null,
+            'brand_file_id' => $payload['brand_file_id'] ?? null,
+            'phone' => $payload['phone'] ?? null,
+            'address' => $payload['address'] ?? null,
+            'tariff_id' => $payload['tariff_id'] ?? null,
             'version' => 1,
             'created_at' => $now,
             'updated_at' => $now,
@@ -81,29 +84,29 @@ class ClientsHandler
 
     private function delete(array $op, string $now): array
     {
-        if (!isset($op['id'])) {
-            abort(400, 'id required');
+        if (!isset($op['remote_id'])) {
+            abort(400, 'remote_id required');
         }
 
-        $deleted = DB::table('clients')->where('id', $op['id'])->delete();
+        $deleted = DB::table('clients')->where('id', $op['remote_id'])->delete();
         if (!$deleted) {
             abort(404, 'Client not found');
         }
 
         return [
             'entity' => 'clients',
-            'id' => $op['id'],
+            'id' => $op['remote_id'],
             'deleted' => true,
         ];
     }
 
     private function update(array $op, string $now): array
     {
-        if (!isset($op['id']) || !isset($op['if_match_version'])) {
+        if (!isset($op['remote_id']) || !isset($op['if_match_version'])) {
             abort(400, 'if_match_version required');
         }
 
-        $client = DB::table('clients')->where('id', $op['id'])->first();
+        $client = DB::table('clients')->where('id', $op['remote_id'])->first();
         if (!$client) {
             abort(404, 'Client not found');
         }
@@ -112,23 +115,24 @@ class ClientsHandler
             abort(409, 'conflict');
         }
 
+        $payload = $op['data'] ?? [];
         $data = [
-            'business_name' => $op['business_name'] ?? $client->business_name,
-            'tax_id' => $op['tax_id'] ?? $client->tax_id,
-            'email' => $op['email'] ?? $client->email,
-            'brand_file_id' => $op['brand_file_id'] ?? $client->brand_file_id,
-            'phone' => $op['phone'] ?? $client->phone,
-            'address' => $op['address'] ?? $client->address,
-            'tariff_id' => $op['tariff_id'] ?? $client->tariff_id,
+            'business_name' => $payload['business_name'] ?? $client->business_name,
+            'tax_id' => $payload['tax_id'] ?? $client->tax_id,
+            'email' => $payload['email'] ?? $client->email,
+            'brand_file_id' => $payload['brand_file_id'] ?? $client->brand_file_id,
+            'phone' => $payload['phone'] ?? $client->phone,
+            'address' => $payload['address'] ?? $client->address,
+            'tariff_id' => $payload['tariff_id'] ?? $client->tariff_id,
             'version' => $client->version + 1,
             'updated_at' => $now,
         ];
 
-        DB::table('clients')->where('id', $op['id'])->update($data);
+        DB::table('clients')->where('id', $op['remote_id'])->update($data);
 
         return [
             'entity' => 'clients',
-            'id' => $op['id'],
+            'id' => $op['remote_id'],
             'version' => $client->version + 1,
         ];
     }
