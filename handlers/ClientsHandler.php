@@ -21,14 +21,22 @@ class ClientsHandler
 
         $result = null;
         $action = $op['op'] ?? null;
-        if ($action === 'update') {
+        $entityId = $op['id'] ?? null;
+        if ($action === 'create') {
+            $result = $this->create($op, $now);
+            $entityId = $result['id'];
+        } elseif ($action === 'update') {
             $result = $this->update($op, $now);
+            $entityId = $op['id'];
+        } elseif ($action === 'delete') {
+            $result = $this->delete($op, $now);
+            $entityId = $op['id'] ?? null;
         }
 
         DB::table('sync_items')->insert([
             'batch_id' => $batchId,
             'entity' => $op['entity'],
-            'entity_id' => $op['id'] ?? null,
+            'entity_id' => $entityId,
             'hash' => $hash,
             'payload' => json_encode($op),
             'status' => 'applied',
@@ -38,13 +46,55 @@ class ClientsHandler
 
         DB::table('sync_history')->insert([
             'entity' => $op['entity'],
-            'entity_id' => $op['id'] ?? null,
+            'entity_id' => $entityId,
             'batch_id' => $batchId,
             'payload' => json_encode($op),
             'created_at' => $now,
         ]);
 
         return $result;
+    }
+
+    private function create(array $op, string $now): array
+    {
+        $data = [
+            'business_name' => $op['business_name'] ?? null,
+            'tax_id' => $op['tax_id'] ?? null,
+            'email' => $op['email'] ?? null,
+            'brand_file_id' => $op['brand_file_id'] ?? null,
+            'phone' => $op['phone'] ?? null,
+            'address' => $op['address'] ?? null,
+            'tariff_id' => $op['tariff_id'] ?? null,
+            'version' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        $id = DB::table('clients')->insertGetId($data);
+
+        return [
+            'entity' => 'clients',
+            'id' => $id,
+            'version' => 1,
+        ];
+    }
+
+    private function delete(array $op, string $now): array
+    {
+        if (!isset($op['id'])) {
+            abort(400, 'id required');
+        }
+
+        $deleted = DB::table('clients')->where('id', $op['id'])->delete();
+        if (!$deleted) {
+            abort(404, 'Client not found');
+        }
+
+        return [
+            'entity' => 'clients',
+            'id' => $op['id'],
+            'deleted' => true,
+        ];
     }
 
     private function update(array $op, string $now): array
