@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS sync_items (
     payload JSON NULL,
     status VARCHAR(50) DEFAULT 'pending',
     created_at TIMESTAMP NULL,
-    updated_at TIMESTAMP NULL
+    updated_at TIMESTAMP NULL,
+    UNIQUE KEY unique_hash (hash)
 );
 
 CREATE TABLE IF NOT EXISTS sync_history (
