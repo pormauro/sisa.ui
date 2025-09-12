@@ -19,6 +19,11 @@ class SyncController
             return response()->json(['error' => 'Invalid payload'], 422);
         }
 
+        $idempotencyKey = $request->header('Idempotency-Key');
+        if (!$idempotencyKey || $idempotencyKey !== $batchId) {
+            return response()->json(['error' => 'Idempotency-Key header missing or does not match batch_id'], 400);
+        }
+
         $handlers = [
             'clients' => new ClientsHandler(),
         ];
