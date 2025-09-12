@@ -84,7 +84,7 @@ class SyncControllerTest extends TestCase
         $this->assertSame(400, $response->getStatusCode());
     }
 
-    public function testDuplicateRequestReturnsDuplicateStatus()
+    public function testDuplicateRequestReturnsDuplicateFlag()
     {
         $controller = new SyncController();
         $payload = [
@@ -97,14 +97,19 @@ class SyncControllerTest extends TestCase
         $req1->headers->set('Idempotency-Key', 'batch-1');
         $resp1 = $controller->postBatch($req1);
         $this->assertSame(200, $resp1->getStatusCode());
-        $this->assertSame('ok', $resp1->getData(true)['status']);
+        $data1 = $resp1->getData(true);
+        $this->assertTrue($data1['ok']);
+        $this->assertSame('batch-1', $data1['batch_id']);
 
         $req2 = Request::create('/', 'POST', [], [], [], [], json_encode($payload));
         $req2->headers->set('Content-Type', 'application/json');
         $req2->headers->set('Idempotency-Key', 'batch-1');
         $resp2 = $controller->postBatch($req2);
         $this->assertSame(200, $resp2->getStatusCode());
-        $this->assertSame('duplicate', $resp2->getData(true)['status']);
+        $data2 = $resp2->getData(true);
+        $this->assertTrue($data2['ok']);
+        $this->assertTrue($data2['duplicate']);
+        $this->assertSame('batch-1', $data2['batch_id']);
     }
 }
 
