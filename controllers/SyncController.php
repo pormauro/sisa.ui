@@ -46,12 +46,16 @@ class SyncController
         $sorted = $this->topologicalSort($ops);
 
         $results = [];
+        $localToRemote = [];
         DB::beginTransaction();
         try {
             foreach ($sorted as $op) {
                 $res = $handlers[$op['entity']]->handle($op, $batchId, $now);
                 if ($res) {
                     $results[] = $res;
+                    if (isset($op['local_id']) && isset($res['id'])) {
+                        $localToRemote[$op['local_id']] = $res['id'];
+                    }
                 }
             }
             DB::commit();
@@ -74,6 +78,9 @@ class SyncController
         return response()->json([
             'status' => 'ok',
             'results' => $results,
+            'map' => [
+                'local_to_remote' => $localToRemote,
+            ],
             'history' => [
                 'max_history_id' => $maxHistoryId,
                 'changes' => $changes,
