@@ -56,6 +56,7 @@ interface ClientsContextValue {
   deleteClient: (id: number) => Promise<boolean>;
   processQueue: () => Promise<void>;
   clearQueue: () => Promise<void>;
+  removeQueueItem: (id: number) => Promise<void>;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
@@ -67,6 +68,7 @@ export const ClientsContext = createContext<ClientsContextValue>({
   deleteClient: async () => false,
   processQueue: async () => {},
   clearQueue: async () => {},
+  removeQueueItem: async () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
@@ -191,6 +193,11 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     await loadQueue();
   };
 
+  const removeQueueItem = async (id: number): Promise<void> => {
+    await deleteQueueItem(id);
+    await loadQueue();
+  };
+
   const processQueue = async () => {
     if (!token) return;
     const items = await getAllQueueItems();
@@ -297,7 +304,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   return (
-    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue, clearQueue }}>
+    <ClientsContext.Provider value={{ clients, queue, loadClients, addClient, updateClient, deleteClient, processQueue, clearQueue, removeQueueItem }}>
       {children}
     </ClientsContext.Provider>
   );
