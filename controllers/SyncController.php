@@ -59,8 +59,26 @@ class SyncController
             DB::rollBack();
             throw $e;
         }
+        $historyQuery = DB::table('sync_history')->orderBy('id');
+        if ($sinceHistoryId !== null) {
+            $historyQuery->where('id', '>', $sinceHistoryId);
+        }
+        $historyRows = $historyQuery->get();
+        $maxHistoryId = $historyRows->max('id') ?? ($sinceHistoryId ?? 0);
+        $changes = $historyRows
+            ->map(function ($row) {
+                return json_decode($row->payload, true);
+            })
+            ->all();
 
-        return response()->json(['status' => 'ok', 'results' => $results]);
+        return response()->json([
+            'status' => 'ok',
+            'results' => $results,
+            'history' => [
+                'max_history_id' => $maxHistoryId,
+                'changes' => $changes,
+            ],
+        ]);
     }
 
     private function topologicalSort(array $ops): array
