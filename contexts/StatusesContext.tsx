@@ -26,6 +26,7 @@ import {
   deleteStatusLocal,
   clearLocalStatuses,
 } from '@/src/database/statusesLocalDB';
+import { getMaxHistoryId, setMaxHistoryId } from '@/src/utils/syncHistory';
 
 export interface Status {
   id: number;
@@ -132,8 +133,10 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
 
     const batchId = `${Date.now()}-${Math.random()}`;
     try {
+      const sinceHistoryId = await getMaxHistoryId();
       const payload = {
         batch_id: batchId,
+        ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
             request_id: `create-${Date.now()}`,
@@ -155,6 +158,9 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
       });
       if (response.ok) {
         const data = await response.json();
+        if (data.history?.max_history_id !== undefined) {
+          await setMaxHistoryId(data.history.max_history_id);
+        }
         const result = data.results?.[0];
         if (data.ok && result?.status === 'done') {
           const newStatus: Status = {
@@ -193,8 +199,10 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
 
     const batchId = `${Date.now()}-${Math.random()}`;
     try {
+      const sinceHistoryId = await getMaxHistoryId();
       const payload = {
         batch_id: batchId,
+        ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
             request_id: `update-${id}-${Date.now()}`,
@@ -217,6 +225,9 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
       });
       if (response.ok) {
         const data = await response.json();
+        if (data.history?.max_history_id !== undefined) {
+          await setMaxHistoryId(data.history.max_history_id);
+        }
         const result = data.results?.[0];
         if (data.ok && result?.status === 'done') {
           const newVersion = result.version ?? version;
@@ -248,8 +259,10 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
 
     const batchId = `${Date.now()}-${Math.random()}`;
     try {
+      const sinceHistoryId = await getMaxHistoryId();
       const payload = {
         batch_id: batchId,
+        ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
             request_id: `delete-${id}-${Date.now()}`,
@@ -270,6 +283,9 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
       });
       if (response.ok) {
         const data = await response.json();
+        if (data.history?.max_history_id !== undefined) {
+          await setMaxHistoryId(data.history.max_history_id);
+        }
         const result = data.results?.[0];
         if (data.ok && result?.status === 'done') {
           setStatuses(prev => prev.filter(s => s.id !== id));
@@ -311,13 +327,22 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
           } else if (item.op === 'delete') {
             op.remote_id = item.record_id;
           }
+          const sinceHistoryId = await getMaxHistoryId();
+          const bodyPayload = {
+            batch_id: batchId,
+            ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
+            ops: [op],
+          };
           const response = await fetch(`${BASE_URL}/sync/batch`, {
             method: 'POST',
             headers: { ...headers, 'Idempotency-Key': batchId },
-            body: JSON.stringify({ batch_id: batchId, ops: [op] }),
+            body: JSON.stringify(bodyPayload),
           });
           if (response.ok) {
             const data = await response.json();
+            if (data.history?.max_history_id !== undefined) {
+              await setMaxHistoryId(data.history.max_history_id);
+            }
             const result = data.results?.[0];
             if (data.ok && result?.status === 'done') {
               if (item.op === 'create') {

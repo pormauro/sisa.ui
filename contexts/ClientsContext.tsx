@@ -21,6 +21,7 @@ import {
   clearLocalClients,
 } from '@/src/database/clientsLocalDB';
 import { clearErrorLogs } from '@/src/database/errorLogger';
+import { getMaxHistoryId, setMaxHistoryId } from '@/src/utils/syncHistory';
 
 export interface Client {
   id: number;
@@ -148,8 +149,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   ): Promise<Client | null> => {
     const batchId = `${Date.now()}-${Math.random()}`;
     try {
+      const sinceHistoryId = await getMaxHistoryId();
       const payload = {
         batch_id: batchId,
+        ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
             request_id: `create-${Date.now()}`,
@@ -171,6 +174,9 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       });
       if (response.ok) {
         const data = await response.json();
+        if (data.history?.max_history_id !== undefined) {
+          await setMaxHistoryId(data.history.max_history_id);
+        }
         const result = data.results?.[0];
         if (data.ok && result?.status === 'done') {
           const newClient: Client = {
@@ -269,13 +275,22 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           } else if (item.op === 'delete') {
             op.remote_id = item.record_id;
           }
+          const sinceHistoryId = await getMaxHistoryId();
+          const bodyPayload = {
+            batch_id: batchId,
+            ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
+            ops: [op],
+          };
           const response = await fetch(`${BASE_URL}/sync/batch`, {
             method: 'POST',
             headers: { ...headers, 'Idempotency-Key': batchId },
-            body: JSON.stringify({ batch_id: batchId, ops: [op] }),
+            body: JSON.stringify(bodyPayload),
           });
           if (response.ok) {
             const data = await response.json();
+            if (data.history?.max_history_id !== undefined) {
+              await setMaxHistoryId(data.history.max_history_id);
+            }
             const result = data.results?.[0];
             if (data.ok && result?.status === 'done') {
               if (item.op === 'create') {
