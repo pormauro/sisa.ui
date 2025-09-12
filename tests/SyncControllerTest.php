@@ -52,7 +52,7 @@ class SyncControllerTest extends TestCase
         DB::statement('DROP TABLE IF EXISTS sync_batches');
         DB::statement('DROP TABLE IF EXISTS sync_history');
         DB::statement('CREATE TABLE sync_batches (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT, payload TEXT, status TEXT, created_at TEXT, updated_at TEXT)');
-        DB::statement('CREATE TABLE sync_history (id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT, entity_id INTEGER NULL, batch_id TEXT, payload TEXT, created_at TEXT)');
+        DB::statement('CREATE TABLE sync_history (id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT, entity_id INTEGER NULL, batch_id TEXT, payload TEXT, snapshot TEXT, created_at TEXT)');
     }
 
     public function testRejectsMissingIdempotencyKey()

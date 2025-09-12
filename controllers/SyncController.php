@@ -58,8 +58,8 @@ class SyncController
                 $res = $handlers[$op['entity']]->handle($op, $batchId, $now);
                 if ($res) {
                     $results[] = $res;
-                    if (isset($op['local_id']) && isset($res['id'])) {
-                        $localToRemote[$op['local_id']] = $res['id'];
+                    if (isset($op['local_id']) && isset($res['remote_id'])) {
+                        $localToRemote[$op['local_id']] = $res['remote_id'];
                     }
                 }
             }
@@ -76,7 +76,9 @@ class SyncController
         $maxHistoryId = $historyRows->max('id') ?? ($sinceHistoryId ?? 0);
         $changes = $historyRows
             ->map(function ($row) {
-                return json_decode($row->payload, true);
+                $payload = json_decode($row->payload, true);
+                $payload['snapshot'] = json_decode($row->snapshot, true);
+                return $payload;
             })
             ->all();
 

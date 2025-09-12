@@ -25,5 +25,6 @@ CREATE TABLE IF NOT EXISTS sync_history (
     entity_id BIGINT UNSIGNED NULL,
     batch_id VARCHAR(255) NOT NULL,
     payload JSON NULL,
+    snapshot JSON NULL,
     created_at TIMESTAMP NULL
 );
