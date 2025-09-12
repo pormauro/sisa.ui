@@ -147,6 +147,60 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const addClient = async (
     clientData: Omit<Client, 'id' | 'version'>
   ): Promise<Client | null> => {
+    const state = await NetInfo.fetch();
+    if (state.isConnected) {
+      const batchId = `${Date.now()}-${Math.random()}`;
+      try {
+        const sinceHistoryId = await getMaxHistoryId();
+        const payload = {
+          batch_id: batchId,
+          ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
+          ops: [
+            {
+              request_id: `create-${Date.now()}`,
+              entity: 'clients',
+              op: 'create',
+              local_id: 1,
+              data: clientData,
+            },
+          ],
+        };
+        const response = await fetch(`${BASE_URL}/sync/batch`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            'Idempotency-Key': batchId,
+          },
+          body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.history?.max_history_id !== undefined) {
+            await setMaxHistoryId(data.history.max_history_id);
+          }
+          if (Array.isArray(data.history?.changes)) {
+            await applyHistoryChanges(data.history.changes);
+          }
+          const result = data.results?.[0];
+          if (data.ok && result?.status === 'done') {
+            const created: Client = {
+              id: result.remote_id,
+              version: result.version ?? 1,
+              ...clientData,
+            };
+            setClients(prev => [...prev, created]);
+            await insertClientLocal(created);
+            return created;
+          }
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.log('Error adding client:', error);
+        }
+      }
+    }
+
     const tempId = Date.now();
     const newClient: Client = {
       id: tempId,
@@ -154,20 +208,12 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       version: 1,
       syncStatus: 'pending',
     };
-
-    try {
-      setClients(prev => [...prev, newClient]);
-      await insertClientLocal({ id: tempId, ...clientData, version: 1 });
-      await enqueueOperation('clients', 'create', clientData, null, tempId);
-      await loadQueue();
-      processQueue();
-      return newClient;
-    } catch (error) {
-      if (__DEV__) {
-        console.log('Error adding client:', error);
-      }
-      return null;
-    }
+    setClients(prev => [...prev, newClient]);
+    await insertClientLocal({ id: tempId, ...clientData, version: 1 });
+    await enqueueOperation('clients', 'create', clientData, null, tempId);
+    await loadQueue();
+    processQueue();
+    return newClient;
   };
 
   const updateClient = async (
@@ -219,6 +265,34 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     setQueue([]);
   };
 
+  const applyHistoryChanges = async (changes: any[]) => {
+    if (!Array.isArray(changes)) return;
+    for (const change of changes) {
+      if (change.entity !== 'clients') continue;
+      const version = change.version ?? 1;
+      if (change.op === 'create') {
+        const newClient: Client = { id: change.remote_id, ...change.data, version };
+        setClients(prev => {
+          const exists = prev.some(c => c.id === newClient.id);
+          return exists
+            ? prev.map(c => (c.id === newClient.id ? { ...c, ...newClient } : c))
+            : [...prev, newClient];
+        });
+        await deleteClientLocal(newClient.id);
+        await insertClientLocal(newClient);
+      } else if (change.op === 'update') {
+        const updated = { ...change.data, version };
+        setClients(prev =>
+          prev.map(c => (c.id === change.remote_id ? { ...c, ...updated } : c))
+        );
+        await updateClientLocal(change.remote_id, updated);
+      } else if (change.op === 'delete') {
+        setClients(prev => prev.filter(c => c.id !== change.remote_id));
+        await deleteClientLocal(change.remote_id);
+      }
+    }
+  };
+
   const processQueue = async () => {
     if (!token) return;
     const items = await getAllQueueItems();
@@ -262,6 +336,9 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             const data = await response.json();
             if (data.history?.max_history_id !== undefined) {
               await setMaxHistoryId(data.history.max_history_id);
+            }
+            if (Array.isArray(data.history?.changes)) {
+              await applyHistoryChanges(data.history.changes);
             }
             const result = data.results?.[0];
             if (data.ok && result?.status === 'done') {
