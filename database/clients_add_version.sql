@@ -1,0 +1,1 @@
+ALTER TABLE clients ADD version INT NOT NULL DEFAULT 1;
