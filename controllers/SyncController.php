@@ -68,31 +68,38 @@ class SyncController
             DB::rollBack();
             throw $e;
         }
-        $historyQuery = DB::table('sync_history')->orderBy('id');
-        if ($sinceHistoryId !== null) {
-            $historyQuery->where('id', '>', $sinceHistoryId);
-        }
-        $historyRows = $historyQuery->get();
-        $maxHistoryId = $historyRows->max('id') ?? ($sinceHistoryId ?? 0);
-        $changes = $historyRows
-            ->map(function ($row) {
-                $payload = json_decode($row->payload, true);
-                $payload['snapshot'] = json_decode($row->snapshot, true);
-                return $payload;
-            })
-            ->all();
 
-        return response()->json([
+        $response = [
             'status' => 'ok',
             'results' => $results,
             'map' => [
                 'local_to_remote' => $localToRemote,
             ],
-            'history' => [
+        ];
+
+        if ($sinceHistoryId !== null) {
+            $historyRows = DB::table('sync_history')
+                ->where('id', '>', $sinceHistoryId)
+                ->orderBy('id')
+                ->get();
+
+            $maxHistoryId = $historyRows->max('id') ?? $sinceHistoryId;
+
+            $changes = $historyRows
+                ->map(function ($row) {
+                    $payload = json_decode($row->payload, true);
+                    $payload['snapshot'] = json_decode($row->snapshot, true);
+                    return $payload;
+                })
+                ->all();
+
+            $response['history'] = [
                 'max_history_id' => $maxHistoryId,
                 'changes' => $changes,
-            ],
-        ]);
+            ];
+        }
+
+        return response()->json($response);
     }
 
     private function topologicalSort(array $ops): array
