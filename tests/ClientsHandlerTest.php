@@ -55,6 +55,7 @@ class ClientsHandlerTest extends TestCase
             $table->bigInteger('entity_id')->nullable();
             $table->string('batch_id');
             $table->text('payload');
+            $table->text('snapshot')->nullable();
             $table->timestamp('created_at');
         });
     }
@@ -75,9 +76,12 @@ class ClientsHandlerTest extends TestCase
             ],
         ], $batchId, $now);
 
-        $this->assertArrayHasKey('id', $createResult);
+        $this->assertSame('req-1', $createResult['request_id']);
+        $this->assertSame('done', $createResult['status']);
+        $id = $createResult['remote_id'];
+        $this->assertNotNull($id);
         $this->assertSame(1, $createResult['version']);
-        $id = $createResult['id'];
+        $this->assertNotNull($createResult['updated_at']);
 
         $client = Capsule::table('clients')->where('id', $id)->first();
         $this->assertNotNull($client);
@@ -89,12 +93,17 @@ class ClientsHandlerTest extends TestCase
             'remote_id' => $id,
         ], $batchId, $now);
 
-        $this->assertTrue($deleteResult['deleted']);
+        $this->assertSame('done', $deleteResult['status']);
+        $this->assertSame($id, $deleteResult['remote_id']);
+        $this->assertNull($deleteResult['version']);
+        $this->assertNull($deleteResult['updated_at']);
         $clientAfter = Capsule::table('clients')->where('id', $id)->first();
         $this->assertNull($clientAfter);
 
-        $history = Capsule::table('sync_history')->where('entity', 'clients')->where('entity_id', $id)->get();
+        $history = Capsule::table('sync_history')->where('entity', 'clients')->where('entity_id', $id)->orderBy('id')->get();
         $this->assertCount(2, $history); // create + delete
+        $this->assertNotNull($history[0]->snapshot);
+        $this->assertNull($history[1]->snapshot);
     }
 }
 

@@ -21,18 +21,21 @@ class ClientsHandler
             return null;
         }
 
-        $result = null;
+        $snapshot = null;
         $action = $op['op'] ?? null;
         $entityId = $op['remote_id'] ?? null;
         if ($action === 'create') {
-            $result = $this->create($op, $now);
-            $entityId = $result['id'];
+            $res = $this->create($op, $now);
+            $entityId = $res['id'];
+            $snapshot = $res['snapshot'];
         } elseif ($action === 'update') {
-            $result = $this->update($op, $now);
+            $res = $this->update($op, $now);
             $entityId = $op['remote_id'];
+            $snapshot = $res['snapshot'];
         } elseif ($action === 'delete') {
-            $result = $this->delete($op, $now);
+            $res = $this->delete($op, $now);
             $entityId = $op['remote_id'] ?? null;
+            $snapshot = $res['snapshot'];
         }
 
         DB::table('sync_items')->insert([
@@ -51,10 +54,17 @@ class ClientsHandler
             'entity_id' => $entityId,
             'batch_id' => $batchId,
             'payload' => json_encode($op),
+            'snapshot' => $snapshot ? json_encode($snapshot) : null,
             'created_at' => $now,
         ]);
 
-        return $result;
+        return [
+            'request_id' => $requestId,
+            'status' => 'done',
+            'remote_id' => $entityId,
+            'updated_at' => $snapshot['updated_at'] ?? null,
+            'version' => $snapshot['version'] ?? null,
+        ];
     }
 
     private function create(array $op, string $now): array
@@ -75,10 +85,12 @@ class ClientsHandler
 
         $id = DB::table('clients')->insertGetId($data);
 
+        $snapshot = $data;
+        $snapshot['id'] = $id;
+
         return [
-            'entity' => 'clients',
             'id' => $id,
-            'version' => 1,
+            'snapshot' => $snapshot,
         ];
     }
 
@@ -88,15 +100,16 @@ class ClientsHandler
             abort(400, 'remote_id required');
         }
 
-        $deleted = DB::table('clients')->where('id', $op['remote_id'])->delete();
-        if (!$deleted) {
+        $client = DB::table('clients')->where('id', $op['remote_id'])->first();
+        if (!$client) {
             abort(404, 'Client not found');
         }
 
+        DB::table('clients')->where('id', $op['remote_id'])->delete();
+
         return [
-            'entity' => 'clients',
             'id' => $op['remote_id'],
-            'deleted' => true,
+            'snapshot' => null,
         ];
     }
 
@@ -130,10 +143,12 @@ class ClientsHandler
 
         DB::table('clients')->where('id', $op['remote_id'])->update($data);
 
+        $updated = DB::table('clients')->where('id', $op['remote_id'])->first();
+        $snapshot = $updated ? (array) $updated : null;
+
         return [
-            'entity' => 'clients',
             'id' => $op['remote_id'],
-            'version' => $client->version + 1,
+            'snapshot' => $snapshot,
         ];
     }
 }
