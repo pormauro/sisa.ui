@@ -48,3 +48,27 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Sync Batch API
+
+The `/sync/batch` endpoint responds with a structure that now includes a mapping of
+local operation identifiers to their server-assigned IDs:
+
+```json
+{
+  "status": "ok",
+  "results": [],
+  "map": {
+    "local_to_remote": {
+      "1": 42
+    }
+  },
+  "history": {
+    "max_history_id": 0,
+    "changes": []
+  }
+}
+```
+
+The `map.local_to_remote` object helps clients reconcile temporary `local_id`
+values with the corresponding remote identifiers returned by the server.
