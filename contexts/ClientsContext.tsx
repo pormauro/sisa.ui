@@ -101,7 +101,13 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const localClients = await getAllClientsLocal();
       setClients(prev => {
         const pending = prev.filter(c => c.syncStatus === 'pending');
-        return [...(localClients as Client[]), ...pending];
+        const existingIds = new Set((localClients as Client[]).map(c => c.id));
+        const merged = (localClients as Client[]).map(c => {
+          const pendingMatch = pending.find(p => p.id === c.id);
+          return pendingMatch ?? c;
+        });
+        const pendingOnly = pending.filter(p => !existingIds.has(p.id));
+        return [...merged, ...pendingOnly];
       });
       Alert.alert('Sin conexión', 'Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
