@@ -20,6 +20,8 @@ export async function createSyncQueueTable() {
         last_error TEXT,
         created_at INTEGER
       );
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_sync_req
+        ON sync_queue(table_name, op, request_id);
     `);
 
     const columns = await db.getAllAsync('PRAGMA table_info(sync_queue);');
@@ -41,14 +43,20 @@ function generateNonce(length = 10) {
   return nonce;
 }
 
-export async function enqueueOperation(tableName, op, payload, recordId = null, localTempId = null) {
+export async function enqueueOperation(
+  tableName,
+  op,
+  payload,
+  recordId = null,
+  localTempId = null,
+  requestId
+) {
   try {
-    const requestId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const nonce = generateNonce(10);
     const batchId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const createdAt = Date.now();
     const result = await db.runAsync(
-      `INSERT INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, batch_id, request_id, nonce, status, created_at)
+      `INSERT OR IGNORE INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, batch_id, request_id, nonce, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?);`,
       tableName,
       op,
