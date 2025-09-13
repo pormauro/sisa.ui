@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/components/SchedulePicker.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,7 @@ export default function SchedulePicker({
   onChange,
 }: SchedulePickerProps) {
   // 1) Helper para parsear el JSON inicial
-  const parseInitial = (): DateGroup[] => {
+  const parseInitial = useCallback((): DateGroup[] => {
     try {
       if (!initialDataJson) return [];
       const raw = JSON.parse(initialDataJson) as any[];
@@ -53,7 +53,7 @@ export default function SchedulePicker({
     } catch {
       return [];
     }
-  };
+  }, [initialDataJson]);
 
   // 2) Estado interno, inicializado perezosamente
   const [groups, setGroups] = useState<DateGroup[]>(() => parseInitial());
@@ -71,7 +71,7 @@ export default function SchedulePicker({
       lastInitialJsonRef.current = initialDataJson;
       setGroups(parseInitial());
     }
-  }, [initialDataJson]);
+  }, [initialDataJson, parseInitial]);
 
   // 5) Disparamos onChange solo después de la carga inicial
   useEffect(() => {
@@ -90,7 +90,7 @@ export default function SchedulePicker({
       })),
     }));
     onChange(JSON.stringify(serial));
-  }, [groups]);
+  }, [groups, onChange]);
 
   // — CRUD interno —
   const addDateGroup = () => {
@@ -201,7 +201,13 @@ export default function SchedulePicker({
   };
 
   // — Render —
-  const renderRange = (groupId: string) => ({ item }: { item: TimeRange }) => {
+  function RangeItem({
+    groupId,
+    item,
+  }: {
+    groupId: string;
+    item: TimeRange;
+  }) {
     const diff = item.end
       ? calculateTimeDifference(item.start, item.end)
       : { hours: 0, minutes: 0 };
@@ -238,6 +244,13 @@ export default function SchedulePicker({
         />
       </View>
     );
+  }
+
+  const renderRange = (groupId: string) => {
+    function RangeItemWrapper({ item }: { item: TimeRange }) {
+      return <RangeItem groupId={groupId} item={item} />;
+    }
+    return RangeItemWrapper;
   };
 
   const renderGroup = ({ item }: { item: DateGroup }) => (
