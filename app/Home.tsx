@@ -29,7 +29,6 @@ const menuItems: MenuItem[] = [
   { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
   { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
   { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
-  { title: 'Cola', route: '/sync_queue', icon: 'sync' },
   { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
 ];
 

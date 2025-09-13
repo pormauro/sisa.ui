@@ -1,6 +1,6 @@
 // /app/clients/index.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
-import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, Alert } from 'react-native';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -11,10 +11,10 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ClientsListPage() {
-  const { clients, loadClients, deleteClient, processQueue } = useContext(ClientsContext);
+  const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const { permissions, loading: permissionsLoading } = useContext(PermissionsContext);
+  const { permissions } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -24,26 +24,13 @@ export default function ClientsListPage() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
-  const spinnerColor = useThemeColor({}, 'tint');
 
   // Ejemplo de chequeo de permisos:
   const canAddClient = permissions.includes('addClient');
   const canDeleteClient = permissions.includes('deleteClient');
 
   useEffect(() => {
-    const syncAndLoad = async () => {
-      try {
-        await processQueue();
-      } catch (e) {
-        // ignore
-      }
-      try {
-        await loadClients();
-      } catch (e) {
-        // ignore
-      }
-    };
-    syncAndLoad();
+    loadClients();
   }, []);
 
   // Configuración de Fuse para búsqueda en business_name, tax_id, email y address
@@ -76,17 +63,15 @@ export default function ClientsListPage() {
   const renderItem = ({ item }: { item: Client }) => (
     <TouchableOpacity
       style={[styles.itemContainer, { borderColor: itemBorderColor }]}
-      onPress={!item.pendingDelete ? () => router.push(`/clients/viewModal?id=${item.id}`) : undefined}
-      onLongPress={!item.pendingDelete ? () => router.push(`/clients/${item.id}`) : undefined}
-      disabled={item.pendingDelete}
+      onPress={() => router.push(`/clients/viewModal?id=${item.id}`)}
+      onLongPress={() => router.push(`/clients/${item.id}`)}
     >
       <CircleImagePicker fileId={item.brand_file_id} size={50} />
       <View style={styles.itemInfo}>
-        <ThemedText style={[styles.itemTitle, item.pendingDelete && styles.deletedText]}>{item.business_name}</ThemedText>
-        <ThemedText style={item.pendingDelete ? styles.deletedText : undefined}>{item.email}</ThemedText>
+        <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
+        <ThemedText>{item.email}</ThemedText>
       </View>
-      {item.syncStatus === 'pending' && <ActivityIndicator color={spinnerColor} />}
-      {canDeleteClient && !item.pendingDelete && (
+      {canDeleteClient && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
           <ThemedText style={styles.deleteText}>🗑️</ThemedText>
         </TouchableOpacity>
@@ -141,7 +126,6 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 18 },
-  deletedText: { textDecorationLine: 'line-through' },
   addButton: {
     position: 'absolute',
     right: 16,
