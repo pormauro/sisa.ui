@@ -1,4 +1,5 @@
 // src/components/FolderList.js
+/* eslint-disable import/no-unresolved */
 import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Alert, ActivityIndicator, Button } from 'react-native';
 import { deleteFolder, editFolder } from '../services/folderService';
