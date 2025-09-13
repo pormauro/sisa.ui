@@ -77,7 +77,7 @@ export default function CircleImagePicker({
         setHasError(true);
         setLoading(false);
       }
-    } catch (error) {
+    } catch (_error) {
       setHasError(true);
       setLoading(false);
     }

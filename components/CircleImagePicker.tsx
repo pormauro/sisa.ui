@@ -112,7 +112,7 @@ export default function CircleImagePicker({
       }
       setLoading(false);
      
-    } catch (error) {
+    } catch {
       setHasError(true);
       setLoading(false);
     }

@@ -1,12 +1,22 @@
 // src/components/FolderList.js
 import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, ActivityIndicator, Button } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Button,
+  TextInput,
+} from 'react-native';
 import { deleteFolder, editFolder } from '../services/folderService';
 import { useFolders } from '../hooks/useFolders';
 
 export default function FolderList({ onEditFolder }) {
   const { folders, loading, error, reload } = useFolders();
   const [editingFolderId, setEditingFolderId] = useState(null);
+  const [editingName, setEditingName] = useState('');
 
   const handleDelete = async (folderId) => {
     try {
@@ -18,12 +28,13 @@ export default function FolderList({ onEditFolder }) {
     }
   };
 
-  const handleEdit = async (folderId, newFolderData) => {
+  const handleEdit = async () => {
     try {
-      const updatedFolder = await editFolder(folderId, newFolderData);
+      const updatedFolder = await editFolder(editingFolderId, { name: editingName });
       Alert.alert('Folder updated successfully');
-      // Propagar la acción o actualizar localmente según sea necesario
       if (onEditFolder) onEditFolder(updatedFolder);
+      setEditingFolderId(null);
+      setEditingName('');
       reload();
     } catch (err) {
       Alert.alert('Error', err.message);
@@ -34,15 +45,27 @@ export default function FolderList({ onEditFolder }) {
     <View style={styles.folderContainer}>
       <Text style={styles.folderName}>{item.name}</Text>
       <View style={styles.buttonsContainer}>
-        <Button title="Edit" onPress={() => setEditingFolderId(item.id)} />
+        <Button
+          title="Edit"
+          onPress={() => {
+            setEditingFolderId(item.id);
+            setEditingName(item.name);
+          }}
+        />
         <Button title="Delete" onPress={() => handleDelete(item.id)} />
       </View>
       {editingFolderId === item.id && (
-        // Aquí podrías mostrar un formulario o modal para editar la carpeta
-        // Por simplicidad, se muestra un ejemplo de edición directa
         <View style={styles.editContainer}>
-          <Text>Edit folder: {item.name}</Text>
-          {/* Implementar el formulario y llamar a handleEdit cuando se confirme */}
+          <TextInput
+            value={editingName}
+            onChangeText={setEditingName}
+            style={styles.input}
+            placeholder="Folder name"
+          />
+          <View style={styles.buttonsContainer}>
+            <Button title="Save" onPress={handleEdit} />
+            <Button title="Cancel" onPress={() => setEditingFolderId(null)} />
+          </View>
         </View>
       )}
     </View>
@@ -88,6 +111,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     padding: 10,
     borderRadius: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 5,
+    borderRadius: 4,
+    marginBottom: 10,
   },
   loader: {
     marginTop: 20,
