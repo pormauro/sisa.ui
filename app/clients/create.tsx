@@ -1,5 +1,5 @@
 // /app/clients/create.tsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
@@ -33,6 +33,7 @@ export default function CreateClientPage() {
   const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     if (!permissions.includes('addClient')) {
@@ -41,8 +42,11 @@ export default function CreateClientPage() {
     }
   }, []);
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     /*  if (!businessName || !taxId || !email) {
       Alert.alert('Error', 'Por favor ingresa Nombre de Negocio, Tax ID y Email');
+      submittingRef.current = false;
       return;
     }*/
     setLoading(true);
@@ -66,6 +70,7 @@ export default function CreateClientPage() {
       Alert.alert('Error', 'No se pudo crear el cliente');
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   };
 

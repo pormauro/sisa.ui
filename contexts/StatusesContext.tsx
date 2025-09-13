@@ -18,6 +18,7 @@ import {
   updateQueueItemStatus,
   deleteQueueItem,
 } from '@/src/database/syncQueueDB';
+import 'react-native-get-random-values';
 import {
   createLocalStatusesTable,
   getAllStatusesLocal,
@@ -116,6 +117,8 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
   const addStatus = async (
     statusData: Omit<Status, 'id' | 'created_at' | 'updated_at' | 'version'>
   ): Promise<Status | null> => {
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const tempId = Date.now();
@@ -127,7 +130,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
       };
       setStatuses(prev => [...prev, newStatus]);
       await insertStatusLocal(newStatus);
-      await enqueueOperation('statuses', 'create', statusData, null, tempId);
+      await enqueueOperation('statuses', 'create', statusData, null, tempId, requestId);
       return newStatus;
     }
 
@@ -139,7 +142,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
-            request_id: `create-${Date.now()}`,
+            request_id: requestId,
             entity: 'statuses',
             op: 'create',
             local_id: 1,
@@ -186,6 +189,8 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
     const current = statuses.find(s => s.id === id);
     const version = current?.version ?? 1;
     const state = await NetInfo.fetch();
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     if (!state.isConnected) {
       setStatuses(prev =>
         prev.map(s =>
@@ -193,7 +198,14 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         )
       );
       await updateStatusLocal(id, { ...statusData, version });
-      await enqueueOperation('statuses', 'update', { ...statusData, if_match_version: version }, id, null);
+      await enqueueOperation(
+        'statuses',
+        'update',
+        { ...statusData, if_match_version: version },
+        id,
+        null,
+        requestId
+      );
       return true;
     }
 
@@ -205,7 +217,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
-            request_id: `update-${id}-${Date.now()}`,
+            request_id: requestId,
             entity: 'statuses',
             op: 'update',
             remote_id: id,
@@ -246,6 +258,8 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteStatus = async (id: number): Promise<boolean> => {
     const state = await NetInfo.fetch();
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     if (!state.isConnected) {
       setStatuses(prev =>
         prev.map(s =>
@@ -253,7 +267,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         )
       );
       await deleteStatusLocal(id);
-      await enqueueOperation('statuses', 'delete', {}, id, null);
+      await enqueueOperation('statuses', 'delete', {}, id, null, requestId);
       return true;
     }
 
@@ -265,7 +279,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
         ops: [
           {
-            request_id: `delete-${id}-${Date.now()}`,
+            request_id: requestId,
             entity: 'statuses',
             op: 'delete',
             remote_id: id,
@@ -311,7 +325,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
           };
           const batchId = `${Date.now()}-${Math.random()}`;
           let op: any = {
-            request_id: `${item.op}-${item.id}`,
+            request_id: item.request_id,
             entity: 'statuses',
             op: item.op,
           };

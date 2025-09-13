@@ -10,6 +10,7 @@ import {
   updateQueueItemStatus,
   updateQueueItemBatchId,
 } from '@/src/database/syncQueueDB';
+import 'react-native-get-random-values';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { Alert } from 'react-native';
@@ -206,6 +207,8 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const addClient = async (
     clientData: Omit<Client, 'id' | 'version'>
   ): Promise<Client | null> => {
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const state = await NetInfo.fetch();
     if (state.isConnected) {
       const batchId = `${Date.now()}-${Math.random()}`;
@@ -216,7 +219,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
           ops: [
             {
-              request_id: `create-${Date.now()}`,
+              request_id: requestId,
               entity: 'clients',
               op: 'create',
               local_id: 1,
@@ -269,7 +272,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     };
     setClients(prev => [...prev, newClient]);
     await insertClientLocal({ id: tempId, ...clientData, version: 1 });
-    await enqueueOperation('clients', 'create', clientData, null, tempId);
+    await enqueueOperation('clients', 'create', clientData, null, tempId, requestId);
     await loadQueue();
     processQueue();
     return newClient;
@@ -287,7 +290,16 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       )
     );
     await updateClientLocal(id, { ...clientData, version });
-    await enqueueOperation('clients', 'update', { ...clientData, if_match_version: version }, id, null);
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
+    await enqueueOperation(
+      'clients',
+      'update',
+      { ...clientData, if_match_version: version },
+      id,
+      null,
+      requestId
+    );
     await loadQueue();
     processQueue();
     return true;
@@ -300,7 +312,9 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       )
     );
     await deleteClientLocal(id);
-    await enqueueOperation('clients', 'delete', {}, id, null);
+    const requestId =
+      globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
+    await enqueueOperation('clients', 'delete', {}, id, null, requestId);
     await loadQueue();
     processQueue();
     return true;
@@ -368,7 +382,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             await updateQueueItemBatchId(item.id, batchId);
           }
           let op: any = {
-            request_id: `${item.op}-${item.id}`,
+            request_id: item.request_id,
             entity: 'clients',
             op: item.op,
           };
