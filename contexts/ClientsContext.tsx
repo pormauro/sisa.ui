@@ -8,6 +8,7 @@ import {
   enqueueOperation,
   getAllQueueItems,
   updateQueueItemStatus,
+  updateQueueItemBatchId,
 } from '@/src/database/syncQueueDB';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
@@ -21,7 +22,7 @@ import {
   clearLocalClients,
 } from '@/src/database/clientsLocalDB';
 import { clearErrorLogs } from '@/src/database/errorLogger';
-import { getMaxHistoryId, setMaxHistoryId } from '@/src/utils/syncHistory';
+import { getMaxHistoryId, setMaxHistoryId, clearMaxHistoryId } from '@/src/utils/syncHistory';
 
 export interface Client {
   id: number;
@@ -46,6 +47,7 @@ export interface QueueItem {
   record_id: number | null;
   local_temp_id: number | null;
   payload_json: string;
+  batch_id?: string | null;
   status: string;
   last_error?: string | null;
 }
@@ -95,7 +97,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000;
 
-  const fetchClients = async (attempt = 0): Promise<void> => {
+  const fetchClients = async (attempt = 0, saveLocal = false): Promise<void> => {
     const state = await NetInfo.fetch();
     if (!state.isConnected) {
       const localClients = await getAllClientsLocal();
@@ -105,7 +107,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       });
       Alert.alert('Sin conexión', 'Mostrando datos locales.');
       if (attempt < MAX_RETRIES) {
-        setTimeout(() => fetchClients(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
+        setTimeout(() => fetchClients(attempt + 1, saveLocal), RETRY_DELAY * Math.pow(2, attempt));
       }
       return;
     }
@@ -127,13 +129,22 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           version: c.version ?? 1,
         }));
         setClients(loaded);
+        if (saveLocal) {
+          await clearLocalClients();
+          for (const client of loaded) {
+            await insertClientLocal(client);
+          }
+        }
+      }
+      if (data.history?.max_history_id !== undefined) {
+        await setMaxHistoryId(data.history.max_history_id);
       }
     } catch (error) {
       if (__DEV__) {
         console.log('Error loading clients:', error);
       }
       if (attempt < MAX_RETRIES) {
-        setTimeout(() => fetchClients(attempt + 1), RETRY_DELAY * Math.pow(2, attempt));
+        setTimeout(() => fetchClients(attempt + 1, saveLocal), RETRY_DELAY * Math.pow(2, attempt));
       } else {
         Alert.alert('Error de red', 'No se pudieron cargar los clientes.');
       }
@@ -156,6 +167,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     const batchId = `${Date.now()}-${Math.random()}`;
     try {
       const sinceHistoryId = await getMaxHistoryId();
+      if (sinceHistoryId === null) {
+        await fetchClients(0, true);
+        return;
+      }
       const payload = {
         batch_id: batchId,
         ...(sinceHistoryId !== null ? { since_history_id: sinceHistoryId } : {}),
@@ -185,7 +200,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         console.log('Incremental sync failed:', error);
       }
     }
-    await fetchClients();
+    await fetchClients(0, true);
   };
 
   const addClient = async (
@@ -307,6 +322,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     await clearErrorLogs();
     setClients([]);
     setQueue([]);
+    await clearMaxHistoryId();
   };
 
   const applyHistoryChanges = async (changes: any[]) => {
@@ -347,7 +363,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         };
         if (item.table_name === 'clients') {
-          const batchId = `${Date.now()}-${Math.random()}`;
+          let batchId = item.batch_id || `${Date.now()}-${Math.random()}`;
+          if (!item.batch_id) {
+            await updateQueueItemBatchId(item.id, batchId);
+          }
           let op: any = {
             request_id: `${item.op}-${item.id}`,
             entity: 'clients',

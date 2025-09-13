@@ -19,3 +19,11 @@ export async function setMaxHistoryId(id: number): Promise<void> {
   }
 }
 
+export async function clearMaxHistoryId(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(HISTORY_KEY);
+  } catch {
+    // ignore write errors
+  }
+}
+

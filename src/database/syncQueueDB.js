@@ -13,6 +13,7 @@ export async function createSyncQueueTable() {
         record_id INTEGER,
         local_temp_id INTEGER,
         payload_json TEXT,
+        batch_id TEXT,
         request_id TEXT,
         nonce TEXT,
         status TEXT NOT NULL,
@@ -20,6 +21,12 @@ export async function createSyncQueueTable() {
         created_at INTEGER
       );
     `);
+
+    const columns = await db.getAllAsync('PRAGMA table_info(sync_queue);');
+    const hasBatchId = columns.some(c => c.name === 'batch_id');
+    if (!hasBatchId) {
+      await db.execAsync('ALTER TABLE sync_queue ADD COLUMN batch_id TEXT;');
+    }
   } catch (error) {
     await logErrorToLocal(error);
   }
@@ -38,15 +45,17 @@ export async function enqueueOperation(tableName, op, payload, recordId = null, 
   try {
     const requestId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const nonce = generateNonce(10);
+    const batchId = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).substring(2);
     const createdAt = Date.now();
     const result = await db.runAsync(
-      `INSERT INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, request_id, nonce, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?);`,
+      `INSERT INTO sync_queue (table_name, op, record_id, local_temp_id, payload_json, batch_id, request_id, nonce, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?);`,
       tableName,
       op,
       recordId,
       localTempId,
       JSON.stringify(payload),
+      batchId,
       requestId,
       nonce,
       createdAt
@@ -71,6 +80,14 @@ export async function getAllQueueItems() {
 export async function updateQueueItemStatus(id, status, lastError = null) {
   try {
     await db.runAsync('UPDATE sync_queue SET status = ?, last_error = ? WHERE id = ?;', status, lastError, id);
+  } catch (error) {
+    await logErrorToLocal(error);
+  }
+}
+
+export async function updateQueueItemBatchId(id, batchId) {
+  try {
+    await db.runAsync('UPDATE sync_queue SET batch_id = ? WHERE id = ?;', batchId, id);
   } catch (error) {
     await logErrorToLocal(error);
   }
