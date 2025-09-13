@@ -1,151 +1,144 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import NetInfo from '@react-native-community/netinfo';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
-import {
-  Client,
-  QueueItem,
-  loadClientsAction,
-  addClientAction,
-  updateClientAction,
-  deleteClientAction,
-  processQueueAction,
-  clearQueueAction,
-  removeQueueItemAction,
-  clearDatabasesAction,
-  loadQueueAction,
-  initClientSync,
-} from '@/actions/clientsActions';
+import { BASE_URL } from '@/config/Index';
 
-export type { Client, QueueItem } from '@/actions/clientsActions';
+export interface Client {
+  id: number;
+  business_name: string;
+  tax_id: string;
+  email: string;
+  brand_file_id: string | null;
+  phone: string;
+  address: string;
+  tariff_id: number | null;
+  version: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
 interface ClientsContextValue {
   clients: Client[];
-  queue: QueueItem[];
-  loadClients: () => Promise<void>;
+  loadClients: () => void;
   addClient: (client: Omit<Client, 'id' | 'version'>) => Promise<Client | null>;
-  updateClient: (id: number, client: Omit<Client, 'id' | 'version'>) => Promise<boolean>;
+  updateClient: (
+    id: number,
+    client: Omit<Client, 'id' | 'version'>
+  ) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
-  processQueue: () => Promise<void>;
-  clearQueue: () => Promise<void>;
-  removeQueueItem: (id: number) => Promise<void>;
-  clearDatabases: () => Promise<void>;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
   clients: [],
-  queue: [],
-  loadClients: async () => {},
+  loadClients: () => {},
   addClient: async () => null,
   updateClient: async () => false,
   deleteClient: async () => false,
-  processQueue: async () => {},
-  clearQueue: async () => {},
-  removeQueueItem: async () => {},
-  clearDatabases: async () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [queue, setQueue] = useState<QueueItem[]>([]);
   const { token } = useContext(AuthContext);
 
-  const loadQueue = async () => {
-    await loadQueueAction(setQueue);
-  };
-
-  useEffect(() => {
-    initClientSync();
-    loadQueue();
-  }, []);
-
   const loadClients = async () => {
-    if (!token) return;
-    await loadClientsAction(token, setClients);
-  };
-
-  const processQueue = async () => {
-    if (!token) return;
-    await processQueueAction(token, setClients, loadQueue);
+    try {
+      const res = await fetch(`${BASE_URL}/clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.clients) {
+        setClients(data.clients);
+      }
+    } catch (err) {
+      console.error('Error loading clients:', err);
+    }
   };
 
   const addClient = async (
     clientData: Omit<Client, 'id' | 'version'>
   ): Promise<Client | null> => {
-    const result = await addClientAction(token!, clientData, setClients);
-    await loadQueue();
-    await processQueue();
-    return result;
+    try {
+      const res = await fetch(`${BASE_URL}/clients`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(clientData),
+      });
+      const data = await res.json();
+      if (data.client_id) {
+        const newClient: Client = {
+          id: parseInt(data.client_id, 10),
+          version: 1,
+          ...clientData,
+        };
+        setClients(prev => [...prev, newClient]);
+        return newClient;
+      }
+    } catch (err) {
+      console.error('Error adding client:', err);
+    }
+    return null;
   };
 
   const updateClient = async (
     id: number,
     clientData: Omit<Client, 'id' | 'version'>
   ): Promise<boolean> => {
-    const ok = await updateClientAction(id, clientData, setClients);
-    await loadQueue();
-    await processQueue();
-    return ok;
-    };
+    try {
+      const res = await fetch(`${BASE_URL}/clients/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(clientData),
+      });
+      if (res.ok) {
+        setClients(prev =>
+          prev.map(c => (c.id === id ? { ...c, ...clientData } : c))
+        );
+        return true;
+      }
+    } catch (err) {
+      console.error('Error updating client:', err);
+    }
+    return false;
+  };
 
   const deleteClient = async (id: number): Promise<boolean> => {
-    const ok = await deleteClientAction(id, setClients);
-    await loadQueue();
-    await processQueue();
-    return ok;
-  };
-
-  const clearQueue = async (): Promise<void> => {
-    await clearQueueAction(setQueue);
-  };
-
-  const removeQueueItem = async (id: number): Promise<void> => {
-    await removeQueueItemAction(id, setQueue);
-  };
-
-  const clearDatabases = async (): Promise<void> => {
-    await clearDatabasesAction(setClients, setQueue);
+    try {
+      const res = await fetch(`${BASE_URL}/clients/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.message === 'Client deleted successfully') {
+        setClients(prev => prev.filter(c => c.id !== id));
+        return true;
+      }
+    } catch (err) {
+      console.error('Error deleting client:', err);
+    }
+    return false;
   };
 
   useEffect(() => {
-    if (!token) return;
-
-    const sync = async () => {
-      try {
-        await processQueue();
-      } catch (e) {}
-      try {
-        await loadClients();
-      } catch (e) {}
-    };
-    sync();
-
-    const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected) {
-        processQueue()
-          .then(() => loadClients().catch(() => {}))
-          .catch(() => {});
-      }
-    });
-
-    return () => unsubscribe();
+    if (token) loadClients();
   }, [token]);
 
   return (
     <ClientsContext.Provider
-      value={{
-        clients,
-        queue,
-        loadClients,
-        addClient,
-        updateClient,
-        deleteClient,
-        processQueue,
-        clearQueue,
-        removeQueueItem,
-        clearDatabases,
-      }}
+      value={{ clients, loadClients, addClient, updateClient, deleteClient }}
     >
       {children}
     </ClientsContext.Provider>
   );
 };
+
