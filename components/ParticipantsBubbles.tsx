@@ -1,9 +1,19 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Alert,
+  Modal,
+  Pressable,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import CircleImagePicker from '@/components/CircleImagePicker';
-import { ProfilesContext } from '@/contexts/ProfilesContext';
-import { ProfilesListContext } from '@/contexts/ProfilesListContext';
+import { ProfilesContext, UserProfile } from '@/contexts/ProfilesContext';
+import { ProfilesListContext, Profile } from '@/contexts/ProfilesListContext';
+import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface ParticipantsBubblesProps {
@@ -21,10 +31,14 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
   const { profiles } = useContext(ProfilesListContext);
   const [items, setItems] = useState<ParticipantItem[]>([]);
   const [newId, setNewId] = useState('');
+  const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
+  const [selectedListProfile, setSelectedListProfile] = useState<Profile | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const textColor = useThemeColor({}, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+  const modalBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
 
   useEffect(() => {
     const load = async () => {
@@ -61,13 +75,35 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
     onChange(updated.map(it => it.id));
   };
 
+  const openProfile = async (id: number) => {
+    const profileDetails = await getProfile(id);
+    const listProfile = profiles.find(p => p.id === id) || null;
+    if (profileDetails) {
+      setSelectedProfile(profileDetails);
+      setSelectedListProfile(listProfile);
+      setModalVisible(true);
+    }
+  };
+
+  const closeProfile = () => {
+    setModalVisible(false);
+    setSelectedProfile(null);
+    setSelectedListProfile(null);
+  };
+
   const renderItem = ({ item }: { item: ParticipantItem }) => (
-    <View style={styles.bubble}>
+    <TouchableOpacity style={styles.bubble} onPress={() => openProfile(item.id)}>
       <CircleImagePicker fileId={item.fileId ? item.fileId.toString() : undefined} size={50} />
-      <TouchableOpacity style={styles.remove} onPress={() => handleRemove(item.id)}>
+      <TouchableOpacity
+        style={styles.remove}
+        onPress={(e) => {
+          e.stopPropagation();
+          handleRemove(item.id);
+        }}
+      >
         <Text style={styles.removeText}>×</Text>
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -98,6 +134,41 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
           <Text style={[styles.addButtonText, { color: buttonTextColor }]}>Agregar</Text>
         </TouchableOpacity>
       </View>
+      {selectedProfile && (
+        <Modal visible={modalVisible} transparent animationType="fade">
+          <Pressable style={styles.modalOverlay} onPress={closeProfile}>
+            <Pressable
+              style={[styles.modalContainer, { backgroundColor: modalBackground }]}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <CircleImagePicker
+                fileId={
+                  selectedProfile.profile_file_id
+                    ? selectedProfile.profile_file_id.toString()
+                    : undefined
+                }
+                size={120}
+              />
+              {selectedListProfile && (
+                <>
+                  <ThemedText style={[styles.modalText, { color: textColor }]}>Usuario: {selectedListProfile.username}</ThemedText>
+                  <ThemedText style={[styles.modalText, { color: textColor }]}>Email: {selectedListProfile.email}</ThemedText>
+                </>
+              )}
+              <ThemedText style={[styles.modalText, { color: textColor }]}>Nombre: {selectedProfile.full_name}</ThemedText>
+              {selectedProfile.phone ? (
+                <ThemedText style={[styles.modalText, { color: textColor }]}>Teléfono: {selectedProfile.phone}</ThemedText>
+              ) : null}
+              {selectedProfile.address ? (
+                <ThemedText style={[styles.modalText, { color: textColor }]}>Dirección: {selectedProfile.address}</ThemedText>
+              ) : null}
+              {selectedProfile.cuit ? (
+                <ThemedText style={[styles.modalText, { color: textColor }]}>CUIT: {selectedProfile.cuit}</ThemedText>
+              ) : null}
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -129,5 +200,23 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   addButtonText: { color: '#fff' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: '#00000088',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+    maxWidth: '80%',
+  },
+  modalText: {
+    marginTop: 8,
+    fontSize: 16,
+    textAlign: 'center',
+  },
 });
 
