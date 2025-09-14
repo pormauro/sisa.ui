@@ -14,6 +14,7 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ProfilesContext, UserProfile } from '@/contexts/ProfilesContext';
 import { ProfilesListContext, Profile } from '@/contexts/ProfilesListContext';
 import { ThemedText } from '@/components/ThemedText';
+import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface ParticipantsBubblesProps {
@@ -94,15 +95,6 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
   const renderItem = ({ item }: { item: ParticipantItem }) => (
     <TouchableOpacity style={styles.bubble} onPress={() => openProfile(item.id)}>
       <CircleImagePicker fileId={item.fileId ? item.fileId.toString() : undefined} size={50} />
-      <TouchableOpacity
-        style={styles.remove}
-        onPress={(e) => {
-          e.stopPropagation();
-          handleRemove(item.id);
-        }}
-      >
-        <Text style={styles.removeText}>×</Text>
-      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -147,7 +139,7 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
                     ? selectedProfile.profile_file_id.toString()
                     : undefined
                 }
-                size={120}
+                size={150}
               />
               {selectedListProfile && (
                 <>
@@ -165,6 +157,14 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
               {selectedProfile.cuit ? (
                 <ThemedText style={[styles.modalText, { color: textColor }]}>CUIT: {selectedProfile.cuit}</ThemedText>
               ) : null}
+              <ThemedButton
+                title="Eliminar"
+                onPress={() => {
+                  handleRemove(selectedProfile.id);
+                  closeProfile();
+                }}
+                style={styles.removeButton}
+              />
             </Pressable>
           </Pressable>
         </Modal>
@@ -176,18 +176,6 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
 const styles = StyleSheet.create({
   list: { marginVertical: 8 },
   bubble: { marginRight: 8 },
-  remove: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#f00',
-    borderRadius: 8,
-    width: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  removeText: { color: '#fff', fontSize: 12, lineHeight: 12 },
   addRow: { flexDirection: 'row', alignItems: 'center' },
   picker: {
     flex: 1,
@@ -217,6 +205,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 16,
     textAlign: 'center',
+  },
+  removeButton: {
+    marginTop: 16,
   },
 });
 
