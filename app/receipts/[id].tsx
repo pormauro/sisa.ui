@@ -38,7 +38,7 @@ export default function ReceiptDetailPage() {
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
-  const { clients } = useContext(ClientsContext);
+  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -57,6 +57,14 @@ export default function ReceiptDetailPage() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+
+  const selectedClientName = useMemo(() => {
+    if (!payerClientId) return '';
+    const parsedId = Number.parseInt(payerClientId, 10);
+    if (Number.isNaN(parsedId)) return '';
+    const client = clients.find(c => c.id === parsedId);
+    return client?.business_name ?? '';
+  }, [clients, payerClientId]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -108,6 +116,13 @@ export default function ReceiptDetailPage() {
       );
     }
   }, [receipt]);
+
+  useEffect(() => {
+    if (selectedClient) {
+      setPayerClientId(String(selectedClient.id));
+      setSelectedClient(null);
+    }
+  }, [selectedClient, setSelectedClient]);
 
   if (!receipt) {
     return (
@@ -259,19 +274,32 @@ export default function ReceiptDetailPage() {
       {payerType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={payerClientId}
-              onValueChange={setPayerClientId}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              styles.selectInput,
+              { backgroundColor: inputBackground, borderColor },
+              !canEdit ? styles.selectInputDisabled : null,
+            ]}
+            onPress={() => {
+              if (!canEdit) return;
+              const targetId = payerClientId ? payerClientId : '';
+              router.push(`/clients?select=1&selectedId=${targetId}`);
+            }}
+            disabled={!canEdit}
+            activeOpacity={0.7}
+          >
+            <ThemedText
+              style={[
+                styles.selectInputText,
+                { color: payerClientId ? inputTextColor : placeholderColor },
+              ]}
             >
-              <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
-                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+              {payerClientId
+                ? selectedClientName || 'Cliente no disponible'
+                : '-- Selecciona cliente --'}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
@@ -382,6 +410,9 @@ const styles = StyleSheet.create({
   },
   picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  selectInput: { justifyContent: 'center' },
+  selectInputDisabled: { opacity: 0.6 },
+  selectInputText: { fontSize: 16 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
