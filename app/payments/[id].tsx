@@ -1,6 +1,6 @@
 // app/payments/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -37,7 +37,7 @@ export default function PaymentDetailPage() {
   const { payments, updatePayment, deletePayment } = useContext(PaymentsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers } = useContext(ProvidersContext);
+  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
 
   const payment = payments.find(p => p.id === paymentId);
@@ -60,6 +60,8 @@ export default function PaymentDetailPage() {
   const [loading, setLoading] = useState(false);
   const [selectingClientFor, setSelectingClientFor] =
     useState<'creditor' | 'charge' | null>(null);
+  const [selectingProviderFor, setSelectingProviderFor] =
+    useState<'creditor' | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -80,6 +82,12 @@ export default function PaymentDetailPage() {
     const found = clients.find(c => c.id === Number(creditorClientId));
     return found ? found.business_name : 'Cliente no encontrado';
   }, [clients, creditorClientId]);
+
+  const creditorProviderName = useMemo(() => {
+    if (!creditorProviderId) return 'Selecciona proveedor';
+    const found = providers.find(p => p.id === Number(creditorProviderId));
+    return found ? found.business_name : 'Proveedor no encontrado';
+  }, [providers, creditorProviderId]);
 
   const chargeClientName = useMemo(() => {
     if (!chargeClientId) return 'Selecciona cliente';
@@ -145,9 +153,29 @@ export default function PaymentDetailPage() {
     setSelectedClient,
   ]);
 
+  useEffect(() => {
+    if (!selectedProvider || selectingProviderFor !== 'creditor') return;
+
+    if (creditorType === 'provider') {
+      setCreditorProviderId(String(selectedProvider.id));
+    }
+
+    setSelectingProviderFor(null);
+    setSelectedProvider(null);
+  }, [creditorType, selectedProvider, selectingProviderFor, setSelectedProvider]);
+
+  const handleOpenProviderSelector = useCallback(() => {
+    if (!canEdit) return;
+    setSelectingProviderFor('creditor');
+    const query = creditorProviderId
+      ? `?select=1&selectedId=${encodeURIComponent(creditorProviderId)}`
+      : '?select=1';
+    router.push(`/providers${query}`);
+  }, [canEdit, router, creditorProviderId]);
+
   if (!payment) {
     return (
-      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
         <ThemedText>Pago no encontrado</ThemedText>
       </ThemedView>
     );
@@ -217,7 +245,7 @@ export default function PaymentDetailPage() {
   };
 
   return (
-      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 
         <ThemedText style={styles.label}>Fecha y hora</ThemedText>
         <TouchableOpacity
           style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
@@ -334,19 +362,29 @@ export default function PaymentDetailPage() {
       {creditorType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={creditorProviderId}
-              onValueChange={setCreditorProviderId}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              styles.selectionInput,
+              {
+                backgroundColor: inputBackground,
+                borderColor,
+                opacity: canEdit ? 1 : 0.6,
+              },
+            ]}
+            onPress={handleOpenProviderSelector}
+            disabled={!canEdit}
+          >
+            <ThemedText
+              style={{
+                color: creditorProviderId ? inputTextColor : placeholderColor,
+              }}
             >
-              <Picker.Item label="-- Selecciona proveedor --" value="" />
-              {providers.map(p => (
-                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+              {creditorProviderId
+                ? creditorProviderName
+                : '-- Selecciona proveedor --'}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
