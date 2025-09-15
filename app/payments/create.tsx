@@ -31,7 +31,7 @@ export default function CreatePayment() {
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers } = useContext(ProvidersContext);
+  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -53,6 +53,9 @@ export default function CreatePayment() {
   const [selectingClientFor, setSelectingClientFor] = useState<'creditor' | 'charge' | null>(
     null
   );
+  const [selectingProviderFor, setSelectingProviderFor] = useState<'creditor' | null>(
+    null
+  );
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -68,6 +71,12 @@ export default function CreatePayment() {
     const found = clients.find(c => c.id.toString() === creditorClientId);
     return found ? found.business_name : '-- Selecciona cliente --';
   }, [clients, creditorClientId]);
+
+  const creditorProviderName = useMemo(() => {
+    if (!creditorProviderId) return '-- Selecciona proveedor --';
+    const found = providers.find(p => p.id.toString() === creditorProviderId);
+    return found ? found.business_name : '-- Selecciona proveedor --';
+  }, [providers, creditorProviderId]);
 
   const chargeClientName = useMemo(() => {
     if (!chargeClientId) return '-- Selecciona cliente --';
@@ -100,6 +109,14 @@ export default function CreatePayment() {
     setSelectedClient(null);
   }, [selectedClient, selectingClientFor, setSelectedClient]);
 
+  useEffect(() => {
+    if (!selectedProvider || selectingProviderFor !== 'creditor') return;
+
+    setCreditorProviderId(selectedProvider.id.toString());
+    setSelectingProviderFor(null);
+    setSelectedProvider(null);
+  }, [selectedProvider, selectingProviderFor, setSelectedProvider]);
+
   const handleOpenClientSelector = useCallback(
     (target: 'creditor' | 'charge') => {
       setSelectingClientFor(target);
@@ -111,6 +128,14 @@ export default function CreatePayment() {
     },
     [router, creditorClientId, chargeClientId]
   );
+
+  const handleOpenProviderSelector = useCallback(() => {
+    setSelectingProviderFor('creditor');
+    const query = creditorProviderId
+      ? `?select=1&selectedId=${encodeURIComponent(creditorProviderId)}`
+      : '?select=1';
+    router.push(`/providers${query}`);
+  }, [router, creditorProviderId]);
 
   const handleSubmit = async () => {
     if (!categoryId || !price) {
@@ -244,19 +269,16 @@ export default function CreatePayment() {
       {creditorType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={creditorProviderId}
-              onValueChange={setCreditorProviderId}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
+          <TouchableOpacity
+            style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
+            onPress={handleOpenProviderSelector}
+          >
+            <ThemedText
+              style={{ color: creditorProviderId ? inputTextColor : placeholderColor }}
             >
-              <Picker.Item label="-- Selecciona proveedor --" value="" />
-              {providers.map(p => (
-                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+              {creditorProviderName}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
