@@ -1,6 +1,7 @@
 // app/payments/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   View,
   TextInput,
@@ -39,6 +40,7 @@ export default function PaymentDetailPage() {
   const { categories } = useContext(CategoriesContext);
   const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const isFocused = useIsFocused();
 
   const payment = payments.find(p => p.id === paymentId);
 
@@ -131,6 +133,7 @@ export default function PaymentDetailPage() {
   }, [payment]);
 
   useEffect(() => {
+    if (!isFocused) return;
     if (!selectedClient || !selectingClientFor) return;
 
     if (selectingClientFor === 'creditor') {
@@ -148,12 +151,14 @@ export default function PaymentDetailPage() {
   }, [
     chargeClient,
     creditorType,
+    isFocused,
     selectedClient,
     selectingClientFor,
     setSelectedClient,
   ]);
 
   useEffect(() => {
+    if (!isFocused) return;
     if (!selectedProvider || selectingProviderFor !== 'creditor') return;
 
     if (creditorType === 'provider') {
@@ -162,7 +167,13 @@ export default function PaymentDetailPage() {
 
     setSelectingProviderFor(null);
     setSelectedProvider(null);
-  }, [creditorType, selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [
+    creditorType,
+    isFocused,
+    selectedProvider,
+    selectingProviderFor,
+    setSelectedProvider,
+  ]);
 
   const handleOpenProviderSelector = useCallback(() => {
     if (!canEdit) return;

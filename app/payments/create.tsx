@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -33,6 +34,7 @@ export default function CreatePayment() {
   const { categories } = useContext(CategoriesContext);
   const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const isFocused = useIsFocused();
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -97,7 +99,8 @@ export default function CreatePayment() {
   }, [permissions, router]);
 
   useEffect(() => {
-    if (!selectedClient) return;
+    if (!isFocused) return;
+    if (!selectedClient || !selectingClientFor) return;
 
     if (selectingClientFor === 'creditor') {
       setCreditorClientId(selectedClient.id.toString());
@@ -107,15 +110,16 @@ export default function CreatePayment() {
 
     setSelectingClientFor(null);
     setSelectedClient(null);
-  }, [selectedClient, selectingClientFor, setSelectedClient]);
+  }, [isFocused, selectedClient, selectingClientFor, setSelectedClient]);
 
   useEffect(() => {
+    if (!isFocused) return;
     if (!selectedProvider || selectingProviderFor !== 'creditor') return;
 
     setCreditorProviderId(selectedProvider.id.toString());
     setSelectingProviderFor(null);
     setSelectedProvider(null);
-  }, [selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [isFocused, selectedProvider, selectingProviderFor, setSelectedProvider]);
 
   const handleOpenClientSelector = useCallback(
     (target: 'creditor' | 'charge') => {

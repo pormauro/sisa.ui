@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -33,6 +34,7 @@ export default function CreateReceipt() {
   const { categories } = useContext(CategoriesContext);
   const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const isFocused = useIsFocused();
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -84,6 +86,7 @@ export default function CreateReceipt() {
   );
 
   useEffect(() => {
+    if (!isFocused) return;
     if (!selectedProvider || !selectingProviderFor) return;
 
     if (selectingProviderFor === 'payer') {
@@ -94,7 +97,14 @@ export default function CreateReceipt() {
 
     setSelectingProviderFor(null);
     setSelectedProvider(null);
-  }, [selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [isFocused, selectedProvider, selectingProviderFor, setSelectedProvider]);
+
+  const handleOpenClientSelector = useCallback(() => {
+    const query = payerClientId
+      ? `?select=1&selectedId=${encodeURIComponent(payerClientId)}`
+      : '?select=1';
+    router.push(`/clients${query}`);
+  }, [router, payerClientId]);
 
   const clientButtonLabel = useMemo(() => {
     if (selectedClient) {
@@ -260,7 +270,7 @@ export default function CreateReceipt() {
               styles.input,
               { backgroundColor: inputBackground, borderColor },
             ]}
-            onPress={() => router.push('/clients?select=1')}
+            onPress={handleOpenClientSelector}
           >
             <ThemedText style={{ color: inputTextColor }}>
               {clientButtonLabel}
