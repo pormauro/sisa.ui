@@ -28,6 +28,20 @@ export interface Job {
   participants?: number[] | string | null;
 }
 
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  if (value === null || value === undefined || value === '') return 0;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const toNullableNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return value;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
 interface JobsContextType {
   jobs: Job[];
   loadJobs: () => void;
@@ -57,14 +71,27 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await res.json();
       if (data.jobs) {
-        const parsed = data.jobs.map((j: any) => ({
-          ...j,
-          participants: j.participants
+        const parsed = data.jobs.map((j: any) => {
+          const participants = j.participants
             ? typeof j.participants === 'string'
               ? JSON.parse(j.participants)
               : j.participants
-            : null,
-        }));
+            : null;
+
+          return {
+            ...j,
+            id: toNumber(j.id),
+            user_id: toNumber(j.user_id),
+            client_id: toNumber(j.client_id),
+            status_id: toNullableNumber(j.status_id),
+            folder_id: toNullableNumber(j.folder_id),
+            product_service_id: toNullableNumber(j.product_service_id),
+            multiplicative_value: toNullableNumber(j.multiplicative_value),
+            tariff_id: toNullableNumber(j.tariff_id),
+            manual_amount: toNullableNumber(j.manual_amount),
+            participants,
+          } as Job;
+        });
         setJobs(parsed);
       }
     } catch (err) {
