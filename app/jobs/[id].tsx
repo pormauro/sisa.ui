@@ -404,7 +404,6 @@ export default function EditJobScreen() {
             if (selected) {
               const t = selected.toTimeString().slice(0,5);
               setStartTime(t);
-              if (!endTime) setEndTime(t);
             }
           }}
         />
@@ -430,7 +429,6 @@ export default function EditJobScreen() {
             if (selected) {
               const t = selected.toTimeString().slice(0,5);
               setEndTime(t);
-              if (!startTime) setStartTime(t);
             }
           }}
         />

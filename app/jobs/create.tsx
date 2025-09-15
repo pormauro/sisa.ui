@@ -50,8 +50,6 @@ export default function CreateJobScreen() {
   const defaultTime = useMemo(() => new Date().toTimeString().slice(0, 5), []);
   const [startTime, setStartTime]             = useState<string>(defaultTime);
   const [endTime, setEndTime]                 = useState<string>(defaultTime);
-  const [startTimeTouched, setStartTimeTouched] = useState(false);
-  const [endTimeTouched, setEndTimeTouched]     = useState(false);
   const [showDatePicker, setShowDatePicker]   = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker]     = useState(false);
@@ -336,10 +334,8 @@ export default function CreateJobScreen() {
           onChange={(e, selected) => {
             setShowStartPicker(false);
             if (selected) {
-              setStartTimeTouched(true);
               const t = selected.toTimeString().slice(0,5);
               setStartTime(t);
-              if (!endTimeTouched) setEndTime(t);
             }
           }}
         />
@@ -363,10 +359,8 @@ export default function CreateJobScreen() {
           onChange={(e, selected) => {
             setShowEndPicker(false);
             if (selected) {
-              setEndTimeTouched(true);
               const t = selected.toTimeString().slice(0,5);
               setEndTime(t);
-              if (!startTimeTouched) setStartTime(t);
             }
           }}
         />
