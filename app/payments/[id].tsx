@@ -38,7 +38,7 @@ export default function PaymentDetailPage() {
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
-  const { clients } = useContext(ClientsContext);
+  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
 
   const payment = payments.find(p => p.id === paymentId);
 
@@ -58,6 +58,8 @@ export default function PaymentDetailPage() {
   const [chargeClientId, setChargeClientId] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [selectingClientFor, setSelectingClientFor] =
+    useState<'creditor' | 'charge' | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -72,6 +74,18 @@ export default function PaymentDetailPage() {
     () => getDisplayCategories(categories, 'expense'),
     [categories]
   );
+
+  const creditorClientName = useMemo(() => {
+    if (!creditorClientId) return 'Selecciona cliente';
+    const found = clients.find(c => c.id === Number(creditorClientId));
+    return found ? found.business_name : 'Cliente no encontrado';
+  }, [clients, creditorClientId]);
+
+  const chargeClientName = useMemo(() => {
+    if (!chargeClientId) return 'Selecciona cliente';
+    const found = clients.find(c => c.id === Number(chargeClientId));
+    return found ? found.business_name : 'Cliente no encontrado';
+  }, [clients, chargeClientId]);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -107,6 +121,29 @@ export default function PaymentDetailPage() {
       );
     }
   }, [payment]);
+
+  useEffect(() => {
+    if (!selectedClient || !selectingClientFor) return;
+
+    if (selectingClientFor === 'creditor') {
+      if (creditorType === 'client') {
+        setCreditorClientId(String(selectedClient.id));
+      }
+    } else if (selectingClientFor === 'charge') {
+      if (chargeClient) {
+        setChargeClientId(String(selectedClient.id));
+      }
+    }
+
+    setSelectingClientFor(null);
+    setSelectedClient(null);
+  }, [
+    chargeClient,
+    creditorType,
+    selectedClient,
+    selectingClientFor,
+    setSelectedClient,
+  ]);
 
   if (!payment) {
     return (
@@ -260,19 +297,37 @@ export default function PaymentDetailPage() {
       {creditorType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={creditorClientId}
-              onValueChange={setCreditorClientId}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              styles.selectionInput,
+              {
+                backgroundColor: inputBackground,
+                borderColor,
+                opacity: canEdit ? 1 : 0.6,
+              },
+            ]}
+            onPress={() => {
+              if (!canEdit) return;
+              setSelectingClientFor('creditor');
+              router.push({
+                pathname: '/clients',
+                params: {
+                  select: '1',
+                  selectedId: creditorClientId || '',
+                },
+              });
+            }}
+            disabled={!canEdit}
+          >
+            <ThemedText
+              style={{
+                color: creditorClientId ? inputTextColor : placeholderColor,
+              }}
             >
-              <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
-                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+              {creditorClientName}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
@@ -353,20 +408,37 @@ export default function PaymentDetailPage() {
       {chargeClient && (
         <>
           <ThemedText style={styles.label}>Cliente a cobrar</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={chargeClientId}
-              onValueChange={setChargeClientId}
-              style={[styles.picker, { color: inputTextColor }]}
-              enabled={canEdit}
-              dropdownIconColor={inputTextColor}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              styles.selectionInput,
+              {
+                backgroundColor: inputBackground,
+                borderColor,
+                opacity: canEdit ? 1 : 0.6,
+              },
+            ]}
+            onPress={() => {
+              if (!canEdit) return;
+              setSelectingClientFor('charge');
+              router.push({
+                pathname: '/clients',
+                params: {
+                  select: '1',
+                  selectedId: chargeClientId || '',
+                },
+              });
+            }}
+            disabled={!canEdit}
+          >
+            <ThemedText
+              style={{
+                color: chargeClientId ? inputTextColor : placeholderColor,
+              }}
             >
-              <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
-                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+              {chargeClientName}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
@@ -390,6 +462,9 @@ const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  selectionInput: {
+    justifyContent: 'center',
+  },
   pickerWrap: {
     borderWidth: 1,
     borderRadius: 8,
