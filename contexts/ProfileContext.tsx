@@ -81,11 +81,33 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
         }),
       });
       if (response.ok) {
-        // Actualizamos el estado local combinando los cambios
-        setProfileDetails(prev => (prev ? { ...prev, ...profileForm } : null));
+        let responseData: any = null;
+        try {
+          responseData = await response.json();
+        } catch (jsonError) {
+          responseData = null;
+        }
+
+        if (responseData?.profile) {
+          const updatedProfile = responseData.profile as ProfileDetails;
+          setProfileDetails(prev => (prev ? { ...prev, ...updatedProfile } : updatedProfile));
+        } else if (
+          responseData &&
+          ['full_name', 'phone', 'address', 'cuit', 'profile_file_id'].some(key => key in responseData)
+        ) {
+          const updatedProfile = responseData as ProfileDetails;
+          setProfileDetails(prev => (prev ? { ...prev, ...updatedProfile } : updatedProfile));
+        } else {
+          await loadProfile();
+        }
       } else {
-        const errData = await response.json();
-        Alert.alert('Error', errData.error || 'Error updating profile');
+        let errData: any = null;
+        try {
+          errData = await response.json();
+        } catch (jsonError) {
+          errData = null;
+        }
+        Alert.alert('Error', errData?.error || 'Error updating profile');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
