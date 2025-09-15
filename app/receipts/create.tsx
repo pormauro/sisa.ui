@@ -1,5 +1,5 @@
 // app/receipts/create.tsx
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   TextInput,
@@ -11,7 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -32,7 +32,7 @@ export default function CreateReceipt() {
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
-  const { clients } = useContext(ClientsContext);
+  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -69,7 +69,31 @@ export default function CreateReceipt() {
       Alert.alert('Acceso denegado', 'No tienes permiso para agregar recibos.');
       router.back();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedClient) {
+        setPayerClientId(selectedClient.id.toString());
+        setSelectedClient(null);
+      }
+    }, [selectedClient, setSelectedClient, setPayerClientId])
+  );
+
+  const clientButtonLabel = useMemo(() => {
+    if (selectedClient) {
+      return selectedClient.business_name;
+    }
+    if (payerClientId) {
+      const found = clients.find(
+        client => client.id === Number.parseInt(payerClientId, 10)
+      );
+      if (found) {
+        return found.business_name;
+      }
+    }
+    return '-- Selecciona cliente --';
+  }, [clients, payerClientId, selectedClient]);
 
   const handleSubmit = async () => {
     if (!categoryId || !price) {
@@ -187,19 +211,17 @@ export default function CreateReceipt() {
       {payerType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={payerClientId}
-              onValueChange={setPayerClientId}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
-            >
-              <Picker.Item label="-- Selecciona cliente --" value="" />
-              {clients.map(c => (
-                <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+          <TouchableOpacity
+            style={[
+              styles.input,
+              { backgroundColor: inputBackground, borderColor },
+            ]}
+            onPress={() => router.push('/clients?select=1')}
+          >
+            <ThemedText style={{ color: inputTextColor }}>
+              {clientButtonLabel}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
