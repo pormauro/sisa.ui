@@ -17,7 +17,7 @@ import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { ClientsContext } from '@/contexts/ClientsContext';
+import { ClientsContext, type Client } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
@@ -33,13 +33,17 @@ export default function CreateJobScreen() {
   const router = useRouter();
   const { addJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
-  const { clients } = useContext(ClientsContext);
+  const {
+    selectedClient: selectedClientFromContext,
+    setSelectedClient: setSelectedClientContext,
+  } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
+  const [selectedClientData, setSelectedClientData] = useState<Client | null>(null);
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
   const [selectedStatus, setSelectedStatus]   = useState<ModalPickerItem | null>(null);
   const [selectedTariff, setSelectedTariff]   = useState<string>('');
@@ -98,21 +102,35 @@ export default function CreateJobScreen() {
     return folders.filter(f => f.client_id === cid);
   }, [folders, selectedClient]);
 
-  const handleClientChange = (val: string) => {
-    setSelectedClient(val);
+  useEffect(() => {
+    if (!selectedClientFromContext) return;
+    const id = selectedClientFromContext.id.toString();
+    setSelectedClient(id);
+    setSelectedClientData(selectedClientFromContext);
     setSelectedFolder('');
-    const client = clients.find(c => c.id.toString() === val);
-    if (client && client.tariff_id) {
-      const t = tariffs.find(t => t.id === client.tariff_id);
-      if (t && new Date(jobDate) >= new Date(t.last_update)) {
-        setSelectedTariff(t.id.toString());
-        setManualAmount(t.amount.toString());
-        return;
+    if (selectedClientFromContext.tariff_id) {
+      const clientTariff = tariffs.find(
+        t => t.id === selectedClientFromContext.tariff_id
+      );
+      if (clientTariff && new Date(jobDate) >= new Date(clientTariff.last_update)) {
+        setSelectedTariff(clientTariff.id.toString());
+        setManualAmount(clientTariff.amount.toString());
+      } else {
+        setSelectedTariff('');
+        setManualAmount('');
       }
+    } else {
+      setSelectedTariff('');
+      setManualAmount('');
     }
-    setSelectedTariff('');
-    setManualAmount('');
-  };
+    setSelectedClientContext(null);
+  }, [jobDate, selectedClientFromContext, setSelectedClientContext, tariffs]);
+
+  useEffect(() => {
+    if (!selectedClient) {
+      setSelectedClientData(null);
+    }
+  }, [selectedClient]);
 
   const statusItems = useMemo(
     () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
@@ -214,19 +232,17 @@ export default function CreateJobScreen() {
 
       {/* Cliente */}
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
-        <Picker
-          selectedValue={selectedClient}
-          onValueChange={handleClientChange}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Selecciona Cliente --" value="" />
-          {clients.map(c => (
-            <Picker.Item key={c.id} label={c.business_name} value={c.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+      <TouchableOpacity
+        style={[styles.input, styles.selectionButton, { backgroundColor: inputBackground, borderColor }]}
+        onPress={() => {
+          const query = selectedClient ? `&selectedId=${selectedClient}` : '';
+          router.push(`/clients?select=1${query}`);
+        }}
+      >
+        <ThemedText style={{ color: selectedClientData ? inputTextColor : placeholderColor }}>
+          {selectedClientData ? selectedClientData.business_name : 'Selecciona un cliente'}
+        </ThemedText>
+      </TouchableOpacity>
 
       {/* Carpeta */}
       <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
@@ -419,6 +435,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
+  },
+  selectionButton: {
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   intervalText: { textAlign: 'center', marginBottom: 12 },
   priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
