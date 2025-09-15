@@ -100,17 +100,39 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(payload),
       });
       const text = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(text);
-      } catch (parseErr) {
-        console.error('Error adding job: invalid JSON response', text);
+      let data: any = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (parseErr) {
+          console.error('Error adding job: invalid JSON response', text);
+        }
+      }
+      if (!res.ok || data?.error) {
+        console.error('Error adding job:', data?.error || data?.message || res.statusText);
         return null;
       }
-      if (data.job_id) {
-        await loadJobs(); // asegura consistencia
-        return { id: data.job_id, user_id: 0, ...payload };
-      }
+
+      const rawId =
+        data?.job_id ??
+        data?.jobId ??
+        data?.id ??
+        data?.job?.id ??
+        data?.job?.job_id ??
+        null;
+      const parsedId =
+        typeof rawId === 'string'
+          ? parseInt(rawId, 10)
+          : typeof rawId === 'number'
+          ? rawId
+          : null;
+
+      await loadJobs(); // asegura consistencia
+      return {
+        id: parsedId ?? 0,
+        user_id: data?.job?.user_id ?? 0,
+        ...payload,
+      };
     } catch (err) {
       console.error('Error adding job:', err);
     }
