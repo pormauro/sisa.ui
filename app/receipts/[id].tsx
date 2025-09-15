@@ -1,6 +1,7 @@
 // app/receipts/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   View,
   TextInput,
@@ -39,6 +40,7 @@ export default function ReceiptDetailPage() {
   const { categories } = useContext(CategoriesContext);
   const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const isFocused = useIsFocused();
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -143,6 +145,7 @@ export default function ReceiptDetailPage() {
   }, [selectedClient, setSelectedClient]);
 
   useEffect(() => {
+    if (!isFocused) return;
     if (!selectedProvider || !selectingProviderFor) return;
 
     if (selectingProviderFor === 'payer') {
@@ -153,7 +156,7 @@ export default function ReceiptDetailPage() {
 
     setSelectingProviderFor(null);
     setSelectedProvider(null);
-  }, [selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [isFocused, selectedProvider, selectingProviderFor, setSelectedProvider]);
 
   const handleOpenPayerProviderSelector = useCallback(() => {
     if (!canEdit) return;
