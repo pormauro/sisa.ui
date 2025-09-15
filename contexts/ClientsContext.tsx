@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   ReactNode,
+  useCallback,
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -31,6 +32,8 @@ interface ClientsContextValue {
     client: Omit<Client, 'id' | 'version'>
   ) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
+  selectedClient: Client | null;
+  setSelectedClient: (client: Client | null) => void;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
@@ -39,80 +42,99 @@ export const ClientsContext = createContext<ClientsContextValue>({
   addClient: async () => null,
   updateClient: async () => false,
   deleteClient: async () => false,
+  selectedClient: null,
+  setSelectedClient: () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClient, setSelectedClientState] = useState<Client | null>(null);
   const { token } = useContext(AuthContext);
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.clients) {
-        setClients(data.clients);
+        const fetchedClients = data.clients as Client[];
+        setClients(fetchedClients);
+        setSelectedClientState(prev => {
+          if (!prev) return null;
+          const refreshed = fetchedClients.find(c => c.id === prev.id);
+          return refreshed ?? null;
+        });
       }
     } catch (err) {
       console.error('Error loading clients:', err);
     }
-  };
+  }, [token]);
 
-  const addClient = async (
-    clientData: Omit<Client, 'id' | 'version'>
-  ): Promise<Client | null> => {
-    try {
-      const res = await fetch(`${BASE_URL}/clients`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(clientData),
-      });
-      const data = await res.json();
-      if (data.client_id) {
-        const newClient: Client = {
-          id: parseInt(data.client_id, 10),
-          version: 1,
-          ...clientData,
-        };
-        setClients(prev => [...prev, newClient]);
-        return newClient;
+  const addClient = useCallback(
+    async (
+      clientData: Omit<Client, 'id' | 'version'>
+    ): Promise<Client | null> => {
+      try {
+        const res = await fetch(`${BASE_URL}/clients`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(clientData),
+        });
+        const data = await res.json();
+        if (data.client_id) {
+          const newClient: Client = {
+            id: parseInt(data.client_id, 10),
+            version: 1,
+            ...clientData,
+          };
+          setClients(prev => [...prev, newClient]);
+          setSelectedClientState(newClient);
+          return newClient;
+        }
+      } catch (err) {
+        console.error('Error adding client:', err);
       }
-    } catch (err) {
-      console.error('Error adding client:', err);
-    }
-    return null;
-  };
+      return null;
+    },
+    [token]
+  );
 
-  const updateClient = async (
-    id: number,
-    clientData: Omit<Client, 'id' | 'version'>
-  ): Promise<boolean> => {
-    try {
-      const res = await fetch(`${BASE_URL}/clients/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(clientData),
-      });
-      if (res.ok) {
-        setClients(prev =>
-          prev.map(c => (c.id === id ? { ...c, ...clientData } : c))
-        );
-        return true;
+  const updateClient = useCallback(
+    async (
+      id: number,
+      clientData: Omit<Client, 'id' | 'version'>
+    ): Promise<boolean> => {
+      try {
+        const res = await fetch(`${BASE_URL}/clients/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(clientData),
+        });
+        if (res.ok) {
+          setClients(prev =>
+            prev.map(c => (c.id === id ? { ...c, ...clientData } : c))
+          );
+          setSelectedClientState(prev =>
+            prev && prev.id === id ? { ...prev, ...clientData } : prev
+          );
+          return true;
+        }
+      } catch (err) {
+        console.error('Error updating client:', err);
       }
-    } catch (err) {
-      console.error('Error updating client:', err);
-    }
-    return false;
-  };
+      return false;
+    },
+    [token]
+  );
 
-  const deleteClient = async (id: number): Promise<boolean> => {
+  const deleteClient = useCallback(async (id: number): Promise<boolean> => {
     try {
       const res = await fetch(`${BASE_URL}/clients/${id}`, {
         method: 'DELETE',
@@ -121,21 +143,30 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const data = await res.json();
       if (data.message === 'Client deleted successfully') {
         setClients(prev => prev.filter(c => c.id !== id));
+        setSelectedClientState(prev => (prev && prev.id === id ? null : prev));
         return true;
       }
     } catch (err) {
       console.error('Error deleting client:', err);
     }
     return false;
-  };
+  }, [token]);
 
   useEffect(() => {
     if (token) loadClients();
-  }, [token]);
+  }, [loadClients, token]);
 
   return (
     <ClientsContext.Provider
-      value={{ clients, loadClients, addClient, updateClient, deleteClient }}
+      value={{
+        clients,
+        loadClients,
+        addClient,
+        updateClient,
+        deleteClient,
+        selectedClient,
+        setSelectedClient: setSelectedClientState,
+      }}
     >
       {children}
     </ClientsContext.Provider>
