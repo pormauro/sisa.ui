@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/[id].tsx
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -16,7 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { ClientsContext } from '@/contexts/ClientsContext';
+import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { StatusesContext } from '@/contexts/StatusesContext';
@@ -27,6 +27,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -35,7 +36,11 @@ export default function EditJobScreen() {
 
   const { jobs, updateJob, deleteJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
-  const { clients } = useContext(ClientsContext);
+  const {
+    clients,
+    selectedClient: contextSelectedClient,
+    setSelectedClient: setContextSelectedClient,
+  } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
@@ -46,7 +51,7 @@ export default function EditJobScreen() {
   const canDelete = permissions.includes('deleteJob');
 
   // estados para pickers
-  const [selectedClient,  setSelectedClient]  = useState<ModalPickerItem | null>(null);
+  const [selectedClient,  setSelectedClientState]  = useState<Client | null>(null);
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
   const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
   const [selectedTariff,  setSelectedTariff]  = useState<ModalPickerItem | null>(null);
@@ -101,8 +106,8 @@ export default function EditJobScreen() {
       return;
     }
     // cargar pickers
-    const cli = clients.find(c => c.id === job.client_id);
-    setSelectedClient(cli ? { id: cli.id, name: cli.business_name } : null);
+    const cli = clients.find(c => c.id === job.client_id) ?? null;
+    setSelectedClientState(cli);
 
     const fol = folders.find(f => f.id === job.folder_id);
     setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
@@ -155,10 +160,6 @@ export default function EditJobScreen() {
   }, [jobDate, selectedTariff, tariffs, manualTariffItem]);
 
   // opciones para pickers
-  const clientItems = useMemo(
-    () => clients.map(c => ({ id: c.id, name: c.business_name })),
-    [clients]
-  );
   const folderItems = useMemo(
     () => folders
       .filter(f => selectedClient?.id === f.client_id)
@@ -176,26 +177,56 @@ export default function EditJobScreen() {
     [filteredTariffs, manualTariffItem]
   );
 
-  const handleClientChange = (item: ModalPickerItem | null) => {
-    setSelectedClient(item);
-    setSelectedFolder(null);
-    if (!item) {
-      setSelectedTariff(manualTariffItem);
-      setManualAmount('');
-      return;
-    }
-    const client = clients.find(c => c.id === Number(item.id));
-    if (client && client.tariff_id) {
-      const t = tariffs.find(t => t.id === client.tariff_id);
-      if (t && new Date(jobDate) >= new Date(t.last_update)) {
-        setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
-        setManualAmount(t.amount.toString());
+  const applyClientSelection = useCallback(
+    (client: Client | null) => {
+      setSelectedClientState(client);
+      setSelectedFolder(null);
+      if (!client) {
+        setSelectedTariff(manualTariffItem);
+        setManualAmount('');
         return;
       }
-    }
-    setSelectedTariff(manualTariffItem);
-    setManualAmount('');
-  };
+      if (client.tariff_id) {
+        const t = tariffs.find(t => t.id === client.tariff_id);
+        if (t && new Date(jobDate) >= new Date(t.last_update)) {
+          setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
+          setManualAmount(t.amount.toString());
+          return;
+        }
+      }
+      setSelectedTariff(manualTariffItem);
+      setManualAmount('');
+    },
+    [jobDate, manualTariffItem, tariffs]
+  );
+
+  const [isSelectingClient, setIsSelectingClient] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isSelectingClient) {
+        if (contextSelectedClient === null) {
+          applyClientSelection(null);
+        } else if (contextSelectedClient && contextSelectedClient.id !== selectedClient?.id) {
+          applyClientSelection(contextSelectedClient);
+        }
+        setIsSelectingClient(false);
+        if (contextSelectedClient) {
+          setContextSelectedClient(null);
+        }
+      } else if (contextSelectedClient) {
+        setContextSelectedClient(null);
+      }
+
+      return () => {};
+    }, [
+      applyClientSelection,
+      contextSelectedClient,
+      isSelectingClient,
+      selectedClient?.id,
+      setContextSelectedClient,
+    ])
+  );
 
   // submit
   const handleSubmit = async () => {
@@ -206,7 +237,7 @@ export default function EditJobScreen() {
     const saveJob = async () => {
       setLoading(true);
       const updated = await updateJob(jobId, {
-        client_id: Number(selectedClient.id),
+        client_id: selectedClient.id,
         description,
         start_time: startTime,
         end_time: endTime,
@@ -298,14 +329,24 @@ export default function EditJobScreen() {
 
       {/* Cliente */}
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
-        <ModalPicker
-          items={clientItems}
-          selectedItem={selectedClient}
-          onSelect={handleClientChange}
-          placeholder="-- Cliente --"
-        />
-      </View>
+      <TouchableOpacity
+        style={[
+          styles.pickerWrap,
+          { borderColor, backgroundColor: inputBackground },
+          !canEdit ? { opacity: 0.6 } : {},
+        ]}
+        onPress={() => {
+          if (!canEdit) return;
+          setIsSelectingClient(true);
+          const selectedIdParam = selectedClient ? `&selectedId=${selectedClient.id}` : '';
+          router.push(`/clients?select=1${selectedIdParam}`);
+        }}
+        disabled={!canEdit}
+      >
+        <ThemedText style={{ color: selectedClient ? inputTextColor : placeholderColor }}>
+          {selectedClient ? selectedClient.business_name : '-- Cliente --'}
+        </ThemedText>
+      </TouchableOpacity>
 
       {/* Carpeta */}
       <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
