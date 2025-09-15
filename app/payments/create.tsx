@@ -31,7 +31,7 @@ export default function CreatePayment() {
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers } = useContext(ProvidersContext);
+  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -50,6 +50,7 @@ export default function CreatePayment() {
   const [chargeClientId, setChargeClientId] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [pendingProviderSelection, setPendingProviderSelection] = useState<'creditor' | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -59,6 +60,13 @@ export default function CreatePayment() {
   const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+
+  const selectedCreditorProvider = useMemo(() => {
+    if (!creditorProviderId) return null;
+    const providerId = parseInt(creditorProviderId, 10);
+    if (Number.isNaN(providerId)) return null;
+    return providers.find(p => p.id === providerId) ?? null;
+  }, [creditorProviderId, providers]);
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories, 'expense'),
@@ -71,6 +79,30 @@ export default function CreatePayment() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    if (!selectedProvider || pendingProviderSelection !== 'creditor') return;
+    setCreditorProviderId(String(selectedProvider.id));
+    setPendingProviderSelection(null);
+    setSelectedProvider(null);
+  }, [pendingProviderSelection, selectedProvider, setSelectedProvider]);
+
+  useEffect(() => {
+    if (!creditorProviderId) return;
+    const providerId = parseInt(creditorProviderId, 10);
+    if (Number.isNaN(providerId)) return;
+    const exists = providers.some(p => p.id === providerId);
+    if (!exists) {
+      setCreditorProviderId('');
+    }
+  }, [providers, creditorProviderId]);
+
+  useEffect(() => {
+    return () => {
+      setPendingProviderSelection(null);
+      setSelectedProvider(null);
+    };
+  }, [setSelectedProvider]);
 
   const handleSubmit = async () => {
     if (!categoryId || !price) {
@@ -106,6 +138,14 @@ export default function CreatePayment() {
     } else {
       Alert.alert('Error', 'No se pudo crear el pago.');
     }
+  };
+
+  const openProviderSelector = (currentId?: string) => {
+    setPendingProviderSelection('creditor');
+    const path = currentId
+      ? `/providers?select=1&selectedId=${currentId}`
+      : '/providers?select=1';
+    router.push(path);
   };
 
   return (
@@ -207,19 +247,22 @@ export default function CreatePayment() {
       {creditorType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={creditorProviderId}
-              onValueChange={setCreditorProviderId}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
+          <TouchableOpacity
+            style={[
+              styles.input,
+              styles.selector,
+              { backgroundColor: inputBackground, borderColor },
+            ]}
+            onPress={() => openProviderSelector(creditorProviderId || undefined)}
+          >
+            <ThemedText
+              style={{
+                color: selectedCreditorProvider ? inputTextColor : placeholderColor,
+              }}
             >
-              <Picker.Item label="-- Selecciona proveedor --" value="" />
-              {providers.map(p => (
-                <Picker.Item key={p.id} label={p.business_name} value={p.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+              {selectedCreditorProvider?.business_name || '-- Selecciona proveedor --'}
+            </ThemedText>
+          </TouchableOpacity>
         </>
       )}
 
@@ -315,6 +358,7 @@ const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  selector: { justifyContent: 'center' },
   pickerWrap: {
     borderWidth: 1,
     borderRadius: 8,
