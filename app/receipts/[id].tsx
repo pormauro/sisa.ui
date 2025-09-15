@@ -35,7 +35,7 @@ export default function ReceiptDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const receiptId = Number(id);
   const { receipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
-  const { cashBoxes } = useContext(CashBoxesContext);
+  const { cashBoxes, selectedCashBox, setSelectedCashBox } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
@@ -65,6 +65,17 @@ export default function ReceiptDetailPage() {
     const client = clients.find(c => c.id === parsedId);
     return client?.business_name ?? '';
   }, [clients, payerClientId]);
+
+  const selectedCashBoxName = useMemo(() => {
+    if (selectedCashBox) {
+      return selectedCashBox.name;
+    }
+    if (!paidInAccount) return '';
+    const parsedId = Number.parseInt(paidInAccount, 10);
+    if (Number.isNaN(parsedId)) return '';
+    const cashBox = cashBoxes.find(cb => cb.id === parsedId);
+    return cashBox?.name ?? '';
+  }, [cashBoxes, paidInAccount, selectedCashBox]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -123,6 +134,13 @@ export default function ReceiptDetailPage() {
       setSelectedClient(null);
     }
   }, [selectedClient, setSelectedClient]);
+
+  useEffect(() => {
+    if (selectedCashBox) {
+      setPaidInAccount(String(selectedCashBox.id));
+      setSelectedCashBox(null);
+    }
+  }, [selectedCashBox, setSelectedCashBox]);
 
   if (!receipt) {
     return (
@@ -242,19 +260,39 @@ export default function ReceiptDetailPage() {
           />
         )}
 
-        <ThemedText style={styles.label}>Cuenta de ingreso</ThemedText>
-        <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={paidInAccount}
-          onValueChange={setPaidInAccount}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
+      <ThemedText style={styles.label}>Cuenta de ingreso</ThemedText>
+      <View style={styles.selectionRow}>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            styles.selectInput,
+            { backgroundColor: inputBackground, borderColor },
+            !canEdit ? styles.selectInputDisabled : null,
+          ]}
+          onPress={() => {
+            if (!canEdit) return;
+            const query = paidInAccount
+              ? `?select=1&selectedId=${encodeURIComponent(paidInAccount)}`
+              : '?select=1';
+            router.push(`/cash_boxes${query}`);
+          }}
+          disabled={!canEdit}
         >
-          <Picker.Item label="-- Selecciona cuenta --" value="" />
-          {cashBoxes.map(cb => (
-            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
-          ))}
-        </Picker>
+          <ThemedText
+            style={{ color: paidInAccount ? inputTextColor : placeholderColor }}
+          >
+            {paidInAccount ? selectedCashBoxName || 'Caja no disponible' : '-- Selecciona cuenta --'}
+          </ThemedText>
+        </TouchableOpacity>
+        {paidInAccount ? (
+          <TouchableOpacity
+            style={[styles.clearSelectionButton, { borderColor, opacity: canEdit ? 1 : 0.6 }]}
+            onPress={() => canEdit && setPaidInAccount('')}
+            disabled={!canEdit}
+          >
+            <ThemedText style={styles.clearSelectionText}>Quitar</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <ThemedText style={styles.label}>Tipo de pagador</ThemedText>
@@ -410,9 +448,18 @@ const styles = StyleSheet.create({
   },
   picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  selectInput: { justifyContent: 'center' },
+  selectInput: { justifyContent: 'center', flex: 1, marginBottom: 0 },
   selectInputDisabled: { opacity: 0.6 },
   selectInputText: { fontSize: 16 },
+  selectionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  clearSelectionButton: {
+    marginLeft: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  clearSelectionText: { fontSize: 14, fontWeight: '600' },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },

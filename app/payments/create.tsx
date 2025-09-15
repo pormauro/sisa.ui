@@ -29,7 +29,7 @@ export default function CreatePayment() {
   const router = useRouter();
   const { addPayment } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
-  const { cashBoxes } = useContext(CashBoxesContext);
+  const { cashBoxes, selectedCashBox, setSelectedCashBox } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
@@ -80,6 +80,21 @@ export default function CreatePayment() {
     [categories]
   );
 
+  const cashBoxButtonLabel = useMemo(() => {
+    if (selectedCashBox) {
+      return selectedCashBox.name;
+    }
+    if (paidWithAccount) {
+      const found = cashBoxes.find(
+        cb => cb.id === Number.parseInt(paidWithAccount, 10)
+      );
+      if (found) {
+        return found.name;
+      }
+    }
+    return '-- Selecciona cuenta --';
+  }, [cashBoxes, paidWithAccount, selectedCashBox]);
+
   useEffect(() => {
     if (!permissions.includes('addPayment')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para agregar pagos.');
@@ -99,6 +114,12 @@ export default function CreatePayment() {
     setSelectingClientFor(null);
     setSelectedClient(null);
   }, [selectedClient, selectingClientFor, setSelectedClient]);
+
+  useEffect(() => {
+    if (!selectedCashBox) return;
+    setPaidWithAccount(selectedCashBox.id.toString());
+    setSelectedCashBox(null);
+  }, [selectedCashBox, setSelectedCashBox]);
 
   const handleOpenClientSelector = useCallback(
     (target: 'creditor' | 'charge') => {
@@ -197,18 +218,34 @@ export default function CreatePayment() {
       )}
 
       <ThemedText style={styles.label}>Cuenta utilizada</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={paidWithAccount}
-          onValueChange={setPaidWithAccount}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
+      <View style={styles.selectionRow}>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            styles.selectInput,
+            { backgroundColor: inputBackground, borderColor },
+          ]}
+          onPress={() => {
+            const query = paidWithAccount
+              ? `?select=1&selectedId=${encodeURIComponent(paidWithAccount)}`
+              : '?select=1';
+            router.push(`/cash_boxes${query}`);
+          }}
         >
-          <Picker.Item label="-- Selecciona cuenta --" value="" />
-          {cashBoxes.map(cb => (
-            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
-          ))}
-        </Picker>
+          <ThemedText
+            style={{ color: paidWithAccount ? inputTextColor : placeholderColor }}
+          >
+            {cashBoxButtonLabel}
+          </ThemedText>
+        </TouchableOpacity>
+        {paidWithAccount ? (
+          <TouchableOpacity
+            style={[styles.clearSelectionButton, { borderColor }]}
+            onPress={() => setPaidWithAccount('')}
+          >
+            <ThemedText style={styles.clearSelectionText}>Quitar</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <ThemedText style={styles.label}>Tipo de acreedor</ThemedText>
@@ -349,6 +386,24 @@ const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  selectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  selectInput: {
+    flex: 1,
+    justifyContent: 'center',
+    marginBottom: 0,
+  },
+  clearSelectionButton: {
+    marginLeft: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  clearSelectionText: { fontSize: 14, fontWeight: '600' },
   pickerWrap: {
     borderWidth: 1,
     borderRadius: 8,

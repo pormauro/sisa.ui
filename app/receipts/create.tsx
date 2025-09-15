@@ -29,7 +29,7 @@ export default function CreateReceipt() {
   const router = useRouter();
   const { addReceipt } = useContext(ReceiptsContext);
   const { permissions } = useContext(PermissionsContext);
-  const { cashBoxes } = useContext(CashBoxesContext);
+  const { cashBoxes, selectedCashBox, setSelectedCashBox } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
@@ -80,6 +80,15 @@ export default function CreateReceipt() {
     }, [selectedClient, setSelectedClient, setPayerClientId])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (selectedCashBox) {
+        setPaidInAccount(selectedCashBox.id.toString());
+        setSelectedCashBox(null);
+      }
+    }, [selectedCashBox, setPaidInAccount, setSelectedCashBox])
+  );
+
   const clientButtonLabel = useMemo(() => {
     if (selectedClient) {
       return selectedClient.business_name;
@@ -94,6 +103,21 @@ export default function CreateReceipt() {
     }
     return '-- Selecciona cliente --';
   }, [clients, payerClientId, selectedClient]);
+
+  const cashBoxButtonLabel = useMemo(() => {
+    if (selectedCashBox) {
+      return selectedCashBox.name;
+    }
+    if (paidInAccount) {
+      const found = cashBoxes.find(
+        cb => cb.id === Number.parseInt(paidInAccount, 10)
+      );
+      if (found) {
+        return found.name;
+      }
+    }
+    return '-- Selecciona cuenta --';
+  }, [cashBoxes, paidInAccount, selectedCashBox]);
 
   const handleSubmit = async () => {
     if (!categoryId || !price) {
@@ -179,19 +203,35 @@ export default function CreateReceipt() {
           />
         )}
 
-        <ThemedText style={styles.label}>Cuenta de ingreso</ThemedText>
-        <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={paidInAccount}
-          onValueChange={setPaidInAccount}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
+      <ThemedText style={styles.label}>Cuenta de ingreso</ThemedText>
+      <View style={styles.selectionRow}>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            styles.selectInput,
+            { backgroundColor: inputBackground, borderColor },
+          ]}
+          onPress={() => {
+            const query = paidInAccount
+              ? `?select=1&selectedId=${encodeURIComponent(paidInAccount)}`
+              : '?select=1';
+            router.push(`/cash_boxes${query}`);
+          }}
         >
-          <Picker.Item label="-- Selecciona cuenta --" value="" />
-          {cashBoxes.map(cb => (
-            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
-          ))}
-        </Picker>
+          <ThemedText
+            style={{ color: paidInAccount ? inputTextColor : placeholderColor }}
+          >
+            {cashBoxButtonLabel}
+          </ThemedText>
+        </TouchableOpacity>
+        {paidInAccount ? (
+          <TouchableOpacity
+            style={[styles.clearSelectionButton, { borderColor }]}
+            onPress={() => setPaidInAccount('')}
+          >
+            <ThemedText style={styles.clearSelectionText}>Quitar</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <ThemedText style={styles.label}>Tipo de pagador</ThemedText>
@@ -325,6 +365,27 @@ const styles = StyleSheet.create({
   },
   picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  selectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  selectInput: {
+    flex: 1,
+    justifyContent: 'center',
+    marginBottom: 0,
+  },
+  clearSelectionButton: {
+    marginLeft: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  clearSelectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },

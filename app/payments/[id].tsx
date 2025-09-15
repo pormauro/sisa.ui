@@ -35,7 +35,7 @@ export default function PaymentDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const paymentId = Number(id);
   const { payments, updatePayment, deletePayment } = useContext(PaymentsContext);
-  const { cashBoxes } = useContext(CashBoxesContext);
+  const { cashBoxes, selectedCashBox, setSelectedCashBox } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
@@ -86,6 +86,17 @@ export default function PaymentDetailPage() {
     const found = clients.find(c => c.id === Number(chargeClientId));
     return found ? found.business_name : 'Cliente no encontrado';
   }, [clients, chargeClientId]);
+
+  const selectedCashBoxName = useMemo(() => {
+    if (selectedCashBox) {
+      return selectedCashBox.name;
+    }
+    if (!paidWithAccount) return '';
+    const parsedId = Number.parseInt(paidWithAccount, 10);
+    if (Number.isNaN(parsedId)) return '';
+    const cashBox = cashBoxes.find(cb => cb.id === parsedId);
+    return cashBox?.name ?? '';
+  }, [cashBoxes, paidWithAccount, selectedCashBox]);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -144,6 +155,13 @@ export default function PaymentDetailPage() {
     selectingClientFor,
     setSelectedClient,
   ]);
+
+  useEffect(() => {
+    if (selectedCashBox) {
+      setPaidWithAccount(String(selectedCashBox.id));
+      setSelectedCashBox(null);
+    }
+  }, [selectedCashBox, setSelectedCashBox]);
 
   if (!payment) {
     return (
@@ -265,19 +283,42 @@ export default function PaymentDetailPage() {
           />
         )}
 
-        <ThemedText style={styles.label}>Cuenta utilizada</ThemedText>
-        <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={paidWithAccount}
-          onValueChange={setPaidWithAccount}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
+      <ThemedText style={styles.label}>Cuenta utilizada</ThemedText>
+      <View style={styles.selectionRow}>
+        <TouchableOpacity
+          style={[
+            styles.input,
+            styles.selectionInput,
+            { backgroundColor: inputBackground, borderColor },
+            !canEdit ? styles.selectionInputDisabled : null,
+            { marginBottom: 0 },
+          ]}
+          onPress={() => {
+            if (!canEdit) return;
+            const query = paidWithAccount
+              ? `?select=1&selectedId=${encodeURIComponent(paidWithAccount)}`
+              : '?select=1';
+            router.push(`/cash_boxes${query}`);
+          }}
+          disabled={!canEdit}
         >
-          <Picker.Item label="-- Selecciona cuenta --" value="" />
-          {cashBoxes.map(cb => (
-            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
-          ))}
-        </Picker>
+          <ThemedText
+            style={{ color: paidWithAccount ? inputTextColor : placeholderColor }}
+          >
+            {paidWithAccount
+              ? selectedCashBoxName || 'Caja no disponible'
+              : '-- Selecciona cuenta --'}
+          </ThemedText>
+        </TouchableOpacity>
+        {paidWithAccount ? (
+          <TouchableOpacity
+            style={[styles.clearSelectionButton, { borderColor, opacity: canEdit ? 1 : 0.6 }]}
+            onPress={() => canEdit && setPaidWithAccount('')}
+            disabled={!canEdit}
+          >
+            <ThemedText style={styles.clearSelectionText}>Quitar</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <ThemedText style={styles.label}>Tipo de acreedor</ThemedText>
@@ -464,7 +505,18 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   selectionInput: {
     justifyContent: 'center',
+    flex: 1,
   },
+  selectionInputDisabled: { opacity: 0.6 },
+  selectionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  clearSelectionButton: {
+    marginLeft: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  clearSelectionText: { fontSize: 14, fontWeight: '600' },
   pickerWrap: {
     borderWidth: 1,
     borderRadius: 8,
