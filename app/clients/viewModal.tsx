@@ -35,7 +35,7 @@ export default function ViewClientModal() {
       <ThemedText style={styles.label}>Nombre del Negocio</ThemedText>
       <ThemedText style={styles.value}>{client.business_name}</ThemedText>
 
-      <ThemedText style={styles.label}>Tax ID</ThemedText>
+      <ThemedText style={styles.label}>CUIT</ThemedText>
       <ThemedText style={styles.value}>{client.tax_id}</ThemedText>
 
       <ThemedText style={styles.label}>Email</ThemedText>

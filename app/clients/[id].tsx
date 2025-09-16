@@ -73,7 +73,7 @@ export default function ClientDetailPage() {
 
   const handleUpdate = () => {
     /*if (!businessName || !taxId || !email) {
-      Alert.alert('Error', 'Por favor ingresa Nombre de Negocio, Tax ID y Email');
+      Alert.alert('Error', 'Por favor ingresa Nombre de Negocio, CUIT y Email');
       return;
     }*/
     Alert.alert(
@@ -151,10 +151,10 @@ export default function ClientDetailPage() {
         placeholderTextColor={placeholderColor}
       />
 
-      <ThemedText style={styles.label}>Tax ID</ThemedText>
+      <ThemedText style={styles.label}>CUIT</ThemedText>
       <TextInput
         style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Tax ID"
+        placeholder="CUIT"
         value={taxId}
         onChangeText={setTaxId}
         placeholderTextColor={placeholderColor}

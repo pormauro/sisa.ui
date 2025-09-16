@@ -45,7 +45,7 @@ export default function CreateClientPage() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     /*  if (!businessName || !taxId || !email) {
-      Alert.alert('Error', 'Por favor ingresa Nombre de Negocio, Tax ID y Email');
+      Alert.alert('Error', 'Por favor ingresa Nombre de Negocio, CUIT y Email');
       submittingRef.current = false;
       return;
     }*/
@@ -96,10 +96,10 @@ export default function CreateClientPage() {
         placeholderTextColor={placeholderColor}
       />
 
-      <ThemedText style={styles.label}>Tax ID</ThemedText>
+      <ThemedText style={styles.label}>CUIT</ThemedText>
       <TextInput
         style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Tax ID"
+        placeholder="CUIT"
         value={taxId}
         onChangeText={setTaxId}
         placeholderTextColor={placeholderColor}
