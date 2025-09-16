@@ -103,6 +103,46 @@ export default function PaymentDetailPage() {
   }, [clients, chargeClientId]);
 
   useEffect(() => {
+    if (!paidWithAccount) return;
+    const exists = cashBoxes.some(cb => cb.id.toString() === paidWithAccount);
+    if (!exists) {
+      setPaidWithAccount('');
+    }
+  }, [cashBoxes, paidWithAccount]);
+
+  useEffect(() => {
+    if (!categoryId) return;
+    const exists = categories.some(cat => cat.id.toString() === categoryId);
+    if (!exists) {
+      setCategoryId('');
+    }
+  }, [categories, categoryId]);
+
+  useEffect(() => {
+    if (!creditorClientId) return;
+    const exists = clients.some(client => client.id.toString() === creditorClientId);
+    if (!exists) {
+      setCreditorClientId('');
+    }
+  }, [clients, creditorClientId]);
+
+  useEffect(() => {
+    if (!creditorProviderId) return;
+    const exists = providers.some(provider => provider.id.toString() === creditorProviderId);
+    if (!exists) {
+      setCreditorProviderId('');
+    }
+  }, [providers, creditorProviderId]);
+
+  useEffect(() => {
+    if (!chargeClientId) return;
+    const exists = clients.some(client => client.id.toString() === chargeClientId);
+    if (!exists) {
+      setChargeClientId('');
+    }
+  }, [clients, chargeClientId]);
+
+  useEffect(() => {
     if (!canEdit && !canDelete) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este pago.');
       router.back();
