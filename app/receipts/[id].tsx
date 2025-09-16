@@ -108,6 +108,46 @@ export default function ReceiptDetailPage() {
   );
 
   useEffect(() => {
+    if (!paidInAccount) return;
+    const exists = cashBoxes.some(cb => cb.id.toString() === paidInAccount);
+    if (!exists) {
+      setPaidInAccount('');
+    }
+  }, [cashBoxes, paidInAccount]);
+
+  useEffect(() => {
+    if (!categoryId) return;
+    const exists = categories.some(cat => cat.id.toString() === categoryId);
+    if (!exists) {
+      setCategoryId('');
+    }
+  }, [categories, categoryId]);
+
+  useEffect(() => {
+    if (!payerClientId) return;
+    const exists = clients.some(client => client.id.toString() === payerClientId);
+    if (!exists) {
+      setPayerClientId('');
+    }
+  }, [clients, payerClientId]);
+
+  useEffect(() => {
+    if (!payerProviderId) return;
+    const exists = providers.some(provider => provider.id.toString() === payerProviderId);
+    if (!exists) {
+      setPayerProviderId('');
+    }
+  }, [providers, payerProviderId]);
+
+  useEffect(() => {
+    if (!providerId) return;
+    const exists = providers.some(provider => provider.id.toString() === providerId);
+    if (!exists) {
+      setProviderId('');
+    }
+  }, [providers, providerId]);
+
+  useEffect(() => {
     if (!canEdit && !canDelete) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este recibo.');
       router.back();
