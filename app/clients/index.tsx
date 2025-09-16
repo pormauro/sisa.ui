@@ -44,6 +44,7 @@ export default function ClientsListPage() {
     keepOpen?: string;
   }>();
   const [searchQuery, setSearchQuery] = useState('');
+  const [hasClearedSelection, setHasClearedSelection] = useState(false);
   const { permissions } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
@@ -83,11 +84,23 @@ export default function ClientsListPage() {
   useEffect(() => {
     if (!isSelectMode) return;
     if (!selectedIdFromParams) return;
+    if (hasClearedSelection) return;
     const found = clients.find(c => c.id === selectedIdFromParams);
     if (found && (!selectedClient || selectedClient.id === selectedIdFromParams)) {
       setSelectedClient(found);
     }
-  }, [clients, isSelectMode, selectedClient, selectedIdFromParams, setSelectedClient]);
+  }, [
+    clients,
+    isSelectMode,
+    selectedClient,
+    selectedIdFromParams,
+    setSelectedClient,
+    hasClearedSelection,
+  ]);
+
+  useEffect(() => {
+    setHasClearedSelection(false);
+  }, [selectedIdFromParams]);
 
   const fuse = useMemo(
     () =>
@@ -153,12 +166,19 @@ export default function ClientsListPage() {
         router.push(`/clients/viewModal?id=${client.id}`);
         return;
       }
+      setHasClearedSelection(false);
       setSelectedClient(client);
       if (!stayOnSelect) {
         router.back();
       }
     },
-    [isSelectMode, router, setSelectedClient, stayOnSelect]
+    [
+      isSelectMode,
+      router,
+      setSelectedClient,
+      stayOnSelect,
+      setHasClearedSelection,
+    ]
   );
 
   const listHeader = isSelectMode ? (
@@ -180,7 +200,10 @@ export default function ClientsListPage() {
       {selectedClient && (
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
-          onPress={() => setSelectedClient(null)}
+          onPress={() => {
+            setHasClearedSelection(true);
+            setSelectedClient(null);
+          }}
         >
           <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
         </TouchableOpacity>
