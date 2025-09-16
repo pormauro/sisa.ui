@@ -24,6 +24,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { CLEAR_SELECTION_VALUE, decodeReturnPath } from '@/utils/selection';
 
 const truthyValues = ['1', 'true', 'yes', 'on'];
 
@@ -34,13 +35,7 @@ const parseParamValue = (value: string | string[] | undefined): string | undefin
   Array.isArray(value) ? value[0] : value;
 
 export default function ProvidersListPage() {
-  const {
-    providers,
-    loadProviders,
-    deleteProvider,
-    selectedProvider,
-    setSelectedProvider,
-  } = useContext(ProvidersContext);
+  const { providers, loadProviders, deleteProvider } = useContext(ProvidersContext);
   const router = useRouter();
   const params = useLocalSearchParams<{
     mode?: string;
@@ -52,8 +47,13 @@ export default function ProvidersListPage() {
   }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
-  const [hasClearedSelection, setHasClearedSelection] = useState(false);
+  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
   const { permissions } = useContext(PermissionsContext);
+
+  const selectedProvider = useMemo(() => {
+    if (selectedProviderId == null) return null;
+    return providers.find(provider => provider.id === selectedProviderId) ?? null;
+  }, [providers, selectedProviderId]);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -81,7 +81,15 @@ export default function ProvidersListPage() {
 
   const selectedIdParam =
     parseParamValue(params.selectedId) ?? parseParamValue(params.selected);
-  const parsedSelectedId = selectedIdParam ? Number.parseInt(selectedIdParam, 10) : NaN;
+  const returnToParam = parseParamValue(params.returnTo);
+  const returnParam = parseParamValue(params.returnParam);
+  const returnToPath = decodeReturnPath(returnToParam);
+
+  const shouldClearFromParams = selectedIdParam === CLEAR_SELECTION_VALUE;
+  const parsedSelectedId =
+    selectedIdParam && !shouldClearFromParams
+      ? Number.parseInt(selectedIdParam, 10)
+      : NaN;
   const selectedIdFromParams = Number.isNaN(parsedSelectedId)
     ? undefined
     : parsedSelectedId;
@@ -97,24 +105,23 @@ export default function ProvidersListPage() {
 
   useEffect(() => {
     if (!isSelectMode) return;
-    if (!selectedIdFromParams) return;
-    if (hasClearedSelection) return;
-    const found = providers.find(provider => provider.id === selectedIdFromParams);
-    if (found && selectedProvider?.id !== selectedIdFromParams) {
-      setSelectedProvider(found);
+    if (shouldClearFromParams) {
+      setSelectedProviderId(null);
+      return;
+    }
+    if (selectedIdFromParams !== undefined) {
+      setSelectedProviderId(selectedIdFromParams);
+      return;
+    }
+    if (!selectedIdParam) {
+      setSelectedProviderId(null);
     }
   }, [
-    providers,
     isSelectMode,
-    selectedProvider,
     selectedIdFromParams,
-    setSelectedProvider,
-    hasClearedSelection,
+    selectedIdParam,
+    shouldClearFromParams,
   ]);
-
-  useEffect(() => {
-    setHasClearedSelection(false);
-  }, [selectedIdFromParams]);
 
   const fuse = useMemo(
     () =>
@@ -178,19 +185,19 @@ export default function ProvidersListPage() {
         router.push(`/providers/viewModal?id=${provider.id}`);
         return;
       }
-      setHasClearedSelection(false);
-      setSelectedProvider(provider);
+      setSelectedProviderId(provider.id);
       if (!stayOnSelect) {
-        router.back();
+        if (returnToPath && returnParam) {
+          router.replace({
+            pathname: returnToPath,
+            params: { [returnParam]: String(provider.id) },
+          });
+        } else {
+          router.back();
+        }
       }
     },
-    [
-      isSelectMode,
-      router,
-      setSelectedProvider,
-      stayOnSelect,
-      setHasClearedSelection,
-    ]
+    [isSelectMode, router, stayOnSelect, returnToPath, returnParam]
   );
 
   const listHeader = isSelectMode ? (
@@ -213,8 +220,17 @@ export default function ProvidersListPage() {
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
           onPress={() => {
-            setHasClearedSelection(true);
-            setSelectedProvider(null);
+            setSelectedProviderId(null);
+            if (!stayOnSelect) {
+              if (returnToPath && returnParam) {
+                router.replace({
+                  pathname: returnToPath,
+                  params: { [returnParam]: CLEAR_SELECTION_VALUE },
+                });
+              } else {
+                router.back();
+              }
+            }
           }}
         >
           <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
@@ -224,7 +240,7 @@ export default function ProvidersListPage() {
   ) : null;
 
   const renderItem = ({ item }: { item: Provider }) => {
-    const isSelected = isSelectMode && selectedProvider?.id === item.id;
+    const isSelected = isSelectMode && selectedProviderId === item.id;
 
     return (
       <TouchableOpacity
@@ -305,7 +321,7 @@ export default function ProvidersListPage() {
         }
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
-        extraData={selectedProvider?.id}
+        extraData={selectedProviderId}
       />
       {canAdd && (
         <TouchableOpacity

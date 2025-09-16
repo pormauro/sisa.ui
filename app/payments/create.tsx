@@ -11,8 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -25,16 +24,25 @@ import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  buildSelectionPath,
+  CLEAR_SELECTION_VALUE,
+  getSingleParamValue,
+} from '@/utils/selection';
 
 export default function CreatePayment() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    creditorClientId?: string;
+    chargeClientId?: string;
+    creditorProviderId?: string;
+  }>();
   const { addPayment } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient } = useContext(ClientsContext);
-  const isFocused = useIsFocused();
+  const { providers } = useContext(ProvidersContext);
+  const { clients } = useContext(ClientsContext);
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -52,12 +60,6 @@ export default function CreatePayment() {
   const [chargeClientId, setChargeClientId] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [selectingClientFor, setSelectingClientFor] = useState<'creditor' | 'charge' | null>(
-    null
-  );
-  const [selectingProviderFor, setSelectingProviderFor] = useState<'creditor' | null>(
-    null
-  );
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -98,45 +100,62 @@ export default function CreatePayment() {
     }
   }, [permissions, router]);
 
-  useEffect(() => {
-    if (!isFocused) return;
-    if (!selectedClient || !selectingClientFor) return;
+  const creditorClientIdParam = getSingleParamValue(params.creditorClientId);
+  const chargeClientIdParam = getSingleParamValue(params.chargeClientId);
+  const creditorProviderIdParam = getSingleParamValue(params.creditorProviderId);
 
-    if (selectingClientFor === 'creditor') {
-      setCreditorClientId(selectedClient.id.toString());
-    } else if (selectingClientFor === 'charge') {
-      setChargeClientId(selectedClient.id.toString());
+  useEffect(() => {
+    if (creditorClientIdParam === undefined) return;
+    if (creditorClientIdParam === CLEAR_SELECTION_VALUE) {
+      setCreditorClientId('');
+    } else {
+      setCreditorClientId(creditorClientIdParam);
     }
-
-    setSelectingClientFor(null);
-  }, [isFocused, selectedClient, selectingClientFor]);
+    router.replace('/payments/create');
+  }, [creditorClientIdParam, router]);
 
   useEffect(() => {
-    if (!isFocused) return;
-    if (!selectedProvider || selectingProviderFor !== 'creditor') return;
+    if (chargeClientIdParam === undefined) return;
+    if (chargeClientIdParam === CLEAR_SELECTION_VALUE) {
+      setChargeClientId('');
+    } else {
+      setChargeClientId(chargeClientIdParam);
+    }
+    router.replace('/payments/create');
+  }, [chargeClientIdParam, router]);
 
-    setCreditorProviderId(selectedProvider.id.toString());
-    setSelectingProviderFor(null);
-  }, [isFocused, selectedProvider, selectingProviderFor]);
+  useEffect(() => {
+    if (creditorProviderIdParam === undefined) return;
+    if (creditorProviderIdParam === CLEAR_SELECTION_VALUE) {
+      setCreditorProviderId('');
+    } else {
+      setCreditorProviderId(creditorProviderIdParam);
+    }
+    router.replace('/payments/create');
+  }, [creditorProviderIdParam, router]);
+
 
   const handleOpenClientSelector = useCallback(
     (target: 'creditor' | 'charge') => {
-      setSelectingClientFor(target);
-      const currentId = target === 'creditor' ? creditorClientId : chargeClientId;
-      const query = currentId
-        ? `?select=1&selectedId=${encodeURIComponent(currentId)}`
-        : '?select=1';
-      router.push(`/clients${query}`);
+      const selectedId = target === 'creditor' ? creditorClientId : chargeClientId;
+      const returnParam = target === 'creditor' ? 'creditorClientId' : 'chargeClientId';
+      const path = buildSelectionPath('/clients', {
+        selectedId,
+        returnTo: '/payments/create',
+        returnParam,
+      });
+      router.push(path);
     },
     [router, creditorClientId, chargeClientId]
   );
 
   const handleOpenProviderSelector = useCallback(() => {
-    setSelectingProviderFor('creditor');
-    const query = creditorProviderId
-      ? `?select=1&selectedId=${encodeURIComponent(creditorProviderId)}`
-      : '?select=1';
-    router.push(`/providers${query}`);
+    const path = buildSelectionPath('/providers', {
+      selectedId: creditorProviderId,
+      returnTo: '/payments/create',
+      returnParam: 'creditorProviderId',
+    });
+    router.push(path);
   }, [router, creditorProviderId]);
 
   const handleSubmit = async () => {

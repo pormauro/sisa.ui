@@ -17,6 +17,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { CLEAR_SELECTION_VALUE, decodeReturnPath } from '@/utils/selection';
 
 const truthyValues = ['1', 'true', 'yes', 'on'];
 
@@ -27,13 +28,7 @@ const parseParamValue = (value: string | string[] | undefined): string | undefin
   Array.isArray(value) ? value[0] : value;
 
 export default function ClientsListPage() {
-  const {
-    clients,
-    loadClients,
-    deleteClient,
-    selectedClient,
-    setSelectedClient,
-  } = useContext(ClientsContext);
+  const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
   const params = useLocalSearchParams<{
     mode?: string;
@@ -44,8 +39,13 @@ export default function ClientsListPage() {
     keepOpen?: string;
   }>();
   const [searchQuery, setSearchQuery] = useState('');
-  const [hasClearedSelection, setHasClearedSelection] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const { permissions } = useContext(PermissionsContext);
+
+  const selectedClient = useMemo(() => {
+    if (selectedClientId == null) return null;
+    return clients.find(c => c.id === selectedClientId) ?? null;
+  }, [clients, selectedClientId]);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -72,7 +72,15 @@ export default function ClientsListPage() {
 
   const selectedIdParam =
     parseParamValue(params.selectedId) ?? parseParamValue(params.selected);
-  const parsedSelectedId = selectedIdParam ? Number.parseInt(selectedIdParam, 10) : NaN;
+  const returnToParam = parseParamValue(params.returnTo);
+  const returnParam = parseParamValue(params.returnParam);
+  const returnToPath = decodeReturnPath(returnToParam);
+
+  const shouldClearFromParams = selectedIdParam === CLEAR_SELECTION_VALUE;
+  const parsedSelectedId =
+    selectedIdParam && !shouldClearFromParams
+      ? Number.parseInt(selectedIdParam, 10)
+      : NaN;
   const selectedIdFromParams = Number.isNaN(parsedSelectedId)
     ? undefined
     : parsedSelectedId;
@@ -83,24 +91,23 @@ export default function ClientsListPage() {
 
   useEffect(() => {
     if (!isSelectMode) return;
-    if (!selectedIdFromParams) return;
-    if (hasClearedSelection) return;
-    const found = clients.find(c => c.id === selectedIdFromParams);
-    if (found && selectedClient?.id !== selectedIdFromParams) {
-      setSelectedClient(found);
+    if (shouldClearFromParams) {
+      setSelectedClientId(null);
+      return;
+    }
+    if (selectedIdFromParams !== undefined) {
+      setSelectedClientId(selectedIdFromParams);
+      return;
+    }
+    if (!selectedIdParam) {
+      setSelectedClientId(null);
     }
   }, [
-    clients,
     isSelectMode,
-    selectedClient,
     selectedIdFromParams,
-    setSelectedClient,
-    hasClearedSelection,
+    selectedIdParam,
+    shouldClearFromParams,
   ]);
-
-  useEffect(() => {
-    setHasClearedSelection(false);
-  }, [selectedIdFromParams]);
 
   const fuse = useMemo(
     () =>
@@ -166,19 +173,19 @@ export default function ClientsListPage() {
         router.push(`/clients/viewModal?id=${client.id}`);
         return;
       }
-      setHasClearedSelection(false);
-      setSelectedClient(client);
+      setSelectedClientId(client.id);
       if (!stayOnSelect) {
-        router.back();
+        if (returnToPath && returnParam) {
+          router.replace({
+            pathname: returnToPath,
+            params: { [returnParam]: String(client.id) },
+          });
+        } else {
+          router.back();
+        }
       }
     },
-    [
-      isSelectMode,
-      router,
-      setSelectedClient,
-      stayOnSelect,
-      setHasClearedSelection,
-    ]
+    [isSelectMode, router, stayOnSelect, returnToPath, returnParam]
   );
 
   const listHeader = isSelectMode ? (
@@ -201,8 +208,17 @@ export default function ClientsListPage() {
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
           onPress={() => {
-            setHasClearedSelection(true);
-            setSelectedClient(null);
+            setSelectedClientId(null);
+            if (!stayOnSelect) {
+              if (returnToPath && returnParam) {
+                router.replace({
+                  pathname: returnToPath,
+                  params: { [returnParam]: CLEAR_SELECTION_VALUE },
+                });
+              } else {
+                router.back();
+              }
+            }
           }}
         >
           <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
@@ -212,7 +228,7 @@ export default function ClientsListPage() {
   ) : null;
 
   const renderItem = ({ item }: { item: Client }) => {
-    const isSelected = isSelectMode && selectedClient?.id === item.id;
+    const isSelected = isSelectMode && selectedClientId === item.id;
 
     return (
       <TouchableOpacity
@@ -290,7 +306,7 @@ export default function ClientsListPage() {
         }
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
-        extraData={selectedClient?.id}
+        extraData={selectedClientId}
       />
       {canAddClient && (
         <TouchableOpacity

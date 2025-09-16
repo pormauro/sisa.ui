@@ -1,7 +1,6 @@
 // app/receipts/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
-import { useIsFocused } from '@react-navigation/native';
 import {
   View,
   TextInput,
@@ -26,6 +25,11 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  buildSelectionPath,
+  CLEAR_SELECTION_VALUE,
+  getSingleParamValue,
+} from '@/utils/selection';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -33,14 +37,19 @@ export default function ReceiptDetailPage() {
   const canDelete = permissions.includes('deleteReceipt');
 
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    payerClientId?: string;
+    payerProviderId?: string;
+    providerId?: string;
+  }>();
+  const { id } = params;
   const receiptId = Number(id);
   const { receipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient } = useContext(ClientsContext);
-  const isFocused = useIsFocused();
+  const { providers } = useContext(ProvidersContext);
+  const { clients } = useContext(ClientsContext);
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -59,8 +68,6 @@ export default function ReceiptDetailPage() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [selectingProviderFor, setSelectingProviderFor] =
-    useState<'payer' | 'payee' | null>(null);
 
   const selectedClientName = useMemo(() => {
     if (!payerClientId) return '';
@@ -107,6 +114,40 @@ export default function ReceiptDetailPage() {
     }
   }, [permissions]);
 
+  const payerClientIdParam = getSingleParamValue(params.payerClientId);
+  const payerProviderIdParam = getSingleParamValue(params.payerProviderId);
+  const providerIdParam = getSingleParamValue(params.providerId);
+
+  useEffect(() => {
+    if (payerClientIdParam === undefined) return;
+    if (payerClientIdParam === CLEAR_SELECTION_VALUE) {
+      setPayerClientId('');
+    } else {
+      setPayerClientId(payerClientIdParam);
+    }
+    router.replace({ pathname: `/receipts/${receiptId}` });
+  }, [payerClientIdParam, router, receiptId]);
+
+  useEffect(() => {
+    if (payerProviderIdParam === undefined) return;
+    if (payerProviderIdParam === CLEAR_SELECTION_VALUE) {
+      setPayerProviderId('');
+    } else {
+      setPayerProviderId(payerProviderIdParam);
+    }
+    router.replace({ pathname: `/receipts/${receiptId}` });
+  }, [payerProviderIdParam, router, receiptId]);
+
+  useEffect(() => {
+    if (providerIdParam === undefined) return;
+    if (providerIdParam === CLEAR_SELECTION_VALUE) {
+      setProviderId('');
+    } else {
+      setProviderId(providerIdParam);
+    }
+    router.replace({ pathname: `/receipts/${receiptId}` });
+  }, [providerIdParam, router, receiptId]);
+
   useEffect(() => {
     if (receipt) {
       setReceiptDate(new Date(receipt.receipt_date.replace(' ', 'T')));
@@ -137,42 +178,26 @@ export default function ReceiptDetailPage() {
     }
   }, [receipt]);
 
-  useEffect(() => {
-    if (selectedClient) {
-      setPayerClientId(String(selectedClient.id));
-    }
-  }, [selectedClient]);
-
-  useEffect(() => {
-    if (!isFocused) return;
-    if (!selectedProvider || !selectingProviderFor) return;
-
-    if (selectingProviderFor === 'payer') {
-      setPayerProviderId(String(selectedProvider.id));
-    } else if (selectingProviderFor === 'payee') {
-      setProviderId(String(selectedProvider.id));
-    }
-
-    setSelectingProviderFor(null);
-  }, [isFocused, selectedProvider, selectingProviderFor]);
 
   const handleOpenPayerProviderSelector = useCallback(() => {
     if (!canEdit) return;
-    setSelectingProviderFor('payer');
-    const query = payerProviderId
-      ? `?select=1&selectedId=${encodeURIComponent(payerProviderId)}`
-      : '?select=1';
-    router.push(`/providers${query}`);
-  }, [canEdit, router, payerProviderId]);
+    const path = buildSelectionPath('/providers', {
+      selectedId: payerProviderId,
+      returnTo: `/receipts/${receiptId}`,
+      returnParam: 'payerProviderId',
+    });
+    router.push(path);
+  }, [canEdit, router, payerProviderId, receiptId]);
 
   const handleOpenPayProviderSelector = useCallback(() => {
     if (!canEdit) return;
-    setSelectingProviderFor('payee');
-    const query = providerId
-      ? `?select=1&selectedId=${encodeURIComponent(providerId)}`
-      : '?select=1';
-    router.push(`/providers${query}`);
-  }, [canEdit, router, providerId]);
+    const path = buildSelectionPath('/providers', {
+      selectedId: providerId,
+      returnTo: `/receipts/${receiptId}`,
+      returnParam: 'providerId',
+    });
+    router.push(path);
+  }, [canEdit, router, providerId, receiptId]);
 
   if (!receipt) {
     return (
@@ -331,11 +356,15 @@ export default function ReceiptDetailPage() {
               { backgroundColor: inputBackground, borderColor },
               !canEdit ? styles.selectInputDisabled : null,
             ]}
-            onPress={() => {
-              if (!canEdit) return;
-              const targetId = payerClientId ? payerClientId : '';
-              router.push(`/clients?select=1&selectedId=${targetId}`);
-            }}
+        onPress={() => {
+          if (!canEdit) return;
+          const path = buildSelectionPath('/clients', {
+            selectedId: payerClientId,
+            returnTo: `/receipts/${receiptId}`,
+            returnParam: 'payerClientId',
+          });
+          router.push(path);
+        }}
             disabled={!canEdit}
             activeOpacity={0.7}
           >

@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
@@ -28,15 +28,18 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  buildSelectionPath,
+  CLEAR_SELECTION_VALUE,
+  getSingleParamValue,
+} from '@/utils/selection';
 
 export default function CreateJobScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ selectedClientId?: string }>();
   const { addJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
-  const {
-    selectedClient: selectedClientFromContext,
-    setSelectedClient: setSelectedClientContext,
-  } = useContext(ClientsContext);
+  const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
@@ -96,6 +99,18 @@ export default function CreateJobScreen() {
     }
   }, [permissions]);
 
+  const selectedClientParam = getSingleParamValue(params.selectedClientId);
+
+  useEffect(() => {
+    if (selectedClientParam === undefined) return;
+    if (selectedClientParam === CLEAR_SELECTION_VALUE) {
+      setSelectedClient('');
+    } else {
+      setSelectedClient(selectedClientParam);
+    }
+    router.replace('/jobs/create');
+  }, [selectedClientParam, router]);
+
   const filteredFolders = useMemo(() => {
     if (!selectedClient) return [];
     const cid = parseInt(selectedClient, 10);
@@ -103,34 +118,27 @@ export default function CreateJobScreen() {
   }, [folders, selectedClient]);
 
   useEffect(() => {
-    if (!selectedClientFromContext) return;
-    const id = selectedClientFromContext.id.toString();
-    setSelectedClient(id);
-    setSelectedClientData(selectedClientFromContext);
+    if (!selectedClient) {
+      setSelectedClientData(null);
+      setSelectedFolder('');
+      setSelectedTariff('');
+      setManualAmount('');
+      return;
+    }
+    const client = clients.find(c => c.id.toString() === selectedClient) ?? null;
+    setSelectedClientData(client);
     setSelectedFolder('');
-    if (selectedClientFromContext.tariff_id) {
-      const clientTariff = tariffs.find(
-        t => t.id === selectedClientFromContext.tariff_id
-      );
+    if (client?.tariff_id) {
+      const clientTariff = tariffs.find(t => t.id === client.tariff_id);
       if (clientTariff && new Date(jobDate) >= new Date(clientTariff.last_update)) {
         setSelectedTariff(clientTariff.id.toString());
         setManualAmount(clientTariff.amount.toString());
-      } else {
-        setSelectedTariff('');
-        setManualAmount('');
+        return;
       }
-    } else {
-      setSelectedTariff('');
-      setManualAmount('');
     }
-    setSelectedClientContext(null);
-  }, [jobDate, selectedClientFromContext, setSelectedClientContext, tariffs]);
-
-  useEffect(() => {
-    if (!selectedClient) {
-      setSelectedClientData(null);
-    }
-  }, [selectedClient]);
+    setSelectedTariff('');
+    setManualAmount('');
+  }, [selectedClient, clients, tariffs, jobDate]);
 
   const statusItems = useMemo(
     () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
@@ -235,8 +243,12 @@ export default function CreateJobScreen() {
       <TouchableOpacity
         style={[styles.input, styles.selectionButton, { backgroundColor: inputBackground, borderColor }]}
         onPress={() => {
-          const query = selectedClient ? `&selectedId=${selectedClient}` : '';
-          router.push(`/clients?select=1${query}`);
+          const path = buildSelectionPath('/clients', {
+            selectedId: selectedClient,
+            returnTo: '/jobs/create',
+            returnParam: 'selectedClientId',
+          });
+          router.push(path);
         }}
       >
         <ThemedText style={{ color: selectedClientData ? inputTextColor : placeholderColor }}>

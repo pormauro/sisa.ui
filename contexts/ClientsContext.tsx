@@ -32,8 +32,6 @@ interface ClientsContextValue {
     client: Omit<Client, 'id' | 'version'>
   ) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
-  selectedClient: Client | null;
-  setSelectedClient: (client: Client | null) => void;
 }
 
 export const ClientsContext = createContext<ClientsContextValue>({
@@ -42,13 +40,10 @@ export const ClientsContext = createContext<ClientsContextValue>({
   addClient: async () => null,
   updateClient: async () => false,
   deleteClient: async () => false,
-  selectedClient: null,
-  setSelectedClient: () => {},
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useState<Client[]>([]);
-  const [selectedClient, setSelectedClientState] = useState<Client | null>(null);
   const { token } = useContext(AuthContext);
 
   const loadClients = useCallback(async () => {
@@ -60,11 +55,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       if (data.clients) {
         const fetchedClients = data.clients as Client[];
         setClients(fetchedClients);
-        setSelectedClientState(prev => {
-          if (!prev) return null;
-          const refreshed = fetchedClients.find(c => c.id === prev.id);
-          return refreshed ?? null;
-        });
       }
     } catch (err) {
       console.error('Error loading clients:', err);
@@ -92,7 +82,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             ...clientData,
           };
           setClients(prev => [...prev, newClient]);
-          setSelectedClientState(newClient);
           return newClient;
         }
       } catch (err) {
@@ -121,9 +110,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           setClients(prev =>
             prev.map(c => (c.id === id ? { ...c, ...clientData } : c))
           );
-          setSelectedClientState(prev =>
-            prev && prev.id === id ? { ...prev, ...clientData } : prev
-          );
           return true;
         }
       } catch (err) {
@@ -143,7 +129,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const data = await res.json();
       if (data.message === 'Client deleted successfully') {
         setClients(prev => prev.filter(c => c.id !== id));
-        setSelectedClientState(prev => (prev && prev.id === id ? null : prev));
         return true;
       }
     } catch (err) {
@@ -164,8 +149,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         addClient,
         updateClient,
         deleteClient,
-        selectedClient,
-        setSelectedClient: setSelectedClientState,
       }}
     >
       {children}
