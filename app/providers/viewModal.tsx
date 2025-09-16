@@ -33,7 +33,7 @@ export default function ViewProviderModal() {
 
       {provider.tax_id ? (
         <>
-          <ThemedText style={styles.label}>Tax ID</ThemedText>
+          <ThemedText style={styles.label}>CUIT</ThemedText>
           <ThemedText style={styles.value}>{provider.tax_id}</ThemedText>
         </>
       ) : null}
