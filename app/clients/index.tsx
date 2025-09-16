@@ -26,6 +26,19 @@ const isTruthy = (value?: string) =>
 const parseParamValue = (value: string | string[] | undefined): string | undefined =>
   Array.isArray(value) ? value[0] : value;
 
+const resolveSecondaryInfo = (client: Client): string | null => {
+  const candidates = [client.email, client.tax_id, client.phone, client.address];
+  for (const candidate of candidates) {
+    if (candidate) {
+      const trimmed = candidate.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return null;
+};
+
 export default function ClientsListPage() {
   const {
     clients,
@@ -104,8 +117,13 @@ export default function ClientsListPage() {
 
   const fuse = useMemo(
     () =>
-      new Fuse(clients, {
-        keys: ['business_name', 'tax_id', 'email', 'address'],
+      new Fuse<Client>(clients, {
+        keys: [
+          'business_name',
+          { name: 'tax_id', getFn: (client) => client.tax_id ?? '' },
+          { name: 'email', getFn: (client) => client.email ?? '' },
+          { name: 'address', getFn: (client) => client.address ?? '' },
+        ],
       }),
     [clients]
   );
@@ -214,6 +232,8 @@ export default function ClientsListPage() {
   const renderItem = ({ item }: { item: Client }) => {
     const isSelected = isSelectMode && selectedClient?.id === item.id;
 
+    const secondaryInfo = resolveSecondaryInfo(item);
+
     return (
       <TouchableOpacity
         style={[
@@ -231,7 +251,7 @@ export default function ClientsListPage() {
           <CircleImagePicker fileId={item.brand_file_id} size={50} />
           <View style={styles.itemInfo}>
             <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-            <ThemedText>{item.email}</ThemedText>
+            {secondaryInfo ? <ThemedText>{secondaryInfo}</ThemedText> : null}
           </View>
         </View>
 

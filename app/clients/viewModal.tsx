@@ -20,9 +20,21 @@ export default function ViewClientModal() {
 
   const background = useThemeColor({}, 'background');
 
+  const renderField = (label: string, value: string | null | undefined) => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return (
+      <>
+        <ThemedText style={styles.label}>{label}</ThemedText>
+        <ThemedText style={styles.value}>{trimmed}</ThemedText>
+      </>
+    );
+  };
+
   if (!client) {
     return (
-      <View style={[styles.container, { backgroundColor: background }]}> 
+      <View style={[styles.container, { backgroundColor: background }]}>
         <ThemedText>Cliente no encontrado</ThemedText>
       </View>
     );
@@ -32,32 +44,15 @@ export default function ViewClientModal() {
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
       <CircleImagePicker fileId={client.brand_file_id} size={200} editable={false} />
 
-      <ThemedText style={styles.label}>Nombre del Negocio</ThemedText>
-      <ThemedText style={styles.value}>{client.business_name}</ThemedText>
-
-      <ThemedText style={styles.label}>CUIT</ThemedText>
-      <ThemedText style={styles.value}>{client.tax_id}</ThemedText>
-
-      <ThemedText style={styles.label}>Email</ThemedText>
-      <ThemedText style={styles.value}>{client.email}</ThemedText>
-
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <ThemedText style={styles.value}>{client.phone}</ThemedText>
-
-      <ThemedText style={styles.label}>Dirección</ThemedText>
-      <ThemedText style={styles.value}>{client.address}</ThemedText>
-
-      <ThemedText style={styles.label}>Tarifa</ThemedText>
-      <ThemedText style={styles.value}>{tariff ? `${tariff.name} - ${tariff.amount}` : 'Sin Tarifa'}</ThemedText>
-
-      <ThemedText style={styles.label}>ID</ThemedText>
-      <ThemedText style={styles.value}>{client.id}</ThemedText>
-
-      <ThemedText style={styles.label}>Fecha de creación</ThemedText>
-      <ThemedText style={styles.value}>{client.created_at}</ThemedText>
-
-      <ThemedText style={styles.label}>Fecha de modificación</ThemedText>
-      <ThemedText style={styles.value}>{client.updated_at}</ThemedText>
+      {renderField('Nombre del Negocio', client.business_name)}
+      {renderField('CUIT', client.tax_id)}
+      {renderField('Email', client.email)}
+      {renderField('Teléfono', client.phone)}
+      {renderField('Dirección', client.address)}
+      {renderField('Tarifa', tariff ? `${tariff.name} - ${tariff.amount}` : null)}
+      {renderField('ID', String(client.id))}
+      {renderField('Fecha de creación', client.created_at)}
+      {renderField('Fecha de modificación', client.updated_at)}
 
       <View style={styles.editButton}>
         <Button title="Editar" onPress={() => router.push(`/clients/${client.id}`)} />

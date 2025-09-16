@@ -3,13 +3,24 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { ClientsContext, Client } from '@/contexts/ClientsContext';
+import { ClientsContext, ClientPayload } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
+
+const sanitizeOptionalField = (value: string): string | null => {
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+};
+
+const sanitizeBrandField = (value: string | null): string | null => {
+  if (value === null || value === undefined) return null;
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+};
 
 export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -53,13 +64,17 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     if (client) {
-      setBusinessName(client.business_name);
-      setTaxId(client.tax_id);
-      setEmail(client.email);
-      setPhone(client.phone);
-      setAddress(client.address);
-      setBrandFileId(client.brand_file_id);
-      setTariffId(client.tariff_id ? client.tariff_id.toString() : '');
+      setBusinessName(client.business_name ?? '');
+      setTaxId(client.tax_id ?? '');
+      setEmail(client.email ?? '');
+      setPhone(client.phone ?? '');
+      setAddress(client.address ?? '');
+      setBrandFileId(client.brand_file_id ?? null);
+      setTariffId(
+        client.tariff_id !== null && client.tariff_id !== undefined
+          ? client.tariff_id.toString()
+          : ''
+      );
     }
   }, [client]);
 
@@ -86,15 +101,19 @@ export default function ClientDetailPage() {
           style: 'default',
           onPress: async () => {
             setLoading(true);
-            const success = await updateClient(clientId, {
-              business_name: businessName,
-              tax_id: taxId,
-              email,
-              phone,
-              address,
-              brand_file_id: brandFileId,
-              tariff_id: tariffId ? parseInt(tariffId, 10) : null,
-            });
+            const parsedTariffId = tariffId ? Number.parseInt(tariffId, 10) : null;
+
+            const payload: ClientPayload = {
+              business_name: businessName.trim(),
+              tax_id: sanitizeOptionalField(taxId),
+              email: sanitizeOptionalField(email),
+              phone: sanitizeOptionalField(phone),
+              address: sanitizeOptionalField(address),
+              brand_file_id: sanitizeBrandField(brandFileId),
+              tariff_id: Number.isNaN(parsedTariffId) ? null : parsedTariffId,
+            };
+
+            const success = await updateClient(clientId, payload);
             setLoading(false);
             if (success) {
               Alert.alert('Éxito', 'Cliente actualizado');
