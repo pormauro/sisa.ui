@@ -38,8 +38,8 @@ export default function ReceiptDetailPage() {
   const { receipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const { providers, selectedProvider } = useContext(ProvidersContext);
+  const { clients, selectedClient } = useContext(ClientsContext);
   const isFocused = useIsFocused();
 
   const receipt = receipts.find(r => r.id === receiptId);
@@ -140,9 +140,8 @@ export default function ReceiptDetailPage() {
   useEffect(() => {
     if (selectedClient) {
       setPayerClientId(String(selectedClient.id));
-      setSelectedClient(null);
     }
-  }, [selectedClient, setSelectedClient]);
+  }, [selectedClient]);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -155,8 +154,7 @@ export default function ReceiptDetailPage() {
     }
 
     setSelectingProviderFor(null);
-    setSelectedProvider(null);
-  }, [isFocused, selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [isFocused, selectedProvider, selectingProviderFor]);
 
   const handleOpenPayerProviderSelector = useCallback(() => {
     if (!canEdit) return;

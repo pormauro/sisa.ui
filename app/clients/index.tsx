@@ -86,7 +86,7 @@ export default function ClientsListPage() {
     if (!selectedIdFromParams) return;
     if (hasClearedSelection) return;
     const found = clients.find(c => c.id === selectedIdFromParams);
-    if (found && (!selectedClient || selectedClient.id === selectedIdFromParams)) {
+    if (found && selectedClient?.id !== selectedIdFromParams) {
       setSelectedClient(found);
     }
   }, [
