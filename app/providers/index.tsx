@@ -35,6 +35,17 @@ const isTruthy = (value?: string) =>
 const parseParamValue = (value: string | string[] | undefined): string | undefined =>
   Array.isArray(value) ? value[0] : value;
 
+const decodeTextParam = (value: string | string[] | undefined) => {
+  const parsed = parseParamValue(value);
+  if (parsed == null || parsed === '') return undefined;
+  try {
+    return decodeURIComponent(parsed);
+  } catch (error) {
+    console.warn('Failed to decode selection text param', error);
+    return parsed;
+  }
+};
+
 export default function ProvidersListPage() {
   const { providers, loadProviders, deleteProvider } = useContext(ProvidersContext);
   const router = useRouter();
@@ -45,6 +56,11 @@ export default function ProvidersListPage() {
     selected?: string;
     stay?: string;
     keepOpen?: string;
+    selectTitle?: string;
+    selectSubtitle?: string;
+    selectedLabel?: string;
+    pickerPlaceholder?: string;
+    clearLabel?: string;
   }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -79,6 +95,23 @@ export default function ProvidersListPage() {
 
   const stayParam = parseParamValue(params.stay) ?? parseParamValue(params.keepOpen);
   const stayOnSelect = isTruthy(stayParam);
+
+  const selectTitle =
+    decodeTextParam(params.selectTitle) ?? 'Selecciona un proveedor';
+  const rawSubtitle =
+    decodeTextParam(params.selectSubtitle) ??
+    'Toca un proveedor para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.';
+  const selectSubtitle = rawSubtitle.trim().length > 0 ? rawSubtitle : undefined;
+  const rawSelectedLabel =
+    decodeTextParam(params.selectedLabel) ?? 'Proveedor seleccionado:';
+  const selectedLabelText =
+    rawSelectedLabel.trim().length > 0 ? rawSelectedLabel : undefined;
+  const rawClearLabel =
+    decodeTextParam(params.clearLabel) ?? 'Limpiar selección';
+  const clearSelectionText =
+    rawClearLabel.trim().length > 0 ? rawClearLabel : undefined;
+  const pickerPlaceholder =
+    decodeTextParam(params.pickerPlaceholder) ?? '-- Selecciona un proveedor --';
 
   const selectedIdParam =
     parseParamValue(params.selectedId) ?? parseParamValue(params.selected);
@@ -245,10 +278,10 @@ export default function ProvidersListPage() {
         { backgroundColor: selectInfoBackground, borderColor: selectInfoBorder },
       ]}
     >
-      <ThemedText style={styles.selectHeaderTitle}>Selecciona un proveedor</ThemedText>
-      <ThemedText style={styles.selectHeaderSubtitle}>
-        Toca un proveedor para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.
-      </ThemedText>
+      <ThemedText style={styles.selectHeaderTitle}>{selectTitle}</ThemedText>
+      {selectSubtitle && (
+        <ThemedText style={styles.selectHeaderSubtitle}>{selectSubtitle}</ThemedText>
+      )}
       <View
         style={[
           styles.selectPickerContainer,
@@ -263,7 +296,7 @@ export default function ProvidersListPage() {
           style={[styles.selectPicker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
-          <Picker.Item label="-- Selecciona un proveedor --" value="" />
+          <Picker.Item label={pickerPlaceholder} value="" />
           {providers.map(provider => (
             <Picker.Item
               key={provider.id}
@@ -275,15 +308,16 @@ export default function ProvidersListPage() {
       </View>
       {selectedProvider && (
         <ThemedText style={styles.selectHeaderCurrent}>
-          Proveedor seleccionado: {selectedProvider.business_name}
+          {selectedLabelText ? `${selectedLabelText} ` : ''}
+          {selectedProvider.business_name}
         </ThemedText>
       )}
-      {selectedProvider && (
+      {selectedProvider && clearSelectionText && (
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
           onPress={clearProviderSelection}
         >
-          <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
+          <ThemedText style={styles.clearSelectionText}>{clearSelectionText}</ThemedText>
         </TouchableOpacity>
       )}
     </View>

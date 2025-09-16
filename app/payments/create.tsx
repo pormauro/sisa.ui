@@ -11,7 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -24,19 +24,10 @@ import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import {
-  buildSelectionPath,
-  CLEAR_SELECTION_VALUE,
-  getSingleParamValue,
-} from '@/utils/selection';
+import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function CreatePayment() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    creditorClientId?: string;
-    chargeClientId?: string;
-    creditorProviderId?: string;
-  }>();
   const { addPayment } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
@@ -140,63 +131,102 @@ export default function CreatePayment() {
     }
   }, [permissions, router]);
 
-  const creditorClientIdParam = getSingleParamValue(params.creditorClientId);
-  const chargeClientIdParam = getSingleParamValue(params.chargeClientId);
-  const creditorProviderIdParam = getSingleParamValue(params.creditorProviderId);
+  const creditorClientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente acreedor',
+      selectSubtitle:
+        'Toca un cliente para designarlo como acreedor del pago.',
+      selectedLabel: 'Cliente acreedor:',
+      pickerPlaceholder: '-- Selecciona cliente acreedor --',
+      clearLabel: 'Quitar cliente acreedor',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (creditorClientIdParam === undefined) return;
-    if (creditorClientIdParam === CLEAR_SELECTION_VALUE) {
-      setCreditorClientId('');
-    } else {
-      setCreditorClientId(creditorClientIdParam);
-    }
-    router.replace('/payments/create');
-  }, [creditorClientIdParam, router]);
+  const chargeClientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente a cobrar',
+      selectSubtitle: 'Elige el cliente al que se le cargará el pago.',
+      selectedLabel: 'Cliente a cobrar:',
+      pickerPlaceholder: '-- Selecciona cliente a cobrar --',
+      clearLabel: 'Quitar cliente a cobrar',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (chargeClientIdParam === undefined) return;
-    if (chargeClientIdParam === CLEAR_SELECTION_VALUE) {
-      setChargeClientId('');
-    } else {
-      setChargeClientId(chargeClientIdParam);
-    }
-    router.replace('/payments/create');
-  }, [chargeClientIdParam, router]);
+  const creditorProviderSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el proveedor acreedor',
+      selectSubtitle: 'Elige el proveedor al que corresponde el pago.',
+      selectedLabel: 'Proveedor acreedor:',
+      pickerPlaceholder: '-- Selecciona proveedor acreedor --',
+      clearLabel: 'Quitar proveedor acreedor',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (creditorProviderIdParam === undefined) return;
-    if (creditorProviderIdParam === CLEAR_SELECTION_VALUE) {
-      setCreditorProviderId('');
-    } else {
-      setCreditorProviderId(creditorProviderIdParam);
-    }
-    router.replace('/payments/create');
-  }, [creditorProviderIdParam, router]);
+  const handleCreditorClientSelection = useCallback(
+    (value: string | null) => {
+      setCreditorClientId(value ?? '');
+    },
+    []
+  );
 
+  const handleChargeClientSelection = useCallback(
+    (value: string | null) => {
+      setChargeClientId(value ?? '');
+    },
+    []
+  );
+
+  const handleCreditorProviderSelection = useCallback(
+    (value: string | null) => {
+      setCreditorProviderId(value ?? '');
+    },
+    []
+  );
+
+  const { openSelector: openCreditorClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'creditorClientId',
+    returnPath: '/payments/create',
+    currentValue: creditorClientId || null,
+    onSelection: handleCreditorClientSelection,
+    extraParams: creditorClientSelectionTexts,
+  });
+
+  const { openSelector: openChargeClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'chargeClientId',
+    returnPath: '/payments/create',
+    currentValue: chargeClientId || null,
+    onSelection: handleChargeClientSelection,
+    extraParams: chargeClientSelectionTexts,
+  });
+
+  const { openSelector: openCreditorProviderSelector } = useSelectionNavigation({
+    selectionPath: '/providers',
+    paramName: 'creditorProviderId',
+    returnPath: '/payments/create',
+    currentValue: creditorProviderId || null,
+    onSelection: handleCreditorProviderSelection,
+    extraParams: creditorProviderSelectionTexts,
+  });
 
   const handleOpenClientSelector = useCallback(
     (target: 'creditor' | 'charge') => {
-      const selectedId = target === 'creditor' ? creditorClientId : chargeClientId;
-      const returnParam = target === 'creditor' ? 'creditorClientId' : 'chargeClientId';
-      const path = buildSelectionPath('/clients', {
-        selectedId,
-        returnTo: '/payments/create',
-        returnParam,
-      });
-      router.push(path);
+      if (target === 'creditor') {
+        openCreditorClientSelector();
+      } else {
+        openChargeClientSelector();
+      }
     },
-    [router, creditorClientId, chargeClientId]
+    [openCreditorClientSelector, openChargeClientSelector]
   );
 
   const handleOpenProviderSelector = useCallback(() => {
-    const path = buildSelectionPath('/providers', {
-      selectedId: creditorProviderId,
-      returnTo: '/payments/create',
-      returnParam: 'creditorProviderId',
-    });
-    router.push(path);
-  }, [router, creditorProviderId]);
+    openCreditorProviderSelector();
+  }, [openCreditorProviderSelector]);
 
   const handleSubmit = async () => {
     if (!categoryId || !price) {

@@ -27,11 +27,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import {
-  buildSelectionPath,
-  CLEAR_SELECTION_VALUE,
-  getSingleParamValue,
-} from '@/utils/selection';
+import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -202,18 +198,37 @@ export default function EditJobScreen() {
     [jobDate, manualTariffItem, tariffs]
   );
 
-  const selectedClientParam = getSingleParamValue(params.selectedClientId);
+  const clientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente',
+      selectSubtitle: 'Elige el cliente asociado a este trabajo.',
+      selectedLabel: 'Cliente seleccionado:',
+      pickerPlaceholder: '-- Selecciona cliente --',
+      clearLabel: 'Limpiar cliente',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (selectedClientParam === undefined) return;
-    if (selectedClientParam === CLEAR_SELECTION_VALUE) {
-      applyClientSelection(null);
-      router.replace({ pathname: `/jobs/${jobId}` });
-      return;
-    }
-    setPendingClientId(selectedClientParam);
-    router.replace({ pathname: `/jobs/${jobId}` });
-  }, [selectedClientParam, applyClientSelection, jobId, router]);
+  const handleClientSelectionFromParams = useCallback(
+    (value: string | null) => {
+      if (value === null) {
+        applyClientSelection(null);
+        setPendingClientId(null);
+        return;
+      }
+      setPendingClientId(value);
+    },
+    [applyClientSelection]
+  );
+
+  const { openSelector: openClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'selectedClientId',
+    returnPath: `/jobs/${jobId}`,
+    currentValue: selectedClient ? selectedClient.id : null,
+    onSelection: handleClientSelectionFromParams,
+    extraParams: clientSelectionTexts,
+  });
 
   useEffect(() => {
     if (!pendingClientId) return;
@@ -337,12 +352,7 @@ export default function EditJobScreen() {
         ]}
         onPress={() => {
           if (!canEdit) return;
-          const path = buildSelectionPath('/clients', {
-            selectedId: selectedClient ? selectedClient.id : undefined,
-            returnTo: `/jobs/${jobId}`,
-            returnParam: 'selectedClientId',
-          });
-          router.push(path);
+          openClientSelector();
         }}
         disabled={!canEdit}
       >

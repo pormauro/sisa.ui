@@ -11,7 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -24,19 +24,10 @@ import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import {
-  buildSelectionPath,
-  CLEAR_SELECTION_VALUE,
-  getSingleParamValue,
-} from '@/utils/selection';
+import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function CreateReceipt() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    payerClientId?: string;
-    payerProviderId?: string;
-    providerId?: string;
-  }>();
   const { addReceipt } = useContext(ReceiptsContext);
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
@@ -121,49 +112,90 @@ export default function CreateReceipt() {
     }
   }, [permissions, router]);
 
-  const payerClientIdParam = getSingleParamValue(params.payerClientId);
-  const payerProviderIdParam = getSingleParamValue(params.payerProviderId);
-  const providerIdParam = getSingleParamValue(params.providerId);
+  const payerClientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente pagador',
+      selectSubtitle: 'Elige el cliente que realizará el pago.',
+      selectedLabel: 'Cliente pagador:',
+      pickerPlaceholder: '-- Selecciona cliente pagador --',
+      clearLabel: 'Quitar cliente pagador',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (payerClientIdParam === undefined) return;
-    if (payerClientIdParam === CLEAR_SELECTION_VALUE) {
-      setPayerClientId('');
-    } else {
-      setPayerClientId(payerClientIdParam);
-    }
-    router.replace('/receipts/create');
-  }, [payerClientIdParam, router]);
+  const payerProviderSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el proveedor pagador',
+      selectSubtitle: 'Elige el proveedor que realiza el pago.',
+      selectedLabel: 'Proveedor pagador:',
+      pickerPlaceholder: '-- Selecciona proveedor pagador --',
+      clearLabel: 'Quitar proveedor pagador',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (payerProviderIdParam === undefined) return;
-    if (payerProviderIdParam === CLEAR_SELECTION_VALUE) {
-      setPayerProviderId('');
-    } else {
-      setPayerProviderId(payerProviderIdParam);
-    }
-    router.replace('/receipts/create');
-  }, [payerProviderIdParam, router]);
+  const payProviderSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el proveedor a pagar',
+      selectSubtitle: 'Elige el proveedor que recibirá el pago.',
+      selectedLabel: 'Proveedor a pagar:',
+      pickerPlaceholder: '-- Selecciona proveedor a pagar --',
+      clearLabel: 'Quitar proveedor a pagar',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (providerIdParam === undefined) return;
-    if (providerIdParam === CLEAR_SELECTION_VALUE) {
-      setProviderId('');
-    } else {
-      setProviderId(providerIdParam);
-    }
-    router.replace('/receipts/create');
-  }, [providerIdParam, router]);
+  const handlePayerClientSelection = useCallback(
+    (value: string | null) => {
+      setPayerClientId(value ?? '');
+    },
+    []
+  );
 
+  const handlePayerProviderSelection = useCallback(
+    (value: string | null) => {
+      setPayerProviderId(value ?? '');
+    },
+    []
+  );
+
+  const handlePayProviderSelection = useCallback(
+    (value: string | null) => {
+      setProviderId(value ?? '');
+    },
+    []
+  );
+
+  const { openSelector: openPayerClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'payerClientId',
+    returnPath: '/receipts/create',
+    currentValue: payerClientId || null,
+    onSelection: handlePayerClientSelection,
+    extraParams: payerClientSelectionTexts,
+  });
+
+  const { openSelector: openPayerProviderSelector } = useSelectionNavigation({
+    selectionPath: '/providers',
+    paramName: 'payerProviderId',
+    returnPath: '/receipts/create',
+    currentValue: payerProviderId || null,
+    onSelection: handlePayerProviderSelection,
+    extraParams: payerProviderSelectionTexts,
+  });
+
+  const { openSelector: openPayProviderSelector } = useSelectionNavigation({
+    selectionPath: '/providers',
+    paramName: 'providerId',
+    returnPath: '/receipts/create',
+    currentValue: providerId || null,
+    onSelection: handlePayProviderSelection,
+    extraParams: payProviderSelectionTexts,
+  });
 
   const handleOpenClientSelector = useCallback(() => {
-    const path = buildSelectionPath('/clients', {
-      selectedId: payerClientId,
-      returnTo: '/receipts/create',
-      returnParam: 'payerClientId',
-    });
-    router.push(path);
-  }, [router, payerClientId]);
+    openPayerClientSelector();
+  }, [openPayerClientSelector]);
 
   const clientButtonLabel = useMemo(() => {
     if (payerClientId) {
@@ -226,22 +258,12 @@ export default function CreateReceipt() {
   };
 
   const handleOpenPayerProviderSelector = useCallback(() => {
-    const path = buildSelectionPath('/providers', {
-      selectedId: payerProviderId,
-      returnTo: '/receipts/create',
-      returnParam: 'payerProviderId',
-    });
-    router.push(path);
-  }, [router, payerProviderId]);
+    openPayerProviderSelector();
+  }, [openPayerProviderSelector]);
 
   const handleOpenPayProviderSelector = useCallback(() => {
-    const path = buildSelectionPath('/providers', {
-      selectedId: providerId,
-      returnTo: '/receipts/create',
-      returnParam: 'providerId',
-    });
-    router.push(path);
-  }, [router, providerId]);
+    openPayProviderSelector();
+  }, [openPayProviderSelector]);
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>

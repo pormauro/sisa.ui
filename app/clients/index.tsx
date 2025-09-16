@@ -28,6 +28,17 @@ const isTruthy = (value?: string) =>
 const parseParamValue = (value: string | string[] | undefined): string | undefined =>
   Array.isArray(value) ? value[0] : value;
 
+const decodeTextParam = (value: string | string[] | undefined) => {
+  const parsed = parseParamValue(value);
+  if (parsed == null || parsed === '') return undefined;
+  try {
+    return decodeURIComponent(parsed);
+  } catch (error) {
+    console.warn('Failed to decode selection text param', error);
+    return parsed;
+  }
+};
+
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
@@ -38,6 +49,11 @@ export default function ClientsListPage() {
     selected?: string;
     stay?: string;
     keepOpen?: string;
+    selectTitle?: string;
+    selectSubtitle?: string;
+    selectedLabel?: string;
+    pickerPlaceholder?: string;
+    clearLabel?: string;
   }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -70,6 +86,23 @@ export default function ClientsListPage() {
 
   const stayParam = parseParamValue(params.stay) ?? parseParamValue(params.keepOpen);
   const stayOnSelect = isTruthy(stayParam);
+
+  const selectTitle =
+    decodeTextParam(params.selectTitle) ?? 'Selecciona un cliente';
+  const rawSubtitle =
+    decodeTextParam(params.selectSubtitle) ??
+    'Toca un cliente para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.';
+  const selectSubtitle = rawSubtitle.trim().length > 0 ? rawSubtitle : undefined;
+  const rawSelectedLabel =
+    decodeTextParam(params.selectedLabel) ?? 'Cliente seleccionado:';
+  const selectedLabelText =
+    rawSelectedLabel.trim().length > 0 ? rawSelectedLabel : undefined;
+  const rawClearLabel =
+    decodeTextParam(params.clearLabel) ?? 'Limpiar selección';
+  const clearSelectionText =
+    rawClearLabel.trim().length > 0 ? rawClearLabel : undefined;
+  const pickerPlaceholder =
+    decodeTextParam(params.pickerPlaceholder) ?? '-- Selecciona un cliente --';
 
   const selectedIdParam =
     parseParamValue(params.selectedId) ?? parseParamValue(params.selected);
@@ -233,10 +266,10 @@ export default function ClientsListPage() {
         { backgroundColor: selectInfoBackground, borderColor: selectInfoBorder },
       ]}
     >
-      <ThemedText style={styles.selectHeaderTitle}>Selecciona un cliente</ThemedText>
-      <ThemedText style={styles.selectHeaderSubtitle}>
-        Toca un cliente para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.
-      </ThemedText>
+      <ThemedText style={styles.selectHeaderTitle}>{selectTitle}</ThemedText>
+      {selectSubtitle && (
+        <ThemedText style={styles.selectHeaderSubtitle}>{selectSubtitle}</ThemedText>
+      )}
       <View
         style={[
           styles.selectPickerContainer,
@@ -249,7 +282,7 @@ export default function ClientsListPage() {
           style={[styles.selectPicker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
-          <Picker.Item label="-- Selecciona un cliente --" value="" />
+          <Picker.Item label={pickerPlaceholder} value="" />
           {clients.map(client => (
             <Picker.Item
               key={client.id}
@@ -262,15 +295,16 @@ export default function ClientsListPage() {
 
       {selectedClient && (
         <ThemedText style={styles.selectHeaderCurrent}>
-          Cliente seleccionado: {selectedClient.business_name}
+          {selectedLabelText ? `${selectedLabelText} ` : ''}
+          {selectedClient.business_name}
         </ThemedText>
       )}
-      {selectedClient && (
+      {selectedClient && clearSelectionText && (
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
           onPress={clearClientSelection}
         >
-          <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
+          <ThemedText style={styles.clearSelectionText}>{clearSelectionText}</ThemedText>
         </TouchableOpacity>
       )}
     </View>
