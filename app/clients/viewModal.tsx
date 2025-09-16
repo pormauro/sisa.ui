@@ -35,29 +35,62 @@ export default function ViewClientModal() {
       <ThemedText style={styles.label}>Nombre del Negocio</ThemedText>
       <ThemedText style={styles.value}>{client.business_name}</ThemedText>
 
-      <ThemedText style={styles.label}>CUIT</ThemedText>
-      <ThemedText style={styles.value}>{client.tax_id}</ThemedText>
+      {client.tax_id ? (
+        <>
+          <ThemedText style={styles.label}>CUIT</ThemedText>
+          <ThemedText style={styles.value}>{client.tax_id}</ThemedText>
+        </>
+      ) : null}
 
-      <ThemedText style={styles.label}>Email</ThemedText>
-      <ThemedText style={styles.value}>{client.email}</ThemedText>
+      {client.email ? (
+        <>
+          <ThemedText style={styles.label}>Email</ThemedText>
+          <ThemedText style={styles.value}>{client.email}</ThemedText>
+        </>
+      ) : null}
 
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <ThemedText style={styles.value}>{client.phone}</ThemedText>
+      {client.phone ? (
+        <>
+          <ThemedText style={styles.label}>Teléfono</ThemedText>
+          <ThemedText style={styles.value}>{client.phone}</ThemedText>
+        </>
+      ) : null}
 
-      <ThemedText style={styles.label}>Dirección</ThemedText>
-      <ThemedText style={styles.value}>{client.address}</ThemedText>
+      {client.address ? (
+        <>
+          <ThemedText style={styles.label}>Dirección</ThemedText>
+          <ThemedText style={styles.value}>{client.address}</ThemedText>
+        </>
+      ) : null}
 
-      <ThemedText style={styles.label}>Tarifa</ThemedText>
-      <ThemedText style={styles.value}>{tariff ? `${tariff.name} - ${tariff.amount}` : 'Sin Tarifa'}</ThemedText>
+      {tariff ? (
+        <>
+          <ThemedText style={styles.label}>Tarifa</ThemedText>
+          <ThemedText style={styles.value}>{`${tariff.name} - ${tariff.amount}`}</ThemedText>
+        </>
+      ) : client.tariff_id ? (
+        <>
+          <ThemedText style={styles.label}>Tarifa</ThemedText>
+          <ThemedText style={styles.value}>{client.tariff_id}</ThemedText>
+        </>
+      ) : null}
 
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{client.id}</ThemedText>
 
-      <ThemedText style={styles.label}>Fecha de creación</ThemedText>
-      <ThemedText style={styles.value}>{client.created_at}</ThemedText>
+      {client.created_at ? (
+        <>
+          <ThemedText style={styles.label}>Fecha de creación</ThemedText>
+          <ThemedText style={styles.value}>{client.created_at}</ThemedText>
+        </>
+      ) : null}
 
-      <ThemedText style={styles.label}>Fecha de modificación</ThemedText>
-      <ThemedText style={styles.value}>{client.updated_at}</ThemedText>
+      {client.updated_at ? (
+        <>
+          <ThemedText style={styles.label}>Fecha de modificación</ThemedText>
+          <ThemedText style={styles.value}>{client.updated_at}</ThemedText>
+        </>
+      ) : null}
 
       <View style={styles.editButton}>
         <Button title="Editar" onPress={() => router.push(`/clients/${client.id}`)} />
