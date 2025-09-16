@@ -100,7 +100,7 @@ export default function ProvidersListPage() {
     if (!selectedIdFromParams) return;
     if (hasClearedSelection) return;
     const found = providers.find(provider => provider.id === selectedIdFromParams);
-    if (found && (!selectedProvider || selectedProvider.id === selectedIdFromParams)) {
+    if (found && selectedProvider?.id !== selectedIdFromParams) {
       setSelectedProvider(found);
     }
   }, [

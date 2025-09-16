@@ -38,8 +38,8 @@ export default function PaymentDetailPage() {
   const { payments, updatePayment, deletePayment } = useContext(PaymentsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const { providers, selectedProvider } = useContext(ProvidersContext);
+  const { clients, selectedClient } = useContext(ClientsContext);
   const isFocused = useIsFocused();
 
   const payment = payments.find(p => p.id === paymentId);
@@ -147,14 +147,12 @@ export default function PaymentDetailPage() {
     }
 
     setSelectingClientFor(null);
-    setSelectedClient(null);
   }, [
     chargeClient,
     creditorType,
     isFocused,
     selectedClient,
     selectingClientFor,
-    setSelectedClient,
   ]);
 
   useEffect(() => {
@@ -166,13 +164,11 @@ export default function PaymentDetailPage() {
     }
 
     setSelectingProviderFor(null);
-    setSelectedProvider(null);
   }, [
     creditorType,
     isFocused,
     selectedProvider,
     selectingProviderFor,
-    setSelectedProvider,
   ]);
 
   const handleOpenProviderSelector = useCallback(() => {

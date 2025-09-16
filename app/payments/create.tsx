@@ -32,8 +32,8 @@ export default function CreatePayment() {
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const { providers, selectedProvider } = useContext(ProvidersContext);
+  const { clients, selectedClient } = useContext(ClientsContext);
   const isFocused = useIsFocused();
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -109,8 +109,7 @@ export default function CreatePayment() {
     }
 
     setSelectingClientFor(null);
-    setSelectedClient(null);
-  }, [isFocused, selectedClient, selectingClientFor, setSelectedClient]);
+  }, [isFocused, selectedClient, selectingClientFor]);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -118,8 +117,7 @@ export default function CreatePayment() {
 
     setCreditorProviderId(selectedProvider.id.toString());
     setSelectingProviderFor(null);
-    setSelectedProvider(null);
-  }, [isFocused, selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [isFocused, selectedProvider, selectingProviderFor]);
 
   const handleOpenClientSelector = useCallback(
     (target: 'creditor' | 'charge') => {

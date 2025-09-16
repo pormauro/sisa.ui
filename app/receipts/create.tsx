@@ -32,8 +32,8 @@ export default function CreateReceipt() {
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider, setSelectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient, setSelectedClient } = useContext(ClientsContext);
+  const { providers, selectedProvider } = useContext(ProvidersContext);
+  const { clients, selectedClient } = useContext(ClientsContext);
   const isFocused = useIsFocused();
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
@@ -80,9 +80,8 @@ export default function CreateReceipt() {
     useCallback(() => {
       if (selectedClient) {
         setPayerClientId(selectedClient.id.toString());
-        setSelectedClient(null);
       }
-    }, [selectedClient, setSelectedClient, setPayerClientId])
+    }, [selectedClient, setPayerClientId])
   );
 
   useEffect(() => {
@@ -96,8 +95,7 @@ export default function CreateReceipt() {
     }
 
     setSelectingProviderFor(null);
-    setSelectedProvider(null);
-  }, [isFocused, selectedProvider, selectingProviderFor, setSelectedProvider]);
+  }, [isFocused, selectedProvider, selectingProviderFor]);
 
   const handleOpenClientSelector = useCallback(() => {
     const query = payerClientId
