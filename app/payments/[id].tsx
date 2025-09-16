@@ -25,11 +25,7 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import {
-  buildSelectionPath,
-  CLEAR_SELECTION_VALUE,
-  getSingleParamValue,
-} from '@/utils/selection';
+import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -149,46 +145,6 @@ export default function PaymentDetailPage() {
     }
   }, [permissions]);
 
-  const creditorClientIdParam = getSingleParamValue(params.creditorClientId);
-  const chargeClientIdParam = getSingleParamValue(params.chargeClientId);
-  const creditorProviderIdParam = getSingleParamValue(params.creditorProviderId);
-
-  useEffect(() => {
-    if (creditorClientIdParam === undefined) return;
-    if (creditorClientIdParam === CLEAR_SELECTION_VALUE) {
-      setCreditorClientId('');
-    } else if (creditorType === 'client') {
-      setCreditorClientId(creditorClientIdParam);
-    } else {
-      setCreditorClientId(creditorClientIdParam);
-    }
-    router.replace({ pathname: `/payments/${paymentId}` });
-  }, [creditorClientIdParam, router, paymentId, creditorType]);
-
-  useEffect(() => {
-    if (chargeClientIdParam === undefined) return;
-    if (chargeClientIdParam === CLEAR_SELECTION_VALUE) {
-      setChargeClientId('');
-    } else if (chargeClient) {
-      setChargeClientId(chargeClientIdParam);
-    } else {
-      setChargeClientId(chargeClientIdParam);
-    }
-    router.replace({ pathname: `/payments/${paymentId}` });
-  }, [chargeClientIdParam, router, paymentId, chargeClient]);
-
-  useEffect(() => {
-    if (creditorProviderIdParam === undefined) return;
-    if (creditorProviderIdParam === CLEAR_SELECTION_VALUE) {
-      setCreditorProviderId('');
-    } else if (creditorType === 'provider') {
-      setCreditorProviderId(creditorProviderIdParam);
-    } else {
-      setCreditorProviderId(creditorProviderIdParam);
-    }
-    router.replace({ pathname: `/payments/${paymentId}` });
-  }, [creditorProviderIdParam, router, paymentId, creditorType]);
-
   useEffect(() => {
     if (payment) {
       setPaymentDate(new Date(payment.payment_date.replace(' ', 'T')));
@@ -218,15 +174,94 @@ export default function PaymentDetailPage() {
   }, [payment]);
 
 
+  const paymentReturnPath = `/payments/${paymentId}`;
+
+  const creditorClientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente acreedor',
+      selectSubtitle:
+        'Toca un cliente para asignarlo como acreedor del pago.',
+      selectedLabel: 'Cliente acreedor:',
+      pickerPlaceholder: '-- Selecciona cliente acreedor --',
+      clearLabel: 'Quitar cliente acreedor',
+    }),
+    []
+  );
+
+  const chargeClientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente a cobrar',
+      selectSubtitle: 'Elige el cliente que se cobrará en el pago.',
+      selectedLabel: 'Cliente a cobrar:',
+      pickerPlaceholder: '-- Selecciona cliente a cobrar --',
+      clearLabel: 'Quitar cliente a cobrar',
+    }),
+    []
+  );
+
+  const creditorProviderSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el proveedor acreedor',
+      selectSubtitle: 'Elige el proveedor relacionado con el pago.',
+      selectedLabel: 'Proveedor acreedor:',
+      pickerPlaceholder: '-- Selecciona proveedor acreedor --',
+      clearLabel: 'Quitar proveedor acreedor',
+    }),
+    []
+  );
+
+  const handleCreditorClientSelection = useCallback(
+    (value: string | null) => {
+      setCreditorClientId(value ?? '');
+    },
+    []
+  );
+
+  const handleChargeClientSelection = useCallback(
+    (value: string | null) => {
+      setChargeClientId(value ?? '');
+    },
+    []
+  );
+
+  const handleCreditorProviderSelection = useCallback(
+    (value: string | null) => {
+      setCreditorProviderId(value ?? '');
+    },
+    []
+  );
+
+  const { openSelector: openCreditorClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'creditorClientId',
+    returnPath: paymentReturnPath,
+    currentValue: creditorClientId || null,
+    onSelection: handleCreditorClientSelection,
+    extraParams: creditorClientSelectionTexts,
+  });
+
+  const { openSelector: openChargeClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'chargeClientId',
+    returnPath: paymentReturnPath,
+    currentValue: chargeClientId || null,
+    onSelection: handleChargeClientSelection,
+    extraParams: chargeClientSelectionTexts,
+  });
+
+  const { openSelector: openCreditorProviderSelector } = useSelectionNavigation({
+    selectionPath: '/providers',
+    paramName: 'creditorProviderId',
+    returnPath: paymentReturnPath,
+    currentValue: creditorProviderId || null,
+    onSelection: handleCreditorProviderSelection,
+    extraParams: creditorProviderSelectionTexts,
+  });
+
   const handleOpenProviderSelector = useCallback(() => {
     if (!canEdit) return;
-    const path = buildSelectionPath('/providers', {
-      selectedId: creditorProviderId,
-      returnTo: `/payments/${paymentId}`,
-      returnParam: 'creditorProviderId',
-    });
-    router.push(path);
-  }, [canEdit, router, creditorProviderId, paymentId]);
+    openCreditorProviderSelector();
+  }, [canEdit, openCreditorProviderSelector]);
 
   if (!payment) {
     return (
@@ -389,16 +424,11 @@ export default function PaymentDetailPage() {
                 borderColor,
                 opacity: canEdit ? 1 : 0.6,
               },
-          ]}
-          onPress={() => {
-            if (!canEdit) return;
-            const path = buildSelectionPath('/clients', {
-              selectedId: creditorClientId,
-              returnTo: `/payments/${paymentId}`,
-              returnParam: 'creditorClientId',
-            });
-            router.push(path);
-          }}
+            ]}
+            onPress={() => {
+              if (!canEdit) return;
+              openCreditorClientSelector();
+            }}
             disabled={!canEdit}
           >
             <ThemedText
@@ -508,16 +538,11 @@ export default function PaymentDetailPage() {
                 borderColor,
                 opacity: canEdit ? 1 : 0.6,
               },
-          ]}
-          onPress={() => {
-            if (!canEdit) return;
-            const path = buildSelectionPath('/clients', {
-              selectedId: chargeClientId,
-              returnTo: `/payments/${paymentId}`,
-              returnParam: 'chargeClientId',
-            });
-            router.push(path);
-          }}
+            ]}
+            onPress={() => {
+              if (!canEdit) return;
+              openChargeClientSelector();
+            }}
             disabled={!canEdit}
           >
             <ThemedText

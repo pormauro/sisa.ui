@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
@@ -28,15 +28,10 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import {
-  buildSelectionPath,
-  CLEAR_SELECTION_VALUE,
-  getSingleParamValue,
-} from '@/utils/selection';
+import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function CreateJobScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ selectedClientId?: string }>();
   const { addJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
@@ -99,17 +94,32 @@ export default function CreateJobScreen() {
     }
   }, [permissions]);
 
-  const selectedClientParam = getSingleParamValue(params.selectedClientId);
+  const clientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente',
+      selectSubtitle: 'Elige el cliente asociado a este trabajo.',
+      selectedLabel: 'Cliente seleccionado:',
+      pickerPlaceholder: '-- Selecciona cliente --',
+      clearLabel: 'Limpiar cliente',
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (selectedClientParam === undefined) return;
-    if (selectedClientParam === CLEAR_SELECTION_VALUE) {
-      setSelectedClient('');
-    } else {
-      setSelectedClient(selectedClientParam);
-    }
-    router.replace('/jobs/create');
-  }, [selectedClientParam, router]);
+  const handleClientSelection = useCallback(
+    (value: string | null) => {
+      setSelectedClient(value ?? '');
+    },
+    []
+  );
+
+  const { openSelector: openClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'selectedClientId',
+    returnPath: '/jobs/create',
+    currentValue: selectedClient || null,
+    onSelection: handleClientSelection,
+    extraParams: clientSelectionTexts,
+  });
 
   const filteredFolders = useMemo(() => {
     if (!selectedClient) return [];
@@ -242,14 +252,7 @@ export default function CreateJobScreen() {
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
       <TouchableOpacity
         style={[styles.input, styles.selectionButton, { backgroundColor: inputBackground, borderColor }]}
-        onPress={() => {
-          const path = buildSelectionPath('/clients', {
-            selectedId: selectedClient,
-            returnTo: '/jobs/create',
-            returnParam: 'selectedClientId',
-          });
-          router.push(path);
-        }}
+        onPress={openClientSelector}
       >
         <ThemedText style={{ color: selectedClientData ? inputTextColor : placeholderColor }}>
           {selectedClientData ? selectedClientData.business_name : 'Selecciona un cliente'}

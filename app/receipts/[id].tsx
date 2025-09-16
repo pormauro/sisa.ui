@@ -25,11 +25,7 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import {
-  buildSelectionPath,
-  CLEAR_SELECTION_VALUE,
-  getSingleParamValue,
-} from '@/utils/selection';
+import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -154,40 +150,6 @@ export default function ReceiptDetailPage() {
     }
   }, [permissions]);
 
-  const payerClientIdParam = getSingleParamValue(params.payerClientId);
-  const payerProviderIdParam = getSingleParamValue(params.payerProviderId);
-  const providerIdParam = getSingleParamValue(params.providerId);
-
-  useEffect(() => {
-    if (payerClientIdParam === undefined) return;
-    if (payerClientIdParam === CLEAR_SELECTION_VALUE) {
-      setPayerClientId('');
-    } else {
-      setPayerClientId(payerClientIdParam);
-    }
-    router.replace({ pathname: `/receipts/${receiptId}` });
-  }, [payerClientIdParam, router, receiptId]);
-
-  useEffect(() => {
-    if (payerProviderIdParam === undefined) return;
-    if (payerProviderIdParam === CLEAR_SELECTION_VALUE) {
-      setPayerProviderId('');
-    } else {
-      setPayerProviderId(payerProviderIdParam);
-    }
-    router.replace({ pathname: `/receipts/${receiptId}` });
-  }, [payerProviderIdParam, router, receiptId]);
-
-  useEffect(() => {
-    if (providerIdParam === undefined) return;
-    if (providerIdParam === CLEAR_SELECTION_VALUE) {
-      setProviderId('');
-    } else {
-      setProviderId(providerIdParam);
-    }
-    router.replace({ pathname: `/receipts/${receiptId}` });
-  }, [providerIdParam, router, receiptId]);
-
   useEffect(() => {
     if (receipt) {
       setReceiptDate(new Date(receipt.receipt_date.replace(' ', 'T')));
@@ -219,25 +181,98 @@ export default function ReceiptDetailPage() {
   }, [receipt]);
 
 
+  const receiptReturnPath = `/receipts/${receiptId}`;
+
+  const payerClientSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el cliente pagador',
+      selectSubtitle: 'Elige el cliente que realizará el pago.',
+      selectedLabel: 'Cliente pagador:',
+      pickerPlaceholder: '-- Selecciona cliente pagador --',
+      clearLabel: 'Quitar cliente pagador',
+    }),
+    []
+  );
+
+  const payerProviderSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el proveedor pagador',
+      selectSubtitle: 'Elige el proveedor que realiza el pago.',
+      selectedLabel: 'Proveedor pagador:',
+      pickerPlaceholder: '-- Selecciona proveedor pagador --',
+      clearLabel: 'Quitar proveedor pagador',
+    }),
+    []
+  );
+
+  const payProviderSelectionTexts = useMemo(
+    () => ({
+      selectTitle: 'Selecciona el proveedor a pagar',
+      selectSubtitle: 'Elige el proveedor que recibirá el pago.',
+      selectedLabel: 'Proveedor a pagar:',
+      pickerPlaceholder: '-- Selecciona proveedor a pagar --',
+      clearLabel: 'Quitar proveedor a pagar',
+    }),
+    []
+  );
+
+  const handlePayerClientSelection = useCallback(
+    (value: string | null) => {
+      setPayerClientId(value ?? '');
+    },
+    []
+  );
+
+  const handlePayerProviderSelection = useCallback(
+    (value: string | null) => {
+      setPayerProviderId(value ?? '');
+    },
+    []
+  );
+
+  const handlePayProviderSelection = useCallback(
+    (value: string | null) => {
+      setProviderId(value ?? '');
+    },
+    []
+  );
+
+  const { openSelector: openPayerClientSelector } = useSelectionNavigation({
+    selectionPath: '/clients',
+    paramName: 'payerClientId',
+    returnPath: receiptReturnPath,
+    currentValue: payerClientId || null,
+    onSelection: handlePayerClientSelection,
+    extraParams: payerClientSelectionTexts,
+  });
+
+  const { openSelector: openPayerProviderSelector } = useSelectionNavigation({
+    selectionPath: '/providers',
+    paramName: 'payerProviderId',
+    returnPath: receiptReturnPath,
+    currentValue: payerProviderId || null,
+    onSelection: handlePayerProviderSelection,
+    extraParams: payerProviderSelectionTexts,
+  });
+
+  const { openSelector: openPayProviderSelector } = useSelectionNavigation({
+    selectionPath: '/providers',
+    paramName: 'providerId',
+    returnPath: receiptReturnPath,
+    currentValue: providerId || null,
+    onSelection: handlePayProviderSelection,
+    extraParams: payProviderSelectionTexts,
+  });
+
   const handleOpenPayerProviderSelector = useCallback(() => {
     if (!canEdit) return;
-    const path = buildSelectionPath('/providers', {
-      selectedId: payerProviderId,
-      returnTo: `/receipts/${receiptId}`,
-      returnParam: 'payerProviderId',
-    });
-    router.push(path);
-  }, [canEdit, router, payerProviderId, receiptId]);
+    openPayerProviderSelector();
+  }, [canEdit, openPayerProviderSelector]);
 
   const handleOpenPayProviderSelector = useCallback(() => {
     if (!canEdit) return;
-    const path = buildSelectionPath('/providers', {
-      selectedId: providerId,
-      returnTo: `/receipts/${receiptId}`,
-      returnParam: 'providerId',
-    });
-    router.push(path);
-  }, [canEdit, router, providerId, receiptId]);
+    openPayProviderSelector();
+  }, [canEdit, openPayProviderSelector]);
 
   if (!receipt) {
     return (
@@ -396,15 +431,10 @@ export default function ReceiptDetailPage() {
               { backgroundColor: inputBackground, borderColor },
               !canEdit ? styles.selectInputDisabled : null,
             ]}
-        onPress={() => {
-          if (!canEdit) return;
-          const path = buildSelectionPath('/clients', {
-            selectedId: payerClientId,
-            returnTo: `/receipts/${receiptId}`,
-            returnParam: 'payerClientId',
-          });
-          router.push(path);
-        }}
+            onPress={() => {
+              if (!canEdit) return;
+              openPayerClientSelector();
+            }}
             disabled={!canEdit}
             activeOpacity={0.7}
           >
