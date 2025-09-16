@@ -16,6 +16,7 @@ import {
   Alert,
   GestureResponderEvent,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { ProvidersContext, Provider } from '@/contexts/ProvidersContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -200,6 +201,43 @@ export default function ProvidersListPage() {
     [isSelectMode, router, stayOnSelect, returnToPath, returnParam]
   );
 
+  const clearProviderSelection = useCallback(() => {
+    setSelectedProviderId(null);
+    if (!stayOnSelect) {
+      if (returnToPath && returnParam) {
+        router.replace({
+          pathname: returnToPath,
+          params: { [returnParam]: CLEAR_SELECTION_VALUE },
+        });
+      } else {
+        router.back();
+      }
+    }
+  }, [stayOnSelect, returnToPath, returnParam, router]);
+
+  const handlePickerChange = useCallback(
+    (value: string | number) => {
+      if (!value) {
+        clearProviderSelection();
+        return;
+      }
+
+      const parsedValue =
+        typeof value === 'string' ? Number.parseInt(value, 10) : value;
+
+      if (Number.isNaN(parsedValue)) {
+        clearProviderSelection();
+        return;
+      }
+
+      const provider = providers.find(p => p.id === parsedValue);
+      if (provider) {
+        handleSelectProvider(provider);
+      }
+    },
+    [providers, handleSelectProvider, clearProviderSelection]
+  );
+
   const listHeader = isSelectMode ? (
     <View
       style={[
@@ -211,6 +249,30 @@ export default function ProvidersListPage() {
       <ThemedText style={styles.selectHeaderSubtitle}>
         Toca un proveedor para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.
       </ThemedText>
+      <View
+        style={[
+          styles.selectPickerContainer,
+          { backgroundColor: inputBackground, borderColor },
+        ]}
+      >
+        <Picker
+          selectedValue={
+            selectedProviderId != null ? selectedProviderId.toString() : ''
+          }
+          onValueChange={handlePickerChange}
+          style={[styles.selectPicker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
+        >
+          <Picker.Item label="-- Selecciona un proveedor --" value="" />
+          {providers.map(provider => (
+            <Picker.Item
+              key={provider.id}
+              label={provider.business_name}
+              value={provider.id.toString()}
+            />
+          ))}
+        </Picker>
+      </View>
       {selectedProvider && (
         <ThemedText style={styles.selectHeaderCurrent}>
           Proveedor seleccionado: {selectedProvider.business_name}
@@ -219,19 +281,7 @@ export default function ProvidersListPage() {
       {selectedProvider && (
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
-          onPress={() => {
-            setSelectedProviderId(null);
-            if (!stayOnSelect) {
-              if (returnToPath && returnParam) {
-                router.replace({
-                  pathname: returnToPath,
-                  params: { [returnParam]: CLEAR_SELECTION_VALUE },
-                });
-              } else {
-                router.back();
-              }
-            }
-          }}
+          onPress={clearProviderSelection}
         >
           <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
         </TouchableOpacity>
@@ -377,6 +427,16 @@ const styles = StyleSheet.create({
   clearSelectionText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  selectPickerContainer: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  selectPicker: {
+    height: 44,
+    width: '100%',
   },
   itemContainer: {
     flexDirection: 'row',
