@@ -9,6 +9,7 @@ import {
   Alert,
   GestureResponderEvent,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -188,6 +189,43 @@ export default function ClientsListPage() {
     [isSelectMode, router, stayOnSelect, returnToPath, returnParam]
   );
 
+  const clearClientSelection = useCallback(() => {
+    setSelectedClientId(null);
+    if (!stayOnSelect) {
+      if (returnToPath && returnParam) {
+        router.replace({
+          pathname: returnToPath,
+          params: { [returnParam]: CLEAR_SELECTION_VALUE },
+        });
+      } else {
+        router.back();
+      }
+    }
+  }, [stayOnSelect, returnToPath, returnParam, router]);
+
+  const handlePickerChange = useCallback(
+    (value: string | number) => {
+      if (!value) {
+        clearClientSelection();
+        return;
+      }
+
+      const parsedValue =
+        typeof value === 'string' ? Number.parseInt(value, 10) : value;
+
+      if (Number.isNaN(parsedValue)) {
+        clearClientSelection();
+        return;
+      }
+
+      const client = clients.find(c => c.id === parsedValue);
+      if (client) {
+        handleSelectClient(client);
+      }
+    },
+    [clients, handleSelectClient, clearClientSelection]
+  );
+
   const listHeader = isSelectMode ? (
     <View
       style={[
@@ -199,6 +237,29 @@ export default function ClientsListPage() {
       <ThemedText style={styles.selectHeaderSubtitle}>
         Toca un cliente para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.
       </ThemedText>
+      <View
+        style={[
+          styles.selectPickerContainer,
+          { backgroundColor: inputBackground, borderColor },
+        ]}
+      >
+        <Picker
+          selectedValue={selectedClientId != null ? selectedClientId.toString() : ''}
+          onValueChange={handlePickerChange}
+          style={[styles.selectPicker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
+        >
+          <Picker.Item label="-- Selecciona un cliente --" value="" />
+          {clients.map(client => (
+            <Picker.Item
+              key={client.id}
+              label={client.business_name}
+              value={client.id.toString()}
+            />
+          ))}
+        </Picker>
+      </View>
+
       {selectedClient && (
         <ThemedText style={styles.selectHeaderCurrent}>
           Cliente seleccionado: {selectedClient.business_name}
@@ -207,19 +268,7 @@ export default function ClientsListPage() {
       {selectedClient && (
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
-          onPress={() => {
-            setSelectedClientId(null);
-            if (!stayOnSelect) {
-              if (returnToPath && returnParam) {
-                router.replace({
-                  pathname: returnToPath,
-                  params: { [returnParam]: CLEAR_SELECTION_VALUE },
-                });
-              } else {
-                router.back();
-              }
-            }
-          }}
+          onPress={clearClientSelection}
         >
           <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
         </TouchableOpacity>
@@ -362,6 +411,16 @@ const styles = StyleSheet.create({
   clearSelectionText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  selectPickerContainer: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  selectPicker: {
+    height: 44,
+    width: '100%',
   },
   itemContainer: {
     flexDirection: 'row',
