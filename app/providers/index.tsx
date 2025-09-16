@@ -52,6 +52,7 @@ export default function ProvidersListPage() {
   }>();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [hasClearedSelection, setHasClearedSelection] = useState(false);
   const { permissions } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
@@ -97,6 +98,7 @@ export default function ProvidersListPage() {
   useEffect(() => {
     if (!isSelectMode) return;
     if (!selectedIdFromParams) return;
+    if (hasClearedSelection) return;
     const found = providers.find(provider => provider.id === selectedIdFromParams);
     if (found && (!selectedProvider || selectedProvider.id === selectedIdFromParams)) {
       setSelectedProvider(found);
@@ -107,7 +109,12 @@ export default function ProvidersListPage() {
     selectedProvider,
     selectedIdFromParams,
     setSelectedProvider,
+    hasClearedSelection,
   ]);
+
+  useEffect(() => {
+    setHasClearedSelection(false);
+  }, [selectedIdFromParams]);
 
   const fuse = useMemo(
     () =>
@@ -171,12 +178,19 @@ export default function ProvidersListPage() {
         router.push(`/providers/viewModal?id=${provider.id}`);
         return;
       }
+      setHasClearedSelection(false);
       setSelectedProvider(provider);
       if (!stayOnSelect) {
         router.back();
       }
     },
-    [isSelectMode, router, setSelectedProvider, stayOnSelect]
+    [
+      isSelectMode,
+      router,
+      setSelectedProvider,
+      stayOnSelect,
+      setHasClearedSelection,
+    ]
   );
 
   const listHeader = isSelectMode ? (
@@ -198,7 +212,10 @@ export default function ProvidersListPage() {
       {selectedProvider && (
         <TouchableOpacity
           style={[styles.clearSelectionButton, { borderColor }]}
-          onPress={() => setSelectedProvider(null)}
+          onPress={() => {
+            setHasClearedSelection(true);
+            setSelectedProvider(null);
+          }}
         >
           <ThemedText style={styles.clearSelectionText}>Limpiar selección</ThemedText>
         </TouchableOpacity>
