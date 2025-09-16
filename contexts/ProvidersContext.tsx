@@ -26,8 +26,6 @@ interface ProvidersContextValue {
   addProvider: (provider: Omit<Provider, 'id'>) => Promise<Provider | null>;
   updateProvider: (id: number, provider: Omit<Provider, 'id'>) => Promise<boolean>;
   deleteProvider: (id: number) => Promise<boolean>;
-  selectedProvider: Provider | null;
-  setSelectedProvider: (provider: Provider | null) => void;
 }
 
 export const ProvidersContext = createContext<ProvidersContextValue>({
@@ -36,13 +34,10 @@ export const ProvidersContext = createContext<ProvidersContextValue>({
   addProvider: async () => null,
   updateProvider: async () => false,
   deleteProvider: async () => false,
-  selectedProvider: null,
-  setSelectedProvider: () => {},
 });
 
 export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [selectedProvider, setSelectedProviderState] = useState<Provider | null>(null);
   const { token } = useContext(AuthContext);
 
   const loadProviders = useCallback(async () => {
@@ -57,11 +52,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       if (data.providers) {
         const fetchedProviders = data.providers as Provider[];
         setProviders(fetchedProviders);
-        setSelectedProviderState(prev => {
-          if (!prev) return null;
-          const refreshed = fetchedProviders.find(provider => provider.id === prev.id);
-          return refreshed ?? null;
-        });
       }
     } catch (error) {
       console.error('Error loading providers:', error);
@@ -83,7 +73,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         if (data.provider_id) {
           const newProvider: Provider = { id: parseInt(data.provider_id, 10), ...provider };
           setProviders(prev => [...prev, newProvider]);
-          setSelectedProviderState(newProvider);
           return newProvider;
         }
       } catch (error) {
@@ -115,9 +104,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
           }
 
           setProviders(prev => prev.map(p => (p.id === id ? { id, ...provider } : p)));
-          setSelectedProviderState(prev =>
-            prev && prev.id === id ? { id, ...provider } : prev
-          );
           return true;
         }
       } catch (error) {
@@ -138,15 +124,14 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             Authorization: `Bearer ${token}`,
           },
         });
-        const data = await response.json();
-        if (data.message === 'Provider deleted successfully') {
-          setProviders(prev => prev.filter(p => p.id !== id));
-          setSelectedProviderState(prev => (prev && prev.id === id ? null : prev));
-          return true;
-        }
-      } catch (error) {
-        console.error('Error deleting provider:', error);
+      const data = await response.json();
+      if (data.message === 'Provider deleted successfully') {
+        setProviders(prev => prev.filter(p => p.id !== id));
+        return true;
       }
+    } catch (error) {
+      console.error('Error deleting provider:', error);
+    }
       return false;
     },
     [token]
@@ -166,8 +151,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         addProvider,
         updateProvider,
         deleteProvider,
-        selectedProvider,
-        setSelectedProvider: setSelectedProviderState,
       }}
     >
       {children}

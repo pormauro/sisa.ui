@@ -11,8 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -25,16 +24,25 @@ import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  buildSelectionPath,
+  CLEAR_SELECTION_VALUE,
+  getSingleParamValue,
+} from '@/utils/selection';
 
 export default function CreateReceipt() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    payerClientId?: string;
+    payerProviderId?: string;
+    providerId?: string;
+  }>();
   const { addReceipt } = useContext(ReceiptsContext);
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
-  const { providers, selectedProvider } = useContext(ProvidersContext);
-  const { clients, selectedClient } = useContext(ClientsContext);
-  const isFocused = useIsFocused();
+  const { providers } = useContext(ProvidersContext);
+  const { clients } = useContext(ClientsContext);
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -51,9 +59,6 @@ export default function CreateReceipt() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [selectingProviderFor, setSelectingProviderFor] = useState<'payer' | 'payee' | null>(
-    null
-  );
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -76,38 +81,51 @@ export default function CreateReceipt() {
     }
   }, [permissions, router]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (selectedClient) {
-        setPayerClientId(selectedClient.id.toString());
-      }
-    }, [selectedClient, setPayerClientId])
-  );
+  const payerClientIdParam = getSingleParamValue(params.payerClientId);
+  const payerProviderIdParam = getSingleParamValue(params.payerProviderId);
+  const providerIdParam = getSingleParamValue(params.providerId);
 
   useEffect(() => {
-    if (!isFocused) return;
-    if (!selectedProvider || !selectingProviderFor) return;
-
-    if (selectingProviderFor === 'payer') {
-      setPayerProviderId(selectedProvider.id.toString());
-    } else if (selectingProviderFor === 'payee') {
-      setProviderId(selectedProvider.id.toString());
+    if (payerClientIdParam === undefined) return;
+    if (payerClientIdParam === CLEAR_SELECTION_VALUE) {
+      setPayerClientId('');
+    } else {
+      setPayerClientId(payerClientIdParam);
     }
+    router.replace('/receipts/create');
+  }, [payerClientIdParam, router]);
 
-    setSelectingProviderFor(null);
-  }, [isFocused, selectedProvider, selectingProviderFor]);
+  useEffect(() => {
+    if (payerProviderIdParam === undefined) return;
+    if (payerProviderIdParam === CLEAR_SELECTION_VALUE) {
+      setPayerProviderId('');
+    } else {
+      setPayerProviderId(payerProviderIdParam);
+    }
+    router.replace('/receipts/create');
+  }, [payerProviderIdParam, router]);
+
+  useEffect(() => {
+    if (providerIdParam === undefined) return;
+    if (providerIdParam === CLEAR_SELECTION_VALUE) {
+      setProviderId('');
+    } else {
+      setProviderId(providerIdParam);
+    }
+    router.replace('/receipts/create');
+  }, [providerIdParam, router]);
+
 
   const handleOpenClientSelector = useCallback(() => {
-    const query = payerClientId
-      ? `?select=1&selectedId=${encodeURIComponent(payerClientId)}`
-      : '?select=1';
-    router.push(`/clients${query}`);
+    const path = buildSelectionPath('/clients', {
+      selectedId: payerClientId,
+      returnTo: '/receipts/create',
+      returnParam: 'payerClientId',
+    });
+    router.push(path);
   }, [router, payerClientId]);
 
   const clientButtonLabel = useMemo(() => {
-    if (selectedClient) {
-      return selectedClient.business_name;
-    }
     if (payerClientId) {
       const found = clients.find(
         client => client.id === Number.parseInt(payerClientId, 10)
@@ -117,7 +135,7 @@ export default function CreateReceipt() {
       }
     }
     return '-- Selecciona cliente --';
-  }, [clients, payerClientId, selectedClient]);
+  }, [clients, payerClientId]);
 
   const payerProviderName = useMemo(() => {
     if (!payerProviderId) return '-- Selecciona proveedor --';
@@ -168,19 +186,21 @@ export default function CreateReceipt() {
   };
 
   const handleOpenPayerProviderSelector = useCallback(() => {
-    setSelectingProviderFor('payer');
-    const query = payerProviderId
-      ? `?select=1&selectedId=${encodeURIComponent(payerProviderId)}`
-      : '?select=1';
-    router.push(`/providers${query}`);
+    const path = buildSelectionPath('/providers', {
+      selectedId: payerProviderId,
+      returnTo: '/receipts/create',
+      returnParam: 'payerProviderId',
+    });
+    router.push(path);
   }, [router, payerProviderId]);
 
   const handleOpenPayProviderSelector = useCallback(() => {
-    setSelectingProviderFor('payee');
-    const query = providerId
-      ? `?select=1&selectedId=${encodeURIComponent(providerId)}`
-      : '?select=1';
-    router.push(`/providers${query}`);
+    const path = buildSelectionPath('/providers', {
+      selectedId: providerId,
+      returnTo: '/receipts/create',
+      returnParam: 'providerId',
+    });
+    router.push(path);
   }, [router, providerId]);
 
   return (

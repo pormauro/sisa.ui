@@ -27,20 +27,21 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useFocusEffect } from '@react-navigation/native';
+import {
+  buildSelectionPath,
+  CLEAR_SELECTION_VALUE,
+  getSingleParamValue,
+} from '@/utils/selection';
 
 export default function EditJobScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; selectedClientId?: string }>();
+  const { id } = params;
   const jobId = Number(id);
 
   const { jobs, updateJob, deleteJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
-  const {
-    clients,
-    selectedClient: contextSelectedClient,
-    setSelectedClient: setContextSelectedClient,
-  } = useContext(ClientsContext);
+  const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
@@ -70,6 +71,7 @@ export default function EditJobScreen() {
 
   const [loading, setLoading] = useState(false);
   const [participants, setParticipants] = useState<number[]>([]);
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const rate = useMemo(() => (manualAmount ? parseFloat(manualAmount) : 0), [manualAmount]);
   const selectedTariffData = useMemo(
@@ -200,33 +202,31 @@ export default function EditJobScreen() {
     [jobDate, manualTariffItem, tariffs]
   );
 
-  const [isSelectingClient, setIsSelectingClient] = useState(false);
+  const selectedClientParam = getSingleParamValue(params.selectedClientId);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (isSelectingClient) {
-        if (contextSelectedClient === null) {
-          applyClientSelection(null);
-        } else if (contextSelectedClient && contextSelectedClient.id !== selectedClient?.id) {
-          applyClientSelection(contextSelectedClient);
-        }
-        setIsSelectingClient(false);
-        if (contextSelectedClient) {
-          setContextSelectedClient(null);
-        }
-      } else if (contextSelectedClient) {
-        setContextSelectedClient(null);
-      }
+  useEffect(() => {
+    if (selectedClientParam === undefined) return;
+    if (selectedClientParam === CLEAR_SELECTION_VALUE) {
+      applyClientSelection(null);
+      router.replace({ pathname: `/jobs/${jobId}` });
+      return;
+    }
+    setPendingClientId(selectedClientParam);
+    router.replace({ pathname: `/jobs/${jobId}` });
+  }, [selectedClientParam, applyClientSelection, jobId, router]);
 
-      return () => {};
-    }, [
-      applyClientSelection,
-      contextSelectedClient,
-      isSelectingClient,
-      selectedClient?.id,
-      setContextSelectedClient,
-    ])
-  );
+  useEffect(() => {
+    if (!pendingClientId) return;
+    if (clients.length === 0) return;
+    const found = clients.find(c => c.id.toString() === pendingClientId);
+    if (found) {
+      applyClientSelection(found);
+    } else {
+      applyClientSelection(null);
+    }
+    setPendingClientId(null);
+  }, [pendingClientId, clients, applyClientSelection]);
+
 
   // submit
   const handleSubmit = async () => {
@@ -337,9 +337,12 @@ export default function EditJobScreen() {
         ]}
         onPress={() => {
           if (!canEdit) return;
-          setIsSelectingClient(true);
-          const selectedIdParam = selectedClient ? `&selectedId=${selectedClient.id}` : '';
-          router.push(`/clients?select=1${selectedIdParam}`);
+          const path = buildSelectionPath('/clients', {
+            selectedId: selectedClient ? selectedClient.id : undefined,
+            returnTo: `/jobs/${jobId}`,
+            returnParam: 'selectedClientId',
+          });
+          router.push(path);
         }}
         disabled={!canEdit}
       >
