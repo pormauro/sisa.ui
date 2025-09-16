@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,15 +12,16 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { VideoView, useVideoPlayer } from 'expo-video'; // eslint-disable-line import/no-unresolved
+import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import * as IntentLauncher from 'expo-intent-launcher';
+import * as IntentLauncher from 'expo-intent-launcher'; // eslint-disable-line import/no-unresolved
 import { FileContext } from '@/contexts/FilesContext';
 // @ts-ignore - types are not provided for this library
 import ImageViewing from 'react-native-image-viewing';
-import { WebView } from 'react-native-webview';
+import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 interface FileGalleryProps {
@@ -90,6 +91,193 @@ const ImagePreviewModal: React.FC<{
     )}
   />
 );
+
+interface PdfThumbnailProps {
+  sourceUri: string;
+  localUri?: string;
+  title: string;
+}
+
+const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ sourceUri, localUri, title }) => {
+  const [pdfBase64, setPdfBase64] = useState<string | null>(null);
+  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPdfSource = async () => {
+      try {
+        if (sourceUri && sourceUri.startsWith('data:')) {
+          const [, rawBase64] = sourceUri.split(',');
+          const sanitized = (rawBase64 || '').replace(/\s/g, '');
+          if (isMounted) {
+            setPdfBase64(sanitized || null);
+          }
+          return;
+        }
+
+        if (localUri && localUri.startsWith('file://')) {
+          const fileBase64 = await FileSystem.readAsStringAsync(localUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          if (isMounted) {
+            const sanitized = (fileBase64 || '').replace(/\s/g, '');
+            setPdfBase64(sanitized || null);
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setPdfBase64(null);
+        }
+      } catch (error) {
+        console.error('Error loading PDF for thumbnail:', error);
+        if (isMounted) {
+          setPdfBase64(null);
+          setErrorMessage('Sin vista previa');
+        }
+      }
+    };
+
+    setThumbnailUri(null);
+    setErrorMessage(null);
+    setPdfBase64(null);
+    loadPdfSource();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sourceUri, localUri]);
+
+  const pdfHtml = useMemo(() => {
+    if (!pdfBase64) {
+      return null;
+    }
+
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: transparent;
+            }
+            canvas {
+              width: 100%;
+              height: 100%;
+            }
+          </style>
+        </head>
+        <body>
+          <canvas id="pdf-canvas"></canvas>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.js"></script>
+          <script>
+            const base64 = ${JSON.stringify(pdfBase64)};
+            function base64ToUint8Array(data) {
+              const raw = atob(data);
+              const array = new Uint8Array(raw.length);
+              for (let i = 0; i < raw.length; i += 1) {
+                array[i] = raw.charCodeAt(i);
+              }
+              return array;
+            }
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.js';
+            const pdfData = base64ToUint8Array(base64);
+            pdfjsLib.getDocument({ data: pdfData }).promise
+              .then(function (pdf) { return pdf.getPage(1); })
+              .then(function (page) {
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.getElementById('pdf-canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                return page.render({ canvasContext: context, viewport: viewport }).promise;
+              })
+              .then(function () {
+                const canvas = document.getElementById('pdf-canvas');
+                const dataUrl = canvas.toDataURL('image/png');
+                window.ReactNativeWebView.postMessage(dataUrl);
+              })
+              .catch(function (error) {
+                const message = error && error.message ? error.message : 'unknown';
+                window.ReactNativeWebView.postMessage('ERROR:' + message);
+              });
+          </script>
+        </body>
+      </html>
+    `;
+  }, [pdfBase64]);
+
+  const displayName = useMemo(
+    () => (title && title.trim().length > 0 ? title.trim() : 'Documento PDF'),
+    [title]
+  );
+
+  const isGenerating = !!pdfBase64 && !thumbnailUri && !errorMessage;
+
+  const handleMessage = useCallback((event: WebViewMessageEvent) => {
+    const data = event.nativeEvent.data;
+    if (!data) {
+      return;
+    }
+    if (data.startsWith('ERROR:')) {
+      const message = data.substring(6);
+      console.error('Error generating PDF thumbnail:', message);
+      setErrorMessage('Sin vista previa');
+      return;
+    }
+    if (data.startsWith('data:image')) {
+      setThumbnailUri(data);
+    }
+  }, []);
+
+  return (
+    <View style={styles.pdfThumbnailWrapper}>
+      {thumbnailUri ? (
+        <Image source={{ uri: thumbnailUri }} style={styles.media} resizeMode="cover" />
+      ) : (
+        <View style={styles.pdfPlaceholder}>
+          <MaterialCommunityIcons name="file-pdf-box" size={48} color="#d32f2f" />
+          <Text style={styles.pdfPlaceholderTitle} numberOfLines={2}>
+            {displayName}
+          </Text>
+          {isGenerating ? (
+            <>
+              <ActivityIndicator
+                size="small"
+                color="#d32f2f"
+                style={styles.pdfLoadingIndicator}
+              />
+              <Text style={styles.pdfPlaceholderHint}>Generando vista previa...</Text>
+            </>
+          ) : (
+            <Text
+              style={errorMessage ? styles.pdfPlaceholderError : styles.pdfPlaceholderHint}
+              numberOfLines={2}
+            >
+              {errorMessage ?? 'Toca para abrir'}
+            </Text>
+          )}
+        </View>
+      )}
+      {!thumbnailUri && !errorMessage && pdfHtml ? (
+        <WebView
+          originWhitelist={["*"]}
+          source={{ html: pdfHtml }}
+          style={styles.hiddenWebView}
+          onMessage={handleMessage}
+          javaScriptEnabled
+          allowFileAccess
+        />
+      ) : null}
+    </View>
+  );
+};
 
 const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPreviewPdf, index, editable }) => {
   if (file.loading) {
@@ -161,6 +349,12 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
         <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
       ) : isVideo ? (
         <VideoThumbnail uri={file.previewUri} />
+      ) : isPdf ? (
+        <PdfThumbnail
+          sourceUri={file.previewUri}
+          localUri={file.localUri}
+          title={file.originalName}
+        />
       ) : (
         <View style={[styles.media, styles.defaultIcon]}>
           <Text style={styles.iconText}>{file.originalName}</Text>
@@ -548,6 +742,47 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  pdfThumbnailWrapper: {
+    width: '100%',
+    height: '100%',
+  },
+  pdfPlaceholder: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  pdfPlaceholderTitle: {
+    marginTop: 8,
+    color: '#333',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  pdfPlaceholderHint: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  pdfPlaceholderError: {
+    marginTop: 8,
+    color: '#d32f2f',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  pdfLoadingIndicator: {
+    marginTop: 8,
+  },
+  hiddenWebView: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
   modalOverlay: {
     flex: 1,
