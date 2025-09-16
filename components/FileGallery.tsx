@@ -10,14 +10,17 @@ import {
   Modal,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video'; // eslint-disable-line import/no-unresolved
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { FileContext } from '@/contexts/FilesContext';
 // @ts-ignore - types are not provided for this library
 import ImageViewing from 'react-native-image-viewing';
+import { WebView } from 'react-native-webview';
 
 
 interface FileGalleryProps {
@@ -39,6 +42,7 @@ interface FileItemProps {
   file: AttachedFile;
   onDelete: (fileId: number) => void;
   onPreview: (index: number) => void;
+  onPreviewPdf: (uri: string) => void;
   index: number;
   editable: boolean;
 }
@@ -87,7 +91,7 @@ const ImagePreviewModal: React.FC<{
   />
 );
 
-const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, editable }) => {
+const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPreviewPdf, index, editable }) => {
   if (file.loading) {
     return (
       <View style={[styles.fileItem, styles.loadingContainer]}>
@@ -107,15 +111,38 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
     } else if (isPdf) {
       try {
         const uri = file.localUri || file.previewUri;
-        if (uri.startsWith('file://')) {
-          const contentUri = await FileSystem.getContentUriAsync(uri);
-          await Linking.openURL(contentUri);
+
+        if (Platform.OS === 'android') {
+          if (!uri) {
+            Alert.alert('Error', 'El archivo PDF no está disponible.');
+            return;
+          }
+
+          if (uri.startsWith('data:')) {
+            onPreviewPdf(uri);
+            return;
+          }
+
+          const androidUri = uri.startsWith('file://')
+            ? await FileSystem.getContentUriAsync(uri)
+            : uri;
+
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: androidUri,
+            type: 'application/pdf',
+            flags: 1,
+          });
         } else {
-          await Linking.openURL(uri);
+          onPreviewPdf(uri);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error('Error opening PDF:', e);
-        Alert.alert('Error', 'No se pudo abrir el PDF.');
+        const message =
+          Platform.OS === 'android' && typeof e?.message === 'string' &&
+          e.message.toLowerCase().includes('activity')
+            ? 'No se encontró una aplicación instalada para abrir archivos PDF.'
+            : 'No se pudo abrir el PDF.';
+        Alert.alert('Error', message);
       }
     } else {
       try {
@@ -148,11 +175,48 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, index, e
   );
 };
 
+const PdfPreviewModal: React.FC<{ uri: string; onClose: () => void }> = ({ uri, onClose }) => {
+  const allowingReadAccessToURL = uri.startsWith('file://')
+    ? uri.replace(/[^/]+$/, '')
+    : undefined;
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <WebView
+          originWhitelist={["*"]}
+          source={{ uri }}
+          style={styles.fullImage}
+          startInLoadingState
+          allowFileAccess
+          allowingReadAccessToURL={allowingReadAccessToURL}
+          renderLoading={() => (
+            <View style={styles.pdfLoading}>
+              <ActivityIndicator size="large" color="#fff" />
+            </View>
+          )}
+        />
+        <View style={styles.modalTopOverlay}>
+          <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
+            <Text style={styles.modalCloseText}>Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 const FileGallery: React.FC<FileGalleryProps> = ({ filesJson, onChangeFilesJson, editable = false }) => {
   const { uploadFile, getFile, getFileMetadata } = useContext(FileContext);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const [pdfPreviewUri, setPdfPreviewUri] = useState<string | null>(null);
   const isEditable = !!editable;
+
+  const handlePreviewPdf = (uri: string) => {
+    setPreviewIndex(null);
+    setPdfPreviewUri(uri);
+  };
 
   const handleSelectSource = () => {
     Alert.alert(
@@ -370,7 +434,11 @@ const handleAddCameraFile = async () => {
   };
 
   let previewModal = null;
-  if (previewIndex !== null) {
+  if (pdfPreviewUri) {
+    previewModal = (
+      <PdfPreviewModal uri={pdfPreviewUri} onClose={() => setPdfPreviewUri(null)} />
+    );
+  } else if (previewIndex !== null) {
     const current = attachedFiles[previewIndex];
     const lowerType = current.fileType.toLowerCase();
     const isImage = lowerType.includes('image');
@@ -408,6 +476,7 @@ const handleAddCameraFile = async () => {
             index={idx}
             onDelete={handleDeleteFile}
             onPreview={setPreviewIndex}
+            onPreviewPdf={handlePreviewPdf}
             editable={isEditable}
           />
         ))}
@@ -510,5 +579,11 @@ const styles = StyleSheet.create({
   modalIndex: {
     color: '#fff',
     fontSize: 16,
+  },
+  pdfLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
 });
