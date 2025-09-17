@@ -46,6 +46,9 @@ export default function PaymentDetailPage() {
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
 
+  const NEW_CLIENT_VALUE = '__new_client__';
+  const NEW_PROVIDER_VALUE = '__new_provider__';
+
   const payment = payments.find(p => p.id === paymentId);
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -315,12 +318,20 @@ export default function PaymentDetailPage() {
           >
             <Picker
               selectedValue={creditorClientId}
-              onValueChange={setCreditorClientId}
+              onValueChange={(value) => {
+                if (value === NEW_CLIENT_VALUE) {
+                  setCreditorClientId('');
+                  router.push('/clients/create');
+                } else {
+                  setCreditorClientId(value);
+                }
+              }}
               enabled={canEdit}
               style={[styles.picker, { color: inputTextColor }]}
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
+              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
               {clients.map(client => (
                 <Picker.Item
                   key={client.id}
@@ -345,12 +356,20 @@ export default function PaymentDetailPage() {
           >
             <Picker
               selectedValue={creditorProviderId}
-              onValueChange={setCreditorProviderId}
+              onValueChange={(value) => {
+                if (value === NEW_PROVIDER_VALUE) {
+                  setCreditorProviderId('');
+                  router.push('/providers/create');
+                } else {
+                  setCreditorProviderId(value);
+                }
+              }}
               enabled={canEdit}
               style={[styles.picker, { color: inputTextColor }]}
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona proveedor --" value="" />
+              <Picker.Item label="➕ Nuevo proveedor" value={NEW_PROVIDER_VALUE} />
               {providers.map(provider => (
                 <Picker.Item
                   key={provider.id}
@@ -430,12 +449,20 @@ export default function PaymentDetailPage() {
           >
             <Picker
               selectedValue={chargeClientId}
-              onValueChange={setChargeClientId}
+              onValueChange={(value) => {
+                if (value === NEW_CLIENT_VALUE) {
+                  setChargeClientId('');
+                  router.push('/clients/create');
+                } else {
+                  setChargeClientId(value);
+                }
+              }}
               enabled={canEdit}
               style={[styles.picker, { color: inputTextColor }]}
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
+              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
               {clients.map(client => (
                 <Picker.Item
                   key={client.id}
