@@ -1,5 +1,5 @@
 // app/receipts/create.tsx
-import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -24,7 +24,6 @@ import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function CreateReceipt() {
   const router = useRouter();
@@ -112,115 +111,6 @@ export default function CreateReceipt() {
     }
   }, [permissions, router]);
 
-  const payerClientSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el cliente pagador',
-      selectSubtitle: 'Elige el cliente que realizará el pago.',
-      selectedLabel: 'Cliente pagador:',
-      pickerPlaceholder: '-- Selecciona cliente pagador --',
-      clearLabel: 'Quitar cliente pagador',
-    }),
-    []
-  );
-
-  const payerProviderSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el proveedor pagador',
-      selectSubtitle: 'Elige el proveedor que realiza el pago.',
-      selectedLabel: 'Proveedor pagador:',
-      pickerPlaceholder: '-- Selecciona proveedor pagador --',
-      clearLabel: 'Quitar proveedor pagador',
-    }),
-    []
-  );
-
-  const payProviderSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el proveedor a pagar',
-      selectSubtitle: 'Elige el proveedor que recibirá el pago.',
-      selectedLabel: 'Proveedor a pagar:',
-      pickerPlaceholder: '-- Selecciona proveedor a pagar --',
-      clearLabel: 'Quitar proveedor a pagar',
-    }),
-    []
-  );
-
-  const handlePayerClientSelection = useCallback(
-    (value: string | null) => {
-      setPayerClientId(value ?? '');
-    },
-    []
-  );
-
-  const handlePayerProviderSelection = useCallback(
-    (value: string | null) => {
-      setPayerProviderId(value ?? '');
-    },
-    []
-  );
-
-  const handlePayProviderSelection = useCallback(
-    (value: string | null) => {
-      setProviderId(value ?? '');
-    },
-    []
-  );
-
-  const { openSelector: openPayerClientSelector } = useSelectionNavigation({
-    selectionPath: '/clients',
-    paramName: 'payerClientId',
-    returnPath: '/receipts/create',
-    currentValue: payerClientId || null,
-    onSelection: handlePayerClientSelection,
-    extraParams: payerClientSelectionTexts,
-  });
-
-  const { openSelector: openPayerProviderSelector } = useSelectionNavigation({
-    selectionPath: '/providers',
-    paramName: 'payerProviderId',
-    returnPath: '/receipts/create',
-    currentValue: payerProviderId || null,
-    onSelection: handlePayerProviderSelection,
-    extraParams: payerProviderSelectionTexts,
-  });
-
-  const { openSelector: openPayProviderSelector } = useSelectionNavigation({
-    selectionPath: '/providers',
-    paramName: 'providerId',
-    returnPath: '/receipts/create',
-    currentValue: providerId || null,
-    onSelection: handlePayProviderSelection,
-    extraParams: payProviderSelectionTexts,
-  });
-
-  const handleOpenClientSelector = useCallback(() => {
-    openPayerClientSelector();
-  }, [openPayerClientSelector]);
-
-  const clientButtonLabel = useMemo(() => {
-    if (payerClientId) {
-      const found = clients.find(
-        client => client.id === Number.parseInt(payerClientId, 10)
-      );
-      if (found) {
-        return found.business_name;
-      }
-    }
-    return '-- Selecciona cliente --';
-  }, [clients, payerClientId]);
-
-  const payerProviderName = useMemo(() => {
-    if (!payerProviderId) return '-- Selecciona proveedor --';
-    const found = providers.find(p => p.id.toString() === payerProviderId);
-    return found ? found.business_name : '-- Selecciona proveedor --';
-  }, [providers, payerProviderId]);
-
-  const payProviderName = useMemo(() => {
-    if (!providerId) return '-- Selecciona proveedor --';
-    const found = providers.find(p => p.id.toString() === providerId);
-    return found ? found.business_name : '-- Selecciona proveedor --';
-  }, [providers, providerId]);
-
   const handleSubmit = async () => {
     if (!categoryId || !price) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
@@ -256,14 +146,6 @@ export default function CreateReceipt() {
       Alert.alert('Error', 'No se pudo crear el recibo.');
     }
   };
-
-  const handleOpenPayerProviderSelector = useCallback(() => {
-    openPayerProviderSelector();
-  }, [openPayerProviderSelector]);
-
-  const handleOpenPayProviderSelector = useCallback(() => {
-    openPayProviderSelector();
-  }, [openPayProviderSelector]);
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
@@ -345,33 +227,50 @@ export default function CreateReceipt() {
       {payerType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <TouchableOpacity
-            style={[
-              styles.input,
-              { backgroundColor: inputBackground, borderColor },
-            ]}
-            onPress={handleOpenClientSelector}
+          <View
+            style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}
           >
-            <ThemedText style={{ color: inputTextColor }}>
-              {clientButtonLabel}
-            </ThemedText>
-          </TouchableOpacity>
+            <Picker
+              selectedValue={payerClientId}
+              onValueChange={setPayerClientId}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
+            >
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(client => (
+                <Picker.Item
+                  key={client.id}
+                  label={client.business_name}
+                  value={client.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
       {payerType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <TouchableOpacity
-            style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
-            onPress={handleOpenPayerProviderSelector}
+          <View
+            style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}
           >
-            <ThemedText
-              style={{ color: payerProviderId ? inputTextColor : placeholderColor }}
+            <Picker
+              selectedValue={payerProviderId}
+              onValueChange={setPayerProviderId}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {payerProviderName}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(provider => (
+                <Picker.Item
+                  key={provider.id}
+                  label={provider.business_name}
+                  value={provider.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
@@ -421,14 +320,25 @@ export default function CreateReceipt() {
       {payProvider && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <TouchableOpacity
-            style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
-            onPress={handleOpenPayProviderSelector}
+          <View
+            style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}
           >
-            <ThemedText style={{ color: providerId ? inputTextColor : placeholderColor }}>
-              {payProviderName}
-            </ThemedText>
-          </TouchableOpacity>
+            <Picker
+              selectedValue={providerId}
+              onValueChange={setProviderId}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
+            >
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(provider => (
+                <Picker.Item
+                  key={provider.id}
+                  label={provider.business_name}
+                  value={provider.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 

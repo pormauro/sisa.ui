@@ -1,6 +1,6 @@
 // app/receipts/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -25,7 +25,6 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -64,30 +63,6 @@ export default function ReceiptDetailPage() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
-
-  const selectedClientName = useMemo(() => {
-    if (!payerClientId) return '';
-    const parsedId = Number.parseInt(payerClientId, 10);
-    if (Number.isNaN(parsedId)) return '';
-    const client = clients.find(c => c.id === parsedId);
-    return client?.business_name ?? '';
-  }, [clients, payerClientId]);
-
-  const payerProviderName = useMemo(() => {
-    if (!payerProviderId) return '';
-    const parsedId = Number.parseInt(payerProviderId, 10);
-    if (Number.isNaN(parsedId)) return '';
-    const provider = providers.find(p => p.id === parsedId);
-    return provider?.business_name ?? '';
-  }, [providers, payerProviderId]);
-
-  const payProviderName = useMemo(() => {
-    if (!providerId) return '';
-    const parsedId = Number.parseInt(providerId, 10);
-    if (Number.isNaN(parsedId)) return '';
-    const provider = providers.find(p => p.id === parsedId);
-    return provider?.business_name ?? '';
-  }, [providers, providerId]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -179,100 +154,6 @@ export default function ReceiptDetailPage() {
       );
     }
   }, [receipt]);
-
-
-  const receiptReturnPath = `/receipts/${receiptId}`;
-
-  const payerClientSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el cliente pagador',
-      selectSubtitle: 'Elige el cliente que realizará el pago.',
-      selectedLabel: 'Cliente pagador:',
-      pickerPlaceholder: '-- Selecciona cliente pagador --',
-      clearLabel: 'Quitar cliente pagador',
-    }),
-    []
-  );
-
-  const payerProviderSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el proveedor pagador',
-      selectSubtitle: 'Elige el proveedor que realiza el pago.',
-      selectedLabel: 'Proveedor pagador:',
-      pickerPlaceholder: '-- Selecciona proveedor pagador --',
-      clearLabel: 'Quitar proveedor pagador',
-    }),
-    []
-  );
-
-  const payProviderSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el proveedor a pagar',
-      selectSubtitle: 'Elige el proveedor que recibirá el pago.',
-      selectedLabel: 'Proveedor a pagar:',
-      pickerPlaceholder: '-- Selecciona proveedor a pagar --',
-      clearLabel: 'Quitar proveedor a pagar',
-    }),
-    []
-  );
-
-  const handlePayerClientSelection = useCallback(
-    (value: string | null) => {
-      setPayerClientId(value ?? '');
-    },
-    []
-  );
-
-  const handlePayerProviderSelection = useCallback(
-    (value: string | null) => {
-      setPayerProviderId(value ?? '');
-    },
-    []
-  );
-
-  const handlePayProviderSelection = useCallback(
-    (value: string | null) => {
-      setProviderId(value ?? '');
-    },
-    []
-  );
-
-  const { openSelector: openPayerClientSelector } = useSelectionNavigation({
-    selectionPath: '/clients',
-    paramName: 'payerClientId',
-    returnPath: receiptReturnPath,
-    currentValue: payerClientId || null,
-    onSelection: handlePayerClientSelection,
-    extraParams: payerClientSelectionTexts,
-  });
-
-  const { openSelector: openPayerProviderSelector } = useSelectionNavigation({
-    selectionPath: '/providers',
-    paramName: 'payerProviderId',
-    returnPath: receiptReturnPath,
-    currentValue: payerProviderId || null,
-    onSelection: handlePayerProviderSelection,
-    extraParams: payerProviderSelectionTexts,
-  });
-
-  const { openSelector: openPayProviderSelector } = useSelectionNavigation({
-    selectionPath: '/providers',
-    paramName: 'providerId',
-    returnPath: receiptReturnPath,
-    currentValue: providerId || null,
-    onSelection: handlePayProviderSelection,
-    extraParams: payProviderSelectionTexts,
-  });
-
-  const handleOpenPayerProviderSelector = useCallback(() => {
-    if (!canEdit) return;
-    openPayerProviderSelector();
-  }, [canEdit, openPayerProviderSelector]);
-
-  const handleOpenPayProviderSelector = useCallback(() => {
-    if (!canEdit) return;
-    openPayProviderSelector();
-  }, [canEdit, openPayProviderSelector]);
 
   if (!receipt) {
     return (
@@ -424,59 +305,60 @@ export default function ReceiptDetailPage() {
       {payerType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <TouchableOpacity
+          <View
             style={[
-              styles.input,
-              styles.selectInput,
-              { backgroundColor: inputBackground, borderColor },
+              styles.pickerWrap,
+              { borderColor, backgroundColor: pickerBackground },
               !canEdit ? styles.selectInputDisabled : null,
             ]}
-            onPress={() => {
-              if (!canEdit) return;
-              openPayerClientSelector();
-            }}
-            disabled={!canEdit}
-            activeOpacity={0.7}
           >
-            <ThemedText
-              style={[
-                styles.selectInputText,
-                { color: payerClientId ? inputTextColor : placeholderColor },
-              ]}
+            <Picker
+              selectedValue={payerClientId}
+              onValueChange={setPayerClientId}
+              enabled={canEdit}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {payerClientId
-                ? selectedClientName || 'Cliente no disponible'
-                : '-- Selecciona cliente --'}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(client => (
+                <Picker.Item
+                  key={client.id}
+                  label={client.business_name}
+                  value={client.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
       {payerType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <TouchableOpacity
+          <View
             style={[
-              styles.input,
-              styles.selectInput,
-              { backgroundColor: inputBackground, borderColor },
+              styles.pickerWrap,
+              { borderColor, backgroundColor: pickerBackground },
               !canEdit ? styles.selectInputDisabled : null,
             ]}
-            onPress={handleOpenPayerProviderSelector}
-            disabled={!canEdit}
-            activeOpacity={0.7}
           >
-            <ThemedText
-              style={[
-                styles.selectInputText,
-                { color: payerProviderId ? inputTextColor : placeholderColor },
-              ]}
+            <Picker
+              selectedValue={payerProviderId}
+              onValueChange={setPayerProviderId}
+              enabled={canEdit}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {payerProviderId
-                ? payerProviderName || 'Proveedor no disponible'
-                : '-- Selecciona proveedor --'}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(provider => (
+                <Picker.Item
+                  key={provider.id}
+                  label={provider.business_name}
+                  value={provider.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
@@ -526,28 +408,30 @@ export default function ReceiptDetailPage() {
       {payProvider && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <TouchableOpacity
+          <View
             style={[
-              styles.input,
-              styles.selectInput,
-              { backgroundColor: inputBackground, borderColor },
+              styles.pickerWrap,
+              { borderColor, backgroundColor: pickerBackground },
               !canEdit ? styles.selectInputDisabled : null,
             ]}
-            onPress={handleOpenPayProviderSelector}
-            disabled={!canEdit}
-            activeOpacity={0.7}
           >
-            <ThemedText
-              style={[
-                styles.selectInputText,
-                { color: providerId ? inputTextColor : placeholderColor },
-              ]}
+            <Picker
+              selectedValue={providerId}
+              onValueChange={setProviderId}
+              enabled={canEdit}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {providerId
-                ? payProviderName || 'Proveedor no disponible'
-                : '-- Selecciona proveedor --'}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(provider => (
+                <Picker.Item
+                  key={provider.id}
+                  label={provider.business_name}
+                  value={provider.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
@@ -577,9 +461,7 @@ const styles = StyleSheet.create({
   },
   picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  selectInput: { justifyContent: 'center' },
   selectInputDisabled: { opacity: 0.6 },
-  selectInputText: { fontSize: 16 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
