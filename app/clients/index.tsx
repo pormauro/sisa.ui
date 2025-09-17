@@ -9,60 +9,20 @@ import {
   Alert,
   GestureResponderEvent,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { CLEAR_SELECTION_VALUE, decodeReturnPath } from '@/utils/selection';
-
-const truthyValues = ['1', 'true', 'yes', 'on'];
-
-const isTruthy = (value?: string) =>
-  value ? truthyValues.includes(value.toLowerCase()) : false;
-
-const parseParamValue = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
-
-const decodeTextParam = (value: string | string[] | undefined) => {
-  const parsed = parseParamValue(value);
-  if (parsed == null || parsed === '') return undefined;
-  try {
-    return decodeURIComponent(parsed);
-  } catch (error) {
-    console.warn('Failed to decode selection text param', error);
-    return parsed;
-  }
-};
 
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    mode?: string;
-    select?: string;
-    selectedId?: string;
-    selected?: string;
-    stay?: string;
-    keepOpen?: string;
-    selectTitle?: string;
-    selectSubtitle?: string;
-    selectedLabel?: string;
-    pickerPlaceholder?: string;
-    clearLabel?: string;
-  }>();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const { permissions } = useContext(PermissionsContext);
-
-  const selectedClient = useMemo(() => {
-    if (selectedClientId == null) return null;
-    return clients.find(c => c.id === selectedClientId) ?? null;
-  }, [clients, selectedClientId]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -72,76 +32,14 @@ export default function ClientsListPage() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
-  const selectedBorderColor = useThemeColor({}, 'tint');
-  const selectedBackground = useThemeColor({ light: '#e8f0ff', dark: '#3b2f4c' }, 'background');
-  const selectInfoBackground = useThemeColor({ light: '#f2f6ff', dark: '#2d223d' }, 'background');
-  const selectInfoBorder = useThemeColor({ light: '#cdd7ff', dark: '#56466b' }, 'background');
 
   const canAddClient = permissions.includes('addClient');
   const canDeleteClient = permissions.includes('deleteClient');
   const canEditClient = permissions.includes('updateClient');
 
-  const selectParam = parseParamValue(params.mode) ?? parseParamValue(params.select);
-  const isSelectMode = selectParam === 'select' || isTruthy(selectParam);
-
-  const stayParam = parseParamValue(params.stay) ?? parseParamValue(params.keepOpen);
-  const stayOnSelect = isTruthy(stayParam);
-
-  const selectTitle =
-    decodeTextParam(params.selectTitle) ?? 'Selecciona un cliente';
-  const rawSubtitle =
-    decodeTextParam(params.selectSubtitle) ??
-    'Toca un cliente para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.';
-  const selectSubtitle = rawSubtitle.trim().length > 0 ? rawSubtitle : undefined;
-  const rawSelectedLabel =
-    decodeTextParam(params.selectedLabel) ?? 'Cliente seleccionado:';
-  const selectedLabelText =
-    rawSelectedLabel.trim().length > 0 ? rawSelectedLabel : undefined;
-  const rawClearLabel =
-    decodeTextParam(params.clearLabel) ?? 'Limpiar selección';
-  const clearSelectionText =
-    rawClearLabel.trim().length > 0 ? rawClearLabel : undefined;
-  const pickerPlaceholder =
-    decodeTextParam(params.pickerPlaceholder) ?? '-- Selecciona un cliente --';
-
-  const selectedIdParam =
-    parseParamValue(params.selectedId) ?? parseParamValue(params.selected);
-  const returnToParam = parseParamValue(params.returnTo);
-  const returnParam = parseParamValue(params.returnParam);
-  const returnToPath = decodeReturnPath(returnToParam);
-
-  const shouldClearFromParams = selectedIdParam === CLEAR_SELECTION_VALUE;
-  const parsedSelectedId =
-    selectedIdParam && !shouldClearFromParams
-      ? Number.parseInt(selectedIdParam, 10)
-      : NaN;
-  const selectedIdFromParams = Number.isNaN(parsedSelectedId)
-    ? undefined
-    : parsedSelectedId;
-
   useEffect(() => {
     loadClients();
   }, [loadClients]);
-
-  useEffect(() => {
-    if (!isSelectMode) return;
-    if (shouldClearFromParams) {
-      setSelectedClientId(null);
-      return;
-    }
-    if (selectedIdFromParams !== undefined) {
-      setSelectedClientId(selectedIdFromParams);
-      return;
-    }
-    if (!selectedIdParam) {
-      setSelectedClientId(null);
-    }
-  }, [
-    isSelectMode,
-    selectedIdFromParams,
-    selectedIdParam,
-    shouldClearFromParams,
-  ]);
 
   const fuse = useMemo(
     () =>
@@ -201,175 +99,52 @@ export default function ClientsListPage() {
     [handleDelete]
   );
 
-  const handleSelectClient = useCallback(
-    (client: Client) => {
-      if (!isSelectMode) {
-        router.push(`/clients/viewModal?id=${client.id}`);
-        return;
-      }
-      setSelectedClientId(client.id);
-      if (!stayOnSelect) {
-        if (returnToPath && returnParam) {
-          router.replace({
-            pathname: returnToPath,
-            params: { [returnParam]: String(client.id) },
-          });
-        } else {
-          router.back();
-        }
-      }
-    },
-    [isSelectMode, router, stayOnSelect, returnToPath, returnParam]
-  );
-
-  const clearClientSelection = useCallback(() => {
-    setSelectedClientId(null);
-    if (!stayOnSelect) {
-      if (returnToPath && returnParam) {
-        router.replace({
-          pathname: returnToPath,
-          params: { [returnParam]: CLEAR_SELECTION_VALUE },
-        });
-      } else {
-        router.back();
-      }
-    }
-  }, [stayOnSelect, returnToPath, returnParam, router]);
-
-  const handlePickerChange = useCallback(
-    (value: string | number) => {
-      if (!value) {
-        clearClientSelection();
-        return;
-      }
-
-      const parsedValue =
-        typeof value === 'string' ? Number.parseInt(value, 10) : value;
-
-      if (Number.isNaN(parsedValue)) {
-        clearClientSelection();
-        return;
-      }
-
-      const client = clients.find(c => c.id === parsedValue);
-      if (client) {
-        handleSelectClient(client);
-      }
-    },
-    [clients, handleSelectClient, clearClientSelection]
-  );
-
-  const listHeader = isSelectMode ? (
-    <View
-      style={[
-        styles.selectHeader,
-        { backgroundColor: selectInfoBackground, borderColor: selectInfoBorder },
-      ]}
+  const renderItem = ({ item }: { item: Client }) => (
+    <TouchableOpacity
+      style={[styles.itemContainer, { borderColor: itemBorderColor }]}
+      onPress={() => router.push(`/clients/viewModal?id=${item.id}`)}
+      onLongPress={() => canEditClient && router.push(`/clients/${item.id}`)}
+      activeOpacity={0.85}
     >
-      <ThemedText style={styles.selectHeaderTitle}>{selectTitle}</ThemedText>
-      {selectSubtitle && (
-        <ThemedText style={styles.selectHeaderSubtitle}>{selectSubtitle}</ThemedText>
-      )}
-      <View
-        style={[
-          styles.selectPickerContainer,
-          { backgroundColor: inputBackground, borderColor },
-        ]}
-      >
-        <Picker
-          selectedValue={selectedClientId != null ? selectedClientId.toString() : ''}
-          onValueChange={handlePickerChange}
-          style={[styles.selectPicker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label={pickerPlaceholder} value="" />
-          {clients.map(client => (
-            <Picker.Item
-              key={client.id}
-              label={client.business_name}
-              value={client.id.toString()}
-            />
-          ))}
-        </Picker>
+      <View style={styles.itemContent}>
+        <CircleImagePicker fileId={item.brand_file_id} size={50} />
+        <View style={styles.itemInfo}>
+          <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
+          <ThemedText>{item.email}</ThemedText>
+        </View>
       </View>
 
-      {selectedClient && (
-        <ThemedText style={styles.selectHeaderCurrent}>
-          {selectedLabelText ? `${selectedLabelText} ` : ''}
-          {selectedClient.business_name}
-        </ThemedText>
-      )}
-      {selectedClient && clearSelectionText && (
+      <View style={styles.actionsContainer}>
         <TouchableOpacity
-          style={[styles.clearSelectionButton, { borderColor }]}
-          onPress={clearClientSelection}
+          style={styles.actionButton}
+          onPress={(event) => handleViewDetails(event, item.id)}
         >
-          <ThemedText style={styles.clearSelectionText}>{clearSelectionText}</ThemedText>
+          <ThemedText style={styles.actionText}>👁️</ThemedText>
         </TouchableOpacity>
-      )}
-    </View>
-  ) : null;
 
-  const renderItem = ({ item }: { item: Client }) => {
-    const isSelected = isSelectMode && selectedClientId === item.id;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.itemContainer,
-          { borderColor: itemBorderColor },
-          isSelected
-            ? { borderColor: selectedBorderColor, backgroundColor: selectedBackground }
-            : {},
-        ]}
-        onPress={() => handleSelectClient(item)}
-        onLongPress={() => canEditClient && router.push(`/clients/${item.id}`)}
-        activeOpacity={0.85}
-      >
-        <View style={styles.itemContent}>
-          <CircleImagePicker fileId={item.brand_file_id} size={50} />
-          <View style={styles.itemInfo}>
-            <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-            <ThemedText>{item.email}</ThemedText>
-          </View>
-        </View>
-
-        {isSelected && (
-          <ThemedText style={[styles.selectedIndicator, { color: selectedBorderColor }]}>✓</ThemedText>
-        )}
-
-        <View style={styles.actionsContainer}>
+        {canEditClient && (
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={(event) => handleViewDetails(event, item.id)}
+            onPress={(event) => handleEditClient(event, item.id)}
           >
-            <ThemedText style={styles.actionText}>👁️</ThemedText>
+            <ThemedText style={styles.actionText}>✏️</ThemedText>
           </TouchableOpacity>
+        )}
 
-          {canEditClient && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(event) => handleEditClient(event, item.id)}
-            >
-              <ThemedText style={styles.actionText}>✏️</ThemedText>
-            </TouchableOpacity>
-          )}
-
-          {canDeleteClient && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(event) => handleDeleteClient(event, item.id)}
-            >
-              <ThemedText style={styles.actionText}>🗑️</ThemedText>
-            </TouchableOpacity>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+        {canDeleteClient && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(event) => handleDeleteClient(event, item.id)}
+          >
+            <ThemedText style={styles.actionText}>🗑️</ThemedText>
+          </TouchableOpacity>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <TextInput
         placeholder="Buscar cliente..."
         value={searchQuery}
@@ -387,9 +162,7 @@ export default function ClientsListPage() {
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron clientes</ThemedText>
         }
-        ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
-        extraData={selectedClientId}
       />
       {canAddClient && (
         <TouchableOpacity
@@ -415,47 +188,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 120,
   },
-  selectHeader: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  selectHeaderTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  selectHeaderSubtitle: {
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  selectHeaderCurrent: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  clearSelectionButton: {
-    marginTop: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  clearSelectionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  selectPickerContainer: {
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  selectPicker: {
-    height: 44,
-    width: '100%',
-  },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -479,7 +211,6 @@ const styles = StyleSheet.create({
   },
   actionButton: { padding: 6, marginLeft: 4 },
   actionText: { fontSize: 18 },
-  selectedIndicator: { fontSize: 18, fontWeight: 'bold', marginLeft: 6 },
   addButton: {
     position: 'absolute',
     right: 16,

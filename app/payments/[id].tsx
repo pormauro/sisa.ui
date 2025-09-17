@@ -1,6 +1,6 @@
 // app/payments/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   View,
   TextInput,
@@ -25,7 +25,6 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -79,24 +78,6 @@ export default function PaymentDetailPage() {
     () => getDisplayCategories(categories, 'expense'),
     [categories]
   );
-
-  const creditorClientName = useMemo(() => {
-    if (!creditorClientId) return 'Selecciona cliente';
-    const found = clients.find(c => c.id === Number(creditorClientId));
-    return found ? found.business_name : 'Cliente no encontrado';
-  }, [clients, creditorClientId]);
-
-  const creditorProviderName = useMemo(() => {
-    if (!creditorProviderId) return 'Selecciona proveedor';
-    const found = providers.find(p => p.id === Number(creditorProviderId));
-    return found ? found.business_name : 'Proveedor no encontrado';
-  }, [providers, creditorProviderId]);
-
-  const chargeClientName = useMemo(() => {
-    if (!chargeClientId) return 'Selecciona cliente';
-    const found = clients.find(c => c.id === Number(chargeClientId));
-    return found ? found.business_name : 'Cliente no encontrado';
-  }, [clients, chargeClientId]);
 
   useEffect(() => {
     if (!paidWithAccount) return;
@@ -172,96 +153,6 @@ export default function PaymentDetailPage() {
       );
     }
   }, [payment]);
-
-
-  const paymentReturnPath = `/payments/${paymentId}`;
-
-  const creditorClientSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el cliente acreedor',
-      selectSubtitle:
-        'Toca un cliente para asignarlo como acreedor del pago.',
-      selectedLabel: 'Cliente acreedor:',
-      pickerPlaceholder: '-- Selecciona cliente acreedor --',
-      clearLabel: 'Quitar cliente acreedor',
-    }),
-    []
-  );
-
-  const chargeClientSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el cliente a cobrar',
-      selectSubtitle: 'Elige el cliente que se cobrará en el pago.',
-      selectedLabel: 'Cliente a cobrar:',
-      pickerPlaceholder: '-- Selecciona cliente a cobrar --',
-      clearLabel: 'Quitar cliente a cobrar',
-    }),
-    []
-  );
-
-  const creditorProviderSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el proveedor acreedor',
-      selectSubtitle: 'Elige el proveedor relacionado con el pago.',
-      selectedLabel: 'Proveedor acreedor:',
-      pickerPlaceholder: '-- Selecciona proveedor acreedor --',
-      clearLabel: 'Quitar proveedor acreedor',
-    }),
-    []
-  );
-
-  const handleCreditorClientSelection = useCallback(
-    (value: string | null) => {
-      setCreditorClientId(value ?? '');
-    },
-    []
-  );
-
-  const handleChargeClientSelection = useCallback(
-    (value: string | null) => {
-      setChargeClientId(value ?? '');
-    },
-    []
-  );
-
-  const handleCreditorProviderSelection = useCallback(
-    (value: string | null) => {
-      setCreditorProviderId(value ?? '');
-    },
-    []
-  );
-
-  const { openSelector: openCreditorClientSelector } = useSelectionNavigation({
-    selectionPath: '/clients',
-    paramName: 'creditorClientId',
-    returnPath: paymentReturnPath,
-    currentValue: creditorClientId || null,
-    onSelection: handleCreditorClientSelection,
-    extraParams: creditorClientSelectionTexts,
-  });
-
-  const { openSelector: openChargeClientSelector } = useSelectionNavigation({
-    selectionPath: '/clients',
-    paramName: 'chargeClientId',
-    returnPath: paymentReturnPath,
-    currentValue: chargeClientId || null,
-    onSelection: handleChargeClientSelection,
-    extraParams: chargeClientSelectionTexts,
-  });
-
-  const { openSelector: openCreditorProviderSelector } = useSelectionNavigation({
-    selectionPath: '/providers',
-    paramName: 'creditorProviderId',
-    returnPath: paymentReturnPath,
-    currentValue: creditorProviderId || null,
-    onSelection: handleCreditorProviderSelection,
-    extraParams: creditorProviderSelectionTexts,
-  });
-
-  const handleOpenProviderSelector = useCallback(() => {
-    if (!canEdit) return;
-    openCreditorProviderSelector();
-  }, [canEdit, openCreditorProviderSelector]);
 
   if (!payment) {
     return (
@@ -415,59 +306,60 @@ export default function PaymentDetailPage() {
       {creditorType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <TouchableOpacity
+          <View
             style={[
-              styles.input,
-              styles.selectionInput,
-              {
-                backgroundColor: inputBackground,
-                borderColor,
-                opacity: canEdit ? 1 : 0.6,
-              },
+              styles.pickerWrap,
+              { borderColor, backgroundColor: inputBackground },
+              !canEdit ? { opacity: 0.6 } : {},
             ]}
-            onPress={() => {
-              if (!canEdit) return;
-              openCreditorClientSelector();
-            }}
-            disabled={!canEdit}
           >
-            <ThemedText
-              style={{
-                color: creditorClientId ? inputTextColor : placeholderColor,
-              }}
+            <Picker
+              selectedValue={creditorClientId}
+              onValueChange={setCreditorClientId}
+              enabled={canEdit}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {creditorClientName}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(client => (
+                <Picker.Item
+                  key={client.id}
+                  label={client.business_name}
+                  value={client.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
       {creditorType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <TouchableOpacity
+          <View
             style={[
-              styles.input,
-              styles.selectionInput,
-              {
-                backgroundColor: inputBackground,
-                borderColor,
-                opacity: canEdit ? 1 : 0.6,
-              },
+              styles.pickerWrap,
+              { borderColor, backgroundColor: inputBackground },
+              !canEdit ? { opacity: 0.6 } : {},
             ]}
-            onPress={handleOpenProviderSelector}
-            disabled={!canEdit}
           >
-            <ThemedText
-              style={{
-                color: creditorProviderId ? inputTextColor : placeholderColor,
-              }}
+            <Picker
+              selectedValue={creditorProviderId}
+              onValueChange={setCreditorProviderId}
+              enabled={canEdit}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {creditorProviderId
-                ? creditorProviderName
-                : '-- Selecciona proveedor --'}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona proveedor --" value="" />
+              {providers.map(provider => (
+                <Picker.Item
+                  key={provider.id}
+                  label={provider.business_name}
+                  value={provider.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
@@ -529,30 +421,30 @@ export default function PaymentDetailPage() {
       {chargeClient && (
         <>
           <ThemedText style={styles.label}>Cliente a cobrar</ThemedText>
-          <TouchableOpacity
+          <View
             style={[
-              styles.input,
-              styles.selectionInput,
-              {
-                backgroundColor: inputBackground,
-                borderColor,
-                opacity: canEdit ? 1 : 0.6,
-              },
+              styles.pickerWrap,
+              { borderColor, backgroundColor: inputBackground },
+              !canEdit ? { opacity: 0.6 } : {},
             ]}
-            onPress={() => {
-              if (!canEdit) return;
-              openChargeClientSelector();
-            }}
-            disabled={!canEdit}
           >
-            <ThemedText
-              style={{
-                color: chargeClientId ? inputTextColor : placeholderColor,
-              }}
+            <Picker
+              selectedValue={chargeClientId}
+              onValueChange={setChargeClientId}
+              enabled={canEdit}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              {chargeClientName}
-            </ThemedText>
-          </TouchableOpacity>
+              <Picker.Item label="-- Selecciona cliente --" value="" />
+              {clients.map(client => (
+                <Picker.Item
+                  key={client.id}
+                  label={client.business_name}
+                  value={client.id.toString()}
+                />
+              ))}
+            </Picker>
+          </View>
         </>
       )}
 
@@ -576,9 +468,6 @@ const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  selectionInput: {
-    justifyContent: 'center',
-  },
   pickerWrap: {
     borderWidth: 1,
     borderRadius: 8,

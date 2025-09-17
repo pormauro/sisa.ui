@@ -1,11 +1,5 @@
 // app/providers/index.tsx
-import React, {
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-} from 'react';
+import React, { useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -16,61 +10,21 @@ import {
   Alert,
   GestureResponderEvent,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { ProvidersContext, Provider } from '@/contexts/ProvidersContext';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { CLEAR_SELECTION_VALUE, decodeReturnPath } from '@/utils/selection';
-
-const truthyValues = ['1', 'true', 'yes', 'on'];
-
-const isTruthy = (value?: string) =>
-  value ? truthyValues.includes(value.toLowerCase()) : false;
-
-const parseParamValue = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
-
-const decodeTextParam = (value: string | string[] | undefined) => {
-  const parsed = parseParamValue(value);
-  if (parsed == null || parsed === '') return undefined;
-  try {
-    return decodeURIComponent(parsed);
-  } catch (error) {
-    console.warn('Failed to decode selection text param', error);
-    return parsed;
-  }
-};
 
 export default function ProvidersListPage() {
   const { providers, loadProviders, deleteProvider } = useContext(ProvidersContext);
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    mode?: string;
-    select?: string;
-    selectedId?: string;
-    selected?: string;
-    stay?: string;
-    keepOpen?: string;
-    selectTitle?: string;
-    selectSubtitle?: string;
-    selectedLabel?: string;
-    pickerPlaceholder?: string;
-    clearLabel?: string;
-  }>();
+  const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
-  const [selectedProviderId, setSelectedProviderId] = useState<number | null>(null);
-  const { permissions } = useContext(PermissionsContext);
-
-  const selectedProvider = useMemo(() => {
-    if (selectedProviderId == null) return null;
-    return providers.find(provider => provider.id === selectedProviderId) ?? null;
-  }, [providers, selectedProviderId]);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -81,52 +35,10 @@ export default function ProvidersListPage() {
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
   const spinnerColor = useThemeColor({}, 'tint');
-  const selectedBorderColor = useThemeColor({}, 'tint');
-  const selectedBackground = useThemeColor({ light: '#e8f0ff', dark: '#3b2f4c' }, 'background');
-  const selectInfoBackground = useThemeColor({ light: '#f2f6ff', dark: '#2d223d' }, 'background');
-  const selectInfoBorder = useThemeColor({ light: '#cdd7ff', dark: '#56466b' }, 'background');
 
   const canAdd = permissions.includes('addProvider');
   const canDelete = permissions.includes('deleteProvider');
   const canEdit = permissions.includes('updateProvider');
-
-  const selectParam = parseParamValue(params.mode) ?? parseParamValue(params.select);
-  const isSelectMode = selectParam === 'select' || isTruthy(selectParam);
-
-  const stayParam = parseParamValue(params.stay) ?? parseParamValue(params.keepOpen);
-  const stayOnSelect = isTruthy(stayParam);
-
-  const selectTitle =
-    decodeTextParam(params.selectTitle) ?? 'Selecciona un proveedor';
-  const rawSubtitle =
-    decodeTextParam(params.selectSubtitle) ??
-    'Toca un proveedor para seleccionarlo. Usa las acciones para ver, editar o eliminar sin perder tu selección.';
-  const selectSubtitle = rawSubtitle.trim().length > 0 ? rawSubtitle : undefined;
-  const rawSelectedLabel =
-    decodeTextParam(params.selectedLabel) ?? 'Proveedor seleccionado:';
-  const selectedLabelText =
-    rawSelectedLabel.trim().length > 0 ? rawSelectedLabel : undefined;
-  const rawClearLabel =
-    decodeTextParam(params.clearLabel) ?? 'Limpiar selección';
-  const clearSelectionText =
-    rawClearLabel.trim().length > 0 ? rawClearLabel : undefined;
-  const pickerPlaceholder =
-    decodeTextParam(params.pickerPlaceholder) ?? '-- Selecciona un proveedor --';
-
-  const selectedIdParam =
-    parseParamValue(params.selectedId) ?? parseParamValue(params.selected);
-  const returnToParam = parseParamValue(params.returnTo);
-  const returnParam = parseParamValue(params.returnParam);
-  const returnToPath = decodeReturnPath(returnToParam);
-
-  const shouldClearFromParams = selectedIdParam === CLEAR_SELECTION_VALUE;
-  const parsedSelectedId =
-    selectedIdParam && !shouldClearFromParams
-      ? Number.parseInt(selectedIdParam, 10)
-      : NaN;
-  const selectedIdFromParams = Number.isNaN(parsedSelectedId)
-    ? undefined
-    : parsedSelectedId;
 
   useEffect(() => {
     if (!permissions.includes('listProviders')) {
@@ -136,26 +48,6 @@ export default function ProvidersListPage() {
       loadProviders();
     }
   }, [permissions, loadProviders, router]);
-
-  useEffect(() => {
-    if (!isSelectMode) return;
-    if (shouldClearFromParams) {
-      setSelectedProviderId(null);
-      return;
-    }
-    if (selectedIdFromParams !== undefined) {
-      setSelectedProviderId(selectedIdFromParams);
-      return;
-    }
-    if (!selectedIdParam) {
-      setSelectedProviderId(null);
-    }
-  }, [
-    isSelectMode,
-    selectedIdFromParams,
-    selectedIdParam,
-    shouldClearFromParams,
-  ]);
 
   const fuse = useMemo(
     () =>
@@ -213,176 +105,53 @@ export default function ProvidersListPage() {
     [handleDelete]
   );
 
-  const handleSelectProvider = useCallback(
-    (provider: Provider) => {
-      if (!isSelectMode) {
-        router.push(`/providers/viewModal?id=${provider.id}`);
-        return;
-      }
-      setSelectedProviderId(provider.id);
-      if (!stayOnSelect) {
-        if (returnToPath && returnParam) {
-          router.replace({
-            pathname: returnToPath,
-            params: { [returnParam]: String(provider.id) },
-          });
-        } else {
-          router.back();
-        }
-      }
-    },
-    [isSelectMode, router, stayOnSelect, returnToPath, returnParam]
-  );
-
-  const clearProviderSelection = useCallback(() => {
-    setSelectedProviderId(null);
-    if (!stayOnSelect) {
-      if (returnToPath && returnParam) {
-        router.replace({
-          pathname: returnToPath,
-          params: { [returnParam]: CLEAR_SELECTION_VALUE },
-        });
-      } else {
-        router.back();
-      }
-    }
-  }, [stayOnSelect, returnToPath, returnParam, router]);
-
-  const handlePickerChange = useCallback(
-    (value: string | number) => {
-      if (!value) {
-        clearProviderSelection();
-        return;
-      }
-
-      const parsedValue =
-        typeof value === 'string' ? Number.parseInt(value, 10) : value;
-
-      if (Number.isNaN(parsedValue)) {
-        clearProviderSelection();
-        return;
-      }
-
-      const provider = providers.find(p => p.id === parsedValue);
-      if (provider) {
-        handleSelectProvider(provider);
-      }
-    },
-    [providers, handleSelectProvider, clearProviderSelection]
-  );
-
-  const listHeader = isSelectMode ? (
-    <View
-      style={[
-        styles.selectHeader,
-        { backgroundColor: selectInfoBackground, borderColor: selectInfoBorder },
-      ]}
+  const renderItem = ({ item }: { item: Provider }) => (
+    <TouchableOpacity
+      style={[styles.itemContainer, { borderColor: itemBorderColor }]}
+      onPress={() => router.push(`/providers/viewModal?id=${item.id}`)}
+      onLongPress={() => canEdit && router.push(`/providers/${item.id}`)}
+      activeOpacity={0.85}
     >
-      <ThemedText style={styles.selectHeaderTitle}>{selectTitle}</ThemedText>
-      {selectSubtitle && (
-        <ThemedText style={styles.selectHeaderSubtitle}>{selectSubtitle}</ThemedText>
-      )}
-      <View
-        style={[
-          styles.selectPickerContainer,
-          { backgroundColor: inputBackground, borderColor },
-        ]}
-      >
-        <Picker
-          selectedValue={
-            selectedProviderId != null ? selectedProviderId.toString() : ''
-          }
-          onValueChange={handlePickerChange}
-          style={[styles.selectPicker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label={pickerPlaceholder} value="" />
-          {providers.map(provider => (
-            <Picker.Item
-              key={provider.id}
-              label={provider.business_name}
-              value={provider.id.toString()}
-            />
-          ))}
-        </Picker>
-      </View>
-      {selectedProvider && (
-        <ThemedText style={styles.selectHeaderCurrent}>
-          {selectedLabelText ? `${selectedLabelText} ` : ''}
-          {selectedProvider.business_name}
-        </ThemedText>
-      )}
-      {selectedProvider && clearSelectionText && (
-        <TouchableOpacity
-          style={[styles.clearSelectionButton, { borderColor }]}
-          onPress={clearProviderSelection}
-        >
-          <ThemedText style={styles.clearSelectionText}>{clearSelectionText}</ThemedText>
-        </TouchableOpacity>
-      )}
-    </View>
-  ) : null;
-
-  const renderItem = ({ item }: { item: Provider }) => {
-    const isSelected = isSelectMode && selectedProviderId === item.id;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.itemContainer,
-          { borderColor: itemBorderColor },
-          isSelected
-            ? { borderColor: selectedBorderColor, backgroundColor: selectedBackground }
-            : {},
-        ]}
-        onPress={() => handleSelectProvider(item)}
-        activeOpacity={0.85}
-      >
-        <View style={styles.itemContent}>
-          <CircleImagePicker fileId={item.brand_file_id} size={50} />
-          <View style={styles.itemInfo}>
-            <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-            <ThemedText>{item.email || ''}</ThemedText>
-          </View>
+      <View style={styles.itemContent}>
+        <CircleImagePicker fileId={item.brand_file_id} size={50} />
+        <View style={styles.itemInfo}>
+          <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
+          <ThemedText>{item.email || ''}</ThemedText>
         </View>
+      </View>
 
-        {isSelected && (
-          <ThemedText style={[styles.selectedIndicator, { color: selectedBorderColor }]}>✓</ThemedText>
-        )}
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={(event) => handleViewDetails(event, item.id)}
+        >
+          <ThemedText style={styles.actionText}>👁️</ThemedText>
+        </TouchableOpacity>
 
-        <View style={styles.actionsContainer}>
+        {canEdit && (
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={(event) => handleViewDetails(event, item.id)}
+            onPress={(event) => handleEditProvider(event, item.id)}
           >
-            <ThemedText style={styles.actionText}>👁️</ThemedText>
+            <ThemedText style={styles.actionText}>✏️</ThemedText>
           </TouchableOpacity>
+        )}
 
-          {canEdit && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(event) => handleEditProvider(event, item.id)}
-            >
-              <ThemedText style={styles.actionText}>✏️</ThemedText>
-            </TouchableOpacity>
-          )}
-
-          {canDelete && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(event) => handleDeleteProvider(event, item.id)}
-            >
-              {loadingId === item.id ? (
-                <ActivityIndicator color={spinnerColor} />
-              ) : (
-                <ThemedText style={styles.actionText}>🗑️</ThemedText>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+        {canDelete && (
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(event) => handleDeleteProvider(event, item.id)}
+          >
+            {loadingId === item.id ? (
+              <ActivityIndicator color={spinnerColor} />
+            ) : (
+              <ThemedText style={styles.actionText}>🗑️</ThemedText>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
@@ -403,9 +172,7 @@ export default function ProvidersListPage() {
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron proveedores</ThemedText>
         }
-        ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
-        extraData={selectedProviderId}
       />
       {canAdd && (
         <TouchableOpacity
@@ -431,47 +198,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 120,
   },
-  selectHeader: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  selectHeaderTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  selectHeaderSubtitle: {
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  selectHeaderCurrent: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  clearSelectionButton: {
-    marginTop: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  clearSelectionText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  selectPickerContainer: {
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  selectPicker: {
-    height: 44,
-    width: '100%',
-  },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -495,7 +221,6 @@ const styles = StyleSheet.create({
   },
   actionButton: { padding: 6, marginLeft: 4 },
   actionText: { fontSize: 18 },
-  selectedIndicator: { fontSize: 18, fontWeight: 'bold', marginLeft: 6 },
   addButton: {
     position: 'absolute',
     right: 16,

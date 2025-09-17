@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
-import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -17,7 +17,7 @@ import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { ClientsContext, type Client } from '@/contexts/ClientsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
@@ -28,7 +28,6 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useSelectionNavigation } from '@/hooks/useSelectionNavigation';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -41,7 +40,6 @@ export default function CreateJobScreen() {
   const { userId } = useContext(AuthContext);
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
-  const [selectedClientData, setSelectedClientData] = useState<Client | null>(null);
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
   const [selectedStatus, setSelectedStatus]   = useState<ModalPickerItem | null>(null);
   const [selectedTariff, setSelectedTariff]   = useState<string>('');
@@ -94,33 +92,6 @@ export default function CreateJobScreen() {
     }
   }, [permissions]);
 
-  const clientSelectionTexts = useMemo(
-    () => ({
-      selectTitle: 'Selecciona el cliente',
-      selectSubtitle: 'Elige el cliente asociado a este trabajo.',
-      selectedLabel: 'Cliente seleccionado:',
-      pickerPlaceholder: '-- Selecciona cliente --',
-      clearLabel: 'Limpiar cliente',
-    }),
-    []
-  );
-
-  const handleClientSelection = useCallback(
-    (value: string | null) => {
-      setSelectedClient(value ?? '');
-    },
-    []
-  );
-
-  const { openSelector: openClientSelector } = useSelectionNavigation({
-    selectionPath: '/clients',
-    paramName: 'selectedClientId',
-    returnPath: '/jobs/create',
-    currentValue: selectedClient || null,
-    onSelection: handleClientSelection,
-    extraParams: clientSelectionTexts,
-  });
-
   const filteredFolders = useMemo(() => {
     if (!selectedClient) return [];
     const cid = parseInt(selectedClient, 10);
@@ -129,14 +100,12 @@ export default function CreateJobScreen() {
 
   useEffect(() => {
     if (!selectedClient) {
-      setSelectedClientData(null);
       setSelectedFolder('');
       setSelectedTariff('');
       setManualAmount('');
       return;
     }
-    const client = clients.find(c => c.id.toString() === selectedClient) ?? null;
-    setSelectedClientData(client);
+    const client = clients.find(c => c.id.toString() === selectedClient);
     setSelectedFolder('');
     if (client?.tariff_id) {
       const clientTariff = tariffs.find(t => t.id === client.tariff_id);
@@ -250,14 +219,23 @@ export default function CreateJobScreen() {
 
       {/* Cliente */}
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
-      <TouchableOpacity
-        style={[styles.input, styles.selectionButton, { backgroundColor: inputBackground, borderColor }]}
-        onPress={openClientSelector}
-      >
-        <ThemedText style={{ color: selectedClientData ? inputTextColor : placeholderColor }}>
-          {selectedClientData ? selectedClientData.business_name : 'Selecciona un cliente'}
-        </ThemedText>
-      </TouchableOpacity>
+      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
+        <Picker
+          selectedValue={selectedClient}
+          onValueChange={setSelectedClient}
+          style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
+        >
+          <Picker.Item label="-- Selecciona un cliente --" value="" />
+          {clients.map(client => (
+            <Picker.Item
+              key={client.id}
+              label={client.business_name}
+              value={client.id.toString()}
+            />
+          ))}
+        </Picker>
+      </View>
 
       {/* Carpeta */}
       <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
@@ -450,10 +428,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
-  },
-  selectionButton: {
-    alignItems: 'flex-start',
-    justifyContent: 'center',
   },
   intervalText: { textAlign: 'center', marginBottom: 12 },
   priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
