@@ -38,6 +38,8 @@ export default function CreateJobScreen() {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
+
+  const NEW_CLIENT_VALUE = '__new_client__';
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -222,11 +224,19 @@ export default function CreateJobScreen() {
       <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <Picker
           selectedValue={selectedClient}
-          onValueChange={setSelectedClient}
+          onValueChange={(value) => {
+            if (value === NEW_CLIENT_VALUE) {
+              setSelectedClient('');
+              router.push('/clients/create');
+            } else {
+              setSelectedClient(value);
+            }
+          }}
           style={[styles.picker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona un cliente --" value="" />
+          <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
           {clients.map(client => (
             <Picker.Item
               key={client.id}

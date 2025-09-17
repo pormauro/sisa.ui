@@ -46,6 +46,9 @@ export default function ReceiptDetailPage() {
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
 
+  const NEW_CLIENT_VALUE = '__new_client__';
+  const NEW_PROVIDER_VALUE = '__new_provider__';
+
   const receipt = receipts.find(r => r.id === receiptId);
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
@@ -314,12 +317,20 @@ export default function ReceiptDetailPage() {
           >
             <Picker
               selectedValue={payerClientId}
-              onValueChange={setPayerClientId}
+              onValueChange={(value) => {
+                if (value === NEW_CLIENT_VALUE) {
+                  setPayerClientId('');
+                  router.push('/clients/create');
+                } else {
+                  setPayerClientId(value);
+                }
+              }}
               enabled={canEdit}
               style={[styles.picker, { color: inputTextColor }]}
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona cliente --" value="" />
+              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
               {clients.map(client => (
                 <Picker.Item
                   key={client.id}
@@ -344,12 +355,20 @@ export default function ReceiptDetailPage() {
           >
             <Picker
               selectedValue={payerProviderId}
-              onValueChange={setPayerProviderId}
+              onValueChange={(value) => {
+                if (value === NEW_PROVIDER_VALUE) {
+                  setPayerProviderId('');
+                  router.push('/providers/create');
+                } else {
+                  setPayerProviderId(value);
+                }
+              }}
               enabled={canEdit}
               style={[styles.picker, { color: inputTextColor }]}
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona proveedor --" value="" />
+              <Picker.Item label="➕ Nuevo proveedor" value={NEW_PROVIDER_VALUE} />
               {providers.map(provider => (
                 <Picker.Item
                   key={provider.id}
@@ -417,12 +436,20 @@ export default function ReceiptDetailPage() {
           >
             <Picker
               selectedValue={providerId}
-              onValueChange={setProviderId}
+              onValueChange={(value) => {
+                if (value === NEW_PROVIDER_VALUE) {
+                  setProviderId('');
+                  router.push('/providers/create');
+                } else {
+                  setProviderId(value);
+                }
+              }}
               enabled={canEdit}
               style={[styles.picker, { color: inputTextColor }]}
               dropdownIconColor={inputTextColor}
             >
               <Picker.Item label="-- Selecciona proveedor --" value="" />
+              <Picker.Item label="➕ Nuevo proveedor" value={NEW_PROVIDER_VALUE} />
               {providers.map(provider => (
                 <Picker.Item
                   key={provider.id}
