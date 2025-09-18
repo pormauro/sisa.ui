@@ -48,6 +48,8 @@ export default function EditJobScreen() {
   const canDelete = permissions.includes('deleteJob');
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_STATUS_VALUE = '__new_status__';
+  const NEW_FOLDER_VALUE = '__new_folder__';
+  const NO_FOLDER_VALUE  = '__no_folder__';
 
   // estados para pickers
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -193,10 +195,24 @@ export default function EditJobScreen() {
 
   // opciones para pickers
   const folderItems = useMemo(
-    () =>
-      folders
-        .filter(f => selectedClientId !== '' && f.client_id === Number(selectedClientId))
-        .map(f => ({ id: f.id, name: f.name })),
+    () => {
+      if (!selectedClientId) {
+        return [
+          { id: NO_FOLDER_VALUE, name: '-- Sin carpeta --' },
+          { id: NEW_FOLDER_VALUE, name: '➕ Agregar carpeta' },
+        ];
+      }
+
+      const clientFolders = folders
+        .filter(f => f.client_id === Number(selectedClientId))
+        .map(f => ({ id: f.id, name: f.name }));
+
+      return [
+        { id: NO_FOLDER_VALUE, name: '-- Sin carpeta --' },
+        { id: NEW_FOLDER_VALUE, name: '➕ Agregar carpeta' },
+        ...clientFolders,
+      ];
+    },
     [folders, selectedClientId]
   );
 
@@ -355,8 +371,23 @@ export default function EditJobScreen() {
         <ModalPicker
           items={folderItems}
           selectedItem={selectedFolder}
-          onSelect={setSelectedFolder}
+          onSelect={(item) => {
+            if (item.id === NEW_FOLDER_VALUE) {
+              if (selectedClientId) {
+                router.push({ pathname: '/folders/create', params: { client_id: selectedClientId } });
+              }
+              return;
+            }
+
+            if (item.id === NO_FOLDER_VALUE) {
+              setSelectedFolder(null);
+              return;
+            }
+
+            setSelectedFolder(item);
+          }}
           placeholder="-- Carpeta --"
+          disabled={!selectedClientId}
         />
       </View>
 

@@ -41,6 +41,7 @@ export default function CreateJobScreen() {
 
   const NEW_CLIENT_VALUE  = '__new_client__';
   const NEW_STATUS_VALUE  = '__new_status__';
+  const NEW_FOLDER_VALUE  = '__new_folder__';
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -256,12 +257,22 @@ export default function CreateJobScreen() {
       <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
         <Picker
           selectedValue={selectedFolder}
-          onValueChange={setSelectedFolder}
+          onValueChange={(value) => {
+            if (value === NEW_FOLDER_VALUE) {
+              setSelectedFolder('');
+              if (selectedClient) {
+                router.push({ pathname: '/folders/create', params: { client_id: selectedClient } });
+              }
+              return;
+            }
+            setSelectedFolder(value);
+          }}
           enabled={!!selectedClient}
           style={[styles.picker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Sin carpeta --" value="" />
+          <Picker.Item label="➕ Agregar carpeta" value={NEW_FOLDER_VALUE} />
           {filteredFolders.map(f => (
             <Picker.Item key={f.id} label={f.name} value={f.id.toString()} />
           ))}
