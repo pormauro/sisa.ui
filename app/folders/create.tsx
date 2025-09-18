@@ -22,6 +22,8 @@ export default function CreateFolderPage() {
   const [clientId, setClientId] = useState<number | null>(resolvedClientId);
   const isClientFixed = parentId !== null || !!client_id;
 
+  const NEW_CLIENT_VALUE = '__NEW_CLIENT__';
+
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
@@ -80,12 +82,22 @@ export default function CreateFolderPage() {
       <View style={[styles.pickerWrapper, { backgroundColor: inputBackground, borderColor }]}> 
         <Picker
           selectedValue={clientId !== null ? clientId.toString() : ''}
-          onValueChange={(value) => setClientId(value ? Number(value) : null)}
+          onValueChange={(value) => {
+            if (value === NEW_CLIENT_VALUE) {
+              if (clientId !== null) {
+                setClientId(null);
+              }
+              router.push('/clients/create');
+              return;
+            }
+            setClientId(value ? Number(value) : null);
+          }}
           enabled={!isClientFixed}
           dropdownIconColor={inputTextColor}
           style={[styles.picker, { color: inputTextColor }]}
         >
           <Picker.Item label="Selecciona un cliente" value="" color={placeholderColor} />
+          <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
           {clients.map(client => (
             <Picker.Item key={client.id} label={client.business_name} value={client.id.toString()} />
           ))}
