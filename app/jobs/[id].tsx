@@ -46,6 +46,7 @@ export default function EditJobScreen() {
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
+  const NEW_CLIENT_VALUE = '__new_client__';
 
   // estados para pickers
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -319,12 +320,21 @@ export default function EditJobScreen() {
       >
         <Picker
           selectedValue={selectedClientId}
-          onValueChange={(value) => setSelectedClientId(String(value))}
+          onValueChange={(value) => {
+            const stringValue = String(value);
+            if (stringValue === NEW_CLIENT_VALUE) {
+              setSelectedClientId('');
+              router.push('/clients/create');
+            } else {
+              setSelectedClientId(stringValue);
+            }
+          }}
           enabled={canEdit}
           style={[styles.picker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Cliente --" value="" />
+          <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
           {clients.map(client => (
             <Picker.Item
               key={client.id}
