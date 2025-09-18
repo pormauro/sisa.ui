@@ -1,8 +1,10 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Picker } from '@react-native-picker/picker';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -12,12 +14,13 @@ export default function CreateFolderPage() {
   const { client_id, parent_id } = useLocalSearchParams<{ client_id?: string; parent_id?: string }>();
   const { permissions } = useContext(PermissionsContext);
   const { addFolder, folders } = useContext(FoldersContext);
+  const { clients, loadClients } = useContext(ClientsContext);
 
   const parentId = parent_id ? Number(parent_id) : null;
   const folderParent = parentId ? folders.find(f => f.id === parentId) : null;
-  const [clientId] = useState<number | null>(
-    client_id ? Number(client_id) : folderParent ? folderParent.client_id : null
-  );
+  const resolvedClientId = client_id ? Number(client_id) : folderParent ? folderParent.client_id : null;
+  const [clientId, setClientId] = useState<number | null>(resolvedClientId);
+  const isClientFixed = parentId !== null || !!client_id;
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -37,6 +40,18 @@ export default function CreateFolderPage() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    if (!clients.length) {
+      loadClients();
+    }
+  }, [clients.length, loadClients]);
+
+  useEffect(() => {
+    if (resolvedClientId !== null) {
+      setClientId(resolvedClientId);
+    }
+  }, [resolvedClientId]);
 
   const handleSubmit = async () => {
     if (!name || !clientId) {
@@ -60,7 +75,23 @@ export default function CreateFolderPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+      <ThemedText style={styles.label}>Cliente *</ThemedText>
+      <View style={[styles.pickerWrapper, { backgroundColor: inputBackground, borderColor }]}> 
+        <Picker
+          selectedValue={clientId !== null ? clientId.toString() : ''}
+          onValueChange={(value) => setClientId(value ? Number(value) : null)}
+          enabled={!isClientFixed}
+          dropdownIconColor={inputTextColor}
+          style={[styles.picker, { color: inputTextColor }]}
+        >
+          <Picker.Item label="Selecciona un cliente" value="" color={placeholderColor} />
+          {clients.map(client => (
+            <Picker.Item key={client.id} label={client.business_name} value={client.id.toString()} />
+          ))}
+        </Picker>
+      </View>
+
       <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>
       <CircleImagePicker fileId={folderImageFileId} editable={true} size={200} onImageChange={setFolderImageFileId} />
 
@@ -89,6 +120,16 @@ export default function CreateFolderPage() {
 const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  picker: {
+    width: '100%',
+    height: 50,
+  },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
