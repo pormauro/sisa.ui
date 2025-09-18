@@ -42,6 +42,7 @@ export default function CreateJobScreen() {
   const NEW_CLIENT_VALUE  = '__new_client__';
   const NEW_STATUS_VALUE  = '__new_status__';
   const NEW_FOLDER_VALUE  = '__new_folder__';
+  const NEW_TARIFF_VALUE  = '__new_tariff__';
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -309,6 +310,12 @@ export default function CreateJobScreen() {
         <Picker
           selectedValue={selectedTariff}
           onValueChange={(val) => {
+            if (val === NEW_TARIFF_VALUE) {
+              setSelectedTariff('');
+              setManualAmount('');
+              router.push('/tariffs/create');
+              return;
+            }
             setSelectedTariff(val);
             const t = tariffs.find(t => t.id.toString() === val);
             if (t) {
@@ -321,6 +328,7 @@ export default function CreateJobScreen() {
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Tarifa manual --" value="" />
+          <Picker.Item label="➕ Nueva tarifa" value={NEW_TARIFF_VALUE} />
           {filteredTariffs.map(t => (
             <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
           ))}
