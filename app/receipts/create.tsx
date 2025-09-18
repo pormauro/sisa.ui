@@ -37,6 +37,7 @@ export default function CreateReceipt() {
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_PROVIDER_VALUE = '__new_provider__';
   const NEW_CATEGORY_VALUE = '__new_category__';
+  const NEW_CASH_BOX_VALUE = '__new_cash_box__';
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -203,11 +204,19 @@ export default function CreateReceipt() {
         <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={paidInAccount}
-          onValueChange={setPaidInAccount}
+          onValueChange={(value) => {
+            if (value === NEW_CASH_BOX_VALUE) {
+              setPaidInAccount('');
+              router.push('/cash_boxes/create');
+            } else {
+              setPaidInAccount(value);
+            }
+          }}
           style={[styles.picker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona cuenta --" value="" />
+          <Picker.Item label="➕ Nueva caja" value={NEW_CASH_BOX_VALUE} />
           {cashBoxes.map(cb => (
             <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
           ))}
