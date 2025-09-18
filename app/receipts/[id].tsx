@@ -48,6 +48,7 @@ export default function ReceiptDetailPage() {
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_PROVIDER_VALUE = '__new_provider__';
+  const NEW_CATEGORY_VALUE = '__new_category__';
 
   const receipt = receipts.find(r => r.id === receiptId);
 
@@ -401,11 +402,19 @@ export default function ReceiptDetailPage() {
       <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
         <Picker
           selectedValue={categoryId}
-          onValueChange={setCategoryId}
+          onValueChange={(value) => {
+            if (value === NEW_CATEGORY_VALUE) {
+              setCategoryId('');
+              router.push({ pathname: '/categories/create', params: { type: 'income' } });
+            } else {
+              setCategoryId(value);
+            }
+          }}
           style={[styles.picker, { color: inputTextColor }]}
           dropdownIconColor={inputTextColor}
         >
           <Picker.Item label="-- Selecciona categoría --" value="" />
+          <Picker.Item label="➕ Nueva categoría" value={NEW_CATEGORY_VALUE} />
           {displayCategories.map(c => (
             <Picker.Item
               key={c.id}

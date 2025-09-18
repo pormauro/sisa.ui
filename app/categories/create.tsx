@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { getDisplayCategories } from '@/utils/categories';
@@ -19,11 +19,13 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateCategory() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ type?: 'income' | 'expense' }>();
   const { categories, addCategory } = useContext(CategoriesContext);
   const { permissions } = useContext(PermissionsContext);
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<'income' | 'expense'>('income');
+  const initialType = params.type === 'expense' ? 'expense' : 'income';
+  const [type, setType] = useState<'income' | 'expense'>(initialType);
   const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
 
