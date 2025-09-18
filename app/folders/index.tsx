@@ -39,6 +39,18 @@ export default function FoldersPage() {
   const canAddFolder = permissions.includes('addFolder');
   const canDeleteFolder = permissions.includes('deleteFolder');
   const canEditFolder = permissions.includes('updateFolder');
+  const isRootLevel = !client_id && !parent_id;
+
+  const handleAddFolder = () => {
+    if (client_id || parent_id) {
+      const params: Record<string, string> = {};
+      if (client_id) params.client_id = client_id;
+      if (parent_id) params.parent_id = parent_id;
+      router.push({ pathname: '/folders/create', params });
+      return;
+    }
+    router.push('/folders/create');
+  };
 
   useEffect(() => {
     loadFolders();
@@ -141,15 +153,12 @@ export default function FoldersPage() {
         />
       )}
 
-      {canAddFolder && (client_id || parent_id) && (
+      {canAddFolder && (
         <TouchableOpacity
           style={[styles.add, { backgroundColor: addButtonColor }]}
-          onPress={() => {
-            const params: Record<string, string> = {};
-            if (client_id) params.client_id = client_id;
-            if (parent_id) params.parent_id = parent_id;
-            router.push({ pathname: '/folders/create', params });
-          }}>
+          onPress={handleAddFolder}
+          accessibilityLabel={isRootLevel ? 'Agregar carpeta en la raíz' : 'Agregar carpeta'}
+        >
           <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>＋ Agregar carpeta</ThemedText>
         </TouchableOpacity>
       )}
