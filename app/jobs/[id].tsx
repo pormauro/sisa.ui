@@ -46,10 +46,11 @@ export default function EditJobScreen() {
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
-  const NEW_CLIENT_VALUE = '__new_client__';
-  const NEW_STATUS_VALUE = '__new_status__';
-  const NEW_FOLDER_VALUE = '__new_folder__';
-  const NO_FOLDER_VALUE  = '__no_folder__';
+  const NEW_CLIENT_VALUE  = '__new_client__';
+  const NEW_STATUS_VALUE  = '__new_status__';
+  const NEW_FOLDER_VALUE  = '__new_folder__';
+  const NO_FOLDER_VALUE   = '__no_folder__';
+  const NEW_TARIFF_VALUE  = '__new_tariff__';
 
   // estados para pickers
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -225,7 +226,11 @@ export default function EditJobScreen() {
   );
 
   const tariffItems = useMemo(
-    () => [manualTariffItem, ...filteredTariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` }))],
+    () => [
+      { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
+      manualTariffItem,
+      ...filteredTariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
+    ],
     [filteredTariffs, manualTariffItem]
   );
 
@@ -422,6 +427,11 @@ export default function EditJobScreen() {
           items={tariffItems}
           selectedItem={selectedTariff}
           onSelect={(item) => {
+            if (item.id === NEW_TARIFF_VALUE) {
+              router.push('/tariffs/create');
+              return;
+            }
+
             setSelectedTariff(item);
             if (item && item.id !== '') {
               const t = tariffs.find(t => t.id === Number(item.id));
