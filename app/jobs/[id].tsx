@@ -47,6 +47,7 @@ export default function EditJobScreen() {
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
   const NEW_CLIENT_VALUE = '__new_client__';
+  const NEW_STATUS_VALUE = '__new_status__';
 
   // estados para pickers
   const [selectedClientId, setSelectedClientId] = useState<string>('');
@@ -200,7 +201,10 @@ export default function EditJobScreen() {
   );
 
   const statusItems = useMemo(
-    () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
+    () => [
+      { id: NEW_STATUS_VALUE, name: '➕ Nuevo estado' },
+      ...statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
+    ],
     [statuses]
   );
 
@@ -362,7 +366,13 @@ export default function EditJobScreen() {
         <ModalPicker
           items={statusItems}
           selectedItem={selectedStatus}
-          onSelect={setSelectedStatus}
+          onSelect={(item) => {
+            if (item.id === NEW_STATUS_VALUE) {
+              router.push('/statuses/create');
+              return;
+            }
+            setSelectedStatus(item);
+          }}
           placeholder="-- Estado --"
         />
       </View>

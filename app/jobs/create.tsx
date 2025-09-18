@@ -39,7 +39,8 @@ export default function CreateJobScreen() {
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
 
-  const NEW_CLIENT_VALUE = '__new_client__';
+  const NEW_CLIENT_VALUE  = '__new_client__';
+  const NEW_STATUS_VALUE  = '__new_status__';
   // Form state
   const [selectedClient, setSelectedClient]   = useState<string>('');
   const [selectedFolder, setSelectedFolder]   = useState<string>('');
@@ -122,7 +123,10 @@ export default function CreateJobScreen() {
   }, [selectedClient, clients, tariffs, jobDate]);
 
   const statusItems = useMemo(
-    () => statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
+    () => [
+      { id: NEW_STATUS_VALUE, name: '➕ Nuevo estado' },
+      ...statuses.map(s => ({ id: s.id, name: s.label, backgroundColor: s.background_color })),
+    ],
     [statuses]
   );
 
@@ -270,7 +274,13 @@ export default function CreateJobScreen() {
         <ModalPicker
           items={statusItems}
           selectedItem={selectedStatus}
-          onSelect={setSelectedStatus}
+          onSelect={(item) => {
+            if (item.id === NEW_STATUS_VALUE) {
+              router.push('/statuses/create');
+              return;
+            }
+            setSelectedStatus(item);
+          }}
           placeholder="-- Estado --"
         />
       </View>
