@@ -81,22 +81,6 @@ export default function ProvidersListPage() {
     [deleteProvider]
   );
 
-  const handleViewDetails = useCallback(
-    (event: GestureResponderEvent, id: number) => {
-      event.stopPropagation();
-      router.push(`/providers/viewModal?id=${id}`);
-    },
-    [router]
-  );
-
-  const handleEditProvider = useCallback(
-    (event: GestureResponderEvent, id: number) => {
-      event.stopPropagation();
-      router.push(`/providers/${id}`);
-    },
-    [router]
-  );
-
   const handleDeleteProvider = useCallback(
     (event: GestureResponderEvent, id: number) => {
       event.stopPropagation();
@@ -120,24 +104,8 @@ export default function ProvidersListPage() {
         </View>
       </View>
 
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={(event) => handleViewDetails(event, item.id)}
-        >
-          <ThemedText style={styles.actionText}>👁️</ThemedText>
-        </TouchableOpacity>
-
-        {canEdit && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(event) => handleEditProvider(event, item.id)}
-          >
-            <ThemedText style={styles.actionText}>✏️</ThemedText>
-          </TouchableOpacity>
-        )}
-
-        {canDelete && (
+      {canDelete && (
+        <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={(event) => handleDeleteProvider(event, item.id)}
@@ -148,8 +116,8 @@ export default function ProvidersListPage() {
               <ThemedText style={styles.actionText}>🗑️</ThemedText>
             )}
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 

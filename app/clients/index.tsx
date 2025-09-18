@@ -75,22 +75,6 @@ export default function ClientsListPage() {
     [deleteClient]
   );
 
-  const handleViewDetails = useCallback(
-    (event: GestureResponderEvent, id: number) => {
-      event.stopPropagation();
-      router.push(`/clients/viewModal?id=${id}`);
-    },
-    [router]
-  );
-
-  const handleEditClient = useCallback(
-    (event: GestureResponderEvent, id: number) => {
-      event.stopPropagation();
-      router.push(`/clients/${id}`);
-    },
-    [router]
-  );
-
   const handleDeleteClient = useCallback(
     (event: GestureResponderEvent, id: number) => {
       event.stopPropagation();
@@ -114,32 +98,16 @@ export default function ClientsListPage() {
         </View>
       </View>
 
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={(event) => handleViewDetails(event, item.id)}
-        >
-          <ThemedText style={styles.actionText}>👁️</ThemedText>
-        </TouchableOpacity>
-
-        {canEditClient && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(event) => handleEditClient(event, item.id)}
-          >
-            <ThemedText style={styles.actionText}>✏️</ThemedText>
-          </TouchableOpacity>
-        )}
-
-        {canDeleteClient && (
+      {canDeleteClient && (
+        <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={(event) => handleDeleteClient(event, item.id)}
           >
             <ThemedText style={styles.actionText}>🗑️</ThemedText>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
