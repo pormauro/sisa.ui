@@ -24,6 +24,8 @@ export default function ClientDetailPage() {
 
   const client = clients.find(c => c.id === clientId);
 
+  const NEW_TARIFF_VALUE = 'new_tariff';
+
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
@@ -191,10 +193,19 @@ export default function ClientDetailPage() {
       <View style={[styles.pickerWrap, { backgroundColor: pickerBackground, borderColor }]}> 
         <Picker
           selectedValue={tariffId}
-          onValueChange={setTariffId}
+          onValueChange={(itemValue) => {
+            const value = itemValue?.toString() ?? '';
+            if (value === NEW_TARIFF_VALUE) {
+              setTariffId('');
+              router.push('/tariffs/create');
+              return;
+            }
+            setTariffId(value);
+          }}
           style={[styles.picker, { color: inputTextColor }]}
         >
           <Picker.Item label="Sin Tarifa" value="" />
+          <Picker.Item label="➕ Nueva tarifa" value={NEW_TARIFF_VALUE} />
           {tariffs.map(t => (
             <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
           ))}
