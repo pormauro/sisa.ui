@@ -25,7 +25,7 @@ export default function CategoryDetailPage() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const categoryId = Number(id);
-  const { categories, updateCategory, deleteCategory } = useContext(CategoriesContext);
+  const { categories, loadCategories, updateCategory, deleteCategory } = useContext(CategoriesContext);
 
   const category = categories.find(c => c.id === categoryId);
 
@@ -33,6 +33,8 @@ export default function CategoryDetailPage() {
   const [type, setType] = useState<'income' | 'expense'>('income');
   const [parentId, setParentId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -57,16 +59,37 @@ export default function CategoryDetailPage() {
 
   useEffect(() => {
     if (category) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setName(category.name);
       setType(category.type);
       setParentId(category.parent_id ? String(category.parent_id) : '');
+      return;
     }
-  }, [category]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadCategories()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [category, hasAttemptedLoad, isFetchingItem, loadCategories]);
 
   if (!category) {
     return (
       <View style={[styles.container, { backgroundColor: background }]}>
-        <ThemedText>Categoría no encontrada</ThemedText>
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={spinnerColor} />
+        ) : (
+          <ThemedText>Categoría no encontrada</ThemedText>
+        )}
       </View>
     );
   }

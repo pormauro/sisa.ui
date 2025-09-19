@@ -40,7 +40,7 @@ export default function PaymentDetailPage() {
   }>();
   const { id } = params;
   const paymentId = Number(id);
-  const { payments, updatePayment, deletePayment } = useContext(PaymentsContext);
+  const { payments, loadPayments, updatePayment, deletePayment } = useContext(PaymentsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
@@ -69,6 +69,8 @@ export default function PaymentDetailPage() {
   const [chargeClientId, setChargeClientId] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -133,6 +135,12 @@ export default function PaymentDetailPage() {
 
   useEffect(() => {
     if (payment) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setPaymentDate(new Date(payment.payment_date.replace(' ', 'T')));
       setPaidWithAccount(payment.paid_with_account);
       setCreditorType(payment.creditor_type);
@@ -156,13 +164,28 @@ export default function PaymentDetailPage() {
       setChargeClientId(
         payment.client_id ? String(payment.client_id) : ''
       );
+      return;
     }
-  }, [payment]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadPayments()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [payment, hasAttemptedLoad, isFetchingItem, loadPayments]);
 
   if (!payment) {
     return (
-      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
-        <ThemedText>Pago no encontrado</ThemedText>
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={spinnerColor} />
+        ) : (
+          <ThemedText>Pago no encontrado</ThemedText>
+        )}
       </ThemedView>
     );
   }

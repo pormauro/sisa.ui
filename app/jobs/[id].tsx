@@ -35,7 +35,7 @@ export default function EditJobScreen() {
   const { id } = params;
   const jobId = Number(id);
 
-  const { jobs, updateJob, deleteJob } = useContext(JobsContext);
+  const { jobs, loadJobs, updateJob, deleteJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
@@ -72,6 +72,8 @@ export default function EditJobScreen() {
 
   const [loading, setLoading] = useState(false);
   const [participants, setParticipants] = useState<number[]>([]);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
   const previousClientIdRef = useRef<string | null>(null);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const rate = useMemo(() => (manualAmount ? parseFloat(manualAmount) : 0), [manualAmount]);
@@ -103,53 +105,66 @@ export default function EditJobScreen() {
 
   // carga inicial del job
   useEffect(() => {
-    if (!job) {
-      Alert.alert('Error', 'Trabajo no encontrado.');
-      router.back();
+    if (job) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
+      setSelectedClientId(job.client_id ? job.client_id.toString() : '');
+
+      const fol = folders.find(f => f.id === job.folder_id);
+      setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
+
+      const statusObj = job.status_id != null ? statuses.find(s => s.id === job.status_id) : undefined;
+      setSelectedStatus(
+        statusObj
+          ? { id: statusObj.id, name: statusObj.label, backgroundColor: statusObj.background_color }
+          : null
+      );
+
+      const extractDate = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[0] : dt || '');
+      const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
+
+      setDescription(job.description || '');
+      const attachments = job.attached_files
+        ? (typeof job.attached_files === 'string'
+            ? JSON.parse(job.attached_files)
+            : job.attached_files)
+        : [];
+      setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
+      setJobDate(extractDate(job.job_date));
+      setStartTime(extractTime(job.start_time));
+      setEndTime(extractTime(job.end_time));
+
+      const tar = tariffs.find(t => t.id === job.tariff_id);
+      setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
+      setManualAmount(
+        job.manual_amount ? job.manual_amount.toString() : tar ? tar.amount.toString() : ''
+      );
+
+      const parts = job.participants
+        ? (typeof job.participants === 'string'
+            ? JSON.parse(job.participants)
+            : job.participants)
+        : [];
+      const ids = parts.map((p: any) => (typeof p === 'number' ? p : p.id));
+      if (ids.length === 0 && userId) ids.push(Number(userId));
+      setParticipants(ids);
       return;
     }
-    // cargar pickers
-    setSelectedClientId(job.client_id ? job.client_id.toString() : '');
 
-    const fol = folders.find(f => f.id === job.folder_id);
-    setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
+    if (hasAttemptedLoad) {
+      return;
+    }
 
-    const statusObj = job.status_id != null ? statuses.find(s => s.id === job.status_id) : undefined;
-    setSelectedStatus(
-      statusObj
-        ? { id: statusObj.id, name: statusObj.label, backgroundColor: statusObj.background_color }
-        : null
-    );
-
-    const extractDate = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[0] : dt || '');
-    const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
-
-    setDescription(job.description || '');
-    const attachments = job.attached_files
-      ? (typeof job.attached_files === 'string'
-          ? JSON.parse(job.attached_files)
-          : job.attached_files)
-      : [];
-    setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
-    setJobDate(extractDate(job.job_date));
-    setStartTime(extractTime(job.start_time));
-    setEndTime(extractTime(job.end_time));
-
-    const tar = tariffs.find(t => t.id === job.tariff_id);
-    setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
-    setManualAmount(
-      job.manual_amount ? job.manual_amount.toString() : tar ? tar.amount.toString() : ''
-    );
-
-    const parts = job.participants
-      ? (typeof job.participants === 'string'
-          ? JSON.parse(job.participants)
-          : job.participants)
-      : [];
-    const ids = parts.map((p: any) => (typeof p === 'number' ? p : p.id));
-    if (ids.length === 0 && userId) ids.push(Number(userId));
-    setParticipants(ids);
-  }, [job, clients, folders, statuses, tariffs, manualTariffItem]);
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadJobs()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [job, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
 
   useEffect(() => {
     if (previousClientIdRef.current === null) {
@@ -558,6 +573,18 @@ export default function EditJobScreen() {
       )}
     </KeyboardAvoidingView>
   );
+
+  if (!job) {
+    return (
+      <ThemedView style={[styles.container, { backgroundColor }]}> 
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator size="large" color={btnSaveColor} />
+        ) : (
+          <ThemedText style={styles.label}>Trabajo no encontrado</ThemedText>
+        )}
+      </ThemedView>
+    );
+  }
 
   return (
        <ThemedView style={{ flex: 1 }}>

@@ -18,7 +18,7 @@ export default function EditTariff() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const tariffId = Number(id);
-  const { tariffs, updateTariff, deleteTariff } = useContext(TariffsContext);
+  const { tariffs, loadTariffs, updateTariff, deleteTariff } = useContext(TariffsContext);
   const { permissions } = useContext(PermissionsContext);
 
   const tariff = tariffs.find(t => t.id === tariffId);
@@ -26,19 +26,56 @@ export default function EditTariff() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const canEdit = permissions.includes('updateTariff');
   const canDelete = permissions.includes('deleteTariff');
 
   useEffect(() => {
-    if (!tariff) {
-      Alert.alert('Error', 'Tarifa no encontrada.');
-      router.back();
+    if (tariff) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
+      setName(tariff.name);
+      setAmount(String(tariff.amount));
       return;
     }
-    setName(tariff.name);
-    setAmount(String(tariff.amount));
-  }, [tariff, router]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadTariffs()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [tariff, hasAttemptedLoad, isFetchingItem, loadTariffs]);
+
+  const background = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'text');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#ff6b6b' }, 'button');
+
+  if (!tariff) {
+    return (
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}> 
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={buttonColor} />
+        ) : (
+          <ThemedText>Tarifa no encontrada.</ThemedText>
+        )}
+      </ScrollView>
+    );
+  }
 
   const handleSubmit = async () => {
     if (!canEdit) {
@@ -81,15 +118,6 @@ export default function EditTariff() {
       },
     ]);
   };
-
-  const background = useThemeColor({}, 'background');
-  const textColor = useThemeColor({}, 'text');
-  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'text');
-  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
-  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
-  const buttonColor = useThemeColor({}, 'button');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
-  const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#ff6b6b' }, 'button');
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
