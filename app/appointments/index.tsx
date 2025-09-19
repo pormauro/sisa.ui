@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+// eslint-disable-next-line import/no-unresolved
 import { Calendar, DateObject, LocaleConfig } from 'react-native-calendars';
 import { useRouter } from 'expo-router';
 import { AppointmentsContext, Appointment } from '@/contexts/AppointmentsContext';
@@ -174,16 +175,18 @@ export default function AppointmentsCalendarScreen() {
             </ThemedText>
           ) : null}
           {canDelete ? (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={event => handleDeletePress(event, item.id)}
-            >
-              {deletingId === item.id ? (
-                <ActivityIndicator size="small" color={tintColor} />
-              ) : (
-                <ThemedText style={styles.deleteIcon}>🗑️</ThemedText>
-              )}
-            </TouchableOpacity>
+            <View style={styles.cardActions}>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={event => handleDeletePress(event, item.id)}
+              >
+                {deletingId === item.id ? (
+                  <ActivityIndicator size="small" color={tintColor} />
+                ) : (
+                  <ThemedText style={styles.deleteIcon}>🗑️</ThemedText>
+                )}
+              </TouchableOpacity>
+            </View>
           ) : null}
         </TouchableOpacity>
       );
@@ -275,7 +278,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 6,
   },
   cardTime: {
@@ -284,6 +287,9 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 14,
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 12,
   },
   cardTitle: {
     fontSize: 16,
@@ -294,11 +300,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
   },
+  cardActions: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
   deleteButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    padding: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   deleteIcon: {
     fontSize: 18,
