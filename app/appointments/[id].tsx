@@ -136,6 +136,9 @@ export default function EditAppointmentScreen() {
 
   useEffect(() => {
     if (!selectedClient) {
+      if (skipInitialAutoFillRef.current) {
+        return;
+      }
       setLocation('');
       setLocationManuallyEdited(false);
       lastSelectedClientRef.current = null;
