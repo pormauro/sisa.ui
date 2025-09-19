@@ -1,7 +1,14 @@
 // /contexts/CategoriesContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Category {
   id: number;
@@ -27,10 +34,13 @@ export const CategoriesContext = createContext<CategoriesContextValue>({
 });
 
 export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useCachedState<Category[]>(
+    'categories',
+    []
+  );
   const { token } = useContext(AuthContext);
 
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/categories`, {
         headers: {
@@ -45,7 +55,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading categories:', error);
     }
-  };
+  }, [setCategories, token]);
 
   const addCategory = async (category: Omit<Category, 'id'>): Promise<Category | null> => {
     try {
@@ -112,9 +122,9 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      loadCategories();
+      void loadCategories();
     }
-  }, [token]);
+  }, [loadCategories, token]);
 
   return (
     <CategoriesContext.Provider value={{ categories, loadCategories, addCategory, updateCategory, deleteCategory }}>

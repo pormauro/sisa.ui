@@ -1,7 +1,14 @@
 // contexts/TariffsContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Tariff {
   id: number;
@@ -27,10 +34,10 @@ export const TariffsContext = createContext<TariffsContextType>({
 });
 
 export const TariffsProvider = ({ children }: { children: ReactNode }) => {
-  const [tariffs, setTariffs] = useState<Tariff[]>([]);
+  const [tariffs, setTariffs] = useCachedState<Tariff[]>('tariffs', []);
   const { token } = useContext(AuthContext);
 
-  const loadTariffs = async () => {
+  const loadTariffs = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/tariffs`, {
         headers: {
@@ -49,7 +56,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading tariffs:', error);
     }
-  };
+  }, [setTariffs, token]);
 
   const addTariff = async (tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<Tariff | null> => {
     try {
@@ -124,9 +131,9 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      loadTariffs();
+      void loadTariffs();
     }
-  }, [token]);
+  }, [loadTariffs, token]);
 
   return (
     <TariffsContext.Provider value={{ tariffs, loadTariffs, addTariff, updateTariff, deleteTariff }}>

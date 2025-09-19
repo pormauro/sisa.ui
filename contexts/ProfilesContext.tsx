@@ -1,7 +1,8 @@
 // /contexts/ProfilesContext.tsx
-import React, { createContext, useCallback, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, ReactNode } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface UserProfile {
   id: number;
@@ -27,7 +28,10 @@ export const ProfilesContext = createContext<ProfilesContextType>({
 
 export const ProfilesProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
-  const [profiles, setProfiles] = useState<Record<number, UserProfile>>({});
+  const [profiles, setProfiles] = useCachedState<Record<number, UserProfile>>(
+    'user_profiles',
+    {}
+  );
 
   const getProfile = useCallback(
     async (userId: number): Promise<UserProfile | null> => {
@@ -48,7 +52,7 @@ export const ProfilesProvider = ({ children }: { children: ReactNode }) => {
         return null;
       }
     },
-    [profiles, token],
+    [profiles, setProfiles, token],
   );
 
   return (

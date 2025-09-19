@@ -5,6 +5,11 @@ import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import {
+  clearFileCaches,
+  getCachedFileMeta,
+  setCachedFileMeta,
+} from '@/utils/cache';
 
 // Tipo de archivo que devuelve el backend
 export interface FileData {
@@ -45,8 +50,6 @@ interface FileProviderProps {
 export const FilesProvider = ({ children }: FileProviderProps) => {
   const { token } = useContext(AuthContext);
 
-  const fileMetaKey = (id: number): string => `file_meta_${id}`;
-
   const sanitizeFileName = (name: string): string =>
     name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
@@ -62,18 +65,14 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     await FileSystem.writeAsStringAsync(localUri, base64, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    await AsyncStorage.setItem(
-      fileMetaKey(fileId),
-      JSON.stringify({ ...file, localUri })
-    );
+    await setCachedFileMeta(fileId, { ...file, localUri });
     return localUri;
   };
 
   const getFile = async (fileId: number): Promise<string | null> => {
     try {
-      const metaString = await AsyncStorage.getItem(fileMetaKey(fileId));
-      if (metaString) {
-        const meta = JSON.parse(metaString) as FileData & { localUri: string };
+      const meta = await getCachedFileMeta<FileData & { localUri: string }>(fileId);
+      if (meta) {
         const info = await FileSystem.getInfoAsync(meta.localUri);
         if (info.exists) {
           const base64 = await FileSystem.readAsStringAsync(meta.localUri, {
@@ -167,10 +166,7 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
         );
         const localUri = `${FileSystem.documentDirectory}${sanitized}`;
         await FileSystem.copyAsync({ from: fileUri, to: localUri });
-        await AsyncStorage.setItem(
-          fileMetaKey(data.file.id),
-          JSON.stringify({ ...data.file, localUri })
-        );
+        await setCachedFileMeta(data.file.id, { ...data.file, localUri });
         return data.file;
       }
     } catch (error: any) {
@@ -183,30 +179,38 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
   const getFileMetadata = async (
     fileId: number
   ): Promise<(FileData & { localUri: string }) | null> => {
-    const metaString = await AsyncStorage.getItem(fileMetaKey(fileId));
-    if (metaString) {
-      return JSON.parse(metaString) as FileData & { localUri: string };
+    const meta = await getCachedFileMeta<FileData & { localUri: string }>(fileId);
+    if (meta) {
+      return meta;
     }
     await getFile(fileId);
-    const newMeta = await AsyncStorage.getItem(fileMetaKey(fileId));
+    const newMeta = await getCachedFileMeta<FileData & { localUri: string }>(fileId);
     if (newMeta) {
-      return JSON.parse(newMeta) as FileData & { localUri: string };
+      return newMeta;
     }
     return null;
   };
   const clearLocalFiles = async (): Promise<void> => {
     const keys = await AsyncStorage.getAllKeys();
-    const fileKeys = keys.filter(k => k.startsWith('file_meta_'));
+    const fileKeys = keys.filter(
+      key => key.startsWith('@sisa:file:') || key.startsWith('file_meta_')
+    );
     const metas = await AsyncStorage.multiGet(fileKeys);
     await Promise.all(
       metas.map(async ([, value]) => {
         if (value) {
-          const meta = JSON.parse(value) as { localUri: string };
-          await FileSystem.deleteAsync(meta.localUri, { idempotent: true });
+          try {
+            const meta = JSON.parse(value) as { localUri?: string };
+            if (meta?.localUri) {
+              await FileSystem.deleteAsync(meta.localUri, { idempotent: true });
+            }
+          } catch (error) {
+            console.log('Error clearing cached file', error);
+          }
         }
       })
     );
-    await AsyncStorage.multiRemove(fileKeys);
+    await clearFileCaches();
   };
 
   return (

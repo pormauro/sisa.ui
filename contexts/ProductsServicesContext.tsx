@@ -1,7 +1,14 @@
 // C:/Users/Mauri/Documents/GitHub/router/contexts/ProductsServicesContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface ProductService {
   id: number;
@@ -33,10 +40,13 @@ export const ProductsServicesContext = createContext<ProductsServicesContextType
 });
 
 export const ProductsServicesProvider = ({ children }: { children: ReactNode }) => {
-  const [productsServices, setProductsServices] = useState<ProductService[]>([]);
+  const [productsServices, setProductsServices] = useCachedState<ProductService[]>(
+    'products_services',
+    []
+  );
   const { token } = useContext(AuthContext);
 
-  const loadProductsServices = async () => {
+  const loadProductsServices = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/products_services`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
@@ -46,7 +56,7 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
     } catch (error) {
       console.error('Error loading products/services:', error);
     }
-  };
+  }, [setProductsServices, token]);
 
   const addProductService = async (item: Omit<ProductService, 'id' | 'user_id'>): Promise<ProductService | null> => {
     try {
@@ -103,8 +113,8 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
   };
 
   useEffect(() => {
-    if (token) loadProductsServices();
-  }, [token]);
+    if (token) void loadProductsServices();
+  }, [loadProductsServices, token]);
 
   return (
     <ProductsServicesContext.Provider value={{ productsServices, loadProductsServices, addProductService, updateProductService, deleteProductService }}>

@@ -1,7 +1,14 @@
 // C:/Users/Mauri/Documents/GitHub/router/contexts/JobsContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Job {
   id: number;
@@ -59,12 +66,12 @@ export const JobsContext = createContext<JobsContextType>({
 });
 
 export const JobsProvider = ({ children }: { children: ReactNode }) => {
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useCachedState<Job[]>('jobs', []);
   const { token } = useContext(AuthContext);
 
   const normalizeTime = (time: string) => (time && time.length === 5 ? `${time}:00` : time);
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/jobs`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -97,7 +104,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Error loading jobs:', err);
     }
-  };
+  }, [setJobs, token]);
 
   const addJob = async (jobData: Omit<Job, 'id' | 'user_id'>): Promise<Job | null> => {
     try {
@@ -226,7 +233,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
       if (data.message === 'Job deleted successfully') {
-        setJobs((prev) => prev.filter((j) => j.id !== id));
+        setJobs(prev => prev.filter(j => j.id !== id));
         return true;
       }
     } catch (err) {
@@ -236,8 +243,8 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    if (token) loadJobs();
-  }, [token]);
+    if (token) void loadJobs();
+  }, [loadJobs, token]);
 
   return (
     <JobsContext.Provider value={{ jobs, loadJobs, addJob, updateJob, deleteJob }}>

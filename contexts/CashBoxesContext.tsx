@@ -1,7 +1,14 @@
 // C:/Users/Mauri/Documents/GitHub/router/contexts/CashBoxesContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface CashBox {
   id: number;
@@ -30,10 +37,13 @@ export const CashBoxesContext = createContext<CashBoxesContextType>({
 });
 
 export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
-  const [cashBoxes, setCashBoxes] = useState<CashBox[]>([]);
+  const [cashBoxes, setCashBoxes] = useCachedState<CashBox[]>(
+    'cash_boxes',
+    []
+  );
   const { token } = useContext(AuthContext);
 
-  const loadCashBoxes = async () => {
+  const loadCashBoxes = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/cash_boxes`, {
         headers: {
@@ -48,7 +58,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Error loading cash boxes:", error);
     }
-  };
+  }, [setCashBoxes, token]);
 
   const addCashBox = async (cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<CashBox | null> => {
     try {
@@ -135,12 +145,14 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      loadCashBoxes();
+      void loadCashBoxes();
     }
-  }, [token]);
+  }, [loadCashBoxes, token]);
 
   return (
-    <CashBoxesContext.Provider value={{ cashBoxes, loadCashBoxes, addCashBox, updateCashBox, deleteCashBox, listCashBoxHistory }}>
+    <CashBoxesContext.Provider
+      value={{ cashBoxes, loadCashBoxes, addCashBox, updateCashBox, deleteCashBox, listCashBoxHistory }}
+    >
       {children}
     </CashBoxesContext.Provider>
   );

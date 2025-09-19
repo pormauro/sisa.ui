@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { clearAllDataCaches } from '@/utils/cache';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
@@ -33,6 +34,19 @@ const ConfigScreen: React.FC = () => {
         style: 'destructive',
         onPress: () => {
           void clearLocalFiles();
+        },
+      },
+    ]);
+  };
+
+  const handleClearCache = (): void => {
+    Alert.alert('Confirmación', '¿Deseas borrar los datos almacenados en caché?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar',
+        style: 'destructive',
+        onPress: () => {
+          void clearAllDataCaches();
         },
       },
     ]);
@@ -96,6 +110,13 @@ const ConfigScreen: React.FC = () => {
             lightColor="#d9534f"
             darkColor="#d9534f"
             onPress={handleClearFiles}
+            style={styles.editButton}
+          />
+          <ThemedButton
+            title="Borrar datos de la caché"
+            lightColor="#d9534f"
+            darkColor="#d9534f"
+            onPress={handleClearCache}
             style={styles.editButton}
           />
         </ThemedView>

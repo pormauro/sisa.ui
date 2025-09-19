@@ -1,8 +1,9 @@
 // src/contexts/ConfigContext.tsx
-import React, { createContext, useState, ReactNode, useEffect, useContext } from 'react';
+import React, { createContext, ReactNode, useEffect, useContext } from 'react';
 import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface ConfigDetails {
   role: string;
@@ -31,7 +32,10 @@ interface ConfigProviderProps {
 }
 
 export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
-  const [configDetails, setConfigDetails] = useState<ConfigDetails | null>(null);
+  const [configDetails, setConfigDetails] = useCachedState<ConfigDetails | null>(
+    'config',
+    null
+  );
   const { userId, token } = useContext(AuthContext);
 
   const loadConfig = async (): Promise<void> => {
@@ -67,7 +71,7 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
       });
       if (response.ok) {
         // Actualiza el estado combinando la configuración previa con los nuevos datos
-        setConfigDetails((prev) => (prev ? { ...prev, ...configForm } : null));
+        setConfigDetails(prev => (prev ? { ...prev, ...configForm } : { ...configForm }));
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error actualizando configuración');
