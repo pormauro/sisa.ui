@@ -1,11 +1,14 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/products_services/index.tsx
 import React, { useContext, useState, useMemo, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ProductsServicesContext, ProductService } from '@/contexts/ProductsServicesContext';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function ProductsServicesScreen() {
   const { productsServices, loadProductsServices, deleteProductService } = useContext(ProductsServicesContext);
@@ -13,6 +16,16 @@ export default function ProductsServicesScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+
+  const background = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const addButtonColor = useThemeColor({}, 'button');
+  const addButtonTextColor = useThemeColor({}, 'buttonText');
+  const spinnerColor = useThemeColor({}, 'tint');
 
   useEffect(() => {
     if (!permissions.includes('listProductsServices')) {
@@ -55,51 +68,61 @@ export default function ProductsServicesScreen() {
   };
 
   const renderItem = ({ item }: { item: ProductService }) => (
-    <TouchableOpacity style={styles.itemContainer} onLongPress={() => router.push(`./products_services/${item.id}`)}>
+    <TouchableOpacity
+      style={[styles.itemContainer, { borderColor: itemBorderColor }]}
+      onLongPress={() => router.push(`./products_services/${item.id}`)}
+    >
       <CircleImagePicker fileId={item.product_image_file_id} size={50} />
       <View style={styles.itemInfo}>
-        <Text style={styles.itemTitle}>{item.description}</Text>
-        {/*<Text>{item.category}</Text>*/}
-        <Text>${item.price}</Text>
+        <ThemedText style={styles.itemTitle}>{item.description}</ThemedText>
+        <ThemedText>${item.price}</ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
-          {loadingId === item.id ? <ActivityIndicator /> : <Text style={styles.deleteText}>🗑</Text>}
+          {loadingId === item.id ? (
+            <ActivityIndicator color={spinnerColor} />
+          ) : (
+            <ThemedText style={styles.deleteText}>🗑</ThemedText>
+          )}
         </TouchableOpacity>
       )}
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <TextInput
         placeholder="Buscar producto o servicio..."
-        style={styles.searchInput}
+        style={[styles.searchInput, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         value={searchQuery}
         onChangeText={setSearchQuery}
+        placeholderTextColor={placeholderColor}
       />
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.emptyText}>No se encontraron registros</Text>}
+        ListEmptyComponent={<ThemedText style={styles.emptyText}>No se encontraron registros</ThemedText>}
       />
-      <TouchableOpacity style={styles.addButton} onPress={() => router.push('/products_services/create')}>
-        <Text style={styles.addButtonText}>➕ Agregar</Text>
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: addButtonColor }]}
+        onPress={() => router.push('/products_services/create')}
+      >
+        <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar</ThemedText>
       </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  searchInput: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
-  itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderColor: '#eee' },
+  container: { flex: 1, padding: 16 },
+  searchInput: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1, marginLeft: 12 },
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, backgroundColor: '#28a745', padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
+  addButtonText: { fontSize: 16, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
 });

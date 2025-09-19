@@ -1,10 +1,12 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/products_services/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ProductsServicesContext } from '@/contexts/ProductsServicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import { ThemedText } from '@/components/ThemedText';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateProductService() {
   const router = useRouter();
@@ -20,6 +22,16 @@ export default function CreateProductService() {
   const [stock, setStock] = useState('');
   const [productImageFileId, setProductImageFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const radioBorderColor = useThemeColor({ light: '#007BFF', dark: '#6a9cff' }, 'tint');
+  const radioSelectedBackground = useThemeColor({ light: '#007BFF22', dark: '#6a9cff33' }, 'background');
 
   useEffect(() => {
     if (!permissions.includes('addProductService')) {
@@ -55,53 +67,117 @@ export default function CreateProductService() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.label}>Imagen</Text>
-      <CircleImagePicker 
-        fileId={productImageFileId} 
-        editable={true} 
-        size={200} 
-        onImageChange={setProductImageFileId} 
+    <ScrollView style={{ flex: 1, backgroundColor }} contentContainerStyle={styles.container}>
+      <ThemedText style={styles.label}>Imagen</ThemedText>
+      <CircleImagePicker
+        fileId={productImageFileId}
+        editable={true}
+        size={200}
+        onImageChange={setProductImageFileId}
       />
 
-      <Text style={styles.label}>Descripción</Text>
-      <TextInput style={styles.input} value={description} onChangeText={setDescription} placeholder="Descripción" />
+      <ThemedText style={styles.label}>Descripción</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Descripción"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Categoría</Text>
-      <TextInput style={styles.input} value={category} onChangeText={setCategory} placeholder="Categoría" />
+      <ThemedText style={styles.label}>Categoría</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={category}
+        onChangeText={setCategory}
+        placeholder="Categoría"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Precio</Text>
-      <TextInput style={styles.input} keyboardType="decimal-pad" value={price} onChangeText={setPrice} placeholder="Precio" />
+      <ThemedText style={styles.label}>Precio</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        keyboardType="decimal-pad"
+        value={price}
+        onChangeText={setPrice}
+        placeholder="Precio"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Costo</Text>
-      <TextInput style={styles.input} keyboardType="decimal-pad" value={cost} onChangeText={setCost} placeholder="Costo" />
+      <ThemedText style={styles.label}>Costo</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        keyboardType="decimal-pad"
+        value={cost}
+        onChangeText={setCost}
+        placeholder="Costo"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Dificultad</Text>
-      <TextInput style={styles.input} value={difficulty} onChangeText={setDifficulty} placeholder="Dificultad" />
+      <ThemedText style={styles.label}>Dificultad</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        value={difficulty}
+        onChangeText={setDifficulty}
+        placeholder="Dificultad"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <Text style={styles.label}>Tipo</Text>
+      <ThemedText style={styles.label}>Tipo</ThemedText>
       <View style={styles.row}>
-        <TouchableOpacity onPress={() => setItemType('product')} style={[styles.radio, itemType === 'product' && styles.radioSelected]}><Text>Producto</Text></TouchableOpacity>
-        <TouchableOpacity onPress={() => setItemType('service')} style={[styles.radio, itemType === 'service' && styles.radioSelected]}><Text>Servicio</Text></TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setItemType('product')}
+          style={[
+            styles.radio,
+            { borderColor: radioBorderColor },
+            itemType === 'product' ? { backgroundColor: radioSelectedBackground } : {},
+          ]}
+        >
+          <ThemedText>Producto</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setItemType('service')}
+          style={[
+            styles.radio,
+            { borderColor: radioBorderColor },
+            itemType === 'service' ? { backgroundColor: radioSelectedBackground } : {},
+          ]}
+        >
+          <ThemedText>Servicio</ThemedText>
+        </TouchableOpacity>
       </View>
 
-      <Text style={styles.label}>Stock (opcional)</Text>
-      <TextInput style={styles.input} keyboardType="numeric" value={stock} onChangeText={setStock} placeholder="Stock disponible" />
+      <ThemedText style={styles.label}>Stock (opcional)</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+        keyboardType="numeric"
+        value={stock}
+        onChangeText={setStock}
+        placeholder="Stock disponible"
+        placeholderTextColor={placeholderColor}
+      />
 
-      <TouchableOpacity style={styles.submitButton} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Crear</Text>}
+      <TouchableOpacity
+        style={[styles.submitButton, { backgroundColor: buttonColor }]}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color={buttonTextColor} />
+        ) : (
+          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear</ThemedText>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, backgroundColor: '#fff' },
+  container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   row: { flexDirection: 'row', gap: 16, marginVertical: 8 },
-  radio: { padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#007BFF' },
-  radioSelected: { backgroundColor: '#007BFF22' },
-  submitButton: { marginTop: 16, backgroundColor: '#28a745', padding: 16, borderRadius: 8, alignItems: 'center' },
-  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  radio: { padding: 10, borderRadius: 8, borderWidth: 1 },
+  submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
+  submitButtonText: { fontSize: 16, fontWeight: 'bold' },
 });

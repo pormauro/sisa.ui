@@ -63,6 +63,7 @@ export default function EditAppointmentScreen() {
   const screenBackground = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#fff', dark: '#3b314d' }, 'background');
   const borderColor = useThemeColor({ light: '#d0d0d0', dark: '#555' }, 'background');
+  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#bbb' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
@@ -87,7 +88,7 @@ export default function EditAppointmentScreen() {
 
   useEffect(() => {
     if (!canEdit) {
-      Alert.alert('Acceso denegado', 'No tienes permiso para editar citas.');
+      Alert.alert('Acceso denegado', 'No tienes permiso para editar visitas.');
       router.back();
     }
   }, [canEdit, router]);
@@ -128,7 +129,7 @@ export default function EditAppointmentScreen() {
   const handleSave = async () => {
     if (!appointment) return;
     if (!selectedClient || !location.trim()) {
-      Alert.alert('Campos incompletos', 'Selecciona un cliente e ingresa la ubicación de la cita.');
+      Alert.alert('Campos incompletos', 'Selecciona un cliente e ingresa la ubicación de la visita.');
       return;
     }
     const appointmentDate = formatDateForApi(dateTime);
@@ -147,7 +148,7 @@ export default function EditAppointmentScreen() {
     setIsSaving(false);
 
     if (ok) {
-      Alert.alert('Cita actualizada', 'Los cambios se guardaron correctamente.', [
+      Alert.alert('Visita actualizada', 'Los cambios se guardaron correctamente.', [
         {
           text: 'Aceptar',
           onPress: () => router.back(),
@@ -158,7 +159,7 @@ export default function EditAppointmentScreen() {
 
   const handleDelete = () => {
     if (!appointment || !canDelete) return;
-    Alert.alert('Eliminar cita', '¿Seguro que quieres eliminar esta cita?', [
+    Alert.alert('Eliminar visita', '¿Seguro que quieres eliminar esta visita?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar',
@@ -186,9 +187,9 @@ export default function EditAppointmentScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
+        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <View style={[styles.pickerWrapper, { borderColor }]}> 
+          <View style={[styles.pickerWrapper, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={selectedClient}
               onValueChange={value => {
@@ -199,8 +200,10 @@ export default function EditAppointmentScreen() {
                 }
                 setSelectedClient(value);
               }}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
-              <Picker.Item label="Selecciona un cliente" value="" />
+              <Picker.Item label="Selecciona un cliente" value="" color={placeholderColor} />
               <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
               {clients.map(client => (
                 <Picker.Item
@@ -213,7 +216,7 @@ export default function EditAppointmentScreen() {
           </View>
 
           <ThemedText style={styles.label}>Trabajo asociado (opcional)</ThemedText>
-          <View style={[styles.pickerWrapper, { borderColor }]}>
+          <View style={[styles.pickerWrapper, { borderColor, backgroundColor: pickerBackground }]}>
             <Picker
               selectedValue={selectedJob}
               onValueChange={value => {
@@ -227,6 +230,8 @@ export default function EditAppointmentScreen() {
                 setSelectedJob(value);
               }}
               enabled={!!selectedClient}
+              style={[styles.picker, { color: inputTextColor }]}
+              dropdownIconColor={inputTextColor}
             >
               <Picker.Item
                 label={
@@ -235,6 +240,7 @@ export default function EditAppointmentScreen() {
                     : 'Selecciona un cliente para ver trabajos'
                 }
                 value=""
+                color={placeholderColor}
               />
               {selectedClient ? (
                 <Picker.Item label="➕ Nuevo trabajo" value={NEW_JOB_VALUE} />
@@ -245,7 +251,7 @@ export default function EditAppointmentScreen() {
             </Picker>
           </View>
 
-          <ThemedText style={styles.label}>Fecha de la cita</ThemedText>
+          <ThemedText style={styles.label}>Fecha de la visita</ThemedText>
           <TouchableOpacity
             style={[styles.selector, { borderColor }]}
             onPress={() => setShowDatePicker(true)}
@@ -261,7 +267,7 @@ export default function EditAppointmentScreen() {
             />
           )}
 
-          <ThemedText style={styles.label}>Hora de la cita</ThemedText>
+          <ThemedText style={styles.label}>Hora de la visita</ThemedText>
           <TouchableOpacity
             style={[styles.selector, { borderColor }]}
             onPress={() => setShowTimePicker(true)}
@@ -315,7 +321,7 @@ export default function EditAppointmentScreen() {
             {isDeleting ? (
               <ActivityIndicator color={deleteTextColor} />
             ) : (
-              <ThemedText style={[styles.deleteText, { color: deleteTextColor }]}>Eliminar cita</ThemedText>
+              <ThemedText style={[styles.deleteText, { color: deleteTextColor }]}>Eliminar visita</ThemedText>
             )}
           </TouchableOpacity>
         )}
@@ -353,6 +359,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     marginBottom: 16,
+  },
+  picker: {
+    height: 50,
+    width: '100%',
   },
   selector: {
     borderWidth: 1,
