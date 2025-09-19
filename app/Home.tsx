@@ -27,9 +27,9 @@ const menuItems: MenuItem[] = [
   { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
   { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
   {
-    title: 'Cajas (Cash $)',
+    title: 'Cajas',
     route: '/cash_boxes',
-    icon: 'cash',
+    icon: 'cash-outline',
     requiredPermissions: ['listCashBoxes'],
   },
   { title: 'Categorías', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
