@@ -23,7 +23,7 @@ const menuItems: MenuItem[] = [
   { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
   { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
   { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
-  { title: 'Citas', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
+  { title: 'Agenda', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
   { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
   { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
   {
