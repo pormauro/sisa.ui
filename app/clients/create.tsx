@@ -148,8 +148,9 @@ export default function CreateClientPage() {
             setTariffId(value);
           }}
           style={[styles.picker, { color: inputTextColor }]}
+          dropdownIconColor={inputTextColor}
         >
-          <Picker.Item label="Sin Tarifa" value="" />
+          <Picker.Item label="Sin Tarifa" value="" color={placeholderColor} />
           <Picker.Item label="➕ Nueva tarifa" value={NEW_TARIFF_VALUE} />
           {tariffs.map(t => (
             <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />

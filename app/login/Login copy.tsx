@@ -1,9 +1,11 @@
 import React, { useState, useContext } from 'react';
-import { View, TextInput, Button, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { Button, Alert, TouchableOpacity, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import globalStyles from '@/styles/GlobalStyles';
+import { ThemedView } from '@/components/ThemedView';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
 const Login: React.FC = () => {
   const { login } = useContext(AuthContext);
@@ -11,6 +13,13 @@ const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const backgroundColor = useThemeColor({}, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const iconColor = useThemeColor({ light: '#666', dark: '#ddd' }, 'text');
 
   const handleLogin = async () => {
     if (!username || !password) {
@@ -22,26 +31,28 @@ const Login: React.FC = () => {
   };
 
   return (
-    <View style={globalStyles.container}>
+    <ThemedView style={[globalStyles.container, { backgroundColor }]}>
       <TextInput
-        style={globalStyles.input}
+        style={[globalStyles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         placeholder="Username"
         value={username}
         onChangeText={setUsername}
+        placeholderTextColor={placeholderColor}
       />
       <View style={localStyles.passwordContainer}>
         <TextInput
-          style={[globalStyles.input, localStyles.passwordInput]}
+          style={[globalStyles.input, localStyles.passwordInput, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
           placeholder="Contraseña"
           secureTextEntry={!showPassword}
           value={password}
           onChangeText={setPassword}
+          placeholderTextColor={placeholderColor}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => setShowPassword(prev => !prev)}
           style={localStyles.eyeIcon}
         >
-          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color="gray" />
+          <Ionicons name={showPassword ? 'eye-off' : 'eye'} size={24} color={iconColor} />
         </TouchableOpacity>
       </View>
       <View style={globalStyles.button}>
@@ -53,7 +64,7 @@ const Login: React.FC = () => {
       <View style={globalStyles.button}>
         <Button title="Olvidé mi contraseña" onPress={() => router.push('/login/ForgotPassword')} />
       </View>
-    </View>
+    </ThemedView>
   );
 };
 
