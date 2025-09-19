@@ -6,6 +6,7 @@ import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 're
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface MenuItem {
@@ -25,7 +26,12 @@ const menuItems: MenuItem[] = [
   { title: 'Citas', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
   { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
   { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
-  { title: 'Cajas', route: '/cash_boxes', icon: 'cash', requiredPermissions: ['listCashBoxes'] },
+  {
+    title: 'Cajas (Cash $)',
+    route: '/cash_boxes',
+    icon: 'cash',
+    requiredPermissions: ['listCashBoxes'],
+  },
   { title: 'Categorías', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
   { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
   { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
@@ -54,10 +60,14 @@ const Menu: React.FC = () => {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
+  const colorScheme = useColorScheme();
+  const isLightMode = colorScheme === 'light';
+  const menuBackgroundColor = isLightMode ? '#FFFFFF' : backgroundColor;
+  const menuContentColor = isLightMode ? '#FFFFFF' : textColor;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }] }>
-      <ScrollView contentContainerStyle={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: menuBackgroundColor }]}> 
+      <ScrollView style={{ backgroundColor: menuBackgroundColor }} contentContainerStyle={styles.container}>
         <ThemedText style={styles.title}>Menú Principal</ThemedText>
         <View style={styles.menuContainer}>
           {visibleMenuItems.map((item: MenuItem, index: number) => (
@@ -66,8 +76,18 @@ const Menu: React.FC = () => {
               style={[styles.menuItem, { backgroundColor: tintColor }]}
               onPress={() => router.push(item.route as any)}
             >
-              <Ionicons name={item.icon} size={40} color={textColor} style={styles.menuIcon} />
-              <ThemedText style={styles.menuText}>{item.title}</ThemedText>
+              <Ionicons
+                name={item.icon}
+                size={40}
+                color={isLightMode ? menuContentColor : textColor}
+                style={styles.menuIcon}
+              />
+              <ThemedText
+                lightColor={isLightMode ? menuContentColor : undefined}
+                style={styles.menuText}
+              >
+                {item.title}
+              </ThemedText>
             </TouchableOpacity>
           ))}
         </View>
