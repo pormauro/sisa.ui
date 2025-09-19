@@ -61,6 +61,7 @@ export default function CreateAppointmentScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [location, setLocation] = useState('');
+  const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -113,6 +114,28 @@ export default function CreateAppointmentScreen() {
     setDateTime(updated);
   };
 
+  useEffect(() => {
+    if (!selectedClient) {
+      setLocation('');
+      setLocationManuallyEdited(false);
+      return;
+    }
+    // Reset manual tracking when client changes to allow auto-fill with new data
+    setLocationManuallyEdited(false);
+  }, [selectedClient]);
+
+  useEffect(() => {
+    if (!selectedClient || locationManuallyEdited) return;
+    const client = clients.find(item => item.id.toString() === selectedClient);
+    if (!client) return;
+    setLocation(client.address || '');
+  }, [selectedClient, clients, locationManuallyEdited]);
+
+  const handleLocationChange = (value: string) => {
+    setLocation(value);
+    setLocationManuallyEdited(true);
+  };
+
   const handleSave = async () => {
     if (!selectedClient || !location.trim()) {
       Alert.alert('Campos incompletos', 'Selecciona un cliente e ingresa la ubicación de la visita.');
@@ -134,12 +157,8 @@ export default function CreateAppointmentScreen() {
     setIsSaving(false);
 
     if (result) {
-      Alert.alert('Visita creada', 'La visita se registró correctamente.', [
-        {
-          text: 'Aceptar',
-          onPress: () => router.back(),
-        },
-      ]);
+      Alert.alert('Visita creada', 'La visita se registró correctamente.');
+      router.back();
     }
   };
 
@@ -246,7 +265,7 @@ export default function CreateAppointmentScreen() {
           <TextInput
             style={[styles.input, { borderColor, color: inputTextColor }]}
             value={location}
-            onChangeText={setLocation}
+            onChangeText={handleLocationChange}
             placeholder="Dirección o referencia"
             placeholderTextColor={placeholderColor}
           />

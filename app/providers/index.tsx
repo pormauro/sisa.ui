@@ -100,7 +100,12 @@ export default function ProvidersListPage() {
         <CircleImagePicker fileId={item.brand_file_id} size={50} />
         <View style={styles.itemInfo}>
           <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-          <ThemedText>{item.email || ''}</ThemedText>
+          {item.address ? (
+            <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
+          ) : null}
+          {item.email ? (
+            <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
+          ) : null}
         </View>
       </View>
 
@@ -182,6 +187,7 @@ const styles = StyleSheet.create({
   },
   itemInfo: { flex: 1, marginLeft: 12 },
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
+  itemSubtitle: { fontSize: 14, marginTop: 2 },
   actionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',

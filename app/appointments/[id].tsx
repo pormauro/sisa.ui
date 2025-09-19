@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -56,9 +56,13 @@ export default function EditAppointmentScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [location, setLocation] = useState('');
+  const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const skipInitialAutoFillRef = useRef(false);
+  const lastSelectedClientRef = useRef<string | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#fff', dark: '#3b314d' }, 'background');
@@ -82,7 +86,11 @@ export default function EditAppointmentScreen() {
     setSelectedClient(appointment.client_id.toString());
     setSelectedJob(appointment.job_id ? appointment.job_id.toString() : '');
     setDateTime(parseDateTime(appointment.appointment_date, appointment.appointment_time));
-    setLocation(appointment.location || '');
+    const existingLocation = appointment.location || '';
+    setLocation(existingLocation);
+    setLocationManuallyEdited(existingLocation.trim().length > 0);
+    skipInitialAutoFillRef.current = existingLocation.trim().length > 0;
+    lastSelectedClientRef.current = null;
     setAttachedFiles(appointment.attached_files || '');
   }, [appointment, loadAppointments]);
 
@@ -124,6 +132,40 @@ export default function EditAppointmentScreen() {
     const updated = new Date(dateTime);
     updated.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
     setDateTime(updated);
+  };
+
+  useEffect(() => {
+    if (!selectedClient) {
+      setLocation('');
+      setLocationManuallyEdited(false);
+      lastSelectedClientRef.current = null;
+      skipInitialAutoFillRef.current = false;
+      return;
+    }
+
+    const client = clients.find(item => item.id.toString() === selectedClient);
+    if (!client) return;
+
+    const isInitialLoad = lastSelectedClientRef.current === null;
+    if (skipInitialAutoFillRef.current && isInitialLoad) {
+      skipInitialAutoFillRef.current = false;
+      lastSelectedClientRef.current = selectedClient;
+      return;
+    }
+
+    const isSameClient = lastSelectedClientRef.current === selectedClient;
+    if (isSameClient && locationManuallyEdited) {
+      return;
+    }
+
+    setLocation(client.address || '');
+    setLocationManuallyEdited(false);
+    lastSelectedClientRef.current = selectedClient;
+  }, [selectedClient, clients, locationManuallyEdited]);
+
+  const handleLocationChange = (value: string) => {
+    setLocation(value);
+    setLocationManuallyEdited(true);
   };
 
   const handleSave = async () => {
@@ -287,7 +329,7 @@ export default function EditAppointmentScreen() {
           <TextInput
             style={[styles.input, { borderColor, color: inputTextColor }]}
             value={location}
-            onChangeText={setLocation}
+            onChangeText={handleLocationChange}
             placeholder="Dirección o referencia"
             placeholderTextColor={placeholderColor}
           />
