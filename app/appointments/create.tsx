@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentsContext } from '@/contexts/AppointmentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
@@ -21,6 +21,9 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatDateForApi, formatTimeForApi } from '@/utils/dateTime';
+
+const NEW_CLIENT_VALUE = '__new_client__';
+const NEW_JOB_VALUE = '__new_job__';
 
 const formatDateLabel = (date: Date) =>
   date.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -35,11 +38,24 @@ export default function CreateAppointmentScreen() {
   const { clients } = useContext(ClientsContext);
   const { jobs } = useContext(JobsContext);
 
+  const { date } = useLocalSearchParams<{ date?: string }>();
+  const initialDateParam = Array.isArray(date) ? date[0] : date;
+
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedJob, setSelectedJob] = useState('');
   const [dateTime, setDateTime] = useState<Date>(() => {
     const now = new Date();
     now.setSeconds(0, 0);
+    if (initialDateParam) {
+      const [year, month, day] = initialDateParam.split('-').map(Number);
+      if (
+        !Number.isNaN(year) &&
+        !Number.isNaN(month) &&
+        !Number.isNaN(day)
+      ) {
+        now.setFullYear(year, month - 1, day);
+      }
+    }
     return now;
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -64,7 +80,7 @@ export default function CreateAppointmentScreen() {
   }, [permissions, router]);
 
   const clientJobs = useMemo(() => {
-    if (!selectedClient) return jobs;
+    if (!selectedClient) return [];
     const clientId = Number(selectedClient);
     return jobs.filter(job => job.client_id === clientId);
   }, [jobs, selectedClient]);
@@ -134,9 +150,17 @@ export default function CreateAppointmentScreen() {
           <View style={[styles.pickerWrapper, { borderColor }]}> 
             <Picker
               selectedValue={selectedClient}
-              onValueChange={value => setSelectedClient(value)}
+              onValueChange={value => {
+                if (value === NEW_CLIENT_VALUE) {
+                  setSelectedClient('');
+                  router.push('/clients/create');
+                  return;
+                }
+                setSelectedClient(value);
+              }}
             >
               <Picker.Item label="Selecciona un cliente" value="" />
+              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
               {clients.map(client => (
                 <Picker.Item
                   key={client.id}
@@ -148,12 +172,32 @@ export default function CreateAppointmentScreen() {
           </View>
 
           <ThemedText style={styles.label}>Trabajo asociado (opcional)</ThemedText>
-          <View style={[styles.pickerWrapper, { borderColor }]}> 
+          <View style={[styles.pickerWrapper, { borderColor }]}>
             <Picker
               selectedValue={selectedJob}
-              onValueChange={value => setSelectedJob(value)}
+              onValueChange={value => {
+                if (value === NEW_JOB_VALUE) {
+                  if (selectedClient) {
+                    router.push({ pathname: '/jobs/create', params: { client_id: selectedClient } });
+                  }
+                  setSelectedJob('');
+                  return;
+                }
+                setSelectedJob(value);
+              }}
+              enabled={!!selectedClient}
             >
-              <Picker.Item label="Sin trabajo asociado" value="" />
+              <Picker.Item
+                label={
+                  selectedClient
+                    ? 'Sin trabajo asociado'
+                    : 'Selecciona un cliente para ver trabajos'
+                }
+                value=""
+              />
+              {selectedClient ? (
+                <Picker.Item label="➕ Nuevo trabajo" value={NEW_JOB_VALUE} />
+              ) : null}
               {clientJobs.map(job => (
                 <Picker.Item key={job.id} label={job.description} value={job.id.toString()} />
               ))}

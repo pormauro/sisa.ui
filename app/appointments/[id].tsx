@@ -22,6 +22,9 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatDateForApi, formatTimeForApi } from '@/utils/dateTime';
 
+const NEW_CLIENT_VALUE = '__new_client__';
+const NEW_JOB_VALUE = '__new_job__';
+
 const parseDateTime = (date: string, time: string) => {
   const [hours = '00', minutes = '00'] = time.split(':');
   const parsed = new Date(`${date}T00:00:00`);
@@ -90,7 +93,7 @@ export default function EditAppointmentScreen() {
   }, [canEdit, router]);
 
   const clientJobs = useMemo(() => {
-    if (!selectedClient) return jobs;
+    if (!selectedClient) return [];
     const clientId = Number(selectedClient);
     return jobs.filter(job => job.client_id === clientId);
   }, [jobs, selectedClient]);
@@ -188,9 +191,17 @@ export default function EditAppointmentScreen() {
           <View style={[styles.pickerWrapper, { borderColor }]}> 
             <Picker
               selectedValue={selectedClient}
-              onValueChange={value => setSelectedClient(value)}
+              onValueChange={value => {
+                if (value === NEW_CLIENT_VALUE) {
+                  setSelectedClient('');
+                  router.push('/clients/create');
+                  return;
+                }
+                setSelectedClient(value);
+              }}
             >
               <Picker.Item label="Selecciona un cliente" value="" />
+              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
               {clients.map(client => (
                 <Picker.Item
                   key={client.id}
@@ -202,12 +213,32 @@ export default function EditAppointmentScreen() {
           </View>
 
           <ThemedText style={styles.label}>Trabajo asociado (opcional)</ThemedText>
-          <View style={[styles.pickerWrapper, { borderColor }]}> 
+          <View style={[styles.pickerWrapper, { borderColor }]}>
             <Picker
               selectedValue={selectedJob}
-              onValueChange={value => setSelectedJob(value)}
+              onValueChange={value => {
+                if (value === NEW_JOB_VALUE) {
+                  if (selectedClient) {
+                    router.push({ pathname: '/jobs/create', params: { client_id: selectedClient } });
+                  }
+                  setSelectedJob('');
+                  return;
+                }
+                setSelectedJob(value);
+              }}
+              enabled={!!selectedClient}
             >
-              <Picker.Item label="Sin trabajo asociado" value="" />
+              <Picker.Item
+                label={
+                  selectedClient
+                    ? 'Sin trabajo asociado'
+                    : 'Selecciona un cliente para ver trabajos'
+                }
+                value=""
+              />
+              {selectedClient ? (
+                <Picker.Item label="➕ Nuevo trabajo" value={NEW_JOB_VALUE} />
+              ) : null}
               {clientJobs.map(job => (
                 <Picker.Item key={job.id} label={job.description} value={job.id.toString()} />
               ))}

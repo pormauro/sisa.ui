@@ -62,6 +62,7 @@ export default function AppointmentsCalendarScreen() {
   const addButtonTextColor = useThemeColor({}, 'buttonText');
   const tintColor = useThemeColor({}, 'tint');
   const emptyTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const mutedTextColor = useThemeColor({ light: '#6c6c6c', dark: '#bbb' }, 'text');
 
   const canCreate = permissions.includes('addAppointment');
   const canEdit = permissions.includes('updateAppointment');
@@ -163,22 +164,21 @@ export default function AppointmentsCalendarScreen() {
           activeOpacity={0.85}
         >
           <View style={styles.cardHeader}>
-            <ThemedText style={styles.cardTime}>{appointmentTime}</ThemedText>
-            <ThemedText style={styles.cardLocation}>{item.location || 'Sin ubicación'}</ThemedText>
-          </View>
-          <ThemedText style={styles.cardTitle} numberOfLines={1}>
-            {client?.business_name || `Cliente #${item.client_id}`}
-          </ThemedText>
-          {job?.description ? (
-            <ThemedText style={styles.cardSubtitle} numberOfLines={1}>
-              {job.description}
-            </ThemedText>
-          ) : null}
-          {canDelete ? (
-            <View style={styles.cardActions}>
+            <View style={styles.cardHeaderInfo}>
+              <ThemedText style={styles.cardTime}>{appointmentTime}</ThemedText>
+              <ThemedText
+                style={[styles.cardLocation, { color: mutedTextColor }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.location?.trim() || 'Sin ubicación'}
+              </ThemedText>
+            </View>
+            {canDelete ? (
               <TouchableOpacity
                 style={styles.deleteButton}
                 onPress={event => handleDeletePress(event, item.id)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 {deletingId === item.id ? (
                   <ActivityIndicator size="small" color={tintColor} />
@@ -186,12 +186,36 @@ export default function AppointmentsCalendarScreen() {
                   <ThemedText style={styles.deleteIcon}>🗑️</ThemedText>
                 )}
               </TouchableOpacity>
-            </View>
+            ) : null}
+          </View>
+          <ThemedText style={styles.cardTitle} numberOfLines={1}>
+            {client?.business_name || `Cliente #${item.client_id}`}
+          </ThemedText>
+          {job?.description ? (
+            <ThemedText
+              style={[styles.cardSubtitle, { color: mutedTextColor }]}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {job.description}
+            </ThemedText>
           ) : null}
         </TouchableOpacity>
       );
     },
-    [borderColor, cardBackground, canDelete, canEdit, clients, deletingId, handleDeletePress, jobs, router, tintColor]
+    [
+      borderColor,
+      cardBackground,
+      canDelete,
+      canEdit,
+      clients,
+      deletingId,
+      handleDeletePress,
+      jobs,
+      mutedTextColor,
+      router,
+      tintColor,
+    ]
   );
 
   return (
@@ -234,7 +258,9 @@ export default function AppointmentsCalendarScreen() {
       {canCreate && (
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: addButtonColor }]}
-          onPress={() => router.push('/appointments/create')}
+          onPress={() =>
+            router.push({ pathname: '/appointments/create', params: { date: selectedDate } })
+          }
         >
           <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Nueva cita</ThemedText>
         </TouchableOpacity>
@@ -272,42 +298,39 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
+    padding: 16,
+    marginBottom: 12,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardHeaderInfo: {
+    flex: 1,
+    paddingRight: 12,
   },
   cardTime: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 2,
   },
   cardLocation: {
     fontSize: 14,
-    flex: 1,
-    textAlign: 'right',
-    marginLeft: 12,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   cardSubtitle: {
     fontSize: 14,
-    marginBottom: 8,
-  },
-  cardActions: {
-    marginTop: 8,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    marginBottom: 2,
   },
   deleteButton: {
     paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   deleteIcon: {
     fontSize: 18,
