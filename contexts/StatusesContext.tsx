@@ -1,12 +1,13 @@
 import React, {
   createContext,
-  useState,
+  useCallback,
   useContext,
   useEffect,
   ReactNode,
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Status {
   id: number;
@@ -43,10 +44,13 @@ export const StatusesContext = createContext<StatusesContextType>({
 });
 
 export const StatusesProvider = ({ children }: { children: ReactNode }) => {
-  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [statuses, setStatuses] = useCachedState<Status[]>(
+    'statuses',
+    []
+  );
   const { token } = useContext(AuthContext);
 
-  const loadStatuses = async () => {
+  const loadStatuses = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/statuses`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -58,7 +62,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Error loading statuses:', err);
     }
-  };
+  }, [setStatuses, token]);
 
   const addStatus = async (
     statusData: Omit<Status, 'id' | 'created_at' | 'updated_at' | 'version'>
@@ -152,8 +156,8 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    if (token) loadStatuses();
-  }, [token]);
+    if (token) void loadStatuses();
+  }, [loadStatuses, token]);
 
   return (
     <StatusesContext.Provider

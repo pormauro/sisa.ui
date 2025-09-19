@@ -1,6 +1,13 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Profile {
   id: number;
@@ -21,9 +28,12 @@ export const ProfilesListContext = createContext<ProfilesListContextType>({
 
 export const ProfilesListProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useCachedState<Profile[]>(
+    'profiles_list',
+    []
+  );
 
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     if (!token) return;
     try {
       const res = await fetch(`${BASE_URL}/profiles`, {
@@ -36,13 +46,13 @@ export const ProfilesListProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Error loading profiles:', err);
     }
-  };
+  }, [setProfiles, token]);
 
   useEffect(() => {
     if (token) {
       void loadProfiles();
     }
-  }, [token]);
+  }, [loadProfiles, token]);
 
   return (
     <ProfilesListContext.Provider value={{ profiles, loadProfiles }}>

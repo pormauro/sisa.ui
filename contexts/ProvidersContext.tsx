@@ -1,7 +1,6 @@
 // /contexts/ProvidersContext.tsx
 import React, {
   createContext,
-  useState,
   useContext,
   useEffect,
   ReactNode,
@@ -9,6 +8,7 @@ import React, {
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Provider {
   id: number;
@@ -37,7 +37,10 @@ export const ProvidersContext = createContext<ProvidersContextValue>({
 });
 
 export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useCachedState<Provider[]>(
+    'providers',
+    []
+  );
   const { token } = useContext(AuthContext);
 
   const loadProviders = useCallback(async () => {
@@ -56,7 +59,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading providers:', error);
     }
-  }, [token]);
+  }, [setProviders, token]);
 
   const addProvider = useCallback(
     async (provider: Omit<Provider, 'id'>): Promise<Provider | null> => {
@@ -80,7 +83,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [token]
+    [setProviders, token]
   );
 
   const updateProvider = useCallback(
@@ -111,7 +114,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [token]
+    [setProviders, token]
   );
 
   const deleteProvider = useCallback(
@@ -134,7 +137,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     }
       return false;
     },
-    [token]
+    [setProviders, token]
   );
 
   useEffect(() => {

@@ -1,10 +1,11 @@
 // ProfileContext.tsx
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface ProfileDetails {
   id?: number;
@@ -38,7 +39,10 @@ interface ProfileProviderProps {
 }
 
 export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) => {
-  const [profileDetails, setProfileDetails] = useState<ProfileDetails | null>(null);
+  const [profileDetails, setProfileDetails] = useCachedState<ProfileDetails | null>(
+    'profile',
+    null
+  );
   const { userId, token, logout } = useContext(AuthContext);
   const router = useRouter();
 

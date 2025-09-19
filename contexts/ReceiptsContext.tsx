@@ -1,7 +1,14 @@
 // /contexts/ReceiptsContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Receipt {
   id: number;
@@ -38,10 +45,10 @@ export const ReceiptsContext = createContext<ReceiptsContextValue>({
 });
 
 export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [receipts, setReceipts] = useCachedState<Receipt[]>('receipts', []);
   const { token } = useContext(AuthContext);
 
-  const loadReceipts = async () => {
+  const loadReceipts = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/receipts`, {
         headers: {
@@ -57,7 +64,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading receipts:', error);
     }
-  };
+  }, [setReceipts, token]);
 
   const addReceipt = async (receipt: Omit<Receipt, 'id'>): Promise<Receipt | null> => {
     try {
@@ -145,9 +152,9 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      loadReceipts();
+      void loadReceipts();
     }
-  }, [token]);
+  }, [loadReceipts, token]);
 
   return (
     <ReceiptsContext.Provider value={{ receipts, loadReceipts, addReceipt, updateReceipt, deleteReceipt }}>

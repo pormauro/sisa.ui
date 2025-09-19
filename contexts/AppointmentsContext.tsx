@@ -4,12 +4,12 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
   ReactNode,
 } from 'react';
 import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Appointment {
   id: number;
@@ -72,7 +72,10 @@ const serializeAttachedFiles = (value: Appointment['attached_files']) => {
 
 export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useCachedState<Appointment[]>(
+    'appointments',
+    []
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const parseAppointment = useCallback((raw: any): Appointment => ({
@@ -117,7 +120,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [parseAppointment, token]);
+  }, [parseAppointment, setAppointments, token]);
 
   const addAppointment = useCallback(
     async (appointment: Omit<Appointment, 'id' | 'user_id'>): Promise<Appointment | null> => {

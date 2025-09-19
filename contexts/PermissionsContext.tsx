@@ -1,7 +1,8 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useEffect, useContext, useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { useCachedState } from '@/hooks/useCachedState';
 
 interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
@@ -17,7 +18,10 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, userId } = useContext(AuthContext);
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const [permissions, setPermissions] = useCachedState<string[]>(
+    'permissions',
+    []
+  );
   const [loading, setLoading] = useState<boolean>(false);
 
   const fetchPermissions = useCallback(async () => {
@@ -60,7 +64,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [token, userId]);
+  }, [setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();

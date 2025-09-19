@@ -1,6 +1,5 @@
 import React, {
   createContext,
-  useState,
   useContext,
   useEffect,
   ReactNode,
@@ -8,6 +7,7 @@ import React, {
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Client {
   id: number;
@@ -43,7 +43,7 @@ export const ClientsContext = createContext<ClientsContextValue>({
 });
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useCachedState<Client[]>('clients', []);
   const { token } = useContext(AuthContext);
 
   const loadClients = useCallback(async () => {
@@ -59,7 +59,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('Error loading clients:', err);
     }
-  }, [token]);
+  }, [setClients, token]);
 
   const addClient = useCallback(
     async (
@@ -89,7 +89,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [token]
+    [setClients, token]
   );
 
   const updateClient = useCallback(
@@ -117,7 +117,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [token]
+    [setClients, token]
   );
 
   const deleteClient = useCallback(async (id: number): Promise<boolean> => {
@@ -135,7 +135,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error deleting client:', err);
     }
     return false;
-  }, [token]);
+  }, [setClients, token]);
 
   useEffect(() => {
     if (token) loadClients();

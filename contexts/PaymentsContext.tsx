@@ -1,7 +1,14 @@
 // /contexts/PaymentsContext.tsx
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Payment {
   id: number;
@@ -38,10 +45,10 @@ export const PaymentsContext = createContext<PaymentsContextValue>({
 });
 
 export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [payments, setPayments] = useCachedState<Payment[]>('payments', []);
   const { token } = useContext(AuthContext);
 
-  const loadPayments = async () => {
+  const loadPayments = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/payments`, {
         headers: {
@@ -57,7 +64,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading payments:', error);
     }
-  };
+  }, [setPayments, token]);
 
   const addPayment = async (payment: Omit<Payment, 'id'>): Promise<Payment | null> => {
     try {
@@ -145,9 +152,9 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (token) {
-      loadPayments();
+      void loadPayments();
     }
-  }, [token]);
+  }, [loadPayments, token]);
 
   return (
     <PaymentsContext.Provider value={{ payments, loadPayments, addPayment, updatePayment, deletePayment }}>
