@@ -11,7 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
@@ -31,6 +31,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function CreateJobScreen() {
   const router = useRouter();
+  const { client_id: clientIdParam } = useLocalSearchParams<{ client_id?: string | string[] }>();
   const { addJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
@@ -89,6 +90,16 @@ export default function CreateJobScreen() {
   const submitBtnColor = useThemeColor({}, 'button');
   const submitTextColor = useThemeColor({}, 'buttonText');
   const tariffInfoColor = placeholderColor;
+
+  const initialClientFromParams = useMemo(() => {
+    if (!clientIdParam) return '';
+    return Array.isArray(clientIdParam) ? clientIdParam[0] : clientIdParam;
+  }, [clientIdParam]);
+
+  useEffect(() => {
+    if (!initialClientFromParams) return;
+    setSelectedClient(prev => (prev ? prev : initialClientFromParams));
+  }, [initialClientFromParams]);
 
   useEffect(() => {
     if (!permissions.includes('addJob')) {
