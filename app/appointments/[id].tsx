@@ -20,6 +20,7 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { formatDateForApi, formatTimeForApi } from '@/utils/dateTime';
 
 const parseDateTime = (date: string, time: string) => {
   const [hours = '00', minutes = '00'] = time.split(':');
@@ -127,8 +128,8 @@ export default function EditAppointmentScreen() {
       Alert.alert('Campos incompletos', 'Selecciona un cliente e ingresa la ubicación de la cita.');
       return;
     }
-    const appointmentDate = dateTime.toISOString().split('T')[0];
-    const appointmentTime = dateTime.toTimeString().slice(0, 5);
+    const appointmentDate = formatDateForApi(dateTime);
+    const appointmentTime = formatTimeForApi(dateTime);
 
     setIsSaving(true);
     const ok = await updateAppointment(appointment.id, {
