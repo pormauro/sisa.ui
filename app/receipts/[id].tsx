@@ -40,7 +40,7 @@ export default function ReceiptDetailPage() {
   }>();
   const { id } = params;
   const receiptId = Number(id);
-  const { receipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
+  const { receipts, loadReceipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
@@ -68,6 +68,8 @@ export default function ReceiptDetailPage() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -132,6 +134,12 @@ export default function ReceiptDetailPage() {
 
   useEffect(() => {
     if (receipt) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setReceiptDate(new Date(receipt.receipt_date.replace(' ', 'T')));
       setPaidInAccount(receipt.paid_in_account);
       setPayerType(receipt.payer_type);
@@ -157,13 +165,28 @@ export default function ReceiptDetailPage() {
           ? String(receipt.provider_id)
           : ''
       );
+      return;
     }
-  }, [receipt]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadReceipts()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [receipt, hasAttemptedLoad, isFetchingItem, loadReceipts]);
 
   if (!receipt) {
     return (
       <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
-        <ThemedText>Recibo no encontrado</ThemedText>
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={spinnerColor} />
+        ) : (
+          <ThemedText>Recibo no encontrado</ThemedText>
+        )}
       </ThemedView>
     );
   }

@@ -26,6 +26,8 @@ export default function ProductServiceDetail() {
   const [itemType, setItemType] = useState<'product' | 'service'>('product');
   const [stock, setStock] = useState('');
   const [productImageFileId, setProductImageFileId] = useState<string | null>(null);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const canEdit = permissions.includes('updateProductService');
   const canDelete = permissions.includes('deleteProductService');
@@ -50,10 +52,13 @@ export default function ProductServiceDetail() {
   }, [permissions]);
 
   useEffect(() => {
-    if (!item) {
-      Alert.alert('Error', 'Producto o servicio no encontrado.');
-      router.back();
-    } else {
+    if (item) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setDescription(item.description);
       setCategory(item.category);
       setPrice(String(item.price));
@@ -62,8 +67,31 @@ export default function ProductServiceDetail() {
       setItemType(item.item_type);
       setStock(item.stock?.toString() || '');
       setProductImageFileId(item.product_image_file_id);
+      return;
     }
-  }, [item]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadProductsServices()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [item, hasAttemptedLoad, isFetchingItem, loadProductsServices]);
+
+  if (!item) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor }} contentContainerStyle={styles.container}>
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={buttonColor} />
+        ) : (
+          <ThemedText>Producto o servicio no encontrado.</ThemedText>
+        )}
+      </ScrollView>
+    );
+  }
 
   const handleUpdate = () => {
   /*  if (!description || !category || !price || !cost || !difficulty || !itemType) {

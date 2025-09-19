@@ -15,7 +15,7 @@ export default function FolderDetailPage() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const folderId = Number(id);
-  const { folders, updateFolder, deleteFolder } = useContext(FoldersContext);
+  const { folders, loadFolders, updateFolder, deleteFolder } = useContext(FoldersContext);
   const { clients } = useContext(ClientsContext);
   const { permissions } = useContext(PermissionsContext);
 
@@ -25,6 +25,8 @@ export default function FolderDetailPage() {
   const [folderImageFileId, setFolderImageFileId] = useState<string | null>(null);
   const [selectingParent, setSelectingParent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -52,11 +54,28 @@ export default function FolderDetailPage() {
 
   useEffect(() => {
     if (folder) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setName(folder.name);
       setParentId(folder.parent_id);
       setFolderImageFileId(folder.folder_image_file_id);
+      return;
     }
-  }, [folder]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadFolders()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [folder, hasAttemptedLoad, isFetchingItem, loadFolders]);
 
   const clientName = clients.find(c => c.id === folder?.client_id)?.business_name || 'Cliente';
 
@@ -81,6 +100,18 @@ export default function FolderDetailPage() {
     }
     return `${clientName}/${stack.join('/')}`;
   };
+
+  if (!folder) {
+    return (
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={spinnerColor} />
+        ) : (
+          <ThemedText>Carpeta no encontrada</ThemedText>
+        )}
+      </ThemedView>
+    );
+  }
 
   const handleUpdate = () => {
     if (!folder) return;
@@ -130,13 +161,6 @@ export default function FolderDetailPage() {
   };
 
   const folderTree = [{ id: null, name: clientName, level: 0 }, ...buildFolderTree(null, 1)];
-
-  if (!folder)
-    return (
-      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
-        <ThemedText>Carpeta no encontrada</ThemedText>
-      </ThemedView>
-    );
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 

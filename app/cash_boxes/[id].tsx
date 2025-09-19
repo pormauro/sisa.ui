@@ -1,6 +1,6 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/[id].tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CashBoxesContext, CashBox } from '@/contexts/CashBoxesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -12,11 +12,13 @@ export default function CashBoxDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const cashBoxId = Number(id);
-  const { cashBoxes, updateCashBox, deleteCashBox } = useContext(CashBoxesContext);
+  const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -39,14 +41,28 @@ export default function CashBoxDetail() {
   }, [permissions]);
 
   useEffect(() => {
-    if (!cashBox) {
-      Alert.alert('Error', 'Caja no encontrada');
-      router.back();
-    } else {
+    if (cashBox) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setName(cashBox.name);
       setImageFileId(cashBox.image_file_id);
+      return;
     }
-  }, [cashBox]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadCashBoxes()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [cashBox, hasAttemptedLoad, isFetchingItem, loadCashBoxes]);
 
   const handleUpdate = () => {
     if (!name) {
@@ -100,8 +116,20 @@ export default function CashBoxDetail() {
     );
   };
 
+  if (!cashBox) {
+    return (
+      <View style={[styles.container, { backgroundColor: screenBackground }]}> 
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={buttonColor} />
+        ) : (
+          <ThemedText>Caja no encontrada</ThemedText>
+        )}
+      </View>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 
       <ThemedText style={styles.label}>Imagen de la Caja</ThemedText>
       <CircleImagePicker
         fileId={imageFileId}

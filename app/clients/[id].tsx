@@ -19,7 +19,7 @@ export default function ClientDetailPage() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
   const clientId = Number(id);
-  const { clients, updateClient, deleteClient } = useContext(ClientsContext);
+  const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
 
   const client = clients.find(c => c.id === clientId);
@@ -45,6 +45,8 @@ export default function ClientDetailPage() {
   const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   useEffect(() => {
     if (!canEditClient && !canDeleteClient) {
@@ -55,6 +57,12 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     if (client) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setBusinessName(client.business_name);
       setTaxId(client.tax_id);
       setEmail(client.email);
@@ -62,13 +70,28 @@ export default function ClientDetailPage() {
       setAddress(client.address);
       setBrandFileId(client.brand_file_id);
       setTariffId(client.tariff_id ? client.tariff_id.toString() : '');
+      return;
     }
-  }, [client]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadClients()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [client, hasAttemptedLoad, isFetchingItem, loadClients]);
 
   if (!client) {
     return (
-      <View style={[styles.container, { backgroundColor: screenBackground }]}> 
-        <ThemedText>Cliente no encontrado</ThemedText>
+      <View style={[styles.container, { backgroundColor: screenBackground }]}>
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={buttonColor} />
+        ) : (
+          <ThemedText>Cliente no encontrado</ThemedText>
+        )}
       </View>
     );
   }

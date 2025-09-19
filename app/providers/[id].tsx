@@ -16,7 +16,7 @@ export default function ProviderDetailPage() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const providerId = Number(id);
-  const { providers, updateProvider, deleteProvider } = useContext(ProvidersContext);
+  const { providers, loadProviders, updateProvider, deleteProvider } = useContext(ProvidersContext);
 
   const provider = providers.find(p => p.id === providerId);
 
@@ -37,7 +37,8 @@ export default function ProviderDetailPage() {
   const [address, setAddress] = useState('');
   const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -47,21 +48,41 @@ export default function ProviderDetailPage() {
   }, [permissions]);
 
   useEffect(() => {
-    if (provider && !initialized) {
+    if (provider) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setBusinessName(provider.business_name);
       setTaxId(provider.tax_id || '');
       setEmail(provider.email || '');
       setPhone(provider.phone || '');
       setAddress(provider.address || '');
       setBrandFileId(provider.brand_file_id || null);
-      setInitialized(true);
+      return;
     }
-  }, [provider, initialized]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadProviders()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [provider, hasAttemptedLoad, isFetchingItem, loadProviders]);
 
   if (!provider) {
     return (
       <View style={[styles.container, { backgroundColor: screenBackground }]}>
-        <ThemedText>Proveedor no encontrado</ThemedText>
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={buttonColor} />
+        ) : (
+          <ThemedText>Proveedor no encontrado</ThemedText>
+        )}
       </View>
     );
   }

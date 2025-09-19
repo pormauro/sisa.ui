@@ -11,7 +11,7 @@ export default function EditStatus() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const statusId = Number(id);
-  const { statuses, updateStatus, deleteStatus } = useContext(StatusesContext);
+  const { statuses, loadStatuses, updateStatus, deleteStatus } = useContext(StatusesContext);
   const { permissions } = useContext(PermissionsContext);
 
   const statusItem = statuses.find(s => s.id === statusId);
@@ -21,6 +21,8 @@ export default function EditStatus() {
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [orderIndex, setOrderIndex] = useState('0');
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isFetchingItem, setIsFetchingItem] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -42,15 +44,41 @@ export default function EditStatus() {
 
   useEffect(() => {
     if (statusItem) {
+      if (hasAttemptedLoad) {
+        setHasAttemptedLoad(false);
+      }
+      if (isFetchingItem) {
+        setIsFetchingItem(false);
+      }
       setLabel(statusItem.label);
       setValue(statusItem.value);
       setBackgroundColor(statusItem.background_color);
       setOrderIndex(statusItem.order_index.toString());
-    } else {
-      Alert.alert('Error', 'Estado no encontrado.');
-      router.back();
+      return;
     }
-  }, [statusItem]);
+
+    if (hasAttemptedLoad) {
+      return;
+    }
+
+    setHasAttemptedLoad(true);
+    setIsFetchingItem(true);
+    Promise.resolve(loadStatuses()).finally(() => {
+      setIsFetchingItem(false);
+    });
+  }, [statusItem, hasAttemptedLoad, isFetchingItem, loadStatuses]);
+
+  if (!statusItem) {
+    return (
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}> 
+        {isFetchingItem || !hasAttemptedLoad ? (
+          <ActivityIndicator color={buttonColor} />
+        ) : (
+          <ThemedText>Estado no encontrado.</ThemedText>
+        )}
+      </ScrollView>
+    );
+  }
 
   const handleUpdate = () => {
     if (!label || !value || !backgroundColor || orderIndex === '') {
