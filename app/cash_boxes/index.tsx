@@ -79,6 +79,7 @@ export default function CashBoxesScreen() {
   const renderItem = ({ item }: { item: CashBox }) => (
     <TouchableOpacity
       style={[styles.itemContainer, { borderColor: itemBorderColor }]}
+      onPress={() => router.push(`./cash_boxes/${item.id}`)}
       onLongPress={() => router.push(`./cash_boxes/${item.id}`)}
     >
       <CircleImagePicker fileId={item.image_file_id} size={50} />
