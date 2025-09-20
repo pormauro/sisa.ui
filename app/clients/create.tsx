@@ -16,7 +16,7 @@ export default function CreateClientPage() {
   const { addClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const router = useRouter();
-  const { completeSelection } = usePendingSelection();
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const NEW_TARIFF_VALUE = 'new_tariff';
 
@@ -53,6 +53,10 @@ export default function CreateClientPage() {
       router.back();
     }
   }, []);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
   const handleSubmit = async () => {
     if (submittingRef.current) return;
     submittingRef.current = true;

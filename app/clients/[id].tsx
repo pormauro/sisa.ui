@@ -22,7 +22,7 @@ export default function ClientDetailPage() {
   const clientId = Number(id);
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
-  const { completeSelection } = usePendingSelection();
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const client = clients.find(c => c.id === clientId);
 
@@ -64,6 +64,10 @@ export default function ClientDetailPage() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (client) {
