@@ -25,6 +25,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 export default function PaymentDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -45,6 +47,7 @@ export default function PaymentDetailPage() {
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
+  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -179,6 +182,23 @@ export default function PaymentDetailPage() {
       setChargeClientId('');
     }
   }, [clients, chargeClientId]);
+
+  useEffect(() => {
+    if (Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.payments.creditorClient)) {
+      const pendingCreditor = consumeSelection<string>(SELECTION_KEYS.payments.creditorClient);
+      if (pendingCreditor) {
+        setCreditorType('client');
+        setCreditorClientId(pendingCreditor.toString());
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.payments.chargeClient)) {
+      const pendingCharge = consumeSelection<string>(SELECTION_KEYS.payments.chargeClient);
+      if (pendingCharge) {
+        setChargeClient(true);
+        setChargeClientId(pendingCharge.toString());
+      }
+    }
+  }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -399,21 +419,23 @@ export default function PaymentDetailPage() {
             selectedValue={creditorClientId}
             onValueChange={(value) => {
               const stringValue = value?.toString() ?? '';
-              if (stringValue === NEW_CLIENT_VALUE) {
-                setCreditorClientId('');
-                router.push('/clients/create');
-                return;
-              }
-              setCreditorClientId(stringValue);
-            }}
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setCreditorClientId('');
+            beginSelection(SELECTION_KEYS.payments.creditorClient);
+            router.push('/clients/create');
+            return;
+          }
+          setCreditorClientId(stringValue);
+        }}
             placeholder="-- Selecciona cliente --"
             disabled={!canEdit}
             onItemLongPress={(item) => {
-              const value = String(item.value ?? '');
-              if (!value || value === NEW_CLIENT_VALUE) return;
-              router.push(`/clients/${value}`);
-            }}
-          />
+            const value = String(item.value ?? '');
+            if (!value || value === NEW_CLIENT_VALUE) return;
+            beginSelection(SELECTION_KEYS.payments.creditorClient);
+            router.push(`/clients/${value}`);
+          }}
+        />
         </>
       )}
 
@@ -511,21 +533,23 @@ export default function PaymentDetailPage() {
             selectedValue={chargeClientId}
             onValueChange={(value) => {
               const stringValue = value?.toString() ?? '';
-              if (stringValue === NEW_CLIENT_VALUE) {
-                setChargeClientId('');
-                router.push('/clients/create');
-                return;
-              }
-              setChargeClientId(stringValue);
-            }}
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setChargeClientId('');
+            beginSelection(SELECTION_KEYS.payments.chargeClient);
+            router.push('/clients/create');
+            return;
+          }
+          setChargeClientId(stringValue);
+        }}
             placeholder="-- Selecciona cliente --"
             disabled={!canEdit}
             onItemLongPress={(item) => {
-              const value = String(item.value ?? '');
-              if (!value || value === NEW_CLIENT_VALUE) return;
-              router.push(`/clients/${value}`);
-            }}
-          />
+            const value = String(item.value ?? '');
+            if (!value || value === NEW_CLIENT_VALUE) return;
+            beginSelection(SELECTION_KEYS.payments.chargeClient);
+            router.push(`/clients/${value}`);
+          }}
+        />
         </>
       )}
 

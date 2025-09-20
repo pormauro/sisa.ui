@@ -9,6 +9,7 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 
 export default function ClientDetailPage() {
@@ -21,6 +22,7 @@ export default function ClientDetailPage() {
   const clientId = Number(id);
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
+  const { completeSelection } = usePendingSelection();
 
   const client = clients.find(c => c.id === clientId);
 
@@ -131,6 +133,7 @@ export default function ClientDetailPage() {
             setLoading(false);
             if (success) {
               Alert.alert('Éxito', 'Cliente actualizado');
+              completeSelection(clientId.toString());
               router.back();
             } else {
               Alert.alert('Error', 'No se pudo actualizar el cliente');

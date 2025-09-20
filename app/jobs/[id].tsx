@@ -28,6 +28,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -42,6 +44,7 @@ export default function EditJobScreen() {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
+  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
@@ -212,6 +215,16 @@ export default function EditJobScreen() {
   }, [selectedClientId, clients, tariffs, manualTariffItem, jobDate]);
 
   useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
+      return;
+    }
+    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.jobs.client);
+    if (pendingClientId) {
+      setSelectedClientId(pendingClientId.toString());
+    }
+  }, [pendingSelections, consumeSelection]);
+
+  useEffect(() => {
     if (selectedTariff && selectedTariff.id !== '') {
       const t = tariffs.find(t => t.id === Number(selectedTariff.id));
       if (t && new Date(jobDate) < new Date(t.last_update)) {
@@ -371,6 +384,7 @@ export default function EditJobScreen() {
           const stringValue = value?.toString() ?? '';
           if (stringValue === NEW_CLIENT_VALUE) {
             setSelectedClientId('');
+            beginSelection(SELECTION_KEYS.jobs.client);
             router.push('/clients/create');
             return;
           }
@@ -381,6 +395,7 @@ export default function EditJobScreen() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_CLIENT_VALUE) return;
+          beginSelection(SELECTION_KEYS.jobs.client);
           router.push(`/clients/${value}`);
         }}
       />
