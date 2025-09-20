@@ -7,17 +7,17 @@ import React, {
   useState,
   ReactNode,
 } from 'react';
+import type { SelectionKey } from '@/constants/selectionKeys';
 
-interface PendingSelectionsMap {
-  [key: string]: unknown;
-}
+type PendingSelectionsMap = Partial<Record<SelectionKey, unknown>>;
 
 interface PendingSelectionContextValue {
-  activeKey: string | null;
+  activeKey: SelectionKey | null;
   pendingSelections: PendingSelectionsMap;
-  beginSelection: (key: string) => void;
+  beginSelection: (key: SelectionKey) => void;
   completeSelection: (value: unknown) => void;
-  consumeSelection: <T = unknown>(key: string) => T | undefined;
+  consumeSelection: <T = unknown>(key: SelectionKey) => T | undefined;
+  cancelSelection: () => void;
 }
 
 const PendingSelectionContext = createContext<PendingSelectionContextValue>({
@@ -26,20 +26,21 @@ const PendingSelectionContext = createContext<PendingSelectionContextValue>({
   beginSelection: () => {},
   completeSelection: () => {},
   consumeSelection: () => undefined,
+  cancelSelection: () => {},
 });
 
 export const PendingSelectionProvider = ({ children }: { children: ReactNode }) => {
-  const [activeKeyState, setActiveKeyState] = useState<string | null>(null);
-  const activeKeyRef = useRef<string | null>(null);
+  const [activeKeyState, setActiveKeyState] = useState<SelectionKey | null>(null);
+  const activeKeyRef = useRef<SelectionKey | null>(null);
   const [pendingSelections, setPendingSelections] = useState<PendingSelectionsMap>({});
 
-  const setActiveKey = useCallback((key: string | null) => {
+  const setActiveKey = useCallback((key: SelectionKey | null) => {
     activeKeyRef.current = key;
     setActiveKeyState(key);
   }, []);
 
   const beginSelection = useCallback(
-    (key: string) => {
+    (key: SelectionKey) => {
       setActiveKey(key);
     },
     [setActiveKey]
@@ -60,16 +61,27 @@ export const PendingSelectionProvider = ({ children }: { children: ReactNode }) 
   );
 
   const consumeSelection = useCallback(
-    <T,>(key: string): T | undefined => {
+    <T,>(key: SelectionKey): T | undefined => {
       if (!(key in pendingSelections)) {
         return undefined;
       }
-      const { [key]: value, ...rest } = pendingSelections;
-      setPendingSelections(rest);
-      return value as T | undefined;
+      const value = pendingSelections[key] as T | undefined;
+      setPendingSelections(prev => {
+        if (!(key in prev)) {
+          return prev;
+        }
+        const updated = { ...prev };
+        delete updated[key];
+        return updated;
+      });
+      return value;
     },
     [pendingSelections]
   );
+
+  const cancelSelection = useCallback(() => {
+    setActiveKey(null);
+  }, [setActiveKey]);
 
   const value = useMemo(
     () => ({
@@ -78,8 +90,9 @@ export const PendingSelectionProvider = ({ children }: { children: ReactNode }) 
       beginSelection,
       completeSelection,
       consumeSelection,
+      cancelSelection,
     }),
-    [activeKeyState, pendingSelections, beginSelection, completeSelection, consumeSelection]
+    [activeKeyState, pendingSelections, beginSelection, completeSelection, consumeSelection, cancelSelection]
   );
 
   return (
