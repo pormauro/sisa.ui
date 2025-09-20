@@ -145,10 +145,19 @@ export default function CreatePayment() {
   useEffect(() => {
     if (!creditorClientId) return;
     const exists = clients.some(client => client.id.toString() === creditorClientId);
-    if (!exists) {
-      setCreditorClientId('');
+    if (exists) {
+      return;
     }
-  }, [clients, creditorClientId]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.payments.creditorClient];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === creditorClientId
+    ) {
+      return;
+    }
+    setCreditorClientId('');
+  }, [clients, creditorClientId, pendingSelections]);
 
   useEffect(() => {
     if (!creditorProviderId) return;
@@ -161,27 +170,43 @@ export default function CreatePayment() {
   useEffect(() => {
     if (!chargeClientId) return;
     const exists = clients.some(client => client.id.toString() === chargeClientId);
-    if (!exists) {
-      setChargeClientId('');
+    if (exists) {
+      return;
     }
-  }, [clients, chargeClientId]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.payments.chargeClient];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === chargeClientId
+    ) {
+      return;
+    }
+    setChargeClientId('');
+  }, [clients, chargeClientId, pendingSelections]);
 
   useEffect(() => {
-    if (Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.payments.creditorClient)) {
-      const pendingCreditor = consumeSelection<string>(SELECTION_KEYS.payments.creditorClient);
-      if (pendingCreditor) {
+    const pendingCreditor = pendingSelections[SELECTION_KEYS.payments.creditorClient];
+    if (pendingCreditor !== undefined && pendingCreditor !== null) {
+      const pendingCreditorId = String(pendingCreditor);
+      const exists = clients.some(client => client.id.toString() === pendingCreditorId);
+      if (exists) {
+        consumeSelection(SELECTION_KEYS.payments.creditorClient);
         setCreditorType('client');
-        setCreditorClientId(pendingCreditor.toString());
+        setCreditorClientId(pendingCreditorId);
       }
     }
-    if (Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.payments.chargeClient)) {
-      const pendingCharge = consumeSelection<string>(SELECTION_KEYS.payments.chargeClient);
-      if (pendingCharge) {
+
+    const pendingCharge = pendingSelections[SELECTION_KEYS.payments.chargeClient];
+    if (pendingCharge !== undefined && pendingCharge !== null) {
+      const pendingChargeId = String(pendingCharge);
+      const exists = clients.some(client => client.id.toString() === pendingChargeId);
+      if (exists) {
+        consumeSelection(SELECTION_KEYS.payments.chargeClient);
         setChargeClient(true);
-        setChargeClientId(pendingCharge.toString());
+        setChargeClientId(pendingChargeId);
       }
     }
-  }, [pendingSelections, consumeSelection]);
+  }, [pendingSelections, clients, consumeSelection]);
 
   useEffect(() => {
     if (!permissions.includes('addPayment')) {
