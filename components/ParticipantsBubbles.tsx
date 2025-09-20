@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
-  Alert,
   Modal,
   Pressable,
 } from 'react-native';
@@ -15,11 +14,11 @@ import { ProfilesListContext, Profile } from '@/contexts/ProfilesListContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { SearchableSelect } from '@/components/SearchableSelect';
 
 interface ParticipantsBubblesProps {
   participants: number[];
-  onChange: (ids: number[]) => void;
+  onChange?: (ids: number[]) => void;
+  editable?: boolean;
 }
 
 interface ParticipantItem {
@@ -27,68 +26,93 @@ interface ParticipantItem {
   fileId: number | null;
 }
 
-export default function ParticipantsBubbles({ participants, onChange }: ParticipantsBubblesProps) {
+export default function ParticipantsBubbles({ participants, onChange, editable = true }: ParticipantsBubblesProps) {
   const { getProfile } = useContext(ProfilesContext);
-  const { profiles } = useContext(ProfilesListContext);
+  const { profiles, loadProfiles } = useContext(ProfilesListContext);
   const [items, setItems] = useState<ParticipantItem[]>([]);
-  const [newId, setNewId] = useState('');
   const [selectedProfile, setSelectedProfile] = useState<UserProfile | null>(null);
   const [selectedListProfile, setSelectedListProfile] = useState<Profile | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [profileDetails, setProfileDetails] = useState<Record<number, UserProfile | null>>({});
 
   const textColor = useThemeColor({}, 'text');
-  const buttonColor = useThemeColor({}, 'button');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
   const modalBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const accentColor = useThemeColor({}, 'tint');
+  const subtleText = useThemeColor({ light: '#6b7280', dark: '#d1d5db' }, 'text');
 
-  const profileItems = useMemo(
-    () => [
-      { label: 'Seleccionar perfil', value: '' },
-      ...profiles.map(profile => ({ label: profile.username, value: profile.id.toString() })),
-    ],
-    [profiles]
-  );
+  useEffect(() => {
+    if (!profiles.length) {
+      void loadProfiles();
+    }
+  }, [profiles.length, loadProfiles]);
 
   useEffect(() => {
     const load = async () => {
       const list: ParticipantItem[] = [];
+      const detailBatch: Record<number, UserProfile | null> = {};
       for (const id of participants) {
         const profile = await getProfile(id);
         list.push({ id, fileId: profile?.profile_file_id ?? null });
+        detailBatch[id] = profile ?? null;
       }
       setItems(list);
+      if (Object.keys(detailBatch).length) {
+        setProfileDetails(prev => ({ ...prev, ...detailBatch }));
+      }
     };
     void load();
   }, [participants, getProfile]);
 
-  const handleAdd = async () => {
-    const parsed = parseInt(newId, 10);
-    if (isNaN(parsed)) {
-      Alert.alert('Seleccione un perfil');
-      return;
-    }
-    if (items.some(it => it.id === parsed)) {
-      setNewId('');
-      return;
-    }
-    const profile = await getProfile(parsed);
-    const updated = [...items, { id: parsed, fileId: profile?.profile_file_id ?? null }];
-    setItems(updated);
-    onChange(updated.map(it => it.id));
-    setNewId('');
-  };
+  const availableProfiles = useMemo(
+    () => profiles.filter(profile => !items.some(it => it.id === profile.id)),
+    [profiles, items],
+  );
+
+  useEffect(() => {
+    if (!pickerVisible) return;
+    const loadDetails = async () => {
+      const updates: Record<number, UserProfile | null> = {};
+      for (const profile of availableProfiles) {
+        if (Object.prototype.hasOwnProperty.call(profileDetails, profile.id)) {
+          continue;
+        }
+        const detail = await getProfile(profile.id);
+        updates[profile.id] = detail ?? null;
+      }
+      if (Object.keys(updates).length) {
+        setProfileDetails(prev => ({ ...prev, ...updates }));
+      }
+    };
+    void loadDetails();
+  }, [pickerVisible, availableProfiles, profileDetails, getProfile]);
 
   const handleRemove = (id: number) => {
+    if (!editable) return;
     const updated = items.filter(it => it.id !== id);
     setItems(updated);
-    onChange(updated.map(it => it.id));
+    onChange?.(updated.map(it => it.id));
+  };
+
+  const handleSelectProfile = async (id: number) => {
+    if (!editable) return;
+    if (items.some(it => it.id === id)) {
+      setPickerVisible(false);
+      return;
+    }
+    const profile = await getProfile(id);
+    const updated = [...items, { id, fileId: profile?.profile_file_id ?? null }];
+    setItems(updated);
+    onChange?.(updated.map(it => it.id));
+    setProfileDetails(prev => ({ ...prev, [id]: profile ?? null }));
+    setPickerVisible(false);
   };
 
   const openProfile = async (id: number) => {
-    const profileDetails = await getProfile(id);
+    const details = await getProfile(id);
     const listProfile = profiles.find(p => p.id === id) || null;
-    if (profileDetails) {
-      setSelectedProfile(profileDetails);
+    if (details) {
+      setSelectedProfile(details);
       setSelectedListProfile(listProfile);
       setModalVisible(true);
     }
@@ -106,6 +130,14 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
     </TouchableOpacity>
   );
 
+  const addBubble = editable ? (
+    <TouchableOpacity style={styles.bubble} onPress={() => setPickerVisible(true)}>
+      <View style={[styles.plusBubble, { borderColor: accentColor }]}>
+        <Text style={[styles.plusText, { color: accentColor }]}>+</Text>
+      </View>
+    </TouchableOpacity>
+  ) : null;
+
   return (
     <View>
       <FlatList
@@ -114,22 +146,13 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
         renderItem={renderItem}
         keyExtractor={(it) => it.id.toString()}
         style={styles.list}
+        contentContainerStyle={styles.listContent}
+        showsHorizontalScrollIndicator={false}
+        ListFooterComponent={addBubble}
       />
-      <View style={styles.addRow}>
-        <SearchableSelect
-          style={styles.picker}
-          items={profileItems}
-          selectedValue={newId}
-          onValueChange={(value) => setNewId(value?.toString() ?? '')}
-          placeholder="Seleccionar perfil"
-        />
-        <TouchableOpacity
-          style={[styles.addButton, { backgroundColor: buttonColor }]}
-          onPress={handleAdd}
-        >
-          <Text style={[styles.addButtonText, { color: buttonTextColor }]}>Agregar</Text>
-        </TouchableOpacity>
-      </View>
+      {!items.length && !editable ? (
+        <ThemedText style={[styles.emptyText, { color: subtleText }]}>Sin participantes</ThemedText>
+      ) : null}
       {selectedProfile && (
         <Modal visible={modalVisible} transparent animationType="fade">
           <Pressable style={styles.modalOverlay} onPress={closeProfile}>
@@ -161,37 +184,99 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
               {selectedProfile.cuit ? (
                 <ThemedText style={[styles.modalText, { color: textColor }]}>CUIT: {selectedProfile.cuit}</ThemedText>
               ) : null}
-              <ThemedButton
-                title="Eliminar"
-                onPress={() => {
-                  handleRemove(selectedProfile.id);
-                  closeProfile();
-                }}
-                style={styles.removeButton}
-              />
+              {editable ? (
+                <ThemedButton
+                  title="Eliminar"
+                  onPress={() => {
+                    handleRemove(selectedProfile.id);
+                    closeProfile();
+                  }}
+                  style={styles.removeButton}
+                />
+              ) : null}
             </Pressable>
           </Pressable>
         </Modal>
       )}
+      <Modal visible={pickerVisible} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setPickerVisible(false)}>
+          <Pressable
+            style={[styles.carouselContainer, { backgroundColor: modalBackground }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <ThemedText style={[styles.modalTitle, { color: textColor }]}>Seleccionar participante</ThemedText>
+            {availableProfiles.length ? (
+              <FlatList
+                data={availableProfiles}
+                keyExtractor={item => item.id.toString()}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={styles.carousel}
+                contentContainerStyle={styles.carouselContent}
+                renderItem={({ item }) => {
+                  const details = profileDetails[item.id] ?? null;
+                  return (
+                    <View style={styles.carouselItem}>
+                      <CircleImagePicker
+                        fileId={
+                          details?.profile_file_id
+                            ? details.profile_file_id.toString()
+                            : undefined
+                        }
+                        size={120}
+                      />
+                      <ThemedText style={[styles.modalText, { color: textColor }]}>Usuario: {item.username}</ThemedText>
+                      <ThemedText style={[styles.modalText, { color: textColor }]}>Email: {item.email}</ThemedText>
+                      {details?.full_name ? (
+                        <ThemedText style={[styles.modalText, { color: textColor }]}>Nombre: {details.full_name}</ThemedText>
+                      ) : null}
+                      {details?.phone ? (
+                        <ThemedText style={[styles.modalText, { color: textColor }]}>Teléfono: {details.phone}</ThemedText>
+                      ) : null}
+                      <ThemedButton
+                        title="Seleccionar"
+                        onPress={() => handleSelectProfile(item.id)}
+                        style={styles.selectButton}
+                      />
+                    </View>
+                  );
+                }}
+              />
+            ) : (
+              <ThemedText style={[styles.modalText, { color: textColor, textAlign: 'center' }]}>No hay perfiles disponibles</ThemedText>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   list: { marginVertical: 8 },
+  listContent: {
+    alignItems: 'center',
+    paddingRight: 8,
+  },
   bubble: { marginRight: 8 },
-  addRow: { flexDirection: 'row', alignItems: 'center' },
-  picker: {
-    flex: 1,
-    marginRight: 8,
+  plusBubble: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  addButton: {
-    backgroundColor: '#007BFF',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 4,
+  plusText: {
+    fontSize: 28,
+    fontWeight: '600',
+    lineHeight: 32,
   },
-  addButtonText: { color: '#fff' },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 8,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: '#00000088',
@@ -213,5 +298,33 @@ const styles = StyleSheet.create({
   removeButton: {
     marginTop: 16,
   },
+  carouselContainer: {
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '80%',
+    width: '90%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  carousel: {
+    flexGrow: 0,
+  },
+  carouselContent: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+  carouselItem: {
+    width: 240,
+    marginHorizontal: 12,
+    alignItems: 'center',
+  },
+  selectButton: {
+    marginTop: 16,
+    minWidth: 140,
+  },
 });
-
