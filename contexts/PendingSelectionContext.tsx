@@ -59,18 +59,17 @@ export const PendingSelectionProvider = ({ children }: { children: ReactNode }) 
     [setActiveKey]
   );
 
-  const consumeSelection = useCallback(<T,>(key: string): T | undefined => {
-    let consumedValue: unknown | undefined;
-    setPendingSelections(prev => {
-      if (!(key in prev)) {
-        return prev;
+  const consumeSelection = useCallback(
+    <T,>(key: string): T | undefined => {
+      if (!(key in pendingSelections)) {
+        return undefined;
       }
-      const { [key]: value, ...rest } = prev;
-      consumedValue = value;
-      return rest;
-    });
-    return consumedValue as T | undefined;
-  }, []);
+      const { [key]: value, ...rest } = pendingSelections;
+      setPendingSelections(rest);
+      return value as T | undefined;
+    },
+    [pendingSelections]
+  );
 
   const value = useMemo(
     () => ({
