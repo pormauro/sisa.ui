@@ -31,6 +31,8 @@ export default function CategoriesScreen() {
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
+  const addButtonColor = useThemeColor({}, 'button');
+  const addButtonTextColor = useThemeColor({}, 'buttonText');
 
   useEffect(() => {
     if (!permissions.includes('listCategories')) {
@@ -137,8 +139,11 @@ export default function CategoriesScreen() {
         }
       />
       {canAdd && (
-        <TouchableOpacity style={styles.addButton} onPress={() => router.push('/categories/create')}>
-          <ThemedText style={styles.addText}>➕ Agregar Categoría</ThemedText>
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: addButtonColor }]}
+          onPress={() => router.push('/categories/create')}
+        >
+          <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>➕ Agregar Categoría</ThemedText>
         </TouchableOpacity>
       )}
     </ThemedView>
@@ -158,7 +163,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 32,
-    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 50,
     alignItems: 'center',
