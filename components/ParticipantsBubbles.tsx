@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,13 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ProfilesContext, UserProfile } from '@/contexts/ProfilesContext';
 import { ProfilesListContext, Profile } from '@/contexts/ProfilesListContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 interface ParticipantsBubblesProps {
   participants: number[];
@@ -40,6 +40,14 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const modalBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+
+  const profileItems = useMemo(
+    () => [
+      { label: 'Seleccionar perfil', value: '' },
+      ...profiles.map(profile => ({ label: profile.username, value: profile.id.toString() })),
+    ],
+    [profiles]
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -108,17 +116,13 @@ export default function ParticipantsBubbles({ participants, onChange }: Particip
         style={styles.list}
       />
       <View style={styles.addRow}>
-        <Picker
+        <SearchableSelect
+          style={styles.picker}
+          items={profileItems}
           selectedValue={newId}
-          onValueChange={(value) => setNewId(String(value))}
-          style={[styles.picker, { color: textColor }]}
-          dropdownIconColor={textColor}
-        >
-          <Picker.Item label="Seleccionar perfil" value="" />
-          {profiles.map((p) => (
-            <Picker.Item key={p.id} label={p.username} value={p.id.toString()} />
-          ))}
-        </Picker>
+          onValueChange={(value) => setNewId(value?.toString() ?? '')}
+          placeholder="Seleccionar perfil"
+        />
         <TouchableOpacity
           style={[styles.addButton, { backgroundColor: buttonColor }]}
           onPress={handleAdd}

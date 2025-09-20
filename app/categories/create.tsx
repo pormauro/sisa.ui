@@ -9,13 +9,13 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { getDisplayCategories } from '@/utils/categories';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CreateCategory() {
   const router = useRouter();
@@ -34,13 +34,31 @@ export default function CreateCategory() {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
-  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories),
     [categories]
+  );
+
+  const typeItems = useMemo(
+    () => [
+      { label: 'Ingreso', value: 'income' },
+      { label: 'Gasto', value: 'expense' },
+    ],
+    []
+  );
+
+  const parentItems = useMemo(
+    () => [
+      { label: '-- Sin padre --', value: '' },
+      ...displayCategories.map(c => ({
+        label: `${' '.repeat(c.level * 2)}${c.name}`,
+        value: c.id.toString(),
+      })),
+    ],
+    [displayCategories]
   );
 
   useEffect(() => {
@@ -82,36 +100,22 @@ export default function CreateCategory() {
       />
 
       <ThemedText style={styles.label}>Tipo</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={type}
-          onValueChange={(val) => setType(val as 'income' | 'expense')}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="Ingreso" value="income" />
-          <Picker.Item label="Gasto" value="expense" />
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={typeItems}
+        selectedValue={type}
+        onValueChange={(val) => setType((val as 'income' | 'expense') ?? type)}
+        placeholder="Selecciona tipo"
+      />
 
       <ThemedText style={styles.label}>Categoría padre</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={parentId}
-          onValueChange={setParentId}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Sin padre --" value="" />
-          {displayCategories.map(c => (
-            <Picker.Item
-              key={c.id}
-              label={`${' '.repeat(c.level * 2)}${c.name}`}
-              value={c.id.toString()}
-            />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={parentItems}
+        selectedValue={parentId}
+        onValueChange={(value) => setParentId(value?.toString() ?? '')}
+        placeholder="-- Sin padre --"
+      />
 
       <TouchableOpacity
         style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -131,12 +135,9 @@ export default function CreateCategory() {
 const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  pickerWrap: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 8,
   },
-  picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },

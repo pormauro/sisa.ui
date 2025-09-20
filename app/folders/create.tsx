@@ -1,13 +1,13 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, View } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Picker } from '@react-native-picker/picker';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CreateFolderPage() {
   const router = useRouter();
@@ -35,6 +35,15 @@ export default function CreateFolderPage() {
   const [name, setName] = useState('');
   const [folderImageFileId, setFolderImageFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const clientItems = useMemo(
+    () => [
+      { label: 'Selecciona un cliente', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({ label: client.business_name, value: client.id.toString() })),
+    ],
+    [clients]
+  );
 
   useEffect(() => {
     if (!permissions.includes('addFolder')) {
@@ -79,30 +88,24 @@ export default function CreateFolderPage() {
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
       <ThemedText style={styles.label}>Cliente *</ThemedText>
-      <View style={[styles.pickerWrapper, { backgroundColor: inputBackground, borderColor }]}> 
-        <Picker
-          selectedValue={clientId !== null ? clientId.toString() : ''}
-          onValueChange={(value) => {
-            if (value === NEW_CLIENT_VALUE) {
-              if (clientId !== null) {
-                setClientId(null);
-              }
-              router.push('/clients/create');
-              return;
+      <SearchableSelect
+        style={styles.select}
+        items={clientItems}
+        selectedValue={clientId !== null ? clientId.toString() : ''}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CLIENT_VALUE) {
+            if (clientId !== null) {
+              setClientId(null);
             }
-            setClientId(value ? Number(value) : null);
-          }}
-          enabled={!isClientFixed}
-          dropdownIconColor={inputTextColor}
-          style={[styles.picker, { color: inputTextColor }]}
-        >
-          <Picker.Item label="Selecciona un cliente" value="" color={placeholderColor} />
-          <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
-          {clients.map(client => (
-            <Picker.Item key={client.id} label={client.business_name} value={client.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+            router.push('/clients/create');
+            return;
+          }
+          setClientId(stringValue ? Number(stringValue) : null);
+        }}
+        placeholder="Selecciona un cliente"
+        disabled={isClientFixed}
+      />
 
       <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>
       <CircleImagePicker fileId={folderImageFileId} editable={true} size={200} onImageChange={setFolderImageFileId} />
@@ -132,15 +135,8 @@ export default function CreateFolderPage() {
 const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 8,
-    overflow: 'hidden',
-  },
-  picker: {
-    width: '100%',
-    height: 50,
   },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },

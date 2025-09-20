@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -28,6 +27,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -84,6 +84,18 @@ export default function EditJobScreen() {
   const filteredTariffs = useMemo(
     () => tariffs.filter(t => new Date(jobDate) >= new Date(t.last_update)),
     [tariffs, jobDate]
+  );
+
+  const clientItems = useMemo(
+    () => [
+      { label: '-- Cliente --', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({
+        label: client.business_name,
+        value: client.id.toString(),
+      })),
+    ],
+    [clients]
   );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
@@ -351,43 +363,26 @@ export default function EditJobScreen() {
 
       {/* Cliente */}
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
-      <View
-        style={[
-          styles.pickerWrap,
-          { borderColor, backgroundColor: inputBackground },
-          !canEdit ? { opacity: 0.6 } : {},
-        ]}
-      >
-        <Picker
-          selectedValue={selectedClientId}
-          onValueChange={(value) => {
-            const stringValue = String(value);
-            if (stringValue === NEW_CLIENT_VALUE) {
-              setSelectedClientId('');
-              router.push('/clients/create');
-            } else {
-              setSelectedClientId(stringValue);
-            }
-          }}
-          enabled={canEdit}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Cliente --" value="" />
-          <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
-          {clients.map(client => (
-            <Picker.Item
-              key={client.id}
-              label={client.business_name}
-              value={client.id.toString()}
-            />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={clientItems}
+        selectedValue={selectedClientId}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setSelectedClientId('');
+            router.push('/clients/create');
+            return;
+          }
+          setSelectedClientId(stringValue);
+        }}
+        placeholder="-- Cliente --"
+        disabled={!canEdit}
+      />
 
       {/* Carpeta */}
       <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
+      <View style={styles.select}>
         <ModalPicker
           items={folderItems}
           selectedItem={selectedFolder}
@@ -413,7 +408,7 @@ export default function EditJobScreen() {
 
       {/* Estado */}
       <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
+      <View style={styles.select}>
         <ModalPicker
           items={statusItems}
           selectedItem={selectedStatus}
@@ -437,7 +432,7 @@ export default function EditJobScreen() {
 
       {/* Tarifa */}
       <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
+      <View style={styles.select}>
         <ModalPicker
           items={tariffItems}
           selectedItem={selectedTariff}
@@ -616,7 +611,7 @@ export default function EditJobScreen() {
 const styles = StyleSheet.create({
   container:  { padding: 16, flexGrow: 1 },
   label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
-  pickerWrap: { borderWidth: 1, borderRadius: 8, marginBottom: 12 },
+  select: { marginBottom: 12 },
   input:      { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
   priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },

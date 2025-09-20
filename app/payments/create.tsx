@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -24,6 +23,7 @@ import { getDisplayCategories } from '@/utils/categories';
 import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CreatePayment() {
   const router = useRouter();
@@ -61,13 +61,66 @@ export default function CreatePayment() {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
-  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories, 'expense'),
     [categories]
+  );
+
+  const cashBoxItems = useMemo(
+    () => [
+      { label: '-- Selecciona cuenta --', value: '' },
+      { label: '➕ Nueva caja', value: NEW_CASH_BOX_VALUE },
+      ...cashBoxes.map(cb => ({ label: cb.name, value: cb.id.toString() })),
+    ],
+    [cashBoxes]
+  );
+
+  const creditorTypeItems = useMemo(
+    () => [
+      { label: 'Cliente', value: 'client' },
+      { label: 'Proveedor', value: 'provider' },
+      { label: 'Otro', value: 'other' },
+    ],
+    []
+  );
+
+  const clientItems = useMemo(
+    () => [
+      { label: '-- Selecciona cliente --', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({
+        label: client.business_name,
+        value: client.id.toString(),
+      })),
+    ],
+    [clients]
+  );
+
+  const providerItems = useMemo(
+    () => [
+      { label: '-- Selecciona proveedor --', value: '' },
+      { label: '➕ Nuevo proveedor', value: NEW_PROVIDER_VALUE },
+      ...providers.map(provider => ({
+        label: provider.business_name,
+        value: provider.id.toString(),
+      })),
+    ],
+    [providers]
+  );
+
+  const categoryItems = useMemo(
+    () => [
+      { label: '-- Selecciona categoría --', value: '' },
+      { label: '➕ Nueva categoría', value: NEW_CATEGORY_VALUE },
+      ...displayCategories.map(c => ({
+        label: `${' '.repeat(c.level * 2)}${c.name}`,
+        value: c.id.toString(),
+      })),
+    ],
+    [displayCategories]
   );
 
   useEffect(() => {
@@ -202,101 +255,70 @@ export default function CreatePayment() {
       )}
 
       <ThemedText style={styles.label}>Cuenta utilizada</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={paidWithAccount}
-          onValueChange={(value) => {
-            if (value === NEW_CASH_BOX_VALUE) {
-              setPaidWithAccount('');
-              router.push('/cash_boxes/create');
-            } else {
-              setPaidWithAccount(value);
-            }
-          }}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Selecciona cuenta --" value="" />
-          <Picker.Item label="➕ Nueva caja" value={NEW_CASH_BOX_VALUE} />
-          {cashBoxes.map(cb => (
-            <Picker.Item key={cb.id} label={cb.name} value={cb.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={cashBoxItems}
+        selectedValue={paidWithAccount}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CASH_BOX_VALUE) {
+            setPaidWithAccount('');
+            router.push('/cash_boxes/create');
+            return;
+          }
+          setPaidWithAccount(stringValue);
+        }}
+        placeholder="-- Selecciona cuenta --"
+      />
 
       <ThemedText style={styles.label}>Tipo de acreedor</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={creditorType}
-          onValueChange={(val) => setCreditorType(val as any)}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="Cliente" value="client" />
-          <Picker.Item label="Proveedor" value="provider" />
-          <Picker.Item label="Otro" value="other" />
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={creditorTypeItems}
+        selectedValue={creditorType}
+        onValueChange={(val) => setCreditorType((val as 'client' | 'provider' | 'other') ?? 'provider')}
+        placeholder="Selecciona tipo"
+      />
 
       {creditorType === 'client' && (
         <>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={creditorClientId}
-              onValueChange={(value) => {
-                if (value === NEW_CLIENT_VALUE) {
-                  setCreditorClientId('');
-                  router.push('/clients/create');
-                } else {
-                  setCreditorClientId(value);
-                }
-              }}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
-            >
-              <Picker.Item label="-- Selecciona cliente --" value="" />
-              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
-              {clients.map(client => (
-                <Picker.Item
-                  key={client.id}
-                  label={client.business_name}
-                  value={client.id.toString()}
-                />
-              ))}
-            </Picker>
-          </View>
+          <SearchableSelect
+            style={styles.select}
+            items={clientItems}
+            selectedValue={creditorClientId}
+            onValueChange={(value) => {
+              const stringValue = value?.toString() ?? '';
+              if (stringValue === NEW_CLIENT_VALUE) {
+                setCreditorClientId('');
+                router.push('/clients/create');
+                return;
+              }
+              setCreditorClientId(stringValue);
+            }}
+            placeholder="-- Selecciona cliente --"
+          />
         </>
       )}
 
       {creditorType === 'provider' && (
         <>
           <ThemedText style={styles.label}>Proveedor</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={creditorProviderId}
-              onValueChange={(value) => {
-                if (value === NEW_PROVIDER_VALUE) {
-                  setCreditorProviderId('');
-                  router.push('/providers/create');
-                } else {
-                  setCreditorProviderId(value);
-                }
-              }}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
-            >
-              <Picker.Item label="-- Selecciona proveedor --" value="" />
-              <Picker.Item label="➕ Nuevo proveedor" value={NEW_PROVIDER_VALUE} />
-              {providers.map(provider => (
-                <Picker.Item
-                  key={provider.id}
-                  label={provider.business_name}
-                  value={provider.id.toString()}
-                />
-              ))}
-            </Picker>
-          </View>
+          <SearchableSelect
+            style={styles.select}
+            items={providerItems}
+            selectedValue={creditorProviderId}
+            onValueChange={(value) => {
+              const stringValue = value?.toString() ?? '';
+              if (stringValue === NEW_PROVIDER_VALUE) {
+                setCreditorProviderId('');
+                router.push('/providers/create');
+                return;
+              }
+              setCreditorProviderId(stringValue);
+            }}
+            placeholder="-- Selecciona proveedor --"
+          />
         </>
       )}
 
@@ -323,31 +345,21 @@ export default function CreatePayment() {
       />
 
       <ThemedText style={styles.label}>Categoría</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={categoryId}
-          onValueChange={(value) => {
-            if (value === NEW_CATEGORY_VALUE) {
-              setCategoryId('');
-              router.push({ pathname: '/categories/create', params: { type: 'expense' } });
-            } else {
-              setCategoryId(value);
-            }
-          }}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Selecciona categoría --" value="" />
-          <Picker.Item label="➕ Nueva categoría" value={NEW_CATEGORY_VALUE} />
-          {displayCategories.map(c => (
-            <Picker.Item
-              key={c.id}
-              label={`${' '.repeat(c.level * 2)}${c.name}`}
-              value={c.id.toString()}
-            />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={categoryItems}
+        selectedValue={categoryId}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CATEGORY_VALUE) {
+            setCategoryId('');
+            router.push({ pathname: '/categories/create', params: { type: 'expense' } });
+            return;
+          }
+          setCategoryId(stringValue);
+        }}
+        placeholder="-- Selecciona categoría --"
+      />
 
       <ThemedText style={styles.label}>Precio</ThemedText>
       <TextInput
@@ -367,31 +379,21 @@ export default function CreatePayment() {
       {chargeClient && (
         <>
           <ThemedText style={styles.label}>Cliente a cobrar</ThemedText>
-          <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={chargeClientId}
-              onValueChange={(value) => {
-                if (value === NEW_CLIENT_VALUE) {
-                  setChargeClientId('');
-                  router.push('/clients/create');
-                } else {
-                  setChargeClientId(value);
-                }
-              }}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
-            >
-              <Picker.Item label="-- Selecciona cliente --" value="" />
-              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
-              {clients.map(client => (
-                <Picker.Item
-                  key={client.id}
-                  label={client.business_name}
-                  value={client.id.toString()}
-                />
-              ))}
-            </Picker>
-          </View>
+          <SearchableSelect
+            style={styles.select}
+            items={clientItems}
+            selectedValue={chargeClientId}
+            onValueChange={(value) => {
+              const stringValue = value?.toString() ?? '';
+              if (stringValue === NEW_CLIENT_VALUE) {
+                setChargeClientId('');
+                router.push('/clients/create');
+                return;
+              }
+              setChargeClientId(stringValue);
+            }}
+            placeholder="-- Selecciona cliente --"
+          />
         </>
       )}
 
@@ -412,12 +414,9 @@ const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  pickerWrap: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 8,
   },
-  picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
     padding: 16,
