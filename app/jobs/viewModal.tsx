@@ -1,18 +1,18 @@
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { JobsContext } from '@/contexts/JobsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
-import { ProfilesContext } from '@/contexts/ProfilesContext';
 import FileGallery from '@/components/FileGallery';
 import { formatTimeInterval } from '@/utils/time';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 
 const getContrastingTextColor = (color: string): string => {
   if (!color) return '#fff';
@@ -60,7 +60,6 @@ export default function ViewJobModal() {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { folders } = useContext(FoldersContext);
-  const { getProfile } = useContext(ProfilesContext);
 
   const job = jobs.find(j => j.id === jobId);
   const client = clients.find(c => c.id === job?.client_id);
@@ -76,19 +75,6 @@ export default function ViewJobModal() {
       : [];
     return parts.map((p: any) => (typeof p === 'number' ? p : p.id));
   }, [job?.participants]);
-
-  const [participantNames, setParticipantNames] = useState<string[]>([]);
-  useEffect(() => {
-    const load = async () => {
-      const names: string[] = [];
-      for (const pid of participantIds) {
-        const profile = await getProfile(pid);
-        if (profile) names.push(profile.full_name);
-      }
-      setParticipantNames(names);
-    };
-    void load();
-  }, [participantIds, getProfile]);
 
   const startStr = job?.start_time?.slice(0, 5) || '';
   const endStr = job?.end_time?.slice(0, 5) || '';
@@ -229,12 +215,12 @@ export default function ViewJobModal() {
         <ThemedText style={[styles.costCaption, { color: subtleTextColor }]}>Costo final</ThemedText>
       </View>
 
-      {participantNames.length ? (
-        <>
-          <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
-          <ThemedText style={[styles.value, { color: textColor }]}>{participantNames.join(', ')}</ThemedText>
-        </>
-      ) : null}
+      <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
+      {participantIds.length ? (
+        <ParticipantsBubbles participants={participantIds} editable={false} />
+      ) : (
+        <ThemedText style={[styles.value, { color: subtleTextColor }]}>Sin participantes</ThemedText>
+      )}
 
       {job.description ? (
         <>
