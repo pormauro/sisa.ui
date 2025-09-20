@@ -24,6 +24,8 @@ import FileGallery from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 export default function CreateReceipt() {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function CreateReceipt() {
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
+  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -145,6 +148,17 @@ export default function CreateReceipt() {
       setPayerClientId('');
     }
   }, [clients, payerClientId]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.receipts.payerClient)) {
+      return;
+    }
+    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.receipts.payerClient);
+    if (pendingClientId) {
+      setPayerType('client');
+      setPayerClientId(pendingClientId.toString());
+    }
+  }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
     if (!payerProviderId) return;
@@ -294,20 +308,22 @@ export default function CreateReceipt() {
             selectedValue={payerClientId}
             onValueChange={(value) => {
               const stringValue = value?.toString() ?? '';
-              if (stringValue === NEW_CLIENT_VALUE) {
-                setPayerClientId('');
-                router.push('/clients/create');
-                return;
-              }
-              setPayerClientId(stringValue);
-            }}
-            placeholder="-- Selecciona cliente --"
-            onItemLongPress={(item) => {
-              const value = String(item.value ?? '');
-              if (!value || value === NEW_CLIENT_VALUE) return;
-              router.push(`/clients/${value}`);
-            }}
-          />
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setPayerClientId('');
+            beginSelection(SELECTION_KEYS.receipts.payerClient);
+            router.push('/clients/create');
+            return;
+          }
+          setPayerClientId(stringValue);
+        }}
+        placeholder="-- Selecciona cliente --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CLIENT_VALUE) return;
+          beginSelection(SELECTION_KEYS.receipts.payerClient);
+          router.push(`/clients/${value}`);
+        }}
+      />
         </>
       )}
 

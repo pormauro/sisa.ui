@@ -28,6 +28,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -39,6 +41,7 @@ export default function CreateJobScreen() {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
+  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_STATUS_VALUE = '__new_status__';
@@ -149,6 +152,16 @@ export default function CreateJobScreen() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
+      return;
+    }
+    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.jobs.client);
+    if (pendingClientId) {
+      setSelectedClient(pendingClientId.toString());
+    }
+  }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
     if (!selectedClient) {
@@ -282,6 +295,7 @@ export default function CreateJobScreen() {
           const stringValue = value?.toString() ?? '';
           if (stringValue === NEW_CLIENT_VALUE) {
             setSelectedClient('');
+            beginSelection(SELECTION_KEYS.jobs.client);
             router.push('/clients/create');
             return;
           }
@@ -291,6 +305,7 @@ export default function CreateJobScreen() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_CLIENT_VALUE) return;
+          beginSelection(SELECTION_KEYS.jobs.client);
           router.push(`/clients/${value}`);
         }}
       />

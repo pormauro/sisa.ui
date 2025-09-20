@@ -21,6 +21,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatDateForApi, formatTimeForApi } from '@/utils/dateTime';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 const NEW_CLIENT_VALUE = '__new_client__';
 const NEW_JOB_VALUE = '__new_job__';
@@ -37,6 +39,7 @@ export default function CreateAppointmentScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { jobs } = useContext(JobsContext);
+  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const { date } = useLocalSearchParams<{ date?: string }>();
   const initialDateParam = Array.isArray(date) ? date[0] : date;
@@ -128,6 +131,16 @@ export default function CreateAppointmentScreen() {
     }
   }, [clientJobs, selectedClient, selectedJob]);
 
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.appointments.client)) {
+      return;
+    }
+    const pendingClient = consumeSelection<string>(SELECTION_KEYS.appointments.client);
+    if (pendingClient) {
+      setSelectedClient(pendingClient.toString());
+    }
+  }, [pendingSelections, consumeSelection]);
+
   const handleChangeDate = (_: any, selected?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (!selected) return;
@@ -205,6 +218,7 @@ export default function CreateAppointmentScreen() {
               const stringValue = value?.toString() ?? '';
               if (stringValue === NEW_CLIENT_VALUE) {
                 setSelectedClient('');
+                beginSelection(SELECTION_KEYS.appointments.client);
                 router.push('/clients/create');
                 return;
               }
@@ -214,6 +228,7 @@ export default function CreateAppointmentScreen() {
             onItemLongPress={(item) => {
               const value = String(item.value ?? '');
               if (!value || value === NEW_CLIENT_VALUE) return;
+              beginSelection(SELECTION_KEYS.appointments.client);
               router.push(`/clients/${value}`);
             }}
           />

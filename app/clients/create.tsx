@@ -9,12 +9,14 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CreateClientPage() {
   const { permissions } = useContext(PermissionsContext);
   const { addClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const router = useRouter();
+  const { completeSelection } = usePendingSelection();
 
   const NEW_TARIFF_VALUE = 'new_tariff';
 
@@ -72,6 +74,7 @@ export default function CreateClientPage() {
       });
       if (newClient) {
         Alert.alert('Éxito', 'Cliente creado exitosamente');
+        completeSelection(newClient.id.toString());
         router.back();
       } else {
         Alert.alert('Error', 'No se pudo crear el cliente');

@@ -17,6 +17,7 @@ import { ProvidersProvider } from '@/contexts/ProvidersContext';
 import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
+import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View, Alert, LogBox } from 'react-native';
@@ -99,7 +100,9 @@ export default function RootLayout() {
                                       <PaymentsProvider>
                                         <ReceiptsProvider>
                                           <FoldersProvider>
-                                            <RootLayoutContent />
+                                            <PendingSelectionProvider>
+                                              <RootLayoutContent />
+                                            </PendingSelectionProvider>
                                           </FoldersProvider>
                                         </ReceiptsProvider>
                                       </PaymentsProvider>

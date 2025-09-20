@@ -8,6 +8,8 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 export default function CreateFolderPage() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function CreateFolderPage() {
   const { permissions } = useContext(PermissionsContext);
   const { addFolder, folders } = useContext(FoldersContext);
   const { clients, loadClients } = useContext(ClientsContext);
+  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const parentId = parent_id ? Number(parent_id) : null;
   const folderParent = parentId ? folders.find(f => f.id === parentId) : null;
@@ -64,6 +67,16 @@ export default function CreateFolderPage() {
     }
   }, [resolvedClientId]);
 
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.folders.client)) {
+      return;
+    }
+    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.folders.client);
+    if (pendingClientId) {
+      setClientId(Number(pendingClientId));
+    }
+  }, [pendingSelections, consumeSelection]);
+
   const handleSubmit = async () => {
     if (!name || !clientId) {
       Alert.alert('Error', 'Faltan campos requeridos: nombre y cliente.');
@@ -98,6 +111,7 @@ export default function CreateFolderPage() {
             if (clientId !== null) {
               setClientId(null);
             }
+            beginSelection(SELECTION_KEYS.folders.client);
             router.push('/clients/create');
             return;
           }
@@ -108,6 +122,7 @@ export default function CreateFolderPage() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_CLIENT_VALUE) return;
+          beginSelection(SELECTION_KEYS.folders.client);
           router.push(`/clients/${value}`);
         }}
       />
