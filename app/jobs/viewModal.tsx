@@ -93,14 +93,38 @@ export default function ViewJobModal() {
   const startStr = job?.start_time?.slice(0, 5) || '';
   const endStr = job?.end_time?.slice(0, 5) || '';
   const interval = formatTimeInterval(startStr, endStr);
-  const rate = tariff ? tariff.amount : job?.manual_amount ?? 0;
-  let finalCost = 0;
-  if (startStr && endStr && rate) {
-    const startDate = new Date(`1970-01-01T${startStr}`);
-    const endDate = new Date(`1970-01-01T${endStr}`);
+
+  const parseHourlyRate = (value: unknown): number => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return 0;
+      }
+      const normalized = trimmed.replace(/,/g, '.');
+      const parsed = Number.parseFloat(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  };
+
+  const hourlyRate = parseHourlyRate(tariff ? tariff.amount : job?.manual_amount);
+
+  let workedHours = 0;
+  if (startStr && endStr) {
+    const startDate = new Date(`1970-01-01T${startStr}:00`);
+    const endDate = new Date(`1970-01-01T${endStr}:00`);
     const diffHours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-    finalCost = diffHours > 0 ? diffHours * rate : 0;
+    workedHours = Number.isFinite(diffHours) && diffHours > 0 ? diffHours : 0;
   }
+
+  const hasBothTimes = Boolean(startStr && endStr);
+  const finalCost = hasBothTimes ? workedHours * hourlyRate : 0;
+  const workedHoursText = hasBothTimes ? `${workedHours.toFixed(2)} h` : '0.00 h';
+  const hourlyRateText = hourlyRate > 0 ? `$${hourlyRate.toFixed(2)}/h` : '$0.00/h';
+  const finalCostText = `$${finalCost.toFixed(2)}`;
 
   const filesJson = job?.attached_files
     ? typeof job.attached_files === 'string'
@@ -110,6 +134,12 @@ export default function ViewJobModal() {
 
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
+  const accentColor = useThemeColor({}, 'tint');
+  const subtleTextColor = useThemeColor({ light: '#4b5563', dark: '#e5e7eb' }, 'text');
+  const cardBackground = useThemeColor(
+    { light: 'rgba(0, 123, 255, 0.08)', dark: 'rgba(241, 90, 41, 0.18)' },
+    'background'
+  );
   const statusBackgroundColor = status?.background_color ?? '#1f2937';
   const statusTextColor = getContrastingTextColor(statusBackgroundColor);
   const headerTitle = status?.label ? `Trabajo ${status.label}` : 'Trabajo';
@@ -136,16 +166,6 @@ export default function ViewJobModal() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
-      <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
-      <ThemedText
-        style={[
-          styles.statusValue,
-          { backgroundColor: statusBackgroundColor, color: statusTextColor },
-        ]}
-      >
-        {status?.label || 'Sin estado'}
-      </ThemedText>
-
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>{client?.business_name || 'Sin cliente'}</ThemedText>
 
@@ -166,18 +186,48 @@ export default function ViewJobModal() {
         </>
       ) : null}
 
-      <ThemedText style={[styles.label, { color: textColor }]}>Hora de inicio</ThemedText>
-      <ThemedText style={[styles.value, { color: textColor }]}>{startStr || 'Sin horario'}</ThemedText>
+      <View
+        style={[
+          styles.timeCostCard,
+          {
+            backgroundColor: cardBackground,
+            borderColor: accentColor,
+            shadowColor: accentColor,
+          },
+        ]}
+      >
+        <View style={styles.timeRow}>
+          <View style={styles.timeBlock}>
+            <ThemedText style={[styles.cardLabel, { color: accentColor }]}>Hora de inicio</ThemedText>
+            <ThemedText style={[styles.cardValue, { color: textColor }]}>
+              {startStr || 'Sin horario'}
+            </ThemedText>
+          </View>
+          <View style={[styles.timeBlock, styles.timeBlockRight]}>
+            <ThemedText style={[styles.cardLabel, { color: accentColor }]}>Hora de fin</ThemedText>
+            <ThemedText style={[styles.cardValue, { color: textColor }]}>
+              {endStr || 'Sin horario'}
+            </ThemedText>
+          </View>
+        </View>
 
-      <ThemedText style={[styles.label, { color: textColor }]}>Hora de fin</ThemedText>
-      <ThemedText style={[styles.value, { color: textColor }]}>{endStr || 'Sin horario'}</ThemedText>
+        {interval ? (
+          <ThemedText style={[styles.intervalText, { color: subtleTextColor }]}>Tiempo trabajado: {interval}</ThemedText>
+        ) : null}
 
-      {interval ? (
-        <>
-          <ThemedText style={[styles.label, { color: textColor }]}>Tiempo trabajado</ThemedText>
-          <ThemedText style={[styles.value, { color: textColor }]}>{interval}</ThemedText>
-        </>
-      ) : null}
+        <View style={styles.costDetailRow}>
+          <ThemedText style={[styles.costDetailText, { color: subtleTextColor }]}>
+            {workedHoursText}
+          </ThemedText>
+          <ThemedText style={[styles.costDetailSymbol, { color: accentColor }]}>×</ThemedText>
+          <ThemedText style={[styles.costDetailText, { color: subtleTextColor }]}>
+            {hourlyRateText}
+          </ThemedText>
+          <ThemedText style={[styles.costDetailSymbol, { color: accentColor }]}>=</ThemedText>
+          <ThemedText style={[styles.costHighlight, { color: accentColor }]}>{finalCostText}</ThemedText>
+        </View>
+        <ThemedText style={[styles.costCaption, { color: subtleTextColor }]}>Costo final</ThemedText>
+      </View>
 
       {participantNames.length ? (
         <>
@@ -201,13 +251,6 @@ export default function ViewJobModal() {
         {tariff ? tariff.amount : job.manual_amount ?? 'Sin monto'}
       </ThemedText>
 
-      {finalCost > 0 && (
-        <>
-          <ThemedText style={[styles.label, { color: textColor }]}>Costo final</ThemedText>
-          <ThemedText style={[styles.value, { color: textColor }]}>${finalCost.toFixed(2)}</ThemedText>
-        </>
-      )}
-
       {filesJson ? (
         <>
           <ThemedText style={[styles.label, { color: textColor }]}>Archivos</ThemedText>
@@ -229,6 +272,32 @@ const styles = StyleSheet.create({
   container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
-  statusValue: { fontSize: 16, marginBottom: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start' },
+  timeCostCard: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  timeRow: { flexDirection: 'row' },
+  timeBlock: { flex: 1 },
+  timeBlockRight: { marginLeft: 16 },
+  cardLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  cardValue: { fontSize: 20, fontWeight: '700' },
+  intervalText: { marginTop: 8, fontSize: 14 },
+  costDetailRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+  },
+  costDetailText: { fontSize: 16, fontWeight: '500', marginHorizontal: 4 },
+  costDetailSymbol: { fontSize: 18, fontWeight: '700', marginHorizontal: 4 },
+  costHighlight: { fontSize: 20, fontWeight: '700' },
+  costCaption: { marginTop: 4, fontSize: 12, textAlign: 'center', fontWeight: '500', letterSpacing: 1 },
   editButton: { marginTop: 16 },
 });
