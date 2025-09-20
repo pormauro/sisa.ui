@@ -54,9 +54,25 @@ const parseNumberValue = (value: unknown): number | null => {
     return null;
   }
 
-  const normalized = cleaned.includes('.') && cleaned.includes(',')
-    ? cleaned.replace(/\./g, '').replace(/,/g, '.')
-    : cleaned.replace(/,/g, '.');
+  let normalized = cleaned;
+
+  const hasDot = cleaned.includes('.');
+  const hasComma = cleaned.includes(',');
+
+  if (hasDot && hasComma) {
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+    const decimalSeparator = lastDot > lastComma ? '.' : ',';
+    const thousandsSeparator = decimalSeparator === '.' ? ',' : '.';
+
+    normalized = cleaned.replace(new RegExp(`\\${thousandsSeparator}`, 'g'), '');
+
+    if (decimalSeparator !== '.') {
+      normalized = normalized.replace(new RegExp(`\\${decimalSeparator}`, 'g'), '.');
+    }
+  } else if (hasComma) {
+    normalized = cleaned.replace(/,/g, '.');
+  }
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
