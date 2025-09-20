@@ -35,18 +35,59 @@ export interface Job {
   participants?: number[] | string | null;
 }
 
+const parseNumberValue = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const cleaned = trimmed.replace(/[^0-9,.-]/g, '');
+  if (!cleaned) {
+    return null;
+  }
+
+  const normalized = cleaned.includes('.') && cleaned.includes(',')
+    ? cleaned.replace(/\./g, '').replace(/,/g, '.')
+    : cleaned.replace(/,/g, '.');
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const toNumber = (value: unknown): number => {
-  if (typeof value === 'number') return value;
-  if (value === null || value === undefined || value === '') return 0;
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
+  const parsed = parseNumberValue(value);
+  if (parsed !== null) {
+    return parsed;
+  }
+
+  if (value === null || typeof value === 'undefined' || value === '') {
+    return 0;
+  }
+
+  const fallback = Number(value);
+  return Number.isFinite(fallback) ? fallback : 0;
 };
 
 const toNullableNumber = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === '') return null;
-  if (typeof value === 'number') return value;
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? null : parsed;
+  if (value === null || typeof value === 'undefined' || value === '') {
+    return null;
+  }
+
+  const parsed = parseNumberValue(value);
+  if (parsed !== null) {
+    return parsed;
+  }
+
+  const fallback = Number(value);
+  return Number.isFinite(fallback) ? fallback : null;
 };
 
 interface JobsContextType {
