@@ -486,7 +486,7 @@ export default function CreateJobScreen() {
       )}
 
       {startTime && endTime && (
-        <ThemedText style={[styles.intervalText, { color: textColor }]}>Intervalo: {timeInterval}</ThemedText>
+        <ThemedText style={[styles.intervalText, { color: textColor }]}>Tiempo trabajado: {timeInterval}</ThemedText>
       )}
 
       {price > 0 && (
