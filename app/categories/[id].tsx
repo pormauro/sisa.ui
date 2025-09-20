@@ -176,6 +176,7 @@ export default function CategoryDetailPage() {
         selectedValue={type}
         onValueChange={(val) => setType((val as 'income' | 'expense') ?? type)}
         placeholder="Selecciona tipo"
+        showSearch={false}
         disabled={!canEdit}
       />
 

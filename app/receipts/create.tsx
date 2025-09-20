@@ -282,6 +282,7 @@ export default function CreateReceipt() {
         selectedValue={payerType}
         onValueChange={(val) => setPayerType((val as 'client' | 'provider' | 'other') ?? payerType)}
         placeholder="Selecciona tipo"
+        showSearch={false}
       />
 
       {payerType === 'client' && (

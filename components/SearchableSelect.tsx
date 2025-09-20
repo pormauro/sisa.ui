@@ -20,6 +20,7 @@ interface SearchableSelectProps {
   enabled?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  showSearch?: boolean;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -32,6 +33,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   enabled = true,
   disabled,
   style,
+  showSearch = true,
 }) => {
   const normalizedSelectedValue =
     selectedValue === null || typeof selectedValue === 'undefined'
@@ -120,6 +122,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         placeholder={placeholder}
         disabled={isDisabled}
         onItemLongPress={onItemLongPress ? handleItemLongPress : undefined}
+        showSearch={showSearch}
       />
     </View>
   );

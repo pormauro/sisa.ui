@@ -27,6 +27,7 @@ interface ModalPickerProps {
   placeholder?: string;
   disabled?: boolean;
   onItemLongPress?: (item: ModalPickerItem) => void;
+  showSearch?: boolean;
 }
 
 export const ModalPicker: React.FC<ModalPickerProps> = ({
@@ -36,6 +37,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   placeholder = "Selecciona un ítem",
   disabled = false,
   onItemLongPress,
+  showSearch = true,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,6 +54,10 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   }, [selectedItem]);
 
   const filteredItems = useMemo(() => {
+    if (!showSearch) {
+      return items;
+    }
+
     const normalizedTerm = searchTerm.trim().toLowerCase();
 
     if (!normalizedTerm) {
@@ -61,7 +67,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
     return items.filter((item) =>
       item.name.toLowerCase().includes(normalizedTerm)
     );
-  }, [items, searchTerm]);
+  }, [items, searchTerm, showSearch]);
 
   useEffect(() => {
     if (!modalVisible) {
@@ -138,18 +144,20 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => {}}>
               <View style={[styles.modalContainer, { backgroundColor }]}>
-                <View style={styles.searchContainer}>
-                  <TextInput
-                    value={searchTerm}
-                    onChangeText={setSearchTerm}
-                    placeholder="Buscar..."
-                    placeholderTextColor={placeholderColor}
-                    style={[
-                      styles.searchInput,
-                      { color: textColor, borderColor, backgroundColor },
-                    ]}
-                  />
-                </View>
+                {showSearch && (
+                  <View style={styles.searchContainer}>
+                    <TextInput
+                      value={searchTerm}
+                      onChangeText={setSearchTerm}
+                      placeholder="Buscar..."
+                      placeholderTextColor={placeholderColor}
+                      style={[
+                        styles.searchInput,
+                        { color: textColor, borderColor, backgroundColor },
+                      ]}
+                    />
+                  </View>
+                )}
                 <FlatList
                   data={filteredItems}
                   keyExtractor={(item) => item.id.toString()}
