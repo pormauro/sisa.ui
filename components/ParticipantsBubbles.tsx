@@ -15,6 +15,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
+const CAROUSEL_ITEM_WIDTH = 240;
+const CAROUSEL_ITEM_MARGIN = 12;
+const CAROUSEL_SNAP_INTERVAL = CAROUSEL_ITEM_WIDTH + CAROUSEL_ITEM_MARGIN * 2;
+
 interface ParticipantsBubblesProps {
   participants: number[];
   onChange?: (ids: number[]) => void;
@@ -210,10 +214,18 @@ export default function ParticipantsBubbles({ participants, onChange, editable =
                 data={availableProfiles}
                 keyExtractor={item => item.id.toString()}
                 horizontal
-                pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 style={styles.carousel}
                 contentContainerStyle={styles.carouselContent}
+                snapToInterval={CAROUSEL_SNAP_INTERVAL}
+                snapToAlignment="start"
+                decelerationRate="fast"
+                disableIntervalMomentum
+                getItemLayout={(_, index) => ({
+                  length: CAROUSEL_SNAP_INTERVAL,
+                  offset: CAROUSEL_SNAP_INTERVAL * index,
+                  index,
+                })}
                 renderItem={({ item }) => {
                   const details = profileDetails[item.id] ?? null;
                   return (
@@ -316,11 +328,11 @@ const styles = StyleSheet.create({
   },
   carouselContent: {
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: CAROUSEL_ITEM_MARGIN,
   },
   carouselItem: {
-    width: 240,
-    marginHorizontal: 12,
+    width: CAROUSEL_ITEM_WIDTH,
+    marginHorizontal: CAROUSEL_ITEM_MARGIN,
     alignItems: 'center',
   },
   selectButton: {
