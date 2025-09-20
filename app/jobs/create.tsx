@@ -67,7 +67,11 @@ export default function CreateJobScreen() {
     userId ? [Number(userId)] : []
   );
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const rate = useMemo(() => (manualAmount ? parseFloat(manualAmount) : 0), [manualAmount]);
+  const trimmedManualAmount = manualAmount.trim();
+  const rate = useMemo(
+    () => (trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : 0),
+    [trimmedManualAmount]
+  );
   const selectedTariffData = useMemo(
     () => tariffs.find(t => t.id.toString() === selectedTariff),
     [tariffs, selectedTariff]
@@ -211,7 +215,14 @@ export default function CreateJobScreen() {
 
 
   const handleSubmit = async () => {
-    if (!selectedClient || !description || !jobDate || !startTime || !endTime || !manualAmount) {
+    if (
+      !selectedClient ||
+      !description ||
+      !jobDate ||
+      !startTime ||
+      !endTime ||
+      trimmedManualAmount === ''
+    ) {
       Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
@@ -222,7 +233,7 @@ export default function CreateJobScreen() {
         start_time: startTime,
         end_time: endTime,
         tariff_id: selectedTariff ? parseInt(selectedTariff, 10) : null,
-        manual_amount: manualAmount ? parseFloat(manualAmount) : null,
+        manual_amount: trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,

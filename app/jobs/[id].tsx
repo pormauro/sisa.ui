@@ -79,7 +79,11 @@ export default function EditJobScreen() {
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const previousClientIdRef = useRef<string | null>(null);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const rate = useMemo(() => (manualAmount ? parseFloat(manualAmount) : 0), [manualAmount]);
+  const trimmedManualAmount = manualAmount.trim();
+  const rate = useMemo(
+    () => (trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : 0),
+    [trimmedManualAmount]
+  );
   const selectedTariffData = useMemo(
     () => tariffs.find(t => t.id === Number(selectedTariff?.id)),
     [tariffs, selectedTariff]
@@ -156,7 +160,11 @@ export default function EditJobScreen() {
       const tar = tariffs.find(t => t.id === job.tariff_id);
       setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
       setManualAmount(
-        job.manual_amount ? job.manual_amount.toString() : tar ? tar.amount.toString() : ''
+        job.manual_amount != null
+          ? job.manual_amount.toString()
+          : tar
+          ? tar.amount.toString()
+          : ''
       );
 
       const parts = job.participants
@@ -277,7 +285,14 @@ export default function EditJobScreen() {
 
   // submit
   const handleSubmit = async () => {
-    if (!selectedClientId || !description || !jobDate || !startTime || !endTime || !manualAmount) {
+    if (
+      !selectedClientId ||
+      !description ||
+      !jobDate ||
+      !startTime ||
+      !endTime ||
+      trimmedManualAmount === ''
+    ) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
@@ -289,7 +304,7 @@ export default function EditJobScreen() {
         start_time: startTime,
         end_time: endTime,
         tariff_id: selectedTariff && selectedTariff.id !== '' ? Number(selectedTariff.id) : null,
-        manual_amount: manualAmount ? Number(manualAmount) : null,
+        manual_amount: trimmedManualAmount !== '' ? Number(trimmedManualAmount) : null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
