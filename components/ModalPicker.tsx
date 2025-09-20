@@ -1,5 +1,5 @@
 // app/components/ModalPicker.tsx
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Modal,
   View,
@@ -26,6 +26,7 @@ interface ModalPickerProps {
   onSelect: (item: ModalPickerItem) => void;
   placeholder?: string;
   disabled?: boolean;
+  onItemLongPress?: (item: ModalPickerItem) => void;
 }
 
 export const ModalPicker: React.FC<ModalPickerProps> = ({
@@ -34,9 +35,11 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   onSelect,
   placeholder = "Selecciona un ítem",
   disabled = false,
+  onItemLongPress,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const longPressHandledRef = useRef(false);
 
   const textColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#999', dark: '#aaa' }, 'text');
@@ -73,6 +76,23 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   const handleSelect = (item: ModalPickerItem) => {
     onSelect(item);
     closeModal();
+  };
+
+  const handleItemPress = (item: ModalPickerItem) => {
+    if (longPressHandledRef.current) {
+      longPressHandledRef.current = false;
+      return;
+    }
+    handleSelect(item);
+  };
+
+  const handleItemLongPress = (item: ModalPickerItem) => {
+    if (!onItemLongPress) {
+      return;
+    }
+    longPressHandledRef.current = true;
+    closeModal();
+    onItemLongPress(item);
   };
 
   return (
@@ -150,7 +170,8 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
                           borderBottomColor: borderColor,
                         },
                       ]}
-                      onPress={() => handleSelect(item)}
+                      onPress={() => handleItemPress(item)}
+                      onLongPress={() => handleItemLongPress(item)}
                     >
                       {item.imageFileId && (
                         <Image

@@ -269,6 +269,11 @@ export default function CreatePayment() {
           setPaidWithAccount(stringValue);
         }}
         placeholder="-- Selecciona cuenta --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CASH_BOX_VALUE) return;
+          router.push(`/cash_boxes/${value}`);
+        }}
       />
 
       <ThemedText style={styles.label}>Tipo de acreedor</ThemedText>
@@ -297,6 +302,11 @@ export default function CreatePayment() {
               setCreditorClientId(stringValue);
             }}
             placeholder="-- Selecciona cliente --"
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_CLIENT_VALUE) return;
+              router.push(`/clients/${value}`);
+            }}
           />
         </>
       )}
@@ -318,6 +328,11 @@ export default function CreatePayment() {
               setCreditorProviderId(stringValue);
             }}
             placeholder="-- Selecciona proveedor --"
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_PROVIDER_VALUE) return;
+              router.push(`/providers/${value}`);
+            }}
           />
         </>
       )}
@@ -359,6 +374,11 @@ export default function CreatePayment() {
           setCategoryId(stringValue);
         }}
         placeholder="-- Selecciona categoría --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CATEGORY_VALUE) return;
+          router.push(`/categories/${value}`);
+        }}
       />
 
       <ThemedText style={styles.label}>Precio</ThemedText>
@@ -393,6 +413,11 @@ export default function CreatePayment() {
               setChargeClientId(stringValue);
             }}
             placeholder="-- Selecciona cliente --"
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_CLIENT_VALUE) return;
+              router.push(`/clients/${value}`);
+            }}
           />
         </>
       )}

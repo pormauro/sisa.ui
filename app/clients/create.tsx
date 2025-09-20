@@ -157,6 +157,11 @@ export default function CreateClientPage() {
           setTariffId(value);
         }}
         placeholder="Sin Tarifa"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_TARIFF_VALUE) return;
+          router.push(`/tariffs/${value}`);
+        }}
       />
 
       <TouchableOpacity

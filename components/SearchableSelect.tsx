@@ -15,6 +15,7 @@ interface SearchableSelectProps {
   selectedValue?: string | number | null;
   onValueChange?: (itemValue: string | number | null, itemIndex: number) => void;
   onItemChange?: (item: SearchableSelectItem, itemIndex: number) => void;
+  onItemLongPress?: (item: SearchableSelectItem, itemIndex: number) => void;
   placeholder?: string;
   enabled?: boolean;
   disabled?: boolean;
@@ -26,6 +27,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   selectedValue = null,
   onValueChange,
   onItemChange,
+  onItemLongPress,
   placeholder = 'Selecciona una opción',
   enabled = true,
   disabled,
@@ -81,6 +83,32 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     [items, onItemChange, onValueChange, valueIndexMap]
   );
 
+  const handleItemLongPress = useCallback(
+    (modalItem: ModalPickerItem) => {
+      if (!onItemLongPress) {
+        return;
+      }
+
+      const key = String(modalItem.id);
+      const index = valueIndexMap.get(key);
+      if (typeof index === 'number') {
+        onItemLongPress(items[index], index);
+        return;
+      }
+
+      onItemLongPress(
+        {
+          label: modalItem.name,
+          value: modalItem.id,
+          imageFileId: modalItem.imageFileId,
+          backgroundColor: modalItem.backgroundColor,
+        },
+        -1
+      );
+    },
+    [items, onItemLongPress, valueIndexMap]
+  );
+
   const isDisabled = typeof disabled === 'boolean' ? disabled : !enabled;
 
   return (
@@ -91,6 +119,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         onSelect={handleSelect}
         placeholder={placeholder}
         disabled={isDisabled}
+        onItemLongPress={onItemLongPress ? handleItemLongPress : undefined}
       />
     </View>
   );

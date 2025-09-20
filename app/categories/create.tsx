@@ -115,6 +115,11 @@ export default function CreateCategory() {
         selectedValue={parentId}
         onValueChange={(value) => setParentId(value?.toString() ?? '')}
         placeholder="-- Sin padre --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value) return;
+          router.push(`/categories/${value}`);
+        }}
       />
 
       <TouchableOpacity

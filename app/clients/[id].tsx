@@ -236,6 +236,11 @@ export default function ClientDetailPage() {
         }}
         placeholder="Sin Tarifa"
         disabled={!canEditClient}
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_TARIFF_VALUE) return;
+          router.push(`/tariffs/${value}`);
+        }}
       />
       {canEditClient && (
         <TouchableOpacity

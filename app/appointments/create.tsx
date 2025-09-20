@@ -211,6 +211,11 @@ export default function CreateAppointmentScreen() {
               setSelectedClient(stringValue);
             }}
             placeholder="Selecciona un cliente"
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_CLIENT_VALUE) return;
+              router.push(`/clients/${value}`);
+            }}
           />
 
           <ThemedText style={styles.label}>Trabajo asociado (opcional)</ThemedText>
@@ -231,6 +236,11 @@ export default function CreateAppointmentScreen() {
             }}
             placeholder={jobPlaceholder}
             enabled={!!selectedClient}
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_JOB_VALUE) return;
+              router.push(`/jobs/${value}`);
+            }}
           />
 
           <ThemedText style={styles.label}>Fecha de la visita</ThemedText>

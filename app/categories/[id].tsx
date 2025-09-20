@@ -187,6 +187,11 @@ export default function CategoryDetailPage() {
         onValueChange={(value) => setParentId(value?.toString() ?? '')}
         placeholder="-- Sin padre --"
         disabled={!canEdit}
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value) return;
+          router.push(`/categories/${value}`);
+        }}
       />
 
       {canEdit && (
