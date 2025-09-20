@@ -283,6 +283,7 @@ export default function CreatePayment() {
         selectedValue={creditorType}
         onValueChange={(val) => setCreditorType((val as 'client' | 'provider' | 'other') ?? 'provider')}
         placeholder="Selecciona tipo"
+        showSearch={false}
       />
 
       {creditorType === 'client' && (

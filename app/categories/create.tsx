@@ -106,6 +106,7 @@ export default function CreateCategory() {
         selectedValue={type}
         onValueChange={(val) => setType((val as 'income' | 'expense') ?? type)}
         placeholder="Selecciona tipo"
+        showSearch={false}
       />
 
       <ThemedText style={styles.label}>Categoría padre</ThemedText>

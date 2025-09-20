@@ -385,6 +385,7 @@ export default function ReceiptDetailPage() {
         selectedValue={payerType}
         onValueChange={(val) => setPayerType((val as 'client' | 'provider' | 'other') ?? payerType)}
         placeholder="Selecciona tipo"
+        showSearch={false}
         disabled={!canEdit}
       />
 

@@ -386,6 +386,7 @@ export default function PaymentDetailPage() {
         selectedValue={creditorType}
         onValueChange={(val) => setCreditorType((val as 'client' | 'provider' | 'other') ?? creditorType)}
         placeholder="Selecciona tipo"
+        showSearch={false}
         disabled={!canEdit}
       />
 
