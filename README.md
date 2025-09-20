@@ -1,91 +1,116 @@
-# Welcome to your Expo app 👋
+# SISA UI
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Descripción general
+SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la agenda de trabajos, la relación con clientes y proveedores, la gestión documental y los circuitos financieros (recibos, pagos, cajas, tarifas) sobre una única experiencia construida con [Expo Router](https://expo.dev/router) y React Native. El frontend consume la API `sisa.api` y prioriza el trabajo híbrido online/offline gracias al almacenamiento local con `AsyncStorage` y a la sincronización diferencial de operaciones.
 
-## Get started
+### Tecnologías clave
+- [Expo 53](https://docs.expo.dev/) con `expo-router` para navegación basada en archivos.
+- React 19 y React Native 0.79 con TypeScript.
+- Componentes nativos y librerías Expo para archivos, cámara, documentos, autenticación segura y caché (`expo-secure-store`, `expo-file-system`, `expo-document-picker`, etc.).
+- `AsyncStorage` + hooks propios (`useCachedState`) para persistencia y trabajo sin conexión.
+- [`Fuse.js`](https://fusejs.io/) y [`react-native-calendars`](https://github.com/wix/react-native-calendars) para búsquedas tolerantes y visualización de agenda.
 
-1. Install dependencies
+## Requisitos previos
+- Node.js 18 LTS o 20 LTS y npm 9+ (también es compatible con pnpm/yarn si el equipo lo adopta).
+- Cuenta en [Expo](https://expo.dev/) (opcional pero recomendada) y el CLI disponible a través de `npx`.
+- Android Studio / Xcode si se van a usar emuladores nativos.
+- Acceso a la API `sisa.api` (por defecto se apunta a `https://sistema.depros.com.ar`, editable en `config/Index.ts`).
 
+## Instalación y arranque
+1. Clona el repositorio y entra en la carpeta del proyecto.
+   ```bash
+   git clone <url-del-repo>
+   cd sisa.ui
+   ```
+2. Instala las dependencias.
    ```bash
    npm install
    ```
-
-2. Start the app
-
+3. Configura la URL del backend si es necesario editando `config/Index.ts`.
+4. Arranca Metro bundler.
    ```bash
    npx expo start
    ```
+   Desde la consola de Expo puedes elegir abrir la aplicación en Android (`a`), iOS (`i`), web (`w`) o un build de desarrollo. También hay atajos empaquetados:
+   - `npm run android`
+   - `npm run ios`
+   - `npm run web`
+5. Para reiniciar el proyecto base puedes usar `npm run reset-project`, que mueve el ejemplo inicial a `app-example/` y deja `app/` vacía.
 
-In the output, you'll find options to open the app in a
+## Autenticación y seguridad
+- `AuthContext` se encarga del inicio de sesión, la revalidación de tokens y la detección de modo offline. Los tokens se obtienen del encabezado `Authorization` tras llamar a `/login` y se guardan en `expo-secure-store` junto con las credenciales cifradas.
+- Cada hora se renueva el token si el usuario sigue activo; también se comprueba el perfil cada 2 minutos (`/profile`) para validar la sesión.
+- **Bearer obligatorio:** todas las peticiones a `sisa.api` deben llevar `Authorization: Bearer <token>` salvo los endpoints de inicio de sesión y registro.
+- El contexto expone `checkConnection` para que la UI pueda forzar una reconexión y alterna entre modo online/offline según el estado del backend.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
-## Sync Batch API
-
-The `/sync/batch` endpoint responds with a structure that now includes a mapping of
-local operation identifiers to their server-assigned IDs:
-
-```json
-{
-  "ok": true,
-  "batch_id": "example-batch-id",
-  "results": [],
-  "map": {
-    "local_to_remote": {
-      "1": 42
+## Lineamientos para el backend `sisa.api`
+- Mantén la convención de **no utilizar `FOREIGN KEY`** en la base de datos del backend, tal como se definió para `sisa.api`.
+- Los módulos de la aplicación envían un `timestamp` en cada operación de escritura (por ejemplo citas, trabajos, pagos) para facilitar la reconstrucción de historial y resolver conflictos de sincronización.
+- Campos como `attached_files` y `participants` se serializan en JSON desde el frontend; la API debe aceptarlos en ese formato.
+- El endpoint `/sync/batch` expone el mapa `map.local_to_remote` para reconciliar IDs temporales con los definitivos asignados por el servidor:
+  ```json
+  {
+    "ok": true,
+    "batch_id": "example-batch-id",
+    "results": [],
+    "map": {
+      "local_to_remote": {
+        "1": 42
+      }
+    },
+    "history": {
+      "max_history_id": 0,
+      "changes": []
     }
-  },
-  "history": {
-    "max_history_id": 0,
-    "changes": []
   }
-}
-```
+  ```
+  Cada operación entrante se despacha por entidad en el backend (por ejemplo `ClientsHandler`) para mantener el controlador desacoplado.
 
-The `map.local_to_remote` object helps clients reconcile temporary `local_id`
-values with the corresponding remote identifiers returned by the server.
+## Arquitectura y módulos principales
+### Layout y routing
+- `app/_layout.tsx` compone el árbol de proveedores (auth, permisos, archivos, catálogos, etc.) y define un `Stack` de Expo Router sin cabeceras. También aplica el `ThemeProvider` que armoniza el esquema de color con la configuración del usuario.
+- `app/Index.tsx` actúa como splash screen mostrando el logotipo hasta que se resuelve el estado de autenticación; `app/+not-found.tsx` delega los errores de routing al enlace raíz.
 
-### Operation handling
+### Contextos transversales
+- `AuthContext`: login, autologin, renovación y almacenamiento seguro del token.
+- `PermissionsContext`: fusiona permisos globales y del usuario consultando `/permissions/global` y `/permissions/user/:id`, con refresco automático cada 5 minutos.
+- `FilesContext`: subida (`/files`), descarga y cacheo de metadatos/archivos con `expo-file-system`, incluyendo utilidades para limpiar almacenamiento local.
+- `ConfigContext`: obtiene y actualiza preferencias (`/user_configurations`) y expone el tema elegido por el usuario, el cual se integra en `useColorScheme`.
+- `ProfileContext`, `ProfilesContext` y `ProfilesListContext`: cachean perfiles del usuario actual, perfiles externos y listados completos para selector de permisos.
+- `useCachedState`: hook genérico para hidratar estado desde `AsyncStorage` y escuchar limpiezas de caché.
 
-Earlier drafts of this API mentioned a `processClientOp` routine. That logic has
-been replaced by an entity-based dispatch system inside `SyncController`. Each
-incoming operation is routed to a handler based on its `entity` value. For
-example, client operations are processed by `ClientsHandler`:
+### Gestión operativa y agenda (`app/`)
+- `app/login/`: pantallas de login, registro y recuperación que consumen `/login`, `/register` y `/forgot_password`.
+- `app/Home.tsx`: menú dinámico que muestra secciones según los permisos del usuario y expone accesos a agenda, clientes, finanzas, configuración y permisos.
+- `app/appointments/`: calendario (con `react-native-calendars`), listado diario y CRUD de citas asociados a clientes y trabajos.
+- `app/jobs/`: listado de trabajos con cálculo de duración y costos en base a tarifas o montos manuales.
+- `app/clients/`, `app/providers/`: listados con búsqueda difusa (`Fuse.js`), modales de detalle y formularios de alta/edición condicionados por permisos.
+- `app/folders/`: navegación jerárquica de carpetas por cliente, con soporte para imágenes y borrado controlado por permisos.
+- `app/products_services/`, `app/categories/`, `app/statuses/`, `app/tariffs/`, `app/cash_boxes/`: catálogos maestros con búsqueda, acciones restringidas y refresco tras cada operación.
+- `app/payments/` y `app/receipts/`: flujos financieros que combinan clientes/proveedores, adjuntos y banderas contables.
+- `app/permission/`: UI para asignar permisos globales o por usuario mediante checkboxes, agrupando sectores y utilizando `PermissionsContext`.
+- `app/user/`: `ProfileScreen` para editar datos personales y `ConfigScreen` para cambiar tema, limpiar cachés (`clearAllDataCaches`) y purgar archivos locales.
 
-```php
-$handlers = [
-    'clients' => new ClientsHandler(),
-];
-```
+### Gestión de archivos y caché
+- Los adjuntos se almacenan en `expo-file-system` con nombres sanitizados; `FilesContext` reutiliza copias locales cuando es posible y mantiene metadatos sincronizados en `AsyncStorage`.
+- La opción "Borrar datos de archivos" de `ConfigScreen` elimina metadatos y archivos locales, mientras que "Borrar datos de la caché" limpia todos los estados persistidos vía `useCachedState`.
 
-This modular approach allows additional entities to plug in their own handlers
-while keeping `SyncController` focused on coordinating the batch.
+### Base de datos y migraciones
+- El directorio `database/` contiene scripts SQL (`clients.sql`, `sync_tables.sql`) y migraciones (`database/migrations/*`) que definen la estructura esperada por `sisa.api`. Respeta el criterio de no crear claves foráneas y realiza las asociaciones en capa de aplicación.
+
+## Documentación complementaria
+La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/` (por ejemplo, guías de sincronización, manuales operativos y convenciones de API). Si no la encuentras en este repositorio, consulta el repositorio principal o al equipo de backend para obtenerla.
+
+## Scripts y utilidades
+- `npm start` / `npx expo start`: inicia el bundler de Expo.
+- `npm run android`, `npm run ios`, `npm run web`: abre la app directamente en cada plataforma.
+- `npm run lint`: ejecuta `expo lint` con la configuración ESLint del proyecto.
+- `npm run reset-project`: restaura el esqueleto inicial de Expo.
+
+## Soporte y troubleshooting
+- **Problemas de compilación**: borra cachés con `npx expo start --clear`, reinstala dependencias (`rm -rf node_modules && npm install`) o ejecuta `npx expo-doctor`.
+- **Errores de autenticación**: usa la pantalla de Configuración para limpiar cachés o cierra sesión; asegúrate de que el backend responde y de que el token no ha caducado.
+- **Permisos insuficientes**: verifica que `PermissionsContext` se haya refrescado (botón de recarga o volver a entrar) y que el usuario tenga los sectores requeridos.
+- **Adjuntos corruptos**: desde Configuración ejecuta "Borrar datos de archivos" para forzar la re-descarga; los archivos se regeneran con `FilesContext` al volver a abrirlos.
+- **Desajustes de datos**: ejecuta manualmente las sincronizaciones (`load*`) disponibles en cada módulo o revisa el historial expuesto por `/sync/batch`.
+- **Estilo de código**: antes de abrir un PR ejecuta `npm run lint` y corrige los reportes de ESLint.
