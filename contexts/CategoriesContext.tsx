@@ -57,48 +57,56 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [setCategories, token]);
 
-  const addCategory = async (category: Omit<Category, 'id'>): Promise<Category | null> => {
-    try {
-      const response = await fetch(`${BASE_URL}/categories`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(category),
-      });
-      const data = await response.json();
-      if (data.category_id) {
-        const newCategory: Category = { id: parseInt(data.category_id, 10), ...category };
-        setCategories(prev => [...prev, newCategory]);
-        return newCategory;
+  const addCategory = useCallback(
+    async (category: Omit<Category, 'id'>): Promise<Category | null> => {
+      try {
+        const response = await fetch(`${BASE_URL}/categories`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(category),
+        });
+        const data = await response.json();
+        if (data.category_id) {
+          const newCategory: Category = { id: parseInt(data.category_id, 10), ...category };
+          setCategories(prev => [...prev, newCategory]);
+          await loadCategories();
+          return newCategory;
+        }
+      } catch (error) {
+        console.error('Error adding category:', error);
       }
-    } catch (error) {
-      console.error('Error adding category:', error);
-    }
-    return null;
-  };
+      return null;
+    },
+    [loadCategories, setCategories, token]
+  );
 
-  const updateCategory = async (id: number, category: Omit<Category, 'id'>): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/categories/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(category),
-      });
-      const data = await response.json();
-      if (data.message === 'Category updated successfully') {
-        setCategories(prev => prev.map(c => (c.id === id ? { id, ...category } : c)));
-        return true;
+  const updateCategory = useCallback(
+    async (id: number, category: Omit<Category, 'id'>): Promise<boolean> => {
+      try {
+        const response = await fetch(`${BASE_URL}/categories/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(category),
+        });
+        const data = await response.json();
+        if (data.message === 'Category updated successfully') {
+          setCategories(prev => prev.map(c => (c.id === id ? { id, ...category } : c)));
+          await loadCategories();
+          return true;
+        }
+      } catch (error) {
+        console.error('Error updating category:', error);
       }
-    } catch (error) {
-      console.error('Error updating category:', error);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadCategories, setCategories, token]
+  );
 
   const deleteCategory = async (id: number): Promise<boolean> => {
     try {

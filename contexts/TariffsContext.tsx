@@ -58,56 +58,64 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [setTariffs, token]);
 
-  const addTariff = async (tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<Tariff | null> => {
-    try {
-      const response = await fetch(`${BASE_URL}/tariffs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(tariff),
-      });
-      const data = await response.json();
-      if (data.tariff_id) {
-        const newTariff: Tariff = {
-          id: parseInt(data.tariff_id, 10),
-          last_update: data.last_update || '',
-          ...tariff,
-        };
-        setTariffs(prev => [...prev, newTariff]);
-        return newTariff;
+  const addTariff = useCallback(
+    async (tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<Tariff | null> => {
+      try {
+        const response = await fetch(`${BASE_URL}/tariffs`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(tariff),
+        });
+        const data = await response.json();
+        if (data.tariff_id) {
+          const newTariff: Tariff = {
+            id: parseInt(data.tariff_id, 10),
+            last_update: data.last_update || '',
+            ...tariff,
+          };
+          setTariffs(prev => [...prev, newTariff]);
+          await loadTariffs();
+          return newTariff;
+        }
+      } catch (error) {
+        console.error('Error adding tariff:', error);
       }
-    } catch (error) {
-      console.error('Error adding tariff:', error);
-    }
-    return null;
-  };
+      return null;
+    },
+    [loadTariffs, setTariffs, token]
+  );
 
-  const updateTariff = async (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/tariffs/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(tariff),
-      });
-      const data = await response.json();
-      if (data.message === 'Tariff updated successfully') {
-        setTariffs(prev =>
-          prev.map(t =>
-            t.id === id ? { ...t, ...tariff, last_update: data.last_update || t.last_update } : t
-          )
-        );
-        return true;
+  const updateTariff = useCallback(
+    async (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<boolean> => {
+      try {
+        const response = await fetch(`${BASE_URL}/tariffs/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(tariff),
+        });
+        const data = await response.json();
+        if (data.message === 'Tariff updated successfully') {
+          setTariffs(prev =>
+            prev.map(t =>
+              t.id === id ? { ...t, ...tariff, last_update: data.last_update || t.last_update } : t
+            )
+          );
+          await loadTariffs();
+          return true;
+        }
+      } catch (error) {
+        console.error('Error updating tariff:', error);
       }
-    } catch (error) {
-      console.error('Error updating tariff:', error);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadTariffs, setTariffs, token]
+  );
 
   const deleteTariff = async (id: number): Promise<boolean> => {
     try {

@@ -58,42 +58,50 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
     }
   }, [setProductsServices, token]);
 
-  const addProductService = async (item: Omit<ProductService, 'id' | 'user_id'>): Promise<ProductService | null> => {
-    try {
-      const response = await fetch(`${BASE_URL}/products_services`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(item),
-      });
-      const data = await response.json();
-      if (data.id) {
-        const newItem: ProductService = { id: data.id, user_id: 0, ...item };
-        setProductsServices(prev => [...prev, newItem]);
-        return newItem;
+  const addProductService = useCallback(
+    async (item: Omit<ProductService, 'id' | 'user_id'>): Promise<ProductService | null> => {
+      try {
+        const response = await fetch(`${BASE_URL}/products_services`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(item),
+        });
+        const data = await response.json();
+        if (data.id) {
+          const newItem: ProductService = { id: data.id, user_id: 0, ...item };
+          setProductsServices(prev => [...prev, newItem]);
+          await loadProductsServices();
+          return newItem;
+        }
+      } catch (error) {
+        console.error('Error adding product/service:', error);
       }
-    } catch (error) {
-      console.error('Error adding product/service:', error);
-    }
-    return null;
-  };
+      return null;
+    },
+    [loadProductsServices, setProductsServices, token]
+  );
 
-  const updateProductService = async (id: number, item: Omit<ProductService, 'id' | 'user_id'>): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/products_services/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(item),
-      });
-      const data = await response.json();
-      if (data.message === 'Record updated successfully') {
-        setProductsServices(prev => prev.map(p => (p.id === id ? { ...p, ...item } : p)));
-        return true;
+  const updateProductService = useCallback(
+    async (id: number, item: Omit<ProductService, 'id' | 'user_id'>): Promise<boolean> => {
+      try {
+        const response = await fetch(`${BASE_URL}/products_services/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(item),
+        });
+        const data = await response.json();
+        if (data.message === 'Record updated successfully') {
+          setProductsServices(prev => prev.map(p => (p.id === id ? { ...p, ...item } : p)));
+          await loadProductsServices();
+          return true;
+        }
+      } catch (error) {
+        console.error('Error updating product/service:', error);
       }
-    } catch (error) {
-      console.error('Error updating product/service:', error);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadProductsServices, setProductsServices, token]
+  );
 
   const deleteProductService = async (id: number): Promise<boolean> => {
     try {
