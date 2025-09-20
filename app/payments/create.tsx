@@ -129,10 +129,33 @@ export default function CreatePayment() {
   useEffect(() => {
     if (!paidWithAccount) return;
     const exists = cashBoxes.some(cb => cb.id.toString() === paidWithAccount);
-    if (!exists) {
-      setPaidWithAccount('');
+    if (exists) {
+      return;
     }
-  }, [cashBoxes, paidWithAccount]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.payments.cashBox];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === paidWithAccount
+    ) {
+      return;
+    }
+    setPaidWithAccount('');
+  }, [cashBoxes, paidWithAccount, pendingSelections]);
+
+  useEffect(() => {
+    const pendingCashBox = pendingSelections[SELECTION_KEYS.payments.cashBox];
+    if (pendingCashBox === undefined || pendingCashBox === null) {
+      return;
+    }
+    const pendingCashBoxId = String(pendingCashBox);
+    const exists = cashBoxes.some(cb => cb.id.toString() === pendingCashBoxId);
+    if (!exists) {
+      return;
+    }
+    consumeSelection(SELECTION_KEYS.payments.cashBox);
+    setPaidWithAccount(pendingCashBoxId);
+  }, [pendingSelections, cashBoxes, consumeSelection]);
 
   useEffect(() => {
     if (!categoryId) return;
@@ -327,6 +350,7 @@ export default function CreatePayment() {
           const stringValue = value?.toString() ?? '';
           if (stringValue === NEW_CASH_BOX_VALUE) {
             setPaidWithAccount('');
+            beginSelection(SELECTION_KEYS.payments.cashBox);
             router.push('/cash_boxes/create');
             return;
           }
@@ -336,6 +360,7 @@ export default function CreatePayment() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_CASH_BOX_VALUE) return;
+          beginSelection(SELECTION_KEYS.payments.cashBox);
           router.push(`/cash_boxes/${value}`);
         }}
       />

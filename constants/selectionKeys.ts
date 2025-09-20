@@ -3,11 +3,13 @@ export const SELECTION_KEYS = {
     payerClient: 'receipts.payerClient',
     payerProvider: 'receipts.payerProvider',
     provider: 'receipts.provider',
+    cashBox: 'receipts.cashBox',
   },
   payments: {
     creditorClient: 'payments.creditorClient',
     chargeClient: 'payments.chargeClient',
     creditorProvider: 'payments.creditorProvider',
+    cashBox: 'payments.cashBox',
   },
   jobs: {
     client: 'jobs.client',

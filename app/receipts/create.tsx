@@ -128,10 +128,33 @@ export default function CreateReceipt() {
   useEffect(() => {
     if (!paidInAccount) return;
     const exists = cashBoxes.some(cb => cb.id.toString() === paidInAccount);
-    if (!exists) {
-      setPaidInAccount('');
+    if (exists) {
+      return;
     }
-  }, [cashBoxes, paidInAccount]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.receipts.cashBox];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === paidInAccount
+    ) {
+      return;
+    }
+    setPaidInAccount('');
+  }, [cashBoxes, paidInAccount, pendingSelections]);
+
+  useEffect(() => {
+    const pendingCashBox = pendingSelections[SELECTION_KEYS.receipts.cashBox];
+    if (pendingCashBox === undefined || pendingCashBox === null) {
+      return;
+    }
+    const pendingCashBoxId = String(pendingCashBox);
+    const exists = cashBoxes.some(cb => cb.id.toString() === pendingCashBoxId);
+    if (!exists) {
+      return;
+    }
+    consumeSelection(SELECTION_KEYS.receipts.cashBox);
+    setPaidInAccount(pendingCashBoxId);
+  }, [pendingSelections, cashBoxes, consumeSelection]);
 
   useEffect(() => {
     if (!categoryId) return;
@@ -331,6 +354,7 @@ export default function CreateReceipt() {
           const stringValue = value?.toString() ?? '';
           if (stringValue === NEW_CASH_BOX_VALUE) {
             setPaidInAccount('');
+            beginSelection(SELECTION_KEYS.receipts.cashBox);
             router.push('/cash_boxes/create');
             return;
           }
@@ -340,6 +364,7 @@ export default function CreateReceipt() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_CASH_BOX_VALUE) return;
+          beginSelection(SELECTION_KEYS.receipts.cashBox);
           router.push(`/cash_boxes/${value}`);
         }}
       />

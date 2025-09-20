@@ -4,6 +4,7 @@ import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityInd
 import { useRouter } from 'expo-router';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -12,6 +13,7 @@ export default function CreateCashBox() {
   const router = useRouter();
   const { addCashBox, loadCashBoxes } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
   
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
@@ -32,6 +34,12 @@ export default function CreateCashBox() {
     }
   }, [permissions]);
 
+  useEffect(() => {
+    return () => {
+      cancelSelection();
+    };
+  }, [cancelSelection]);
+
   const handleSubmit = async () => {
     if (!name) {
       Alert.alert('Error', 'El nombre es obligatorio');
@@ -42,6 +50,7 @@ export default function CreateCashBox() {
     await loadCashBoxes();
     setLoading(false);
     if (newCashBox) {
+      completeSelection(newCashBox.id.toString());
       Alert.alert('Éxito', 'Caja creada exitosamente');
       router.back();
     } else {
