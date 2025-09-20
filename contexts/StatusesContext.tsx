@@ -64,58 +64,66 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [setStatuses, token]);
 
-  const addStatus = async (
-    statusData: Omit<Status, 'id' | 'created_at' | 'updated_at' | 'version'>
-  ): Promise<Status | null> => {
-    try {
-      const res = await fetch(`${BASE_URL}/statuses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(statusData),
-      });
-      const data = await res.json();
-      if (data.status_id) {
-        const newStatus: Status = {
-          id: parseInt(data.status_id, 10),
-          version: 1,
-          ...statusData,
-        };
-        setStatuses(prev => [...prev, newStatus]);
-        return newStatus;
+  const addStatus = useCallback(
+    async (
+      statusData: Omit<Status, 'id' | 'created_at' | 'updated_at' | 'version'>
+    ): Promise<Status | null> => {
+      try {
+        const res = await fetch(`${BASE_URL}/statuses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(statusData),
+        });
+        const data = await res.json();
+        if (data.status_id) {
+          const newStatus: Status = {
+            id: parseInt(data.status_id, 10),
+            version: 1,
+            ...statusData,
+          };
+          setStatuses(prev => [...prev, newStatus]);
+          await loadStatuses();
+          return newStatus;
+        }
+      } catch (err) {
+        console.error('Error adding status:', err);
       }
-    } catch (err) {
-      console.error('Error adding status:', err);
-    }
-    return null;
-  };
+      return null;
+    },
+    [loadStatuses, setStatuses, token]
+  );
 
-  const updateStatus = async (
-    id: number,
-    statusData: Omit<Status, 'id' | 'created_at' | 'updated_at' | 'version'>
-  ): Promise<boolean> => {
-    try {
-      const res = await fetch(`${BASE_URL}/statuses/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(statusData),
-      });
-      if (res.ok) {
-        setStatuses(prev =>
-          prev.map(s => (s.id === id ? { ...s, ...statusData } : s))
-        );
-        return true;
+  const updateStatus = useCallback(
+    async (
+      id: number,
+      statusData: Omit<Status, 'id' | 'created_at' | 'updated_at' | 'version'>
+    ): Promise<boolean> => {
+      try {
+        const res = await fetch(`${BASE_URL}/statuses/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(statusData),
+        });
+        if (res.ok) {
+          setStatuses(prev =>
+            prev.map(s => (s.id === id ? { ...s, ...statusData } : s))
+          );
+          await loadStatuses();
+          return true;
+        }
+      } catch (err) {
+        console.error('Error updating status:', err);
       }
-    } catch (err) {
-      console.error('Error updating status:', err);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadStatuses, setStatuses, token]
+  );
 
   const deleteStatus = async (id: number): Promise<boolean> => {
     try {

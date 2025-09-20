@@ -66,68 +66,76 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [setPayments, token]);
 
-  const addPayment = async (payment: Omit<Payment, 'id'>): Promise<Payment | null> => {
-    try {
-      const payload = {
-        ...payment,
-        attached_files:
-          typeof payment.attached_files === 'string'
-            ? payment.attached_files
-            : payment.attached_files
-            ? JSON.stringify(payment.attached_files)
-            : null,
-      };
-      const response = await fetch(`${BASE_URL}/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (data.payment_id) {
-        const newPayment: Payment = { id: parseInt(data.payment_id, 10), ...payload };
-        setPayments(prev => [...prev, newPayment]);
-        return newPayment;
+  const addPayment = useCallback(
+    async (payment: Omit<Payment, 'id'>): Promise<Payment | null> => {
+      try {
+        const payload = {
+          ...payment,
+          attached_files:
+            typeof payment.attached_files === 'string'
+              ? payment.attached_files
+              : payment.attached_files
+              ? JSON.stringify(payment.attached_files)
+              : null,
+        };
+        const response = await fetch(`${BASE_URL}/payments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (data.payment_id) {
+          const newPayment: Payment = { id: parseInt(data.payment_id, 10), ...payload };
+          setPayments(prev => [...prev, newPayment]);
+          await loadPayments();
+          return newPayment;
+        }
+      } catch (error) {
+        console.error('Error adding payment:', error);
       }
-    } catch (error) {
-      console.error('Error adding payment:', error);
-    }
-    return null;
-  };
+      return null;
+    },
+    [loadPayments, setPayments, token]
+  );
 
-  const updatePayment = async (id: number, payment: Omit<Payment, 'id'>): Promise<boolean> => {
-    try {
-      const payload = {
-        ...payment,
-        attached_files:
-          typeof payment.attached_files === 'string'
-            ? payment.attached_files
-            : payment.attached_files
-            ? JSON.stringify(payment.attached_files)
-            : null,
-      };
-      const response = await fetch(`${BASE_URL}/payments/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (data.message === 'Payment updated successfully') {
-        setPayments(prev => prev.map(p => (p.id === id ? { id, ...payload } : p)));
-        return true;
+  const updatePayment = useCallback(
+    async (id: number, payment: Omit<Payment, 'id'>): Promise<boolean> => {
+      try {
+        const payload = {
+          ...payment,
+          attached_files:
+            typeof payment.attached_files === 'string'
+              ? payment.attached_files
+              : payment.attached_files
+              ? JSON.stringify(payment.attached_files)
+              : null,
+        };
+        const response = await fetch(`${BASE_URL}/payments/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (data.message === 'Payment updated successfully') {
+          setPayments(prev => prev.map(p => (p.id === id ? { id, ...payload } : p)));
+          await loadPayments();
+          return true;
+        }
+      } catch (error) {
+        console.error('Error updating payment:', error);
       }
-    } catch (error) {
-      console.error('Error updating payment:', error);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadPayments, setPayments, token]
+  );
 
   const deletePayment = async (id: number): Promise<boolean> => {
     try {

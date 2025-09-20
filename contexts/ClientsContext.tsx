@@ -82,6 +82,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             ...clientData,
           };
           setClients(prev => [...prev, newClient]);
+          await loadClients();
           return newClient;
         }
       } catch (err) {
@@ -89,7 +90,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [setClients, token]
+    [loadClients, setClients, token]
   );
 
   const updateClient = useCallback(
@@ -110,6 +111,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           setClients(prev =>
             prev.map(c => (c.id === id ? { ...c, ...clientData } : c))
           );
+          await loadClients();
           return true;
         }
       } catch (err) {
@@ -117,7 +119,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [setClients, token]
+    [loadClients, setClients, token]
   );
 
   const deleteClient = useCallback(async (id: number): Promise<boolean> => {

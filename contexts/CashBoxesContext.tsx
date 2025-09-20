@@ -60,50 +60,58 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [setCashBoxes, token]);
 
-  const addCashBox = async (cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<CashBox | null> => {
-    try {
-      const response = await fetch(`${BASE_URL}/cash_boxes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(cashBoxData)
-      });
-      const data = await response.json();
-      if (data.cash_box_id) {
-        const newCashBox: CashBox = { id: parseInt(data.cash_box_id, 10), user_id: 0, ...cashBoxData };
-        setCashBoxes(prev => [...prev, newCashBox]);
-        return newCashBox;
+  const addCashBox = useCallback(
+    async (cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<CashBox | null> => {
+      try {
+        const response = await fetch(`${BASE_URL}/cash_boxes`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(cashBoxData)
+        });
+        const data = await response.json();
+        if (data.cash_box_id) {
+          const newCashBox: CashBox = { id: parseInt(data.cash_box_id, 10), user_id: 0, ...cashBoxData };
+          setCashBoxes(prev => [...prev, newCashBox]);
+          await loadCashBoxes();
+          return newCashBox;
+        }
+      } catch (error) {
+        console.error("Error adding cash box:", error);
       }
-    } catch (error) {
-      console.error("Error adding cash box:", error);
-    }
-    return null;
-  };
+      return null;
+    },
+    [loadCashBoxes, setCashBoxes, token]
+  );
 
-  const updateCashBox = async (id: number, cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/cash_boxes/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(cashBoxData)
-      });
-      const data = await response.json();
-      if (data.message === 'Cash box updated successfully') {
-        setCashBoxes(prev =>
-          prev.map(cb => (cb.id === id ? { ...cb, ...cashBoxData } : cb))
-        );
-        return true;
+  const updateCashBox = useCallback(
+    async (id: number, cashBoxData: Omit<CashBox, 'id' | 'user_id'>): Promise<boolean> => {
+      try {
+        const response = await fetch(`${BASE_URL}/cash_boxes/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(cashBoxData)
+        });
+        const data = await response.json();
+        if (data.message === 'Cash box updated successfully') {
+          setCashBoxes(prev =>
+            prev.map(cb => (cb.id === id ? { ...cb, ...cashBoxData } : cb))
+          );
+          await loadCashBoxes();
+          return true;
+        }
+      } catch (error) {
+        console.error("Error updating cash box:", error);
       }
-    } catch (error) {
-      console.error("Error updating cash box:", error);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadCashBoxes, setCashBoxes, token]
+  );
 
   const deleteCashBox = async (id: number): Promise<boolean> => {
     try {

@@ -76,6 +76,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         if (data.provider_id) {
           const newProvider: Provider = { id: parseInt(data.provider_id, 10), ...provider };
           setProviders(prev => [...prev, newProvider]);
+          await loadProviders();
           return newProvider;
         }
       } catch (error) {
@@ -83,7 +84,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [setProviders, token]
+    [loadProviders, setProviders, token]
   );
 
   const updateProvider = useCallback(
@@ -107,6 +108,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
           }
 
           setProviders(prev => prev.map(p => (p.id === id ? { id, ...provider } : p)));
+          await loadProviders();
           return true;
         }
       } catch (error) {
@@ -114,7 +116,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [setProviders, token]
+    [loadProviders, setProviders, token]
   );
 
   const deleteProvider = useCallback(
