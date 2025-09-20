@@ -179,10 +179,19 @@ export default function PaymentDetailPage() {
   useEffect(() => {
     if (!creditorProviderId) return;
     const exists = providers.some(provider => provider.id.toString() === creditorProviderId);
-    if (!exists) {
-      setCreditorProviderId('');
+    if (exists) {
+      return;
     }
-  }, [providers, creditorProviderId]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.payments.creditorProvider];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === creditorProviderId
+    ) {
+      return;
+    }
+    setCreditorProviderId('');
+  }, [providers, creditorProviderId, pendingSelections]);
 
   useEffect(() => {
     if (!chargeClientId) return;
@@ -223,7 +232,17 @@ export default function PaymentDetailPage() {
         setChargeClientId(pendingChargeId);
       }
     }
-  }, [pendingSelections, clients, consumeSelection]);
+    const pendingProvider = pendingSelections[SELECTION_KEYS.payments.creditorProvider];
+    if (pendingProvider !== undefined && pendingProvider !== null) {
+      const pendingProviderId = String(pendingProvider);
+      const exists = providers.some(provider => provider.id.toString() === pendingProviderId);
+      if (exists) {
+        consumeSelection(SELECTION_KEYS.payments.creditorProvider);
+        setCreditorType('provider');
+        setCreditorProviderId(pendingProviderId);
+      }
+    }
+  }, [pendingSelections, clients, providers, consumeSelection]);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -475,6 +494,7 @@ export default function PaymentDetailPage() {
               const stringValue = value?.toString() ?? '';
               if (stringValue === NEW_PROVIDER_VALUE) {
                 setCreditorProviderId('');
+                beginSelection(SELECTION_KEYS.payments.creditorProvider);
                 router.push('/providers/create');
                 return;
               }
@@ -485,6 +505,7 @@ export default function PaymentDetailPage() {
             onItemLongPress={(item) => {
               const value = String(item.value ?? '');
               if (!value || value === NEW_PROVIDER_VALUE) return;
+              beginSelection(SELECTION_KEYS.payments.creditorProvider);
               router.push(`/providers/${value}`);
             }}
           />

@@ -7,6 +7,7 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function ProviderDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -17,6 +18,7 @@ export default function ProviderDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const providerId = Number(id);
   const { providers, loadProviders, updateProvider, deleteProvider } = useContext(ProvidersContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const provider = providers.find(p => p.id === providerId);
 
@@ -46,6 +48,13 @@ export default function ProviderDetailPage() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(
+    () => () => {
+      cancelSelection();
+    },
+    [cancelSelection]
+  );
 
   useEffect(() => {
     if (provider) {
@@ -105,6 +114,7 @@ export default function ProviderDetailPage() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Proveedor actualizado');
+            completeSelection(providerId.toString());
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo actualizar el proveedor');

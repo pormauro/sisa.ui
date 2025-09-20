@@ -191,20 +191,62 @@ export default function ReceiptDetailPage() {
   }, [pendingSelections, clients, consumeSelection]);
 
   useEffect(() => {
+    const pendingPayerProvider = pendingSelections[SELECTION_KEYS.receipts.payerProvider];
+    if (pendingPayerProvider !== undefined && pendingPayerProvider !== null) {
+      const pendingProviderId = String(pendingPayerProvider);
+      const exists = providers.some(provider => provider.id.toString() === pendingProviderId);
+      if (exists) {
+        consumeSelection(SELECTION_KEYS.receipts.payerProvider);
+        setPayerType('provider');
+        setPayerProviderId(pendingProviderId);
+      }
+    }
+
+    const pendingProvider = pendingSelections[SELECTION_KEYS.receipts.provider];
+    if (pendingProvider !== undefined && pendingProvider !== null) {
+      const pendingProviderId = String(pendingProvider);
+      const exists = providers.some(provider => provider.id.toString() === pendingProviderId);
+      if (exists) {
+        consumeSelection(SELECTION_KEYS.receipts.provider);
+        setPayProvider(true);
+        setProviderId(pendingProviderId);
+      }
+    }
+  }, [pendingSelections, providers, consumeSelection]);
+
+  useEffect(() => {
     if (!payerProviderId) return;
     const exists = providers.some(provider => provider.id.toString() === payerProviderId);
-    if (!exists) {
-      setPayerProviderId('');
+    if (exists) {
+      return;
     }
-  }, [providers, payerProviderId]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.receipts.payerProvider];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === payerProviderId
+    ) {
+      return;
+    }
+    setPayerProviderId('');
+  }, [providers, payerProviderId, pendingSelections]);
 
   useEffect(() => {
     if (!providerId) return;
     const exists = providers.some(provider => provider.id.toString() === providerId);
-    if (!exists) {
-      setProviderId('');
+    if (exists) {
+      return;
     }
-  }, [providers, providerId]);
+    const pendingValue = pendingSelections[SELECTION_KEYS.receipts.provider];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === providerId
+    ) {
+      return;
+    }
+    setProviderId('');
+  }, [providers, providerId, pendingSelections]);
 
   useEffect(() => {
     if (!canEdit && !canDelete) {
@@ -456,6 +498,7 @@ export default function ReceiptDetailPage() {
               const stringValue = value?.toString() ?? '';
               if (stringValue === NEW_PROVIDER_VALUE) {
                 setPayerProviderId('');
+                beginSelection(SELECTION_KEYS.receipts.payerProvider);
                 router.push('/providers/create');
                 return;
               }
@@ -466,6 +509,7 @@ export default function ReceiptDetailPage() {
             onItemLongPress={(item) => {
               const value = String(item.value ?? '');
               if (!value || value === NEW_PROVIDER_VALUE) return;
+              beginSelection(SELECTION_KEYS.receipts.payerProvider);
               router.push(`/providers/${value}`);
             }}
           />
@@ -530,6 +574,7 @@ export default function ReceiptDetailPage() {
               const stringValue = value?.toString() ?? '';
               if (stringValue === NEW_PROVIDER_VALUE) {
                 setProviderId('');
+                beginSelection(SELECTION_KEYS.receipts.provider);
                 router.push('/providers/create');
                 return;
               }
@@ -540,6 +585,7 @@ export default function ReceiptDetailPage() {
             onItemLongPress={(item) => {
               const value = String(item.value ?? '');
               if (!value || value === NEW_PROVIDER_VALUE) return;
+              beginSelection(SELECTION_KEYS.receipts.provider);
               router.push(`/providers/${value}`);
             }}
           />

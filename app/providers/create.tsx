@@ -1,17 +1,19 @@
 // app/providers/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CreateProvider() {
   const router = useRouter();
   const { addProvider } = useContext(ProvidersContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -36,6 +38,13 @@ export default function CreateProvider() {
     }
   }, [permissions]);
 
+  useEffect(
+    () => () => {
+      cancelSelection();
+    },
+    [cancelSelection]
+  );
+
   const handleSubmit = async () => {
     if (!businessName) {
       Alert.alert('Error', 'La razón social es obligatoria.');
@@ -53,6 +62,7 @@ export default function CreateProvider() {
     setLoading(false);
     if (newProvider) {
       Alert.alert('Éxito', 'Proveedor creado.');
+      completeSelection(newProvider.id.toString());
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo crear el proveedor.');
