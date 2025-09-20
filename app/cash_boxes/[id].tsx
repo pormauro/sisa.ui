@@ -7,6 +7,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CashBoxDetail() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function CashBoxDetail() {
   const cashBoxId = Number(id);
   const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,6 +41,12 @@ export default function CashBoxDetail() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    return () => {
+      cancelSelection();
+    };
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (cashBox) {
@@ -81,6 +89,7 @@ export default function CashBoxDetail() {
             const success = await updateCashBox(cashBoxId, { name, image_file_id: imageFileId });
             setLoading(false);
             if (success) {
+              completeSelection(cashBoxId.toString());
               Alert.alert('Éxito', 'Caja actualizada');
               router.back();
             } else {
