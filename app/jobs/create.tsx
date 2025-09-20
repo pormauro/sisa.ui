@@ -288,6 +288,11 @@ export default function CreateJobScreen() {
           setSelectedClient(stringValue);
         }}
         placeholder="-- Selecciona un cliente --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CLIENT_VALUE) return;
+          router.push(`/clients/${value}`);
+        }}
       />
 
       {/* Carpeta */}
@@ -309,6 +314,11 @@ export default function CreateJobScreen() {
         }}
         placeholder="-- Sin carpeta --"
         disabled={!selectedClient}
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_FOLDER_VALUE) return;
+          router.push(`/folders/${value}`);
+        }}
       />
 
       {/* Estado */}
@@ -325,6 +335,11 @@ export default function CreateJobScreen() {
             setSelectedStatus(item);
           }}
           placeholder="-- Estado --"
+          onItemLongPress={(item) => {
+            const value = String(item.id ?? '');
+            if (!value || value === NEW_STATUS_VALUE) return;
+            router.push(`/statuses/${value}`);
+          }}
         />
       </View>
 
@@ -358,6 +373,11 @@ export default function CreateJobScreen() {
           }
         }}
         placeholder="-- Tarifa manual --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_TARIFF_VALUE) return;
+          router.push(`/tariffs/${value}`);
+        }}
       />
       {selectedTariffData && (
         <ThemedText style={[styles.tariffInfo, { color: tariffInfoColor }]}>Última actualización: {selectedTariffData.last_update}</ThemedText>

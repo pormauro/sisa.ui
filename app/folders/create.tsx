@@ -105,6 +105,11 @@ export default function CreateFolderPage() {
         }}
         placeholder="Selecciona un cliente"
         disabled={isClientFixed}
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CLIENT_VALUE) return;
+          router.push(`/clients/${value}`);
+        }}
       />
 
       <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>

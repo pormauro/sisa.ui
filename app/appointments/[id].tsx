@@ -279,6 +279,11 @@ export default function EditAppointmentScreen() {
             }}
             placeholder="Selecciona un cliente"
             disabled={!canEdit}
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_CLIENT_VALUE) return;
+              router.push(`/clients/${value}`);
+            }}
           />
 
           <ThemedText style={styles.label}>Trabajo asociado (opcional)</ThemedText>
@@ -299,6 +304,11 @@ export default function EditAppointmentScreen() {
             }}
             placeholder={jobPlaceholder}
             disabled={!canEdit || !selectedClient}
+            onItemLongPress={(item) => {
+              const value = String(item.value ?? '');
+              if (!value || value === NEW_JOB_VALUE) return;
+              router.push(`/jobs/${value}`);
+            }}
           />
 
           <ThemedText style={styles.label}>Fecha de la visita</ThemedText>
