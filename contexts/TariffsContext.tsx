@@ -10,6 +10,47 @@ import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 
+const toNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return fallback;
+    }
+    const direct = Number(trimmed);
+    if (Number.isFinite(direct)) {
+      return direct;
+    }
+    const sanitized = trimmed.replace(/,/g, '.');
+    const withDot = Number(sanitized);
+    if (Number.isFinite(withDot)) {
+      return withDot;
+    }
+    const parsed = parseFloat(sanitized);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return fallback;
+};
+
+const normalizeTariffs = (items: unknown[]): Tariff[] => {
+  return items.map((rawItem) => {
+    const item = rawItem as Partial<Tariff> & Record<string, unknown>;
+    const id = toNumber(item.id, 0);
+    const amount = toNumber(item.amount, 0);
+
+    return {
+      id,
+      name: typeof item.name === 'string' ? item.name : '',
+      amount,
+      last_update: typeof item.last_update === 'string' ? item.last_update : '',
+    };
+  });
+};
+
 export interface Tariff {
   id: number;
   name: string;
@@ -37,6 +78,10 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
   const [tariffs, setTariffs] = useCachedState<Tariff[]>('tariffs', []);
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setTariffs(prev => normalizeTariffs(prev));
+  }, [setTariffs]);
+
   const loadTariffs = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/tariffs`, {
@@ -47,10 +92,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.tariffs) {
-        const parsed = data.tariffs.map((t: any) => ({
-          ...t,
-          amount: typeof t.amount === 'string' ? parseFloat(t.amount) : t.amount,
-        }));
+        const parsed = normalizeTariffs(Array.isArray(data.tariffs) ? data.tariffs : []);
         setTariffs(parsed);
       }
     } catch (error) {
