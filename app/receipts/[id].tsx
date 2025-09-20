@@ -143,7 +143,12 @@ export default function ReceiptDetailPage() {
   );
 
   useEffect(() => {
-    if (!paidInAccount) return;
+    if (!paidInAccount) {
+      return;
+    }
+    if (cashBoxes.length === 0) {
+      return;
+    }
     const exists = cashBoxes.some(cb => cb.id.toString() === paidInAccount);
     if (!exists) {
       setPaidInAccount('');

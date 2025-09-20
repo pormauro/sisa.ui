@@ -144,7 +144,12 @@ export default function PaymentDetailPage() {
   );
 
   useEffect(() => {
-    if (!paidWithAccount) return;
+    if (!paidWithAccount) {
+      return;
+    }
+    if (cashBoxes.length === 0) {
+      return;
+    }
     const exists = cashBoxes.some(cb => cb.id.toString() === paidWithAccount);
     if (!exists) {
       setPaidWithAccount('');
