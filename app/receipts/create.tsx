@@ -165,6 +165,20 @@ export default function CreateReceipt() {
   }, [categories, categoryId]);
 
   useEffect(() => {
+    const pendingCategory = pendingSelections[SELECTION_KEYS.receipts.category];
+    if (pendingCategory === undefined || pendingCategory === null) {
+      return;
+    }
+    const pendingCategoryId = String(pendingCategory);
+    const exists = categories.some(cat => cat.id.toString() === pendingCategoryId);
+    if (!exists) {
+      return;
+    }
+    consumeSelection(SELECTION_KEYS.receipts.category);
+    setCategoryId(pendingCategoryId);
+  }, [pendingSelections, categories, consumeSelection]);
+
+  useEffect(() => {
     if (!payerClientId) return;
     const exists = clients.some(client => client.id.toString() === payerClientId);
     if (exists) {
@@ -460,6 +474,7 @@ export default function CreateReceipt() {
           const stringValue = value?.toString() ?? '';
           if (stringValue === NEW_CATEGORY_VALUE) {
             setCategoryId('');
+            beginSelection(SELECTION_KEYS.receipts.category);
             router.push({ pathname: '/categories/create', params: { type: 'income' } });
             return;
           }
@@ -469,6 +484,7 @@ export default function CreateReceipt() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_CATEGORY_VALUE) return;
+          beginSelection(SELECTION_KEYS.receipts.category);
           router.push(`/categories/${value}`);
         }}
       />

@@ -16,6 +16,7 @@ import { getDisplayCategories } from '@/utils/categories';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CategoryDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -26,6 +27,7 @@ export default function CategoryDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const categoryId = Number(id);
   const { categories, loadCategories, updateCategory, deleteCategory } = useContext(CategoriesContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const category = categories.find(c => c.id === categoryId);
 
@@ -76,6 +78,12 @@ export default function CategoryDetailPage() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    return () => {
+      cancelSelection();
+    };
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (category) {
@@ -129,6 +137,7 @@ export default function CategoryDetailPage() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Categoría actualizada');
+            completeSelection(categoryId.toString());
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo actualizar la categoría');

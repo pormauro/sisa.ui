@@ -4,12 +4,14 @@ export const SELECTION_KEYS = {
     payerProvider: 'receipts.payerProvider',
     provider: 'receipts.provider',
     cashBox: 'receipts.cashBox',
+    category: 'receipts.category',
   },
   payments: {
     creditorClient: 'payments.creditorClient',
     chargeClient: 'payments.chargeClient',
     creditorProvider: 'payments.creditorProvider',
     cashBox: 'payments.cashBox',
+    category: 'payments.category',
   },
   jobs: {
     client: 'jobs.client',
