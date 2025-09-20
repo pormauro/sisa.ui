@@ -161,21 +161,34 @@ export default function ReceiptDetailPage() {
   useEffect(() => {
     if (!payerClientId) return;
     const exists = clients.some(client => client.id.toString() === payerClientId);
-    if (!exists) {
-      setPayerClientId('');
-    }
-  }, [clients, payerClientId]);
-
-  useEffect(() => {
-    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.receipts.payerClient)) {
+    if (exists) {
       return;
     }
-    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.receipts.payerClient);
-    if (pendingClientId) {
-      setPayerType('client');
-      setPayerClientId(pendingClientId.toString());
+    const pendingValue = pendingSelections[SELECTION_KEYS.receipts.payerClient];
+    if (
+      pendingValue !== undefined &&
+      pendingValue !== null &&
+      String(pendingValue) === payerClientId
+    ) {
+      return;
     }
-  }, [pendingSelections, consumeSelection]);
+    setPayerClientId('');
+  }, [clients, payerClientId, pendingSelections]);
+
+  useEffect(() => {
+    const pendingValue = pendingSelections[SELECTION_KEYS.receipts.payerClient];
+    if (pendingValue === undefined || pendingValue === null) {
+      return;
+    }
+    const pendingClientId = String(pendingValue);
+    const exists = clients.some(client => client.id.toString() === pendingClientId);
+    if (!exists) {
+      return;
+    }
+    consumeSelection(SELECTION_KEYS.receipts.payerClient);
+    setPayerType('client');
+    setPayerClientId(pendingClientId);
+  }, [pendingSelections, clients, consumeSelection]);
 
   useEffect(() => {
     if (!payerProviderId) return;
