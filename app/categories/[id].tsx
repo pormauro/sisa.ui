@@ -10,12 +10,12 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { getDisplayCategories } from '@/utils/categories';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CategoryDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -41,13 +41,33 @@ export default function CategoryDetailPage() {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
-  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const displayCategories = useMemo(
     () => getDisplayCategories(categories),
     [categories]
+  );
+
+  const typeItems = useMemo(
+    () => [
+      { label: 'Ingreso', value: 'income' },
+      { label: 'Gasto', value: 'expense' },
+    ],
+    []
+  );
+
+  const parentItems = useMemo(
+    () => [
+      { label: '-- Sin padre --', value: '' },
+      ...displayCategories
+        .filter(c => c.id !== categoryId)
+        .map(c => ({
+          label: `${' '.repeat(c.level * 2)}${c.name}`,
+          value: c.id.toString(),
+        })),
+    ],
+    [displayCategories, categoryId]
   );
 
   useEffect(() => {
@@ -150,38 +170,24 @@ export default function CategoryDetailPage() {
       />
 
       <ThemedText style={styles.label}>Tipo</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={type}
-          onValueChange={(val) => setType(val as 'income' | 'expense')}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="Ingreso" value="income" />
-          <Picker.Item label="Gasto" value="expense" />
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={typeItems}
+        selectedValue={type}
+        onValueChange={(val) => setType((val as 'income' | 'expense') ?? type)}
+        placeholder="Selecciona tipo"
+        disabled={!canEdit}
+      />
 
       <ThemedText style={styles.label}>Categoría padre</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: pickerBackground }]}>
-        <Picker
-          selectedValue={parentId}
-          onValueChange={setParentId}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Sin padre --" value="" />
-          {displayCategories
-            .filter(c => c.id !== categoryId)
-            .map(c => (
-              <Picker.Item
-                key={c.id}
-                label={`${' '.repeat(c.level * 2)}${c.name}`}
-                value={c.id.toString()}
-              />
-            ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={parentItems}
+        selectedValue={parentId}
+        onValueChange={(value) => setParentId(value?.toString() ?? '')}
+        placeholder="-- Sin padre --"
+        disabled={!canEdit}
+      />
 
       {canEdit && (
         <TouchableOpacity style={styles.submitButton} onPress={handleUpdate} disabled={loading}>
@@ -208,12 +214,9 @@ export default function CategoryDetailPage() {
 const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginVertical: 8, fontSize: 16 },
-  pickerWrap: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 8,
   },
-  picker: { height: 50, width: '100%' },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, backgroundColor: '#007bff', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },

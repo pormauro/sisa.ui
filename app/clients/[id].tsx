@@ -1,14 +1,14 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 
 export default function ClientDetailPage() {
@@ -31,7 +31,6 @@ export default function ClientDetailPage() {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
-  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#92272f' }, 'background');
@@ -47,6 +46,15 @@ export default function ClientDetailPage() {
   const [tariffId, setTariffId] = useState<string>('');
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
+
+  const tariffItems = useMemo(
+    () => [
+      { label: 'Sin Tarifa', value: '' },
+      { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
+      ...tariffs.map(t => ({ label: `${t.name} - ${t.amount}`, value: t.id.toString() })),
+    ],
+    [tariffs]
+  );
 
   useEffect(() => {
     if (!canEditClient && !canDeleteClient) {
@@ -213,28 +221,22 @@ export default function ClientDetailPage() {
       />
 
       <ThemedText style={styles.label}>Tarifa</ThemedText>
-      <View style={[styles.pickerWrap, { backgroundColor: pickerBackground, borderColor }]}>
-        <Picker
-          selectedValue={tariffId}
-          onValueChange={(itemValue) => {
-            const value = itemValue?.toString() ?? '';
-            if (value === NEW_TARIFF_VALUE) {
-              setTariffId('');
-              router.push('/tariffs/create');
-              return;
-            }
-            setTariffId(value);
-          }}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="Sin Tarifa" value="" color={placeholderColor} />
-          <Picker.Item label="➕ Nueva tarifa" value={NEW_TARIFF_VALUE} />
-          {tariffs.map(t => (
-            <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={tariffItems}
+        selectedValue={tariffId}
+        onValueChange={(itemValue) => {
+          const value = itemValue?.toString() ?? '';
+          if (value === NEW_TARIFF_VALUE) {
+            setTariffId('');
+            router.push('/tariffs/create');
+            return;
+          }
+          setTariffId(value);
+        }}
+        placeholder="Sin Tarifa"
+        disabled={!canEditClient}
+      />
       {canEditClient && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -273,12 +275,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  pickerWrap: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 8,
   },
-  picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
     padding: 16,

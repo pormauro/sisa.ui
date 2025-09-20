@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentsContext } from '@/contexts/AppointmentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -21,6 +20,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatDateForApi, formatTimeForApi } from '@/utils/dateTime';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 const NEW_CLIENT_VALUE = '__new_client__';
 const NEW_JOB_VALUE = '__new_job__';
@@ -68,7 +68,6 @@ export default function CreateAppointmentScreen() {
   const screenBackground = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#fff', dark: '#3b314d' }, 'background');
   const borderColor = useThemeColor({ light: '#d0d0d0', dark: '#555' }, 'background');
-  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#bbb' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
@@ -86,6 +85,37 @@ export default function CreateAppointmentScreen() {
     const clientId = Number(selectedClient);
     return jobs.filter(job => job.client_id === clientId);
   }, [jobs, selectedClient]);
+
+  const clientItems = useMemo(
+    () => [
+      { label: 'Selecciona un cliente', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({
+        label: client.business_name,
+        value: client.id.toString(),
+      })),
+    ],
+    [clients]
+  );
+
+  const jobPlaceholder = useMemo(
+    () =>
+      selectedClient
+        ? 'Sin trabajo asociado'
+        : 'Selecciona un cliente para ver trabajos',
+    [selectedClient]
+  );
+
+  const jobItems = useMemo(() => {
+    const options = [{ label: jobPlaceholder, value: '' }];
+    if (selectedClient) {
+      options.push({ label: '➕ Nuevo trabajo', value: NEW_JOB_VALUE });
+      clientJobs.forEach(job => {
+        options.push({ label: job.description, value: job.id.toString() });
+      });
+    }
+    return options;
+  }, [clientJobs, jobPlaceholder, selectedClient]);
 
   useEffect(() => {
     if (!selectedClient) {
@@ -167,67 +197,41 @@ export default function CreateAppointmentScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}>
           <ThemedText style={styles.label}>Cliente</ThemedText>
-          <View style={[styles.pickerWrapper, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={selectedClient}
-              onValueChange={value => {
-                if (value === NEW_CLIENT_VALUE) {
-                  setSelectedClient('');
-                  router.push('/clients/create');
-                  return;
-                }
-                setSelectedClient(value);
-              }}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
-            >
-              <Picker.Item label="Selecciona un cliente" value="" color={placeholderColor} />
-              <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
-              {clients.map(client => (
-                <Picker.Item
-                  key={client.id}
-                  label={client.business_name}
-                  value={client.id.toString()}
-                />
-              ))}
-            </Picker>
-          </View>
+          <SearchableSelect
+            style={styles.select}
+            items={clientItems}
+            selectedValue={selectedClient}
+            onValueChange={value => {
+              const stringValue = value?.toString() ?? '';
+              if (stringValue === NEW_CLIENT_VALUE) {
+                setSelectedClient('');
+                router.push('/clients/create');
+                return;
+              }
+              setSelectedClient(stringValue);
+            }}
+            placeholder="Selecciona un cliente"
+          />
 
           <ThemedText style={styles.label}>Trabajo asociado (opcional)</ThemedText>
-          <View style={[styles.pickerWrapper, { borderColor, backgroundColor: pickerBackground }]}>
-            <Picker
-              selectedValue={selectedJob}
-              onValueChange={value => {
-                if (value === NEW_JOB_VALUE) {
-                  if (selectedClient) {
-                    router.push({ pathname: '/jobs/create', params: { client_id: selectedClient } });
-                  }
-                  setSelectedJob('');
-                  return;
+          <SearchableSelect
+            style={styles.select}
+            items={jobItems}
+            selectedValue={selectedJob}
+            onValueChange={value => {
+              const stringValue = value?.toString() ?? '';
+              if (stringValue === NEW_JOB_VALUE) {
+                if (selectedClient) {
+                  router.push({ pathname: '/jobs/create', params: { client_id: selectedClient } });
                 }
-                setSelectedJob(value);
-              }}
-              enabled={!!selectedClient}
-              style={[styles.picker, { color: inputTextColor }]}
-              dropdownIconColor={inputTextColor}
-            >
-              <Picker.Item
-                label={
-                  selectedClient
-                    ? 'Sin trabajo asociado'
-                    : 'Selecciona un cliente para ver trabajos'
-                }
-                value=""
-                color={placeholderColor}
-              />
-              {selectedClient ? (
-                <Picker.Item label="➕ Nuevo trabajo" value={NEW_JOB_VALUE} />
-              ) : null}
-              {clientJobs.map(job => (
-                <Picker.Item key={job.id} label={job.description} value={job.id.toString()} />
-              ))}
-            </Picker>
-          </View>
+                setSelectedJob('');
+                return;
+              }
+              setSelectedJob(stringValue);
+            }}
+            placeholder={jobPlaceholder}
+            enabled={!!selectedClient}
+          />
 
           <ThemedText style={styles.label}>Fecha de la visita</ThemedText>
           <TouchableOpacity
@@ -313,15 +317,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 6,
   },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderRadius: 10,
-    overflow: 'hidden',
+  select: {
     marginBottom: 16,
-  },
-  picker: {
-    height: 50,
-    width: '100%',
   },
   selector: {
     borderWidth: 1,

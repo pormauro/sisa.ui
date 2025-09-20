@@ -1,7 +1,6 @@
 // /app/clients/create.tsx
-import React, { useState, useContext, useEffect, useRef } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import React, { useState, useContext, useEffect, useRef, useMemo } from 'react';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -9,6 +8,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CreateClientPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -23,7 +23,6 @@ export default function CreateClientPage() {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
-  const pickerBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
@@ -36,6 +35,15 @@ export default function CreateClientPage() {
   const [loading, setLoading] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
   const submittingRef = useRef(false);
+
+  const tariffItems = useMemo(
+    () => [
+      { label: 'Sin Tarifa', value: '' },
+      { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
+      ...tariffs.map(t => ({ label: `${t.name} - ${t.amount}`, value: t.id.toString() })),
+    ],
+    [tariffs]
+  );
 
   useEffect(() => {
     if (!permissions.includes('addClient')) {
@@ -135,28 +143,21 @@ export default function CreateClientPage() {
       />
 
       <ThemedText style={styles.label}>Tarifa</ThemedText>
-      <View style={[styles.pickerWrap, { backgroundColor: pickerBackground, borderColor }]}>
-        <Picker
-          selectedValue={tariffId}
-          onValueChange={(itemValue) => {
-            const value = itemValue?.toString() ?? '';
-            if (value === NEW_TARIFF_VALUE) {
-              setTariffId('');
-              router.push('/tariffs/create');
-              return;
-            }
-            setTariffId(value);
-          }}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="Sin Tarifa" value="" color={placeholderColor} />
-          <Picker.Item label="➕ Nueva tarifa" value={NEW_TARIFF_VALUE} />
-          {tariffs.map(t => (
-            <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={tariffItems}
+        selectedValue={tariffId}
+        onValueChange={(itemValue) => {
+          const value = itemValue?.toString() ?? '';
+          if (value === NEW_TARIFF_VALUE) {
+            setTariffId('');
+            router.push('/tariffs/create');
+            return;
+          }
+          setTariffId(value);
+        }}
+        placeholder="Sin Tarifa"
+      />
 
       <TouchableOpacity
         style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -180,12 +181,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
-  pickerWrap: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 8,
   },
-  picker: { height: 50, width: '100%' },
   submitButton: {
     marginTop: 16,
     padding: 16,

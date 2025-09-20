@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import FileGallery from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -28,6 +27,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -40,27 +40,27 @@ export default function CreateJobScreen() {
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
 
-  const NEW_CLIENT_VALUE  = '__new_client__';
-  const NEW_STATUS_VALUE  = '__new_status__';
-  const NEW_FOLDER_VALUE  = '__new_folder__';
-  const NEW_TARIFF_VALUE  = '__new_tariff__';
+  const NEW_CLIENT_VALUE = '__new_client__';
+  const NEW_STATUS_VALUE = '__new_status__';
+  const NEW_FOLDER_VALUE = '__new_folder__';
+  const NEW_TARIFF_VALUE = '__new_tariff__';
   // Form state
-  const [selectedClient, setSelectedClient]   = useState<string>('');
-  const [selectedFolder, setSelectedFolder]   = useState<string>('');
-  const [selectedStatus, setSelectedStatus]   = useState<ModalPickerItem | null>(null);
-  const [selectedTariff, setSelectedTariff]   = useState<string>('');
-  const [manualAmount, setManualAmount]       = useState<string>('');
-  const [description, setDescription]         = useState<string>('');
-  const [attachedFiles, setAttachedFiles]     = useState<string>('');
-  const [jobDate, setJobDate]                 = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedFolder, setSelectedFolder] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<ModalPickerItem | null>(null);
+  const [selectedTariff, setSelectedTariff] = useState<string>('');
+  const [manualAmount, setManualAmount] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
+  const [jobDate, setJobDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const defaultTime = useMemo(() => new Date().toTimeString().slice(0, 5), []);
-  const [startTime, setStartTime]             = useState<string>(defaultTime);
-  const [endTime, setEndTime]                 = useState<string>(defaultTime);
-  const [showDatePicker, setShowDatePicker]   = useState(false);
+  const [startTime, setStartTime] = useState<string>(defaultTime);
+  const [endTime, setEndTime] = useState<string>(defaultTime);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker]     = useState(false);
-  const [loading, setLoading]                 = useState<boolean>(false);
-  const [participants, setParticipants]       = useState<number[]>(() =>
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [participants, setParticipants] = useState<number[]>(() =>
     userId ? [Number(userId)] : []
   );
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
@@ -72,6 +72,48 @@ export default function CreateJobScreen() {
   const filteredTariffs = useMemo(
     () => tariffs.filter(t => new Date(jobDate) >= new Date(t.last_update)),
     [tariffs, jobDate]
+  );
+
+  const clientItems = useMemo(
+    () => [
+      { label: '-- Selecciona un cliente --', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({
+        label: client.business_name,
+        value: client.id.toString(),
+      })),
+    ],
+    [clients]
+  );
+
+  const filteredFolders = useMemo(() => {
+    if (!selectedClient) return [];
+    const cid = parseInt(selectedClient, 10);
+    return folders.filter(f => f.client_id === cid);
+  }, [folders, selectedClient]);
+
+  const folderItems = useMemo(
+    () => [
+      { label: '-- Sin carpeta --', value: '' },
+      { label: '➕ Agregar carpeta', value: NEW_FOLDER_VALUE },
+      ...filteredFolders.map(folder => ({
+        label: folder.name,
+        value: folder.id.toString(),
+      })),
+    ],
+    [filteredFolders]
+  );
+
+  const tariffItems = useMemo(
+    () => [
+      { label: '-- Tarifa manual --', value: '' },
+      { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
+      ...filteredTariffs.map(tariff => ({
+        label: `${tariff.name} - ${tariff.amount}`,
+        value: tariff.id.toString(),
+      })),
+    ],
+    [filteredTariffs]
   );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
@@ -107,12 +149,6 @@ export default function CreateJobScreen() {
       router.back();
     }
   }, [permissions]);
-
-  const filteredFolders = useMemo(() => {
-    if (!selectedClient) return [];
-    const cid = parseInt(selectedClient, 10);
-    return folders.filter(f => f.client_id === cid);
-  }, [folders, selectedClient]);
 
   useEffect(() => {
     if (!selectedClient) {
@@ -238,62 +274,46 @@ export default function CreateJobScreen() {
 
       {/* Cliente */}
       <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
-        <Picker
-          selectedValue={selectedClient}
-          onValueChange={(value) => {
-            if (value === NEW_CLIENT_VALUE) {
-              setSelectedClient('');
-              router.push('/clients/create');
-            } else {
-              setSelectedClient(value);
-            }
-          }}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Selecciona un cliente --" value="" />
-          <Picker.Item label="➕ Nuevo cliente" value={NEW_CLIENT_VALUE} />
-          {clients.map(client => (
-            <Picker.Item
-              key={client.id}
-              label={client.business_name}
-              value={client.id.toString()}
-            />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={clientItems}
+        selectedValue={selectedClient}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setSelectedClient('');
+            router.push('/clients/create');
+            return;
+          }
+          setSelectedClient(stringValue);
+        }}
+        placeholder="-- Selecciona un cliente --"
+      />
 
       {/* Carpeta */}
       <ThemedText style={[styles.label, { color: textColor }]}>Carpeta</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
-        <Picker
-          selectedValue={selectedFolder}
-          onValueChange={(value) => {
-            if (value === NEW_FOLDER_VALUE) {
-              setSelectedFolder('');
-              if (selectedClient) {
-                router.push({ pathname: '/folders/create', params: { client_id: selectedClient } });
-              }
-              return;
+      <SearchableSelect
+        style={styles.select}
+        items={folderItems}
+        selectedValue={selectedFolder}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_FOLDER_VALUE) {
+            setSelectedFolder('');
+            if (selectedClient) {
+              router.push({ pathname: '/folders/create', params: { client_id: selectedClient } });
             }
-            setSelectedFolder(value);
-          }}
-          enabled={!!selectedClient}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Sin carpeta --" value="" />
-          <Picker.Item label="➕ Agregar carpeta" value={NEW_FOLDER_VALUE} />
-          {filteredFolders.map(f => (
-            <Picker.Item key={f.id} label={f.name} value={f.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+            return;
+          }
+          setSelectedFolder(stringValue);
+        }}
+        placeholder="-- Sin carpeta --"
+        disabled={!selectedClient}
+      />
 
       {/* Estado */}
       <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
+      <View style={styles.select}>
         <ModalPicker
           items={statusItems}
           selectedItem={selectedStatus}
@@ -317,34 +337,28 @@ export default function CreateJobScreen() {
 
       {/* Tarifa */}
       <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
-      <View style={[styles.pickerWrap, { borderColor, backgroundColor: inputBackground }]}>
-        <Picker
-          selectedValue={selectedTariff}
-          onValueChange={(val) => {
-            if (val === NEW_TARIFF_VALUE) {
-              setSelectedTariff('');
-              setManualAmount('');
-              router.push('/tariffs/create');
-              return;
-            }
-            setSelectedTariff(val);
-            const t = tariffs.find(t => t.id.toString() === val);
-            if (t) {
-              setManualAmount(t.amount.toString());
-            } else {
-              setManualAmount('');
-            }
-          }}
-          style={[styles.picker, { color: inputTextColor }]}
-          dropdownIconColor={inputTextColor}
-        >
-          <Picker.Item label="-- Tarifa manual --" value="" />
-          <Picker.Item label="➕ Nueva tarifa" value={NEW_TARIFF_VALUE} />
-          {filteredTariffs.map(t => (
-            <Picker.Item key={t.id} label={`${t.name} - ${t.amount}`} value={t.id.toString()} />
-          ))}
-        </Picker>
-      </View>
+      <SearchableSelect
+        style={styles.select}
+        items={tariffItems}
+        selectedValue={selectedTariff}
+        onValueChange={(val) => {
+          const stringValue = val?.toString() ?? '';
+          if (stringValue === NEW_TARIFF_VALUE) {
+            setSelectedTariff('');
+            setManualAmount('');
+            router.push('/tariffs/create');
+            return;
+          }
+          setSelectedTariff(stringValue);
+          const t = tariffs.find(tariff => tariff.id.toString() === stringValue);
+          if (t) {
+            setManualAmount(t.amount.toString());
+          } else {
+            setManualAmount('');
+          }
+        }}
+        placeholder="-- Tarifa manual --"
+      />
       {selectedTariffData && (
         <ThemedText style={[styles.tariffInfo, { color: tariffInfoColor }]}>Última actualización: {selectedTariffData.last_update}</ThemedText>
       )}
@@ -467,12 +481,9 @@ export default function CreateJobScreen() {
 const styles = StyleSheet.create({
   container: { padding: 16 },
   label: { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
-  pickerWrap: {
-    borderWidth: 1,
-    borderRadius: 8,
+  select: {
     marginBottom: 12,
   },
-  picker: { height: 50, width: '100%' },
   input: {
     borderWidth: 1,
     borderRadius: 8,
