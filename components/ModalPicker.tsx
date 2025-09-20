@@ -1,5 +1,5 @@
 // app/components/ModalPicker.tsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Modal,
   View,
@@ -8,6 +8,8 @@ import {
   StyleSheet,
   FlatList,
   Image,
+  TextInput,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
@@ -34,6 +36,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   disabled = false,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const textColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#999', dark: '#aaa' }, 'text');
@@ -45,9 +48,31 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
     return selectedItem;
   }, [selectedItem]);
 
+  const filteredItems = useMemo(() => {
+    const normalizedTerm = searchTerm.trim().toLowerCase();
+
+    if (!normalizedTerm) {
+      return items;
+    }
+
+    return items.filter((item) =>
+      item.name.toLowerCase().includes(normalizedTerm)
+    );
+  }, [items, searchTerm]);
+
+  useEffect(() => {
+    if (!modalVisible) {
+      setSearchTerm('');
+    }
+  }, [modalVisible]);
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
   const handleSelect = (item: ModalPickerItem) => {
     onSelect(item);
-    setModalVisible(false);
+    closeModal();
   };
 
   return (
@@ -83,46 +108,71 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
       </TouchableOpacity>
 
       {/* Modal con la lista de opciones */}
-      <Modal visible={modalVisible} animationType="slide" transparent={true}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(false)}
-        >
-          <View style={[styles.modalContainer, { backgroundColor }]}>
-            <FlatList
-              data={items}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.itemContainer,
-                    {
-                      backgroundColor: item.backgroundColor || backgroundColor,
-                      borderBottomColor: borderColor,
-                    },
-                  ]}
-                  onPress={() => handleSelect(item)}
-                >
-                  {item.imageFileId && (
-                    <Image
-                      source={{ uri: item.imageFileId }}
-                      style={styles.itemImage}
-                    />
-                  )}
-                  <Text
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeModal}
+      >
+        <TouchableWithoutFeedback onPress={closeModal}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={[styles.modalContainer, { backgroundColor }]}>
+                <View style={styles.searchContainer}>
+                  <TextInput
+                    value={searchTerm}
+                    onChangeText={setSearchTerm}
+                    placeholder="Buscar..."
+                    placeholderTextColor={placeholderColor}
                     style={[
-                      styles.itemText,
-                      { color: item.backgroundColor ? '#fff' : textColor },
+                      styles.searchInput,
+                      { color: textColor, borderColor, backgroundColor },
                     ]}
-                  >
-                    {item.name}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
+                  />
+                </View>
+                <FlatList
+                  data={filteredItems}
+                  keyExtractor={(item) => item.id.toString()}
+                  keyboardShouldPersistTaps="handled"
+                  ListEmptyComponent={() => (
+                    <View style={styles.emptyContainer}>
+                      <Text style={[styles.emptyText, { color: textColor }]}>
+                        Sin resultados
+                      </Text>
+                    </View>
+                  )}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.itemContainer,
+                        {
+                          backgroundColor: item.backgroundColor || backgroundColor,
+                          borderBottomColor: borderColor,
+                        },
+                      ]}
+                      onPress={() => handleSelect(item)}
+                    >
+                      {item.imageFileId && (
+                        <Image
+                          source={{ uri: item.imageFileId }}
+                          style={styles.itemImage}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.itemText,
+                          { color: item.backgroundColor ? '#fff' : textColor },
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </TouchableOpacity>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
@@ -153,6 +203,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     maxHeight: '80%',
   },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,6 +228,14 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   itemText: {
+    fontSize: 16,
+  },
+  emptyContainer: {
+    paddingVertical: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
     fontSize: 16,
   },
 });
