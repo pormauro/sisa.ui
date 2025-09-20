@@ -1,7 +1,6 @@
 // app/categories/create.tsx
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
-  View,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -16,12 +15,14 @@ import { getDisplayCategories } from '@/utils/categories';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CreateCategory() {
   const router = useRouter();
   const params = useLocalSearchParams<{ type?: 'income' | 'expense' }>();
   const { categories, addCategory } = useContext(CategoriesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const [name, setName] = useState('');
   const initialType = params.type === 'expense' ? 'expense' : 'income';
@@ -68,6 +69,12 @@ export default function CreateCategory() {
     }
   }, [permissions]);
 
+  useEffect(() => {
+    return () => {
+      cancelSelection();
+    };
+  }, [cancelSelection]);
+
   const handleSubmit = async () => {
     if (!name) {
       Alert.alert('Error', 'Ingresa un nombre.');
@@ -82,6 +89,7 @@ export default function CreateCategory() {
     setLoading(false);
     if (newCategory) {
       Alert.alert('Éxito', 'Categoría creada.');
+      completeSelection(newCategory.id.toString());
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo crear la categoría.');
