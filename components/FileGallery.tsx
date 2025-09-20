@@ -169,9 +169,18 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
         Alert.alert('Error', message);
       }
     } else {
+      if (!file.localUri) {
+        Alert.alert('Error', 'El archivo no está disponible localmente.');
+        return;
+      }
+
       try {
-        const contentUri = await FileSystem.getContentUriAsync(file.localUri);
-        await Linking.openURL(contentUri);
+        if (Platform.OS === 'android') {
+          const contentUri = await FileSystem.getContentUriAsync(file.localUri);
+          await Linking.openURL(contentUri);
+        } else {
+          await Linking.openURL(file.localUri);
+        }
       } catch (e) {
         console.error('Error opening file:', e);
         Alert.alert('Error', 'No se pudo abrir el archivo.');
