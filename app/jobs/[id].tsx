@@ -84,6 +84,7 @@ export default function EditJobScreen() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const previousClientIdRef = useRef<string | null>(null);
+  const isInitializingRef = useRef(true);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const trimmedManualAmount = manualAmount.trim();
   const rate = useMemo(
@@ -131,6 +132,7 @@ export default function EditJobScreen() {
   // carga inicial del job
   useEffect(() => {
     if (job) {
+      isInitializingRef.current = true;
       if (hasAttemptedLoad) {
         setHasAttemptedLoad(false);
       }
@@ -184,6 +186,7 @@ export default function EditJobScreen() {
       return;
     }
 
+    isInitializingRef.current = true;
     if (hasAttemptedLoad) {
       return;
     }
@@ -200,6 +203,8 @@ export default function EditJobScreen() {
   }, [cancelSelection]);
 
   useEffect(() => {
+    const shouldSkipManualAmountReset = isInitializingRef.current;
+
     if (previousClientIdRef.current === null) {
       previousClientIdRef.current = selectedClientId;
       return;
@@ -214,7 +219,9 @@ export default function EditJobScreen() {
 
     if (!selectedClientId) {
       setSelectedTariff(manualTariffItem);
-      setManualAmount('');
+      if (!shouldSkipManualAmountReset) {
+        setManualAmount('');
+      }
       return;
     }
 
@@ -229,7 +236,9 @@ export default function EditJobScreen() {
     }
 
     setSelectedTariff(manualTariffItem);
-    setManualAmount('');
+    if (!shouldSkipManualAmountReset) {
+      setManualAmount('');
+    }
   }, [selectedClientId, clients, tariffs, manualTariffItem, jobDate]);
 
   useEffect(() => {
@@ -285,14 +294,24 @@ export default function EditJobScreen() {
   }, [pendingSelections, consumeSelection, statuses]);
 
   useEffect(() => {
+    const shouldSkipManualAmountReset = isInitializingRef.current;
+
     if (selectedTariff && selectedTariff.id !== '') {
       const t = tariffs.find(t => t.id === Number(selectedTariff.id));
       if (t && new Date(jobDate) < new Date(t.last_update)) {
         setSelectedTariff(manualTariffItem);
-        setManualAmount('');
+        if (!shouldSkipManualAmountReset) {
+          setManualAmount('');
+        }
       }
     }
   }, [jobDate, selectedTariff, tariffs, manualTariffItem]);
+
+  useEffect(() => {
+    if (job && isInitializingRef.current) {
+      isInitializingRef.current = false;
+    }
+  }, [job, selectedClientId, selectedTariff, jobDate, manualAmount]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.folder)) {
