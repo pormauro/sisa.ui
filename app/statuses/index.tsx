@@ -109,6 +109,7 @@ export default function StatusesScreen() {
         data={filteredStatuses}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron estados</ThemedText>
         }
@@ -124,7 +125,7 @@ export default function StatusesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   searchInput: {
     borderWidth: 1,
     borderRadius: 8,
@@ -179,4 +180,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
+  listContent: { paddingBottom: 120 },
 });

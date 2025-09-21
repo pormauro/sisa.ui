@@ -163,6 +163,7 @@ export default function JobsScreen() {
         data={filteredJobs}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <ThemedText style={styles.empty}>No hay trabajos cargados</ThemedText>
         }
@@ -180,7 +181,7 @@ export default function JobsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   itemContainer: {
     flexDirection: 'row',
@@ -211,4 +212,5 @@ const styles = StyleSheet.create({
   },
   addText: { fontWeight: 'bold', fontSize: 16 },
   empty: { marginTop: 20, textAlign: 'center', fontSize: 16 },
+  listContent: { paddingBottom: 120 },
 });

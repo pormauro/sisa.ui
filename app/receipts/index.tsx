@@ -124,6 +124,7 @@ export default function ReceiptsScreen() {
         data={filteredReceipts}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={<ThemedText style={styles.empty}>No se encontraron recibos</ThemedText>}
       />
       {canAdd && (
@@ -136,7 +137,7 @@ export default function ReceiptsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
@@ -146,4 +147,5 @@ const styles = StyleSheet.create({
   addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center' },
   addText: { fontSize: 16, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
+  listContent: { paddingBottom: 120 },
 });
