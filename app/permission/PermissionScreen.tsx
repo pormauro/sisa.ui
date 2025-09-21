@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -8,8 +8,9 @@ import {
   Button,
 } from 'react-native';
 import Checkbox from 'expo-checkbox';
-import UserSelector from './UserSelector'; // Asegúrate de que la ruta sea correcta
+import UserSelector, { type Profile as SelectorProfile } from './UserSelector'; // Asegúrate de que la ruta sea correcta
 import { AuthContext } from '@/contexts/AuthContext';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -44,7 +45,8 @@ interface AssignedPermission {
 }
 
 const PermissionScreen: React.FC = () => {
-  const { token } = useContext(AuthContext);
+  const { token, userId, username } = useContext(AuthContext);
+  const { permissions: currentPermissions } = useContext(PermissionsContext);
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
@@ -53,12 +55,95 @@ const PermissionScreen: React.FC = () => {
   const spinnerColor = useThemeColor({}, 'tint');
   const groupBorderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
 
+  const numericUserId = useMemo(() => (userId ? Number(userId) : null), [userId]);
+  const fallbackUsername = username ?? 'Mi usuario';
+  const isMasterUser = numericUserId === 1;
+
+  const canListPermissions = useMemo(
+    () =>
+      isMasterUser ||
+      currentPermissions.includes('listPermissions') ||
+      currentPermissions.includes('listPermissionsByUser') ||
+      currentPermissions.includes('listGlobalPermissions'),
+    [currentPermissions, isMasterUser],
+  );
+
+  const canManagePermissions = useMemo(
+    () =>
+      isMasterUser ||
+      currentPermissions.includes('addPermission') ||
+      currentPermissions.includes('deletePermission'),
+    [currentPermissions, isMasterUser],
+  );
+
+  const canViewGlobalPermissions = useMemo(
+    () => isMasterUser || currentPermissions.includes('listGlobalPermissions'),
+    [currentPermissions, isMasterUser],
+  );
+
+  const canViewOtherUsersPermissions = useMemo(
+    () => isMasterUser || currentPermissions.includes('listPermissionsByUser'),
+    [currentPermissions, isMasterUser],
+  );
+
+  const canBrowseProfiles = useMemo(
+    () => isMasterUser || currentPermissions.includes('listAllProfiles'),
+    [currentPermissions, isMasterUser],
+  );
+
+  const canSelectOtherUsers = canBrowseProfiles && canViewOtherUsersPermissions;
+  const canSelectGlobal = canViewGlobalPermissions;
+  const canChooseUser = canSelectOtherUsers || canSelectGlobal;
+
+  const canEditSelection = useMemo(() => {
+    if (!selectedUser) return false;
+    if (!canManagePermissions) return false;
+    if (selectedUser.id === 0) {
+      return canViewGlobalPermissions;
+    }
+    if (numericUserId !== null && selectedUser.id === numericUserId) {
+      return true;
+    }
+    return canSelectOtherUsers;
+  }, [selectedUser, canManagePermissions, canSelectOtherUsers, canViewGlobalPermissions, numericUserId]);
+
+  useEffect(() => {
+    if (!numericUserId) {
+      return;
+    }
+
+    if (!canChooseUser) {
+      if (!selectedUser || selectedUser.id !== numericUserId) {
+        setSelectedUser({ id: numericUserId, username: fallbackUsername });
+      }
+    }
+  }, [numericUserId, canChooseUser, selectedUser, fallbackUsername]);
+
   // Función para cargar permisos del usuario seleccionado (o global si id === 0)
   const loadPermissions = useCallback(() => {
-    if (!token || selectedUser === null) return;
+    if (!token || selectedUser === null || !canListPermissions) {
+      setAssignedPermissions({});
+      return Promise.resolve();
+    }
+
+    const isGlobalSelection = selectedUser.id === 0;
+    const isOwnSelection = numericUserId !== null && selectedUser.id === numericUserId;
+
+    if (isGlobalSelection && !canViewGlobalPermissions) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos globales.');
+      setAssignedPermissions({});
+      return Promise.resolve();
+    }
+
+    if (!isGlobalSelection && !isOwnSelection && !canSelectOtherUsers) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos de otros usuarios.');
+      setAssignedPermissions({});
+      return Promise.resolve();
+    }
+
     setLoading(true);
-    const url = selectedUser.id === 0 
-      ? `${BASE_URL}/permissions/global` 
+    const url = isGlobalSelection
+      ? `${BASE_URL}/permissions/global`
       : `${BASE_URL}/permissions/user/${selectedUser.id}`;
 
     return fetch(url, {
@@ -80,7 +165,7 @@ const PermissionScreen: React.FC = () => {
         Alert.alert('Error', 'No se pudieron cargar los permisos.');
       })
       .finally(() => setLoading(false));
-  }, [token, selectedUser]);
+  }, [token, selectedUser, canListPermissions, canViewGlobalPermissions, canSelectOtherUsers, numericUserId]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -93,8 +178,13 @@ const PermissionScreen: React.FC = () => {
   // Función para agregar un permiso; se retorna la promesa
   const addPermission = (sector: string) => {
     if (!token || selectedUser === null) return Promise.resolve();
+
+    if (!canEditSelection) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
+      return Promise.resolve();
+    }
     const bodyData: any = { sector };
-  
+
     if (selectedUser.id !== 0) {
       bodyData.user_id = selectedUser.id;
     }
@@ -125,6 +215,11 @@ const PermissionScreen: React.FC = () => {
   // Función para eliminar un permiso; se retorna la promesa
   const removePermission = (sector: string) => {
     if (!token || selectedUser === null) return Promise.resolve();
+
+    if (!canEditSelection) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
+      return Promise.resolve();
+    }
     const perm = assignedPermissions[sector];
     if (!perm) return Promise.resolve();
     return fetch(`${BASE_URL}/permissions/${perm.id}`, {
@@ -153,6 +248,10 @@ const PermissionScreen: React.FC = () => {
 
   // Actualiza el estado de forma optimista y luego llama a la API
   const togglePermission = (sector: string, value: boolean) => {
+    if (!canEditSelection) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
+      return;
+    }
     // Actualización optimista: actualizamos el estado de inmediato
     setAssignedPermissions(prev => {
       const newState = { ...prev };
@@ -173,6 +272,10 @@ const PermissionScreen: React.FC = () => {
   };
 
   const toggleGroup = (groupPermissions: string[], value: boolean) => {
+    if (!canEditSelection) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
+      return;
+    }
     groupPermissions.forEach(sector => {
       const isAssigned = !!assignedPermissions[sector];
       if (value && !isAssigned) {
@@ -188,6 +291,10 @@ const PermissionScreen: React.FC = () => {
   };
 
   const toggleAll = () => {
+    if (!canEditSelection) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
+      return;
+    }
     PERMISSION_GROUPS.forEach(group => {
       group.permissions.forEach(sector => {
         if (!assignedPermissions[sector]) {
@@ -197,6 +304,50 @@ const PermissionScreen: React.FC = () => {
     });
   };
 
+  const handleUserSelection = useCallback(
+    (user: SelectorProfile | null) => {
+      if (user === null) {
+        if (!canSelectGlobal) {
+          Alert.alert('Acceso denegado', 'No tienes permiso para administrar los permisos globales.');
+          return;
+        }
+        setSelectedUser({ id: 0, username: 'Global' });
+        return;
+      }
+
+      if (numericUserId !== null && user.id !== numericUserId && !canSelectOtherUsers) {
+        Alert.alert('Acceso denegado', 'No puedes administrar permisos de otros usuarios.');
+        return;
+      }
+
+      setSelectedUser({ id: user.id, username: user.username });
+    },
+    [canSelectGlobal, canSelectOtherUsers, numericUserId],
+  );
+
+  const restrictedProfileFilter = useMemo(() => {
+    if (canSelectOtherUsers || numericUserId === null) {
+      return undefined;
+    }
+    return (profile: SelectorProfile) => profile.id === numericUserId;
+  }, [canSelectOtherUsers, numericUserId]);
+
+  if (!canListPermissions) {
+    return (
+      <ScrollView
+        style={[styles.container, { backgroundColor: background }]}
+        contentContainerStyle={styles.contentContainer}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
+        <ThemedText style={styles.infoText}>
+          No tienes acceso para visualizar la administración de permisos.
+        </ThemedText>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: background }]}
@@ -205,22 +356,26 @@ const PermissionScreen: React.FC = () => {
       keyboardDismissMode="on-drag"
     >
       <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
-      <UserSelector onSelect={(user) => {
-        if (user) {
-          setSelectedUser({ id: user.id, username: user.username });
-        } else {
-          setSelectedUser({ id: 0, username: 'Global' }); // <-- Nunca más null
-        }
-      }} />
+      {canChooseUser ? (
+        <UserSelector
+          includeGlobal={canSelectGlobal}
+          filterProfiles={restrictedProfileFilter}
+          onSelect={handleUserSelection}
+        />
+      ) : (
+        <ThemedText style={styles.infoText}>
+          Gestionando permisos para: {fallbackUsername}
+        </ThemedText>
+      )}
 
-      
+
       {selectedUser ? (
         loading ? (
           <ActivityIndicator size="large" color={spinnerColor} />
         ) : (
           <>
             <View style={{ marginBottom: 10 }}>
-              <Button title="Activar todo" onPress={toggleAll} />
+              <Button title="Activar todo" onPress={toggleAll} disabled={!canEditSelection} />
             </View>
             {PERMISSION_GROUPS.map(group => (
               <ThemedView
@@ -234,6 +389,7 @@ const PermissionScreen: React.FC = () => {
                     value={isGroupChecked(group.permissions)}
                     onValueChange={(value) => toggleGroup(group.permissions, value)}
                     style={styles.checkbox}
+                    disabled={!canEditSelection}
                   />
                   <ThemedText style={styles.groupTitle}>{group.group}</ThemedText>
                 </View>
@@ -243,6 +399,7 @@ const PermissionScreen: React.FC = () => {
                       value={!!assignedPermissions[sector]}
                       onValueChange={(value) => togglePermission(sector, value)}
                       style={styles.checkbox}
+                      disabled={!canEditSelection}
                     />
                     <ThemedText style={styles.permissionLabel}>{sector}</ThemedText>
                   </View>

@@ -6,7 +6,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 
-interface Profile {
+export interface Profile {
   id: number;
   username: string;
   email: string;
@@ -15,9 +15,11 @@ interface Profile {
 
 interface UserSelectorProps {
   onSelect: (user: Profile | null) => void;
+  includeGlobal?: boolean;
+  filterProfiles?: (profile: Profile) => boolean;
 }
 
-const UserSelector: React.FC<UserSelectorProps> = ({ onSelect }) => {
+const UserSelector: React.FC<UserSelectorProps> = ({ onSelect, includeGlobal = true, filterProfiles }) => {
   const { token } = useContext(AuthContext);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
@@ -42,16 +44,18 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect }) => {
           email: '',
           activated: 1,
         };
-        const fetchedProfiles = data.profiles.map((profile: any) => ({
+        const fetchedProfiles: Profile[] = data.profiles.map((profile: any) => ({
           ...profile,
           id: Number(profile.id),
-        }));
-        setProfiles([globalOption, ...fetchedProfiles]);
+        })).filter((profile: Profile) => (filterProfiles ? filterProfiles(profile) : true));
+
+        const options = includeGlobal ? [globalOption, ...fetchedProfiles] : fetchedProfiles;
+        setProfiles(options);
       })
       .catch(error => {
         console.error('Error fetching profiles:', error);
       });
-  }, [token]);
+  }, [token, includeGlobal, filterProfiles]);
 
   const handleSelect = (profile: Profile) => {
     setSelectedProfile(profile);
