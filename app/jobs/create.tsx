@@ -41,7 +41,13 @@ export default function CreateJobScreen() {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
-  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
+  const {
+    beginSelection,
+    consumeSelection,
+    pendingSelections,
+    completeSelection,
+    cancelSelection,
+  } = usePendingSelection();
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_STATUS_VALUE = '__new_status__';
@@ -156,6 +162,10 @@ export default function CreateJobScreen() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
@@ -303,6 +313,11 @@ export default function CreateJobScreen() {
       setLoading(false);
       if (created) {
         Alert.alert('Éxito', 'Trabajo creado.');
+        if (created.id != null) {
+          completeSelection(created.id.toString());
+        } else {
+          cancelSelection();
+        }
         router.back();
       } else {
         Alert.alert('Error', 'No se pudo crear el trabajo.');

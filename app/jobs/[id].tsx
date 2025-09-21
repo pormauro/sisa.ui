@@ -44,7 +44,13 @@ export default function EditJobScreen() {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
-  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
+  const {
+    beginSelection,
+    consumeSelection,
+    pendingSelections,
+    completeSelection,
+    cancelSelection,
+  } = usePendingSelection();
 
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
@@ -188,6 +194,10 @@ export default function EditJobScreen() {
       setIsFetchingItem(false);
     });
   }, [job, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (previousClientIdRef.current === null) {
@@ -378,6 +388,11 @@ export default function EditJobScreen() {
 
       if (updated) {
         Alert.alert('Éxito', 'Trabajo actualizado.');
+        if (!Number.isNaN(jobId)) {
+          completeSelection(jobId.toString());
+        } else {
+          cancelSelection();
+        }
         router.back();
       } else {
         Alert.alert('Error', 'No se pudo actualizar el trabajo.');
