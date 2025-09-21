@@ -20,24 +20,12 @@ import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View, Alert, LogBox } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { LogOverlay } from '@/components/LogOverlay';
 import { useThemeColor } from '@/hooks/useThemeColor';
-
-
-// Filter alerts and suppress console warnings/errors
-LogBox.ignoreAllLogs();
-const originalAlert = Alert.alert;
-(Alert as any).alert = (...args: any[]) => {
-  const buttons = args[2];
-  if (Array.isArray(buttons) && buttons.length > 1) {
-    originalAlert(...args);
-  }
-};
-console.error = () => {};
-console.warn = () => {};
-
+import { LogProvider } from '@/contexts/LogContext';
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
@@ -88,39 +76,44 @@ export default function RootLayout() {
               <ProfilesListProvider>
                 <ConfigProvider>
                   <ThemeProvider>
-                    <CashBoxesProvider>
-                      <ClientsProvider>
-                        <ProvidersProvider>
-                          <CategoriesProvider>
-                            <ProductsServicesProvider>
-                              <StatusesProvider>
-                                <TariffsProvider>
-                                  <JobsProvider>
-                                    <AppointmentsProvider>
-                                      <PaymentsProvider>
-                                        <ReceiptsProvider>
-                                          <FoldersProvider>
-                                            <PendingSelectionProvider>
-                                              <RootLayoutContent />
-                                            </PendingSelectionProvider>
-                                          </FoldersProvider>
-                                        </ReceiptsProvider>
-                                      </PaymentsProvider>
-                                    </AppointmentsProvider>
-                                  </JobsProvider>
-                                </TariffsProvider>
-                              </StatusesProvider>
-                            </ProductsServicesProvider>
-                          </CategoriesProvider>
-                        </ProvidersProvider>
-                      </ClientsProvider>
-                    </CashBoxesProvider>
+                    <LogProvider>
+                      <CashBoxesProvider>
+                        <ClientsProvider>
+                          <ProvidersProvider>
+                            <CategoriesProvider>
+                              <ProductsServicesProvider>
+                                <StatusesProvider>
+                                  <TariffsProvider>
+                                    <JobsProvider>
+                                      <AppointmentsProvider>
+                                        <PaymentsProvider>
+                                          <ReceiptsProvider>
+                                            <FoldersProvider>
+                                              <PendingSelectionProvider>
+                                                <>
+                                                  <RootLayoutContent />
+                                                  <LogOverlay />
+                                                </>
+                                              </PendingSelectionProvider>
+                                            </FoldersProvider>
+                                          </ReceiptsProvider>
+                                        </PaymentsProvider>
+                                      </AppointmentsProvider>
+                                    </JobsProvider>
+                                  </TariffsProvider>
+                                </StatusesProvider>
+                              </ProductsServicesProvider>
+                            </CategoriesProvider>
+                          </ProvidersProvider>
+                        </ClientsProvider>
+                      </CashBoxesProvider>
+                    </LogProvider>
                   </ThemeProvider>
                 </ConfigProvider>
               </ProfilesListProvider>
             </ProfilesProvider>
           </ProfileProvider>
-          </FilesProvider>
+        </FilesProvider>
       </PermissionsProvider>
     </AuthProvider>
   );
