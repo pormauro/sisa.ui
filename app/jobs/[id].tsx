@@ -111,6 +111,7 @@ export default function EditJobScreen() {
     const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     return diffHours > 0 && rate ? diffHours * rate : 0;
   }, [startTime, endTime, rate]);
+  const manualTariffDisplayName = trimmedManualAmount !== '' ? trimmedManualAmount : manualTariffItem.name;
 
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -350,10 +351,22 @@ export default function EditJobScreen() {
   const tariffItems = useMemo(
     () => [
       { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
-      manualTariffItem,
+      { ...manualTariffItem, name: manualTariffDisplayName },
       ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
     ],
-    [manualTariffItem, tariffs]
+    [manualTariffItem, tariffs, manualTariffDisplayName]
+  );
+  const selectedTariffForDisplay = useMemo(
+    () => {
+      if (!selectedTariff) {
+        return null;
+      }
+      if (selectedTariff.id === manualTariffItem.id) {
+        return { ...manualTariffItem, name: manualTariffDisplayName };
+      }
+      return selectedTariff;
+    },
+    [selectedTariff, manualTariffItem, manualTariffDisplayName]
   );
 
 
@@ -563,7 +576,7 @@ export default function EditJobScreen() {
       <View style={styles.select}>
         <ModalPicker
           items={tariffItems}
-          selectedItem={selectedTariff}
+          selectedItem={selectedTariffForDisplay}
           onSelect={(item) => {
             if (item.id === NEW_TARIFF_VALUE) {
               beginSelection(SELECTION_KEYS.jobs.tariff);
