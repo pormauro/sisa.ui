@@ -96,7 +96,10 @@ export default function ViewJobModal() {
     return 0;
   };
 
-  const hourlyRate = parseHourlyRate(tariff ? tariff.amount : job?.manual_amount);
+  const hourlyRate =
+    job?.manual_amount != null
+      ? parseHourlyRate(job.manual_amount)
+      : parseHourlyRate(tariff?.amount);
 
   let workedHours = 0;
   if (startStr && endStr) {
