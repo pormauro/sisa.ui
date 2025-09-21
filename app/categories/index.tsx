@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState, useMemo } from 'react';
 import {
   View,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   TextInput,
   StyleSheet,
@@ -11,11 +11,19 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
-import { CategoriesContext, Category } from '@/contexts/CategoriesContext';
+import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { SearchableSelect } from '@/components/SearchableSelect';
+import { DisplayCategory, getDisplayCategories } from '@/utils/categories';
+
+type CategorySection = {
+  title: string;
+  type: 'income' | 'expense';
+  data: DisplayCategory[];
+};
 
 export default function CategoriesScreen() {
   const { categories, loadCategories, deleteCategory } = useContext(CategoriesContext);
@@ -23,6 +31,16 @@ export default function CategoriesScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
+
+  const typeFilterItems = useMemo(
+    () => [
+      { label: 'Todos', value: 'all' },
+      { label: 'Ingresos', value: 'income' },
+      { label: 'Gastos', value: 'expense' },
+    ],
+    []
+  );
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -33,6 +51,10 @@ export default function CategoriesScreen() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
+  const sectionHeaderBackground = useThemeColor({ light: '#f3f3f8', dark: '#1f1f2a' }, 'background');
+  const sectionHeaderBorderColor = useThemeColor({ light: '#dcdce4', dark: '#2c2c38' }, 'background');
+  const incomeTypeColor = useThemeColor({ light: '#2f855a', dark: '#9ae6b4' }, 'text');
+  const expenseTypeColor = useThemeColor({ light: '#c53030', dark: '#feb2b2' }, 'text');
 
   useEffect(() => {
     if (!permissions.includes('listCategories')) {
@@ -50,27 +72,25 @@ export default function CategoriesScreen() {
     return result.map(r => r.item);
   }, [search, categories]);
 
-  const categoryTree = useMemo(() => {
-    const buildTree = (cats: Category[], parentId: number | null = null) =>
-      cats
-        .filter(c => c.parent_id === parentId)
-        .map(c => ({ ...c, children: buildTree(cats, c.id) }));
-    return buildTree(filteredCategories);
-  }, [filteredCategories]);
+  const categorySections = useMemo<CategorySection[]>(() => {
+    const sections: CategorySection[] = [];
 
-  const displayCategories = useMemo(() => {
-    const flatten = (nodes: any[], level = 0): (Category & { level: number })[] => {
-      let res: (Category & { level: number })[] = [];
-      nodes.forEach(n => {
-        res.push({ ...n, level });
-        if (n.children && n.children.length) {
-          res = res.concat(flatten(n.children, level + 1));
-        }
-      });
-      return res;
+    const pushSection = (type: 'income' | 'expense', title: string) => {
+      if (typeFilter !== 'all' && typeFilter !== type) {
+        return;
+      }
+
+      const data = getDisplayCategories(filteredCategories, type);
+      if (data.length) {
+        sections.push({ title, type, data });
+      }
     };
-    return flatten(categoryTree);
-  }, [categoryTree]);
+
+    pushSection('income', 'Ingresos');
+    pushSection('expense', 'Gastos');
+
+    return sections;
+  }, [filteredCategories, typeFilter]);
 
   const canDelete = permissions.includes('deleteCategory');
   const canAdd = permissions.includes('addCategory');
@@ -90,17 +110,24 @@ export default function CategoriesScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: Category & { level: number } }) => (
+  const renderItem = ({ item }: { item: DisplayCategory }) => (
     <TouchableOpacity
       style={[styles.item, { borderColor: itemBorderColor }]}
       onPress={() => router.push(`/categories/viewModal?id=${item.id}`)}
       onLongPress={() => router.push(`/categories/${item.id}`)}
     >
-      <View style={[styles.itemInfo, { paddingLeft: item.level * 16 }]}>
+      <View style={[styles.itemInfo, { paddingLeft: item.level * 16 }]}> 
         <ThemedText style={[styles.name, item.level === 0 ? styles.parent : null]}>
           {item.name}
         </ThemedText>
-        <ThemedText>{item.type}</ThemedText>
+        <ThemedText
+          style={[
+            styles.typeText,
+            { color: item.type === 'income' ? incomeTypeColor : expenseTypeColor },
+          ]}
+        >
+          {item.type === 'income' ? 'Ingreso' : 'Gasto'}
+        </ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
@@ -112,6 +139,20 @@ export default function CategoriesScreen() {
         </TouchableOpacity>
       )}
     </TouchableOpacity>
+  );
+
+  const renderSectionHeader = ({ section }: { section: CategorySection }) => (
+    <View
+      style={[
+        styles.sectionHeader,
+        {
+          backgroundColor: sectionHeaderBackground,
+          borderColor: sectionHeaderBorderColor,
+        },
+      ]}
+    >
+      <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
+    </View>
   );
 
   return (
@@ -130,15 +171,36 @@ export default function CategoriesScreen() {
         onChangeText={setSearch}
         placeholderTextColor={placeholderColor}
       />
-      <FlatList
-        data={displayCategories}
+      <SearchableSelect
+        style={styles.filterSelect}
+        items={typeFilterItems}
+        selectedValue={typeFilter}
+        onValueChange={(value) => {
+          const nextValue = (value ?? 'all') as string;
+          if (nextValue === 'income' || nextValue === 'expense' || nextValue === 'all') {
+            setTypeFilter(nextValue);
+          }
+        }}
+        placeholder="Filtrar por tipo"
+        showSearch={false}
+      />
+      <SectionList
+        sections={categorySections}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        renderSectionHeader={renderSectionHeader}
+        contentContainerStyle={[
+          styles.listContent,
+          categorySections.length === 0 && styles.emptyListContent,
+        ]}
         ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
-        ListEmptyComponent={
-          <ThemedText style={styles.empty}>No se encontraron categorías</ThemedText>
-        }
+        ListEmptyComponent={() => (
+          <View style={styles.emptyContainer}>
+            <ThemedText style={styles.empty}>No se encontraron categorías</ThemedText>
+          </View>
+        )}
+        stickySectionHeadersEnabled={false}
+        keyboardShouldPersistTaps="handled"
       />
       {canAdd && (
         <TouchableOpacity
@@ -155,12 +217,23 @@ export default function CategoriesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  filterSelect: { marginBottom: 12 },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   name: { fontSize: 16 },
   parent: { fontWeight: 'bold' },
+  typeText: { marginTop: 4, fontSize: 12, fontWeight: '600' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
+  sectionHeader: {
+    marginTop: 16,
+    marginBottom: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sectionHeaderText: { fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
   addButton: {
     position: 'absolute',
     right: 16,
@@ -170,6 +243,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
-  empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
-  listContent: { paddingBottom: 16 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 32 },
+  empty: { textAlign: 'center', fontSize: 16 },
+  listContent: { paddingBottom: 16, paddingTop: 4 },
+  emptyListContent: { flexGrow: 1, justifyContent: 'center' },
 });

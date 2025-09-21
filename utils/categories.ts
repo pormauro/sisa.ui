@@ -8,10 +8,32 @@ interface CategoryNode extends Category {
   children: CategoryNode[];
 }
 
-const buildTree = (cats: Category[], parentId: number | null = null): CategoryNode[] =>
-  cats
-    .filter(c => c.parent_id === parentId)
-    .map(c => ({ ...c, children: buildTree(cats, c.id) }));
+const buildTree = (cats: Category[]): CategoryNode[] => {
+  const nodes = new Map<number, CategoryNode>();
+
+  cats.forEach(cat => {
+    nodes.set(cat.id, { ...cat, children: [] });
+  });
+
+  const roots: CategoryNode[] = [];
+
+  cats.forEach(cat => {
+    const node = nodes.get(cat.id);
+    if (!node) {
+      return;
+    }
+
+    if (cat.parent_id !== null && nodes.has(cat.parent_id)) {
+      const parent = nodes.get(cat.parent_id);
+      parent?.children.push(node);
+      return;
+    }
+
+    roots.push(node);
+  });
+
+  return roots;
+};
 
 const flatten = (nodes: CategoryNode[], level = 0): DisplayCategory[] => {
   let res: DisplayCategory[] = [];
