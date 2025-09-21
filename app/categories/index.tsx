@@ -52,9 +52,8 @@ export default function CategoriesScreen() {
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
   const sectionHeaderBackground = useThemeColor({ light: '#f3f3f8', dark: '#1f1f2a' }, 'background');
-  const sectionHeaderBorderColor = useThemeColor({ light: '#dcdce4', dark: '#2c2c38' }, 'background');
-  const incomeTypeColor = useThemeColor({ light: '#2f855a', dark: '#9ae6b4' }, 'text');
-  const expenseTypeColor = useThemeColor({ light: '#c53030', dark: '#feb2b2' }, 'text');
+  const incomeSectionColor = useThemeColor({ light: '#2f855a', dark: '#9ae6b4' }, 'text');
+  const expenseSectionColor = useThemeColor({ light: '#c53030', dark: '#feb2b2' }, 'text');
 
   useEffect(() => {
     if (!permissions.includes('listCategories')) {
@@ -120,14 +119,6 @@ export default function CategoriesScreen() {
         <ThemedText style={[styles.name, item.level === 0 ? styles.parent : null]}>
           {item.name}
         </ThemedText>
-        <ThemedText
-          style={[
-            styles.typeText,
-            { color: item.type === 'income' ? incomeTypeColor : expenseTypeColor },
-          ]}
-        >
-          {item.type === 'income' ? 'Ingreso' : 'Gasto'}
-        </ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
@@ -141,19 +132,25 @@ export default function CategoriesScreen() {
     </TouchableOpacity>
   );
 
-  const renderSectionHeader = ({ section }: { section: CategorySection }) => (
-    <View
-      style={[
-        styles.sectionHeader,
-        {
-          backgroundColor: sectionHeaderBackground,
-          borderColor: sectionHeaderBorderColor,
-        },
-      ]}
-    >
-      <ThemedText style={styles.sectionHeaderText}>{section.title}</ThemedText>
-    </View>
-  );
+  const renderSectionHeader = ({ section }: { section: CategorySection }) => {
+    const accentColor = section.type === 'income' ? incomeSectionColor : expenseSectionColor;
+
+    return (
+      <View
+        style={[
+          styles.sectionHeader,
+          {
+            backgroundColor: sectionHeaderBackground,
+            borderColor: accentColor,
+          },
+        ]}
+      >
+        <ThemedText style={[styles.sectionHeaderText, { color: accentColor }]}>
+          {section.title}
+        </ThemedText>
+      </View>
+    );
+  };
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}> 
@@ -222,7 +219,6 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1 },
   name: { fontSize: 16 },
   parent: { fontWeight: 'bold' },
-  typeText: { marginTop: 4, fontSize: 12, fontWeight: '600' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
   sectionHeader: {
