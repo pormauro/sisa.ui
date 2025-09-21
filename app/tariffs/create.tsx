@@ -13,11 +13,13 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CreateTariff() {
   const router = useRouter();
   const { addTariff } = useContext(TariffsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
@@ -30,6 +32,10 @@ export default function CreateTariff() {
     }
   }, [permissions, router]);
 
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
+
   const handleSubmit = async () => {
     if (!name || !amount) {
       Alert.alert('Error', 'Completa todos los campos.');
@@ -40,6 +46,7 @@ export default function CreateTariff() {
     setLoading(false);
     if (newTariff) {
       Alert.alert('Éxito', 'Tarifa creada.');
+      completeSelection(newTariff.id.toString());
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo crear la tarifa.');

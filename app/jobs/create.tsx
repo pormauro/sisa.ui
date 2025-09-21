@@ -168,6 +168,22 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.tariff)) {
+      return;
+    }
+    const pendingTariffId = consumeSelection<string>(SELECTION_KEYS.jobs.tariff);
+    if (!pendingTariffId) {
+      return;
+    }
+    const tariff = tariffs.find(t => t.id.toString() === pendingTariffId);
+    if (!tariff) {
+      return;
+    }
+    setSelectedTariff(pendingTariffId);
+    setManualAmount(tariff.amount.toString());
+  }, [pendingSelections, consumeSelection, tariffs]);
+
+  useEffect(() => {
     if (!selectedClient) {
       setSelectedFolder('');
       setSelectedTariff('');
@@ -387,6 +403,7 @@ export default function CreateJobScreen() {
           if (stringValue === NEW_TARIFF_VALUE) {
             setSelectedTariff('');
             setManualAmount('');
+            beginSelection(SELECTION_KEYS.jobs.tariff);
             router.push('/tariffs/create');
             return;
           }
@@ -402,6 +419,7 @@ export default function CreateJobScreen() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_TARIFF_VALUE) return;
+          beginSelection(SELECTION_KEYS.jobs.tariff);
           router.push(`/tariffs/${value}`);
         }}
       />

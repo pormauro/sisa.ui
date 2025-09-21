@@ -10,13 +10,20 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 export default function CreateClientPage() {
   const { permissions } = useContext(PermissionsContext);
   const { addClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const router = useRouter();
-  const { completeSelection, cancelSelection } = usePendingSelection();
+  const {
+    beginSelection,
+    completeSelection,
+    cancelSelection,
+    consumeSelection,
+    pendingSelections,
+  } = usePendingSelection();
 
   const NEW_TARIFF_VALUE = 'new_tariff';
 
@@ -53,6 +60,23 @@ export default function CreateClientPage() {
       router.back();
     }
   }, []);
+
+  useEffect(() => {
+    if (
+      !Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.clients.tariff)
+    ) {
+      return;
+    }
+    const pendingTariffId = consumeSelection<string>(SELECTION_KEYS.clients.tariff);
+    if (!pendingTariffId) {
+      return;
+    }
+    const exists = tariffs.some(tariff => tariff.id.toString() === pendingTariffId);
+    if (!exists) {
+      return;
+    }
+    setTariffId(pendingTariffId);
+  }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -158,6 +182,7 @@ export default function CreateClientPage() {
           const value = itemValue?.toString() ?? '';
           if (value === NEW_TARIFF_VALUE) {
             setTariffId('');
+            beginSelection(SELECTION_KEYS.clients.tariff);
             router.push('/tariffs/create');
             return;
           }
@@ -167,6 +192,7 @@ export default function CreateClientPage() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_TARIFF_VALUE) return;
+          beginSelection(SELECTION_KEYS.clients.tariff);
           router.push(`/tariffs/${value}`);
         }}
       />

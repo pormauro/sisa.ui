@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 
 export default function ClientDetailPage() {
@@ -22,7 +23,13 @@ export default function ClientDetailPage() {
   const clientId = Number(id);
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
-  const { completeSelection, cancelSelection } = usePendingSelection();
+  const {
+    beginSelection,
+    completeSelection,
+    cancelSelection,
+    consumeSelection,
+    pendingSelections,
+  } = usePendingSelection();
 
   const client = clients.find(c => c.id === clientId);
 
@@ -68,6 +75,23 @@ export default function ClientDetailPage() {
   useEffect(() => () => {
     cancelSelection();
   }, [cancelSelection]);
+
+  useEffect(() => {
+    if (
+      !Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.clients.tariff)
+    ) {
+      return;
+    }
+    const pendingTariffId = consumeSelection<string>(SELECTION_KEYS.clients.tariff);
+    if (!pendingTariffId) {
+      return;
+    }
+    const exists = tariffs.some(tariff => tariff.id.toString() === pendingTariffId);
+    if (!exists) {
+      return;
+    }
+    setTariffId(pendingTariffId);
+  }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => {
     if (client) {
@@ -236,6 +260,7 @@ export default function ClientDetailPage() {
           const value = itemValue?.toString() ?? '';
           if (value === NEW_TARIFF_VALUE) {
             setTariffId('');
+            beginSelection(SELECTION_KEYS.clients.tariff);
             router.push('/tariffs/create');
             return;
           }
@@ -246,6 +271,7 @@ export default function ClientDetailPage() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_TARIFF_VALUE) return;
+          beginSelection(SELECTION_KEYS.clients.tariff);
           router.push(`/tariffs/${value}`);
         }}
       />
