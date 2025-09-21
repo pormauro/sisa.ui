@@ -53,6 +53,13 @@ export default function EditJobScreen() {
   } = usePendingSelection();
 
   const job = jobs.find(j => j.id === jobId);
+  const jobTariff = useMemo(() => {
+    if (!job || job.tariff_id == null) {
+      return null;
+    }
+    const match = tariffs.find(t => t.id === job.tariff_id);
+    return match ?? null;
+  }, [job, tariffs]);
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
   const NEW_CLIENT_VALUE  = '__new_client__';
@@ -122,39 +129,7 @@ export default function EditJobScreen() {
   const priceColor = useThemeColor({}, 'tint');
   const btnSaveColor = useThemeColor({}, 'button');
   const btnTextColor = useThemeColor({}, 'buttonText');
-  const subtleTextColor = useThemeColor({ light: '#6b7280', dark: '#94a3b8' }, 'text');
-  const infoCardBackground = useThemeColor({ light: '#f1f5f9', dark: '#1f2937' }, 'background');
-  const infoCardBorderColor = useThemeColor({ light: '#cbd5f5', dark: '#334155' }, 'background');
-
-  const selectedTariffDetails = useMemo(() => {
-    if (!selectedTariff || selectedTariff.id === manualTariffItem.id || selectedTariff.id === '') {
-      return null;
-    }
-    const numericId = Number(selectedTariff.id);
-    if (Number.isNaN(numericId)) {
-      return null;
-    }
-    return tariffs.find(t => t.id === numericId) ?? null;
-  }, [selectedTariff, manualTariffItem, tariffs]);
-
-  const tariffNameText = useMemo(() => {
-    if (selectedTariffDetails) {
-      return selectedTariffDetails.name;
-    }
-    if (selectedTariff && selectedTariff.id !== manualTariffItem.id && selectedTariff.name) {
-      return selectedTariff.name;
-    }
-    return 'Tarifa manual';
-  }, [selectedTariffDetails, selectedTariff, manualTariffItem]);
-
-  const tariffAmountText = useMemo(() => {
-    if (selectedTariffDetails) {
-      return selectedTariffDetails.amount.toString();
-    }
-    return 'Sin tarifa';
-  }, [selectedTariffDetails]);
-
-  const manualAmountInfoText = trimmedManualAmount !== '' ? trimmedManualAmount : 'Sin monto manual';
+  
 
   // carga inicial del job
   useEffect(() => {
@@ -192,15 +167,20 @@ export default function EditJobScreen() {
       setStartTime(extractTime(job.start_time));
       setEndTime(extractTime(job.end_time));
 
-      const tar = tariffs.find(t => t.id === job.tariff_id);
-      setSelectedTariff(tar ? { id: tar.id, name: `${tar.name} - ${tar.amount}` } : manualTariffItem);
-      setManualAmount(
+      const manualValue =
         job.manual_amount != null
           ? job.manual_amount.toString()
-          : tar
-          ? tar.amount.toString()
-          : ''
-      );
+          : jobTariff
+          ? jobTariff.amount.toString()
+          : '';
+
+      if (jobTariff) {
+        setSelectedTariff({ id: jobTariff.id, name: `${jobTariff.name} - ${jobTariff.amount}` });
+      } else {
+        setSelectedTariff(manualTariffItem);
+      }
+
+      setManualAmount(manualValue);
 
       const parts = job.participants
         ? (typeof job.participants === 'string'
@@ -223,7 +203,7 @@ export default function EditJobScreen() {
     Promise.resolve(loadJobs()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [job, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
+  }, [job, jobTariff, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -642,19 +622,6 @@ export default function EditJobScreen() {
           }}
         />
       </View>
-      <View
-        style={[
-          styles.tariffInfoCard,
-          { backgroundColor: infoCardBackground, borderColor: infoCardBorderColor },
-        ]}
-      >
-        <ThemedText style={[styles.infoLabel, styles.infoLabelFirst, { color: subtleTextColor }]}>Nombre de la tarifa</ThemedText>
-        <ThemedText style={[styles.infoValue, { color: textColor }]}>{tariffNameText}</ThemedText>
-        <ThemedText style={[styles.infoLabel, { color: subtleTextColor }]}>Monto de la tarifa</ThemedText>
-        <ThemedText style={[styles.infoValue, { color: textColor }]}>{tariffAmountText}</ThemedText>
-        <ThemedText style={[styles.infoLabel, { color: subtleTextColor }]}>Valor manual</ThemedText>
-        <ThemedText style={[styles.infoValue, { color: textColor }]}>{manualAmountInfoText}</ThemedText>
-      </View>
       {/* Tarifa manual */}
       <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
       <TextInput
@@ -812,8 +779,4 @@ const styles = StyleSheet.create({
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },
-  tariffInfoCard: { marginBottom: 12, padding: 12, borderRadius: 8, borderWidth: 1 },
-  infoLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', marginTop: 12 },
-  infoLabelFirst: { marginTop: 0 },
-  infoValue: { fontSize: 16, fontWeight: '500', marginTop: 4 },
 });
