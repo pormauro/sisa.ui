@@ -90,6 +90,7 @@ export default function EditJobScreen() {
     const match = tariffs.find(t => t.id === job.tariff_id);
     return match ?? null;
   }, [job, tariffs]);
+  const jobContextAmount = job?.manual_amount != null ? job.manual_amount : jobTariff?.amount;
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
   const NEW_CLIENT_VALUE  = '__new_client__';
@@ -657,6 +658,12 @@ export default function EditJobScreen() {
           }}
         />
       </View>
+      {job?.id != null && (
+        <>
+          <ThemedText style={[styles.infoLabel, { color: textColor }]}>ID</ThemedText>
+          <ThemedText style={[styles.infoValue, { color: textColor }]}>{job.id}</ThemedText>
+        </>
+      )}
       {/* Tarifa manual */}
       <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
       <TextInput
@@ -667,6 +674,14 @@ export default function EditJobScreen() {
         editable={canEdit}
         placeholderTextColor={placeholderColor}
       />
+      {job && (
+        <>
+          <ThemedText style={[styles.infoLabel, { color: textColor }]}>Monto</ThemedText>
+          <ThemedText style={[styles.infoValue, { color: textColor }]}> 
+            {jobContextAmount ?? 'Sin monto'}
+          </ThemedText>
+        </>
+      )}
 
       {/* Descripción */}
       <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
@@ -788,17 +803,19 @@ export default function EditJobScreen() {
            // <-- Le decimos al FlatList que también re-renderice si cambia cualquiera de estos estados
            extraData={{
              selectedClientId,
-            selectedFolder,
-            description,
-          attachedFiles,
-          jobDate,
-          startTime,
-          endTime,
-           selectedStatus,
-           selectedTariff,
-            manualAmount,
-            participants,
-          }}
+             selectedFolder,
+             description,
+             attachedFiles,
+             jobDate,
+             startTime,
+             endTime,
+             selectedStatus,
+             selectedTariff,
+             manualAmount,
+             participants,
+             jobContextAmount,
+             jobId: job?.id,
+           }}
         />
        </ThemedView>
   );
@@ -809,6 +826,8 @@ const styles = StyleSheet.create({
   label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
   select: { marginBottom: 12 },
   input:      { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  infoLabel: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
+  infoValue: { fontSize: 16, marginBottom: 8 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
   priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
