@@ -98,6 +98,11 @@ export default function PaymentDetailPage() {
     [cashBoxes]
   );
 
+  const loadedPaidWithAccountId = useMemo(
+    () => String(payment?.paid_with_account ?? ''),
+    [payment?.paid_with_account]
+  );
+
   const creditorTypeItems = useMemo(
     () => [
       { label: 'Cliente', value: 'client' },
@@ -150,7 +155,7 @@ export default function PaymentDetailPage() {
     if (cashBoxes.length === 0) {
       return;
     }
-    const exists = cashBoxes.some(cb => cb.id.toString() === paidWithAccount);
+    const exists = cashBoxes.some(cb => String(cb.id) === paidWithAccount);
     if (exists) {
       return;
     }
@@ -162,8 +167,11 @@ export default function PaymentDetailPage() {
     ) {
       return;
     }
+    if (loadedPaidWithAccountId && loadedPaidWithAccountId === paidWithAccount) {
+      return;
+    }
     setPaidWithAccount('');
-  }, [cashBoxes, paidWithAccount, pendingSelections]);
+  }, [cashBoxes, paidWithAccount, pendingSelections, loadedPaidWithAccountId]);
 
   useEffect(() => {
     const pendingCashBox = pendingSelections[SELECTION_KEYS.payments.cashBox];
@@ -171,7 +179,7 @@ export default function PaymentDetailPage() {
       return;
     }
     const pendingCashBoxId = String(pendingCashBox);
-    const exists = cashBoxes.some(cb => cb.id.toString() === pendingCashBoxId);
+    const exists = cashBoxes.some(cb => String(cb.id) === pendingCashBoxId);
     if (!exists) {
       return;
     }
@@ -302,7 +310,7 @@ export default function PaymentDetailPage() {
         setIsFetchingItem(false);
       }
       setPaymentDate(new Date(payment.payment_date.replace(' ', 'T')));
-      setPaidWithAccount(payment.paid_with_account);
+      setPaidWithAccount(String(payment.paid_with_account ?? ''));
       setCreditorType(payment.creditor_type);
       setCreditorClientId(
         payment.creditor_client_id ? String(payment.creditor_client_id) : ''
