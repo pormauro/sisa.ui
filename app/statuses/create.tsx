@@ -6,11 +6,13 @@ import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function CreateStatus() {
   const router = useRouter();
   const { addStatus } = useContext(StatusesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const [label, setLabel] = useState('');
   const [value, setValue] = useState('');
@@ -33,6 +35,10 @@ export default function CreateStatus() {
     }
   }, [permissions]);
 
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
+
   const handleSubmit = async () => {
     if (!label || !value || !backgroundColor || orderIndex === '') {
       Alert.alert('Error', 'Completa todos los campos requeridos.');
@@ -48,6 +54,7 @@ export default function CreateStatus() {
     setLoading(false);
     if (newStatus) {
       Alert.alert('Éxito', 'Estado creado correctamente.');
+      completeSelection(newStatus.id.toString());
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo crear el estado.');
