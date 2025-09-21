@@ -154,7 +154,10 @@ export default function EditJobScreen() {
     const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
     return diffHours > 0 && rate ? diffHours * rate : 0;
   }, [startTime, endTime, rate]);
-  const manualTariffDisplayName = trimmedManualAmount !== '' ? trimmedManualAmount : manualTariffItem.name;
+  const manualTariffListLabel =
+    trimmedManualAmount !== '' ? `Tarifa manual - ${trimmedManualAmount}` : manualTariffItem.name;
+  const manualTariffDisplayLabel =
+    trimmedManualAmount !== '' ? `Tarifa manual • Monto: ${trimmedManualAmount}` : manualTariffItem.name;
 
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -444,7 +447,7 @@ export default function EditJobScreen() {
     () => {
       const items: ModalPickerItem[] = [
         { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
-        { ...manualTariffItem, name: manualTariffDisplayName },
+        { ...manualTariffItem, name: manualTariffListLabel },
         ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
       ];
       if (jobTariffId != null && !tariffs.some(t => t.id === jobTariffId)) {
@@ -452,19 +455,35 @@ export default function EditJobScreen() {
       }
       return items;
     },
-    [manualTariffItem, tariffs, manualTariffDisplayName, jobTariffId]
+    [manualTariffItem, tariffs, manualTariffListLabel, jobTariffId]
   );
   const selectedTariffForDisplay = useMemo(
     () => {
       if (!selectedTariff) {
         return null;
       }
+
       if (selectedTariff.id === manualTariffItem.id) {
-        return { ...manualTariffItem, name: manualTariffDisplayName };
+        return { ...manualTariffItem, name: manualTariffDisplayLabel };
       }
-      return selectedTariff;
+
+      const selectedId = selectedTariff.id;
+      const matchedTariff = selectedId != null
+        ? tariffs.find(t => t.id.toString() === String(selectedId))
+        : undefined;
+      const baseName = matchedTariff?.name ?? selectedTariff.name ?? 'Tarifa';
+      const idText = selectedId != null && selectedId !== '' ? `ID: ${selectedId}` : null;
+      const amountText =
+        trimmedManualAmount !== ''
+          ? `Monto: ${trimmedManualAmount}`
+          : matchedTariff?.amount != null
+            ? `Monto: ${matchedTariff.amount}`
+            : null;
+      const labelParts = [baseName, idText, amountText].filter(Boolean);
+      const displayName = labelParts.join(' • ') || baseName;
+      return { ...selectedTariff, name: displayName };
     },
-    [selectedTariff, manualTariffItem, manualTariffDisplayName]
+    [selectedTariff, manualTariffItem, manualTariffDisplayLabel, tariffs, trimmedManualAmount]
   );
 
 
@@ -703,14 +722,6 @@ export default function EditJobScreen() {
           }}
         />
       </View>
-      {job && (
-        <>
-          <ThemedText style={[styles.infoLabel, { color: textColor }]}>ID</ThemedText>
-          <ThemedText style={[styles.infoValue, { color: textColor }]}>
-            {jobTariffId != null ? jobTariffId : 'Tarifa manual'}
-          </ThemedText>
-        </>
-      )}
       {/* Tarifa manual */}
       <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
       <TextInput
@@ -721,15 +732,6 @@ export default function EditJobScreen() {
         editable={canEdit}
         placeholderTextColor={placeholderColor}
       />
-      {job && (
-        <>
-          <ThemedText style={[styles.infoLabel, { color: textColor }]}>Monto</ThemedText>
-          <ThemedText style={[styles.infoValue, { color: textColor }]}> 
-            {jobContextAmount ?? 'Sin monto'}
-          </ThemedText>
-        </>
-      )}
-
       {/* Descripción */}
       <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
       <TextInput
