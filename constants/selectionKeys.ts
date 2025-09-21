@@ -17,6 +17,7 @@ export const SELECTION_KEYS = {
     client: 'jobs.client',
     tariff: 'jobs.tariff',
     status: 'jobs.status',
+    folder: 'jobs.folder',
   },
   clients: {
     tariff: 'clients.tariff',
