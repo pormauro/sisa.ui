@@ -47,7 +47,12 @@ export default function ProfileScreen(): JSX.Element {
   const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: background }]}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
       <ThemedText style={styles.subtitle}>Perfil</ThemedText>
 
       {profileDetails ? (
@@ -127,6 +132,7 @@ export default function ProfileScreen(): JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
+  contentContainer: { paddingBottom: 120 },
   subtitle: {
     fontSize: 22,
     fontWeight: 'bold',

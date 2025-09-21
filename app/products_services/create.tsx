@@ -67,7 +67,12 @@ export default function CreateProductService() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor }} contentContainerStyle={styles.container}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor }}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={styles.container}
+    >
       <ThemedText style={styles.label}>Imagen</ThemedText>
       <CircleImagePicker
         fileId={productImageFileId}
@@ -173,7 +178,7 @@ export default function CreateProductService() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   row: { flexDirection: 'row', gap: 16, marginVertical: 8 },

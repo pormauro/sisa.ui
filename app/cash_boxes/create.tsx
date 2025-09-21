@@ -59,7 +59,11 @@ export default function CreateCashBox() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
+    >
       <ThemedText style={styles.label}>Imagen de la Caja</ThemedText>
       <CircleImagePicker
         fileId={imageFileId}
@@ -93,7 +97,7 @@ export default function CreateCashBox() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },

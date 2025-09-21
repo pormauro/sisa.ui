@@ -308,7 +308,11 @@ export default function CreatePayment() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
+    >
       <ThemedText style={styles.label}>Fecha y hora</ThemedText>
       <TouchableOpacity
         style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
@@ -548,7 +552,7 @@ export default function CreatePayment() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   select: {

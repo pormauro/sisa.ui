@@ -141,7 +141,11 @@ export default function CreateFolderPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
+    >
       <ThemedText style={styles.label}>Cliente *</ThemedText>
       <SearchableSelect
         style={styles.select}
@@ -195,7 +199,7 @@ export default function CreateFolderPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

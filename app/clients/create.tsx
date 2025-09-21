@@ -118,6 +118,7 @@ export default function CreateClientPage() {
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
     >
       <ThemedText style={styles.label}>Imagen del Cliente</ThemedText>
@@ -211,7 +212,7 @@ export default function CreateClientPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   input: {
     borderWidth: 1,
