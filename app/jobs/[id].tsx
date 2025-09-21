@@ -20,7 +20,6 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { StatusesContext } from '@/contexts/StatusesContext';
-import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatTimeInterval } from '@/utils/time';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -37,35 +36,6 @@ const toNum = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-const parseManualAmountValue = (value: unknown): number => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return 0;
-    }
-    const normalized = trimmed.replace(/,/g, '.');
-    const parsed = Number.parseFloat(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-};
-
-const formatManualAmountValue = (value: unknown): string => {
-  if (value == null) {
-    return '';
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return '';
-    }
-  }
-  const parsed = parseManualAmountValue(value);
-  return Number.isFinite(parsed) ? parsed.toString() : '';
-};
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -78,7 +48,6 @@ export default function EditJobScreen() {
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
-  const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -89,32 +58,19 @@ export default function EditJobScreen() {
   } = usePendingSelection();
 
   const job = jobs.find(j => j.id === jobId);
-  const jobTariffId = toNum(job?.tariff_id);
-  const jobTariff = useMemo(() => {
-    if (jobTariffId == null) return null;
-    const match = tariffs.find(t => toNum(t.id) === jobTariffId);
-    return match ?? null;
-  }, [jobTariffId, tariffs]);
-  const jobContextAmount = job?.manual_amount != null ? job.manual_amount : jobTariff?.amount;
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
   const NEW_CLIENT_VALUE  = '__new_client__';
   const NEW_STATUS_VALUE  = '__new_status__';
   const NEW_FOLDER_VALUE  = '__new_folder__';
   const NO_FOLDER_VALUE   = '__no_folder__';
-  const NEW_TARIFF_VALUE  = '__new_tariff__';
-  const MANUAL_TARIFF_VALUE = '__manual_tariff__';
 
   // estados para pickers
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
   const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
-  const [selectedTariff,  setSelectedTariff]  = useState<ModalPickerItem | null>(null);
-  const manualTariffItem = useMemo<ModalPickerItem>(
-    () => ({ id: MANUAL_TARIFF_VALUE, name: '-- Tarifa manual --' }),
-    [MANUAL_TARIFF_VALUE]
-  );
-  const [manualAmount,   setManualAmount]    = useState('');
+  const [tariffId,        setTariffId]        = useState<number | null>(null);
+  const [manualAmount,   setManualAmount]    = useState<number | null>(null);
 
   // otros campos
   const [description,   setDescription] = useState('');
@@ -133,15 +89,6 @@ export default function EditJobScreen() {
   const previousClientIdRef = useRef<string | null>(null);
   const isInitializingRef = useRef(true);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const trimmedManualAmount = manualAmount.trim();
-  const parsedManualAmount = useMemo(
-    () => parseManualAmountValue(trimmedManualAmount),
-    [trimmedManualAmount]
-  );
-  const rate = useMemo(
-    () => (trimmedManualAmount !== '' ? parsedManualAmount : 0),
-    [trimmedManualAmount, parsedManualAmount]
-  );
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
 
@@ -156,19 +103,12 @@ export default function EditJobScreen() {
     ],
     [clients]
   );
-  const price = useMemo(() => {
-    const start = new Date(`1970-01-01T${startTime}`);
-    const end = new Date(`1970-01-01T${endTime}`);
-    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    return diffHours > 0 && rate ? diffHours * rate : 0;
-  }, [startTime, endTime, rate]);
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#999', dark: '#555' }, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#aaa' }, 'text');
-  const priceColor = useThemeColor({}, 'tint');
   const btnSaveColor = useThemeColor({}, 'button');
   const btnTextColor = useThemeColor({}, 'buttonText');
   
@@ -209,17 +149,8 @@ export default function EditJobScreen() {
       setStartTime(extractTime(job.start_time));
       setEndTime(extractTime(job.end_time));
 
-      const manualValueFromContext = formatManualAmountValue(jobContextAmount);
-
-      if (jobTariff) {
-        setSelectedTariff({ id: jobTariff.id, name: `${jobTariff.name} - ${jobTariff.amount}` });
-      } else if (job?.tariff_id != null) {
-        setSelectedTariff({ id: job.tariff_id, name: `Tarifa #${job.tariff_id}` });
-      } else {
-        setSelectedTariff(manualTariffItem);
-      }
-
-      setManualAmount(manualValueFromContext);
+      setTariffId(toNum(job.tariff_id));
+      setManualAmount(typeof job.manual_amount === 'number' ? job.manual_amount : null);
 
       const parts = job.participants
         ? (typeof job.participants === 'string'
@@ -242,7 +173,7 @@ export default function EditJobScreen() {
     Promise.resolve(loadJobs()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [job, jobTariff, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId, jobContextAmount]);
+  }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -260,26 +191,7 @@ export default function EditJobScreen() {
 
     previousClientIdRef.current = selectedClientId;
     setSelectedFolder(null);
-
-    if (!selectedClientId) {
-      setSelectedTariff(manualTariffItem);
-      setManualAmount('');
-      return;
-    }
-
-    const client = clients.find(c => c.id.toString() === selectedClientId);
-    if (client?.tariff_id != null) {
-      const t = tariffs.find(t => toNum(t.id) === toNum(client.tariff_id));
-      if (t) {
-        setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
-        setManualAmount(formatManualAmountValue(t.amount));
-        return;
-      }
-    }
-
-    setSelectedTariff(manualTariffItem);
-    setManualAmount('');
-  }, [selectedClientId, clients, tariffs, manualTariffItem]);
+  }, [selectedClientId]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
@@ -290,72 +202,6 @@ export default function EditJobScreen() {
       setSelectedClientId(pendingClientId.toString());
     }
   }, [pendingSelections, consumeSelection]);
-
-  useEffect(() => {
-    const pendingTariff = pendingSelections[SELECTION_KEYS.jobs.tariff];
-    if (pendingTariff === undefined) {
-      return;
-    }
-
-    consumeSelection(SELECTION_KEYS.jobs.tariff);
-
-    if (pendingTariff === null) {
-      setSelectedTariff(manualTariffItem);
-      return;
-    }
-
-    if (typeof pendingTariff === 'object') {
-      const selection = pendingTariff as Partial<ModalPickerItem> & { amount?: unknown };
-      if (selection.id === MANUAL_TARIFF_VALUE) {
-        setSelectedTariff(manualTariffItem);
-        return;
-      }
-
-      if (selection.id != null) {
-        const normalizedId = toNum(selection.id);
-        if (normalizedId != null) {
-          const tariff = tariffs.find(t => toNum(t.id) === normalizedId);
-          if (tariff) {
-            setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
-            setManualAmount(formatManualAmountValue(tariff.amount));
-            return;
-          }
-        }
-
-        const fallbackName =
-          typeof selection.name === 'string' && selection.name.trim()
-            ? selection.name
-            : `Tarifa #${selection.id}`;
-        setSelectedTariff({ id: selection.id, name: fallbackName });
-
-        if (Object.prototype.hasOwnProperty.call(selection, 'amount')) {
-          setManualAmount(formatManualAmountValue(selection.amount));
-        }
-        return;
-      }
-    }
-
-    if (typeof pendingTariff === 'string' || typeof pendingTariff === 'number') {
-      if (pendingTariff === MANUAL_TARIFF_VALUE) {
-        setSelectedTariff(manualTariffItem);
-        return;
-      }
-
-      const normalizedId = toNum(pendingTariff);
-      if (normalizedId != null) {
-        const tariff = tariffs.find(t => toNum(t.id) === normalizedId);
-        if (tariff) {
-          setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
-          setManualAmount(formatManualAmountValue(tariff.amount));
-          return;
-        }
-        setSelectedTariff({ id: normalizedId, name: `Tarifa #${normalizedId}` });
-        return;
-      }
-    }
-
-    setSelectedTariff(manualTariffItem);
-  }, [pendingSelections, consumeSelection, tariffs, manualTariffItem, MANUAL_TARIFF_VALUE]);
 
   useEffect(() => {
     if (
@@ -387,7 +233,7 @@ export default function EditJobScreen() {
     if (job && isInitializingRef.current) {
       isInitializingRef.current = false;
     }
-  }, [job, selectedClientId, selectedTariff, jobDate, manualAmount]);
+  }, [job, selectedClientId, jobDate, manualAmount]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.folder)) {
@@ -441,32 +287,9 @@ export default function EditJobScreen() {
     [statuses]
   );
 
-  const tariffItems = useMemo(
-    () => {
-      const items: ModalPickerItem[] = [
-        { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
-        manualTariffItem,
-        ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
-      ];
-      if (jobTariffId != null && !tariffs.some(t => toNum(t.id) === jobTariffId)) {
-        items.push({ id: jobTariffId, name: `Tarifa #${jobTariffId}` });
-      }
-      return items;
-    },
-    [manualTariffItem, tariffs, jobTariffId]
-  );
-
-
   // submit
   const handleSubmit = async () => {
-    if (
-      !selectedClientId ||
-      !description ||
-      !jobDate ||
-      !startTime ||
-      !endTime ||
-      trimmedManualAmount === ''
-    ) {
+    if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
@@ -477,15 +300,8 @@ export default function EditJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: (() => {
-          if (!selectedTariff || selectedTariff.id === MANUAL_TARIFF_VALUE) {
-            return null;
-          }
-          const normalizedId = toNum(selectedTariff.id);
-          return normalizedId;
-        })(),
-        manual_amount:
-          trimmedManualAmount !== '' ? parseManualAmountValue(trimmedManualAmount) : null,
+        tariff_id: tariffId,
+        manual_amount: manualAmount,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
@@ -665,52 +481,6 @@ export default function EditJobScreen() {
         onChange={setParticipants}
       />
 
-      {/* Tarifa */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
-      <View style={styles.select}>
-        <ModalPicker
-          items={tariffItems}
-          selectedItem={selectedTariff}
-          onSelect={(item) => {
-            if (item.id === NEW_TARIFF_VALUE) {
-              beginSelection(SELECTION_KEYS.jobs.tariff);
-              router.push('/tariffs/create');
-              return;
-            }
-
-            if (item.id === manualTariffItem.id) {
-              setSelectedTariff(manualTariffItem);
-              return;
-            }
-
-            setSelectedTariff(item);
-            const normalizedItemId = toNum(item.id);
-            const t = normalizedItemId != null
-              ? tariffs.find(t => toNum(t.id) === normalizedItemId)
-              : undefined;
-            if (t) {
-              setManualAmount(formatManualAmountValue(t.amount));
-            }
-          }}
-          placeholder="-- Tarifa --"
-          onItemLongPress={(item) => {
-            const value = String(item.id ?? '');
-            if (!value || value === NEW_TARIFF_VALUE) return;
-            beginSelection(SELECTION_KEYS.jobs.tariff);
-            router.push(`/tariffs/${value}`);
-          }}
-        />
-      </View>
-      {/* Tarifa manual */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
-        value={manualAmount}
-        onChangeText={setManualAmount}
-        keyboardType="numeric"
-        editable={canEdit}
-        placeholderTextColor={placeholderColor}
-      />
       {/* Descripción */}
       <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
       <TextInput
@@ -776,10 +546,6 @@ export default function EditJobScreen() {
         <ThemedText style={[styles.intervalText, { color: textColor }]}>Tiempo trabajado: {timeInterval}</ThemedText>
       )}
 
-      {price > 0 && (
-        <ThemedText style={[styles.priceText, { color: priceColor }]}>Costo: ${price.toFixed(2)}</ThemedText>
-      )}
-
       {/* Archivos adjuntos */}
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
       <FileGallery
@@ -829,21 +595,20 @@ export default function EditJobScreen() {
            contentContainerStyle={[styles.container, { backgroundColor: background }]}
            keyboardShouldPersistTaps="handled"
            // <-- Le decimos al FlatList que también re-renderice si cambia cualquiera de estos estados
-           extraData={{
-             selectedClientId,
-             selectedFolder,
-             description,
-             attachedFiles,
-             jobDate,
-             startTime,
-             endTime,
-             selectedStatus,
-             selectedTariff,
-             manualAmount,
-             participants,
-             jobContextAmount,
-             jobId: job?.id,
-           }}
+          extraData={{
+            selectedClientId,
+            selectedFolder,
+            description,
+            attachedFiles,
+            jobDate,
+            startTime,
+            endTime,
+            selectedStatus,
+            manualAmount,
+            participants,
+            tariffId,
+            jobId: job?.id,
+          }}
         />
        </ThemedView>
   );
@@ -857,7 +622,6 @@ const styles = StyleSheet.create({
   infoLabel: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   infoValue: { fontSize: 16, marginBottom: 8 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
-  priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },
