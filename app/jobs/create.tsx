@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
-import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useContext, useEffect, useMemo } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -19,7 +19,6 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
-import { TariffsContext } from '@/contexts/TariffsContext';
 import { ModalPicker, ModalPickerItem } from '@/components/ModalPicker';
 import { formatTimeInterval } from '@/utils/time';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
@@ -39,7 +38,6 @@ export default function CreateJobScreen() {
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
-  const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -52,15 +50,10 @@ export default function CreateJobScreen() {
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_STATUS_VALUE = '__new_status__';
   const NEW_FOLDER_VALUE = '__new_folder__';
-  const NEW_TARIFF_VALUE = '__new_tariff__';
   // Form state
   const [selectedClient, setSelectedClient] = useState<string>('');
   const [selectedFolder, setSelectedFolder] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<ModalPickerItem | null>(null);
-  const [selectedTariff, setSelectedTariff] = useState<string>('');
-  const [manualAmount, setManualAmount] = useState<string>('');
-  const manualAmountRef = useRef('');
-  const previousClientRef = useRef<string>('');
   const [description, setDescription] = useState<string>('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [jobDate, setJobDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -75,14 +68,6 @@ export default function CreateJobScreen() {
     userId ? [Number(userId)] : []
   );
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const trimmedManualAmount = manualAmount.trim();
-  useEffect(() => {
-    manualAmountRef.current = manualAmount;
-  }, [manualAmount]);
-  const rate = useMemo(
-    () => (trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : 0),
-    [trimmedManualAmount]
-  );
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
 
@@ -116,31 +101,12 @@ export default function CreateJobScreen() {
     [filteredFolders]
   );
 
-  const tariffItems = useMemo(
-    () => [
-      { label: '-- Tarifa manual --', value: '' },
-      { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
-      ...tariffs.map(tariff => ({
-        label: `${tariff.name} - ${tariff.amount}`,
-        value: tariff.id.toString(),
-      })),
-    ],
-    [tariffs]
-  );
-  const price = useMemo(() => {
-    const start = new Date(`1970-01-01T${startTime}`);
-    const end = new Date(`1970-01-01T${endTime}`);
-    const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    return diffHours > 0 && rate ? diffHours * rate : 0;
-  }, [startTime, endTime, rate]);
-
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#999', dark: '#555' }, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#aaa' }, 'text');
-  const priceColor = useThemeColor({}, 'tint');
   const submitBtnColor = useThemeColor({}, 'button');
   const submitTextColor = useThemeColor({}, 'buttonText');
 
@@ -176,97 +142,8 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
-    const pendingValue = pendingSelections[SELECTION_KEYS.jobs.tariff];
-    if (pendingValue === undefined || pendingValue === null) {
-      return;
-    }
-
-    let pendingTariffId: string | null = null;
-    let hasFallbackAmount = false;
-    let fallbackAmount: unknown;
-    let hasFallbackSelection = false;
-
-    if (typeof pendingValue === 'object') {
-      const selection = pendingValue as Partial<ModalPickerItem> & { amount?: unknown };
-      if (selection.id != null) {
-        pendingTariffId = String(selection.id);
-        hasFallbackSelection = true;
-      }
-      if (Object.prototype.hasOwnProperty.call(selection, 'amount')) {
-        hasFallbackAmount = true;
-        fallbackAmount = selection.amount;
-      }
-    } else if (typeof pendingValue === 'string' || typeof pendingValue === 'number') {
-      const normalized = String(pendingValue).trim();
-      if (normalized) {
-        pendingTariffId = normalized;
-      }
-    }
-
-    if (!pendingTariffId) {
-      return;
-    }
-
-    const tariff = tariffs.find(t => t.id.toString() === pendingTariffId);
-    if (tariff) {
-      consumeSelection(SELECTION_KEYS.jobs.tariff);
-      setSelectedTariff(pendingTariffId);
-      setManualAmount(tariff.amount.toString());
-      return;
-    }
-
-    if (hasFallbackSelection) {
-      consumeSelection(SELECTION_KEYS.jobs.tariff);
-      setSelectedTariff(pendingTariffId);
-      if (hasFallbackAmount) {
-        if (fallbackAmount == null) {
-          setManualAmount('');
-        } else {
-          setManualAmount(typeof fallbackAmount === 'string' ? fallbackAmount : String(fallbackAmount));
-        }
-      }
-    }
-  }, [pendingSelections, consumeSelection, tariffs]);
-
-  useEffect(() => {
-    const previousClient = previousClientRef.current;
-    const clientChanged = previousClient !== selectedClient;
-    const manualAmountIsEmpty = manualAmountRef.current.trim() === '';
-
-    if (clientChanged) {
-      previousClientRef.current = selectedClient;
-    }
-
-    if (!selectedClient) {
-      setSelectedTariff('');
-      if (clientChanged) {
-        setSelectedFolder('');
-        setManualAmount('');
-      }
-      return;
-    }
-
-    if (clientChanged) {
-      setSelectedFolder('');
-    }
-
-    const client = clients.find(c => c.id.toString() === selectedClient);
-    if (client?.tariff_id) {
-      const clientTariff = tariffs.find(t => t.id === client.tariff_id);
-      if (clientTariff) {
-        setSelectedTariff(clientTariff.id.toString());
-        if (clientChanged || manualAmountIsEmpty) {
-          setManualAmount(clientTariff.amount.toString());
-        }
-        return;
-      }
-    }
-
-    setSelectedTariff('');
-    if (clientChanged) {
-      setManualAmount('');
-    }
-  }, [selectedClient, clients, tariffs]);
+    setSelectedFolder('');
+  }, [selectedClient]);
 
   const statusItems = useMemo(
     () => [
@@ -326,14 +203,7 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   const handleSubmit = async () => {
-    if (
-      !selectedClient ||
-      !description ||
-      !jobDate ||
-      !startTime ||
-      !endTime ||
-      trimmedManualAmount === ''
-    ) {
+    if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
@@ -343,8 +213,8 @@ export default function CreateJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: selectedTariff ? parseInt(selectedTariff, 10) : null,
-        manual_amount: trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : null,
+        tariff_id: null,
+        manual_amount: null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
@@ -496,48 +366,6 @@ export default function CreateJobScreen() {
         onChange={setParticipants}
       />
 
-      {/* Tarifa */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
-      <SearchableSelect
-        style={styles.select}
-        items={tariffItems}
-        selectedValue={selectedTariff}
-        onValueChange={(val) => {
-          const stringValue = val?.toString() ?? '';
-          if (stringValue === NEW_TARIFF_VALUE) {
-            setSelectedTariff('');
-            beginSelection(SELECTION_KEYS.jobs.tariff);
-            router.push('/tariffs/create');
-            return;
-          }
-          setSelectedTariff(stringValue);
-          if (!stringValue) {
-            return;
-          }
-          const t = tariffs.find(tariff => tariff.id.toString() === stringValue);
-          if (t) {
-            setManualAmount(t.amount.toString());
-          }
-        }}
-        placeholder="-- Tarifa manual --"
-        onItemLongPress={(item) => {
-          const value = String(item.value ?? '');
-          if (!value || value === NEW_TARIFF_VALUE) return;
-          beginSelection(SELECTION_KEYS.jobs.tariff);
-          router.push(`/tariffs/${value}`);
-        }}
-      />
-      {/* Tarifa manual */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
-        placeholder="Ingresa tarifa manual"
-        placeholderTextColor={placeholderColor}
-        value={manualAmount}
-        onChangeText={setManualAmount}
-        keyboardType="numeric"
-      />
-
       {/* Descripción */}
       <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
       <TextInput
@@ -603,10 +431,6 @@ export default function CreateJobScreen() {
         <ThemedText style={[styles.intervalText, { color: textColor }]}>Tiempo trabajado: {timeInterval}</ThemedText>
       )}
 
-      {price > 0 && (
-        <ThemedText style={[styles.priceText, { color: priceColor }]}>Costo: ${price.toFixed(2)}</ThemedText>
-      )}
-
       {/* Archivos adjuntos */}
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
       <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
@@ -651,7 +475,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   intervalText: { textAlign: 'center', marginBottom: 12 },
-  priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
   submitBtn: {
     marginTop: 20,
     padding: 16,
