@@ -24,6 +24,7 @@ export const SELECTION_KEYS = {
   },
   appointments: {
     client: 'appointments.client',
+    job: 'appointments.job',
   },
   folders: {
     client: 'folders.client',

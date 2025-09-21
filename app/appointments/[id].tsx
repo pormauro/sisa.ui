@@ -66,6 +66,7 @@ export default function EditAppointmentScreen() {
 
   const skipInitialAutoFillRef = useRef(false);
   const lastSelectedClientRef = useRef<string | null>(null);
+  const pendingJobSelectionRef = useRef<string | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#fff', dark: '#3b314d' }, 'background');
@@ -143,12 +144,28 @@ export default function EditAppointmentScreen() {
   useEffect(() => {
     if (!selectedClient) {
       setSelectedJob('');
+      pendingJobSelectionRef.current = null;
       return;
     }
-    const jobExists = clientJobs.some(job => job.id.toString() === selectedJob);
-    if (!jobExists) {
-      setSelectedJob('');
+
+    if (!selectedJob) {
+      pendingJobSelectionRef.current = null;
+      return;
     }
+
+    const jobExists = clientJobs.some(job => job.id.toString() === selectedJob);
+    if (jobExists) {
+      if (pendingJobSelectionRef.current === selectedJob) {
+        pendingJobSelectionRef.current = null;
+      }
+      return;
+    }
+
+    if (pendingJobSelectionRef.current === selectedJob) {
+      return;
+    }
+
+    setSelectedJob('');
   }, [clientJobs, selectedClient, selectedJob]);
 
   useEffect(() => {
@@ -159,6 +176,19 @@ export default function EditAppointmentScreen() {
     if (pendingClient) {
       setSelectedClient(pendingClient.toString());
     }
+  }, [pendingSelections, consumeSelection]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.appointments.job)) {
+      return;
+    }
+    const pendingJobId = consumeSelection<string | number>(SELECTION_KEYS.appointments.job);
+    if (!pendingJobId && pendingJobId !== 0) {
+      return;
+    }
+    const normalizedId = pendingJobId.toString();
+    pendingJobSelectionRef.current = normalizedId;
+    setSelectedJob(normalizedId);
   }, [pendingSelections, consumeSelection]);
 
   const handleChangeDate = (_: any, selected?: Date) => {
@@ -310,9 +340,11 @@ export default function EditAppointmentScreen() {
               const stringValue = value?.toString() ?? '';
               if (stringValue === NEW_JOB_VALUE) {
                 if (selectedClient) {
+                  beginSelection(SELECTION_KEYS.appointments.job);
                   router.push({ pathname: '/jobs/create', params: { client_id: selectedClient } });
                 }
                 setSelectedJob('');
+                pendingJobSelectionRef.current = null;
                 return;
               }
               setSelectedJob(stringValue);
@@ -322,6 +354,7 @@ export default function EditAppointmentScreen() {
             onItemLongPress={(item) => {
               const value = String(item.value ?? '');
               if (!value || value === NEW_JOB_VALUE) return;
+              beginSelection(SELECTION_KEYS.appointments.job);
               router.push(`/jobs/${value}`);
             }}
           />

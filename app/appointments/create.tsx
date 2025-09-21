@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -46,6 +46,7 @@ export default function CreateAppointmentScreen() {
 
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedJob, setSelectedJob] = useState('');
+  const pendingJobSelectionRef = useRef<string | null>(null);
   const [dateTime, setDateTime] = useState<Date>(() => {
     const now = new Date();
     now.setSeconds(0, 0);
@@ -123,12 +124,28 @@ export default function CreateAppointmentScreen() {
   useEffect(() => {
     if (!selectedClient) {
       setSelectedJob('');
+      pendingJobSelectionRef.current = null;
       return;
     }
-    const jobExists = clientJobs.some(job => job.id.toString() === selectedJob);
-    if (!jobExists) {
-      setSelectedJob('');
+
+    if (!selectedJob) {
+      pendingJobSelectionRef.current = null;
+      return;
     }
+
+    const jobExists = clientJobs.some(job => job.id.toString() === selectedJob);
+    if (jobExists) {
+      if (pendingJobSelectionRef.current === selectedJob) {
+        pendingJobSelectionRef.current = null;
+      }
+      return;
+    }
+
+    if (pendingJobSelectionRef.current === selectedJob) {
+      return;
+    }
+
+    setSelectedJob('');
   }, [clientJobs, selectedClient, selectedJob]);
 
   useEffect(() => {
@@ -139,6 +156,19 @@ export default function CreateAppointmentScreen() {
     if (pendingClient) {
       setSelectedClient(pendingClient.toString());
     }
+  }, [pendingSelections, consumeSelection]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.appointments.job)) {
+      return;
+    }
+    const pendingJobId = consumeSelection<string | number>(SELECTION_KEYS.appointments.job);
+    if (!pendingJobId && pendingJobId !== 0) {
+      return;
+    }
+    const normalizedId = pendingJobId.toString();
+    pendingJobSelectionRef.current = normalizedId;
+    setSelectedJob(normalizedId);
   }, [pendingSelections, consumeSelection]);
 
   const handleChangeDate = (_: any, selected?: Date) => {
@@ -242,9 +272,11 @@ export default function CreateAppointmentScreen() {
               const stringValue = value?.toString() ?? '';
               if (stringValue === NEW_JOB_VALUE) {
                 if (selectedClient) {
+                  beginSelection(SELECTION_KEYS.appointments.job);
                   router.push({ pathname: '/jobs/create', params: { client_id: selectedClient } });
                 }
                 setSelectedJob('');
+                pendingJobSelectionRef.current = null;
                 return;
               }
               setSelectedJob(stringValue);
@@ -254,6 +286,7 @@ export default function CreateAppointmentScreen() {
             onItemLongPress={(item) => {
               const value = String(item.value ?? '');
               if (!value || value === NEW_JOB_VALUE) return;
+              beginSelection(SELECTION_KEYS.appointments.job);
               router.push(`/jobs/${value}`);
             }}
           />
