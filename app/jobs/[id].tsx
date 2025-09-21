@@ -95,9 +95,15 @@ export default function EditJobScreen() {
     () => tariffs.find(t => t.id === Number(selectedTariff?.id)),
     [tariffs, selectedTariff]
   );
+  const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
+  const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
   const filteredTariffs = useMemo(
-    () => tariffs.filter(t => new Date(jobDate) >= new Date(t.last_update)),
-    [tariffs, jobDate]
+    () => tariffs.filter(t => jobDateValue >= new Date(t.last_update)),
+    [tariffs, jobDateValue]
+  );
+  const tariffsForSelection = useMemo(
+    () => (!jobDate || isJobDateInvalid ? tariffs : filteredTariffs),
+    [filteredTariffs, isJobDateInvalid, jobDate, tariffs]
   );
 
   const clientItems = useMemo(
@@ -228,7 +234,7 @@ export default function EditJobScreen() {
     const client = clients.find(c => c.id.toString() === selectedClientId);
     if (client?.tariff_id) {
       const t = tariffs.find(t => t.id === client.tariff_id);
-      if (t && new Date(jobDate) >= new Date(t.last_update)) {
+      if (t && !isJobDateInvalid && jobDateValue >= new Date(t.last_update)) {
         setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
         setManualAmount(t.amount.toString());
         return;
@@ -239,7 +245,7 @@ export default function EditJobScreen() {
     if (!shouldSkipManualAmountReset) {
       setManualAmount('');
     }
-  }, [selectedClientId, clients, tariffs, manualTariffItem, jobDate]);
+  }, [selectedClientId, clients, tariffs, manualTariffItem, jobDate, jobDateValue, isJobDateInvalid]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
@@ -298,14 +304,14 @@ export default function EditJobScreen() {
 
     if (selectedTariff && selectedTariff.id !== '') {
       const t = tariffs.find(t => t.id === Number(selectedTariff.id));
-      if (t && new Date(jobDate) < new Date(t.last_update)) {
+      if (t && !isJobDateInvalid && jobDateValue < new Date(t.last_update)) {
         setSelectedTariff(manualTariffItem);
         if (!shouldSkipManualAmountReset) {
           setManualAmount('');
         }
       }
     }
-  }, [jobDate, selectedTariff, tariffs, manualTariffItem]);
+  }, [isJobDateInvalid, jobDate, jobDateValue, selectedTariff, tariffs, manualTariffItem]);
 
   useEffect(() => {
     if (job && isInitializingRef.current) {
@@ -369,9 +375,9 @@ export default function EditJobScreen() {
     () => [
       { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
       manualTariffItem,
-      ...filteredTariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
+      ...tariffsForSelection.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
     ],
-    [filteredTariffs, manualTariffItem]
+    [manualTariffItem, tariffsForSelection]
   );
 
 
@@ -473,7 +479,7 @@ export default function EditJobScreen() {
       </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
-          value={jobDate ? new Date(jobDate) : new Date()}
+          value={isJobDateInvalid ? new Date() : jobDateValue}
           mode="date"
           display="default"
           onChange={(e, selected) => {

@@ -82,9 +82,15 @@ export default function CreateJobScreen() {
     () => tariffs.find(t => t.id.toString() === selectedTariff),
     [tariffs, selectedTariff]
   );
+  const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
+  const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
   const filteredTariffs = useMemo(
-    () => tariffs.filter(t => new Date(jobDate) >= new Date(t.last_update)),
-    [tariffs, jobDate]
+    () => tariffs.filter(t => jobDateValue >= new Date(t.last_update)),
+    [tariffs, jobDateValue]
+  );
+  const tariffsForSelection = useMemo(
+    () => (!jobDate || isJobDateInvalid ? tariffs : filteredTariffs),
+    [filteredTariffs, isJobDateInvalid, jobDate, tariffs]
   );
 
   const clientItems = useMemo(
@@ -121,12 +127,12 @@ export default function CreateJobScreen() {
     () => [
       { label: '-- Tarifa manual --', value: '' },
       { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
-      ...filteredTariffs.map(tariff => ({
+      ...tariffsForSelection.map(tariff => ({
         label: `${tariff.name} - ${tariff.amount}`,
         value: tariff.id.toString(),
       })),
     ],
-    [filteredTariffs]
+    [tariffsForSelection]
   );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
@@ -204,7 +210,7 @@ export default function CreateJobScreen() {
     setSelectedFolder('');
     if (client?.tariff_id) {
       const clientTariff = tariffs.find(t => t.id === client.tariff_id);
-      if (clientTariff && new Date(jobDate) >= new Date(clientTariff.last_update)) {
+      if (clientTariff && !isJobDateInvalid && jobDateValue >= new Date(clientTariff.last_update)) {
         setSelectedTariff(clientTariff.id.toString());
         setManualAmount(clientTariff.amount.toString());
         return;
@@ -212,7 +218,7 @@ export default function CreateJobScreen() {
     }
     setSelectedTariff('');
     setManualAmount('');
-  }, [selectedClient, clients, tariffs, jobDate]);
+  }, [selectedClient, clients, tariffs, jobDate, jobDateValue, isJobDateInvalid]);
 
   const statusItems = useMemo(
     () => [
@@ -274,12 +280,12 @@ export default function CreateJobScreen() {
   useEffect(() => {
     if (selectedTariff) {
       const t = tariffs.find(t => t.id.toString() === selectedTariff);
-      if (t && new Date(jobDate) < new Date(t.last_update)) {
+      if (t && !isJobDateInvalid && jobDateValue < new Date(t.last_update)) {
         setSelectedTariff('');
         setManualAmount('');
       }
     }
-  }, [jobDate, selectedTariff, tariffs]);
+  }, [isJobDateInvalid, jobDate, jobDateValue, selectedTariff, tariffs]);
 
 
   const handleSubmit = async () => {
@@ -356,7 +362,7 @@ export default function CreateJobScreen() {
       </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
-          value={new Date(jobDate)}
+          value={isJobDateInvalid ? new Date() : jobDateValue}
           mode="date"
           display="default"
           onChange={(e, selected) => {
