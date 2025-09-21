@@ -1,6 +1,6 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, Alert, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, ScrollView, Alert, View, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
@@ -8,11 +8,13 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useLog } from '@/contexts/LogContext';
 import { clearAllDataCaches } from '@/utils/cache';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
   const { clearLocalFiles } = useContext(FileContext);
+  const { overlaySuppressed, setOverlaySuppressed, overlaySettingsHydrated } = useLog();
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
 
   useEffect(() => {
@@ -55,6 +57,7 @@ const ConfigScreen: React.FC = () => {
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
+  const accentColor = useThemeColor({}, 'tint');
 
   const handleThemeChange = (value: string): void => {
     setSelectedTheme(value);
@@ -110,6 +113,20 @@ const ConfigScreen: React.FC = () => {
               />
             </TouchableOpacity>
           </View>
+          <View style={styles.switchRow}>
+            <ThemedText style={styles.switchLabel}>Ocultar globito de errores</ThemedText>
+            <Switch
+              value={overlaySuppressed}
+              onValueChange={setOverlaySuppressed}
+              trackColor={{ false: '#9ca3af', true: accentColor }}
+              thumbColor={overlaySuppressed ? accentColor : '#f4f3f4'}
+              ios_backgroundColor="#9ca3af"
+              disabled={!overlaySettingsHydrated}
+            />
+          </View>
+          <ThemedText style={styles.switchHint}>
+            Al activarlo se ocultará el indicador flotante de errores.
+          </ThemedText>
           <ThemedButton
             title="Borrar datos de archivos"
             lightColor="#d9534f"
@@ -160,6 +177,22 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
   },
   editButton: { marginTop: 10 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  switchLabel: {
+    flex: 1,
+    fontSize: 16,
+    marginRight: 12,
+  },
+  switchHint: {
+    fontSize: 14,
+    marginTop: 6,
+    opacity: 0.7,
+  },
 });
 
 export default ConfigScreen;

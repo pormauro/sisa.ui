@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   FlatList,
@@ -47,7 +47,7 @@ const formatTimestamp = (timestamp: number) =>
   new Date(timestamp).toLocaleString();
 
 export const LogOverlay: React.FC = () => {
-  const { logs, clearLogs } = useLog();
+  const { logs, clearLogs, overlaySuppressed, overlaySettingsHydrated } = useLog();
   const [isVisible, setIsVisible] = useState(false);
   const { width, height } = Dimensions.get('window');
   const initialPosition = clampPosition(
@@ -65,6 +65,14 @@ export const LogOverlay: React.FC = () => {
     { light: 'rgba(31, 41, 55, 0.7)', dark: 'rgba(243, 244, 246, 0.7)' },
     'text'
   );
+
+  const overlayEnabled = !overlaySuppressed;
+
+  useEffect(() => {
+    if (!overlayEnabled && isVisible) {
+      setIsVisible(false);
+    }
+  }, [overlayEnabled, isVisible]);
 
   const sortedLogs = useMemo(
     () => [...logs].sort((a, b) => b.timestamp - a.timestamp),
@@ -116,31 +124,39 @@ export const LogOverlay: React.FC = () => {
     setIsVisible(false);
   };
 
+  if (!overlaySettingsHydrated || !overlayEnabled) {
+    return null;
+  }
+
+  const hasLogs = logs.length > 0;
+
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <View
-        style={[
-          styles.floatingButton,
-          {
-            backgroundColor: buttonColor,
-            left: position.x,
-            top: position.y,
-          },
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel="Abrir registros de eventos"
-        accessibilityHint="Toca para revisar los mensajes ocultos"
-        {...panResponder.panHandlers}
-      >
-        <Ionicons name="alert-circle" size={28} color="#ffffff" />
-        {logs.length > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {logs.length > 99 ? '99+' : logs.length}
-            </Text>
-          </View>
-        )}
-      </View>
+      {hasLogs && (
+        <View
+          style={[
+            styles.floatingButton,
+            {
+              backgroundColor: buttonColor,
+              left: position.x,
+              top: position.y,
+            },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir registros de eventos"
+          accessibilityHint="Toca para revisar los mensajes ocultos"
+          {...panResponder.panHandlers}
+        >
+          <Ionicons name="alert-circle" size={28} color="#ffffff" />
+          {hasLogs && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {logs.length > 99 ? '99+' : logs.length}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
       <Modal
         animationType="slide"

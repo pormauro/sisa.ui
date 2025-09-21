@@ -10,6 +10,8 @@ import React, {
 } from 'react';
 import { Alert } from 'react-native';
 
+import { useCachedState } from '@/hooks/useCachedState';
+
 export type LogType = 'error' | 'warn' | 'alert';
 
 export interface LogEntry {
@@ -25,6 +27,9 @@ interface LogContextValue {
   logs: LogEntry[];
   addLog: (entry: { type: LogType; message: string }) => void;
   clearLogs: () => void;
+  overlaySuppressed: boolean;
+  setOverlaySuppressed: React.Dispatch<React.SetStateAction<boolean>>;
+  overlaySettingsHydrated: boolean;
 }
 
 const LogContext = createContext<LogContextValue | undefined>(undefined);
@@ -56,6 +61,8 @@ const createLogEntry = (entry: { type: LogType; message: string }): LogEntry => 
 
 export const LogProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [overlaySuppressed, setOverlaySuppressed, overlaySettingsHydrated] =
+    useCachedState<boolean>('logOverlaySuppressed', false);
   const originalConsoleError = useRef(console.error);
   const originalConsoleWarn = useRef(console.warn);
   const originalAlert = useRef(Alert.alert);
@@ -92,11 +99,12 @@ export const LogProvider: React.FC<PropsWithChildren> = ({ children }) => {
     (Alert as any).alert = (
       ...args: Parameters<typeof Alert.alert>
     ): void => {
-      const [title, message] = args;
+      const [title, message, maybeButtons] = args;
       const textParts = [title, message].filter(Boolean);
       const payload = textParts.length > 0 ? textParts.join(' - ') : 'Alerta mostrada';
       addLog({ type: 'alert', message: payload });
-      if (typeof originalAlert.current === 'function') {
+      const hasButtons = Array.isArray(maybeButtons) && maybeButtons.length > 0;
+      if (typeof originalAlert.current === 'function' && hasButtons) {
         originalAlert.current(...args);
       }
     };
@@ -113,8 +121,11 @@ export const LogProvider: React.FC<PropsWithChildren> = ({ children }) => {
       logs,
       addLog,
       clearLogs,
+      overlaySuppressed,
+      setOverlaySuppressed,
+      overlaySettingsHydrated,
     }),
-    [logs, addLog, clearLogs]
+    [logs, addLog, clearLogs, overlaySuppressed, setOverlaySuppressed, overlaySettingsHydrated]
   );
 
   return <LogContext.Provider value={value}>{children}</LogContext.Provider>;
