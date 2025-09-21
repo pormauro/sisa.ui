@@ -6,6 +6,7 @@ import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function EditStatus() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function EditStatus() {
   const statusId = Number(id);
   const { statuses, loadStatuses, updateStatus, deleteStatus } = useContext(StatusesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const statusItem = statuses.find(s => s.id === statusId);
 
@@ -41,6 +43,10 @@ export default function EditStatus() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (statusItem) {
@@ -100,6 +106,7 @@ export default function EditStatus() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Estado actualizado correctamente.');
+            completeSelection(statusId.toString());
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo actualizar el estado.');
@@ -121,6 +128,7 @@ export default function EditStatus() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Estado eliminado correctamente.');
+            cancelSelection();
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo eliminar el estado.');

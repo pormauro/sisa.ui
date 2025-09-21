@@ -16,6 +16,7 @@ export const SELECTION_KEYS = {
   jobs: {
     client: 'jobs.client',
     tariff: 'jobs.tariff',
+    status: 'jobs.status',
   },
   clients: {
     tariff: 'clients.tariff',

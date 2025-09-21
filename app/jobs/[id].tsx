@@ -249,6 +249,32 @@ export default function EditJobScreen() {
   }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => {
+    if (
+      !statuses.length ||
+      !Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.status)
+    ) {
+      return;
+    }
+    const pendingStatusId = consumeSelection<number | string>(SELECTION_KEYS.jobs.status);
+    if (pendingStatusId == null) {
+      return;
+    }
+    const statusId = Number(pendingStatusId);
+    if (Number.isNaN(statusId)) {
+      return;
+    }
+    const status = statuses.find(s => s.id === statusId);
+    if (!status) {
+      return;
+    }
+    setSelectedStatus({
+      id: status.id,
+      name: status.label,
+      backgroundColor: status.background_color,
+    });
+  }, [pendingSelections, consumeSelection, statuses]);
+
+  useEffect(() => {
     if (selectedTariff && selectedTariff.id !== '') {
       const t = tariffs.find(t => t.id === Number(selectedTariff.id));
       if (t && new Date(jobDate) < new Date(t.last_update)) {
@@ -470,6 +496,7 @@ export default function EditJobScreen() {
           selectedItem={selectedStatus}
           onSelect={(item) => {
             if (item.id === NEW_STATUS_VALUE) {
+              beginSelection(SELECTION_KEYS.jobs.status);
               router.push('/statuses/create');
               return;
             }
@@ -479,6 +506,7 @@ export default function EditJobScreen() {
           onItemLongPress={(item) => {
             const value = String(item.id ?? '');
             if (!value || value === NEW_STATUS_VALUE) return;
+            beginSelection(SELECTION_KEYS.jobs.status);
             router.push(`/statuses/${value}`);
           }}
         />
