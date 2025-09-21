@@ -13,6 +13,7 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 
 export default function EditTariff() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function EditTariff() {
   const tariffId = Number(id);
   const { tariffs, loadTariffs, updateTariff, deleteTariff } = useContext(TariffsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { completeSelection, cancelSelection } = usePendingSelection();
 
   const tariff = tariffs.find(t => t.id === tariffId);
 
@@ -56,6 +58,10 @@ export default function EditTariff() {
     });
   }, [tariff, hasAttemptedLoad, isFetchingItem, loadTariffs]);
 
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
+
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'text');
@@ -91,6 +97,7 @@ export default function EditTariff() {
     setLoading(false);
     if (success) {
       Alert.alert('Éxito', 'Tarifa actualizada.');
+      completeSelection(tariffId.toString());
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo actualizar la tarifa.');
@@ -110,6 +117,7 @@ export default function EditTariff() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Tarifa eliminada.');
+            cancelSelection();
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo eliminar la tarifa.');

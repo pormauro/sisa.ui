@@ -233,6 +233,22 @@ export default function EditJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.tariff)) {
+      return;
+    }
+    const pendingTariffId = consumeSelection<string>(SELECTION_KEYS.jobs.tariff);
+    if (!pendingTariffId) {
+      return;
+    }
+    const tariff = tariffs.find(t => t.id.toString() === pendingTariffId);
+    if (!tariff) {
+      return;
+    }
+    setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
+    setManualAmount(tariff.amount.toString());
+  }, [pendingSelections, consumeSelection, tariffs]);
+
+  useEffect(() => {
     if (selectedTariff && selectedTariff.id !== '') {
       const t = tariffs.find(t => t.id === Number(selectedTariff.id));
       if (t && new Date(jobDate) < new Date(t.last_update)) {
@@ -483,6 +499,7 @@ export default function EditJobScreen() {
           selectedItem={selectedTariff}
           onSelect={(item) => {
             if (item.id === NEW_TARIFF_VALUE) {
+              beginSelection(SELECTION_KEYS.jobs.tariff);
               router.push('/tariffs/create');
               return;
             }
@@ -499,6 +516,7 @@ export default function EditJobScreen() {
           onItemLongPress={(item) => {
             const value = String(item.id ?? '');
             if (!value || value === NEW_TARIFF_VALUE) return;
+            beginSelection(SELECTION_KEYS.jobs.tariff);
             router.push(`/tariffs/${value}`);
           }}
         />
