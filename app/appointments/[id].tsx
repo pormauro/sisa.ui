@@ -65,6 +65,7 @@ export default function EditAppointmentScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const skipInitialAutoFillRef = useRef(false);
+  const originalLocationRef = useRef('');
   const lastSelectedClientRef = useRef<string | null>(null);
   const pendingJobSelectionRef = useRef<string | null>(null);
 
@@ -92,6 +93,7 @@ export default function EditAppointmentScreen() {
     const existingLocation = appointment.location || '';
     setLocation(existingLocation);
     setLocationManuallyEdited(existingLocation.trim().length > 0);
+    originalLocationRef.current = existingLocation;
     skipInitialAutoFillRef.current = existingLocation.trim().length > 0;
     lastSelectedClientRef.current = null;
     setAttachedFiles(appointment.attached_files || '');
@@ -222,21 +224,21 @@ export default function EditAppointmentScreen() {
     const client = clients.find(item => item.id.toString() === selectedClient);
     if (!client) return;
 
-    const isInitialLoad = lastSelectedClientRef.current === null;
-    if (skipInitialAutoFillRef.current && isInitialLoad) {
-      skipInitialAutoFillRef.current = false;
-      lastSelectedClientRef.current = selectedClient;
-      return;
-    }
+    const previousClient = lastSelectedClientRef.current;
+    const originalLocationEmpty = originalLocationRef.current.trim().length === 0;
+    const clientChanged = previousClient !== null && previousClient !== selectedClient;
+    const shouldAutoFill = clientChanged || originalLocationEmpty;
 
-    const isSameClient = lastSelectedClientRef.current === selectedClient;
-    if (isSameClient && locationManuallyEdited) {
+    if (!shouldAutoFill || (!clientChanged && locationManuallyEdited)) {
+      lastSelectedClientRef.current = selectedClient;
+      skipInitialAutoFillRef.current = false;
       return;
     }
 
     setLocation(client.address || '');
     setLocationManuallyEdited(false);
     lastSelectedClientRef.current = selectedClient;
+    skipInitialAutoFillRef.current = false;
   }, [selectedClient, clients, locationManuallyEdited]);
 
   const handleLocationChange = (value: string) => {
