@@ -1,5 +1,5 @@
 // app/receipts/index.tsx
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { ReceiptsContext, Receipt } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -42,10 +42,17 @@ export default function ReceiptsScreen() {
     if (!permissions.includes('listReceipts')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver recibos.');
       router.back();
-    } else {
-      loadReceipts();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listReceipts')) {
+        return;
+      }
+      void loadReceipts();
+    }, [permissions, loadReceipts])
+  );
 
   const fuse = new Fuse(receipts, { keys: ['description'] });
   const filteredReceipts = useMemo(() => {

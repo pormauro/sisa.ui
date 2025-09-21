@@ -1,5 +1,5 @@
 // app/categories/index.tsx
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   SectionList,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -59,10 +59,17 @@ export default function CategoriesScreen() {
     if (!permissions.includes('listCategories')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver categorías.');
       router.back();
-    } else {
-      loadCategories();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listCategories')) {
+        return;
+      }
+      void loadCategories();
+    }, [permissions, loadCategories])
+  );
 
   const fuse = new Fuse(categories, { keys: ['name'] });
   const filteredCategories = useMemo(() => {

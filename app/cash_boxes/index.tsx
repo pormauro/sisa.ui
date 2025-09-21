@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/CashBoxesScreen.tsx
-import React, { useContext, useState, useMemo, useEffect } from 'react';
+import React, { useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { CashBoxesContext, CashBox } from '@/contexts/CashBoxesContext';
@@ -40,10 +40,17 @@ export default function CashBoxesScreen() {
     if (!permissions.includes('listCashBoxes')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver las cajas.');
       router.back();
-    } else {
-      loadCashBoxes();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listCashBoxes')) {
+        return;
+      }
+      void loadCashBoxes();
+    }, [permissions, loadCashBoxes])
+  );
 
   const fuse = new Fuse(cashBoxes, { keys: ['name'] });
   const filteredCashBoxes = useMemo(() => {

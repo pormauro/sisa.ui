@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 // eslint-disable-next-line import/no-unresolved
 import { Calendar, DateObject, LocaleConfig } from 'react-native-calendars';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { AppointmentsContext, Appointment } from '@/contexts/AppointmentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
@@ -72,10 +72,17 @@ export default function AppointmentsCalendarScreen() {
     if (!permissions.includes('listAppointments')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver las citas.');
       router.back();
-      return;
     }
-    loadAppointments();
-  }, [permissions, loadAppointments, router]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listAppointments')) {
+        return;
+      }
+      void loadAppointments();
+    }, [permissions, loadAppointments])
+  );
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce<Record<string, Appointment[]>>((acc, appointment) => {

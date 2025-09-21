@@ -1,12 +1,12 @@
 // Archivo: app/folders/index.tsx
 
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { FoldersContext, Folder } from '@/contexts/FoldersContext';
-import { ClientsContext, Client } from '@/contexts/ClientsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -52,10 +52,12 @@ export default function FoldersPage() {
     router.push('/folders/create');
   };
 
-  useEffect(() => {
-    loadFolders();
-    loadClients();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void loadFolders();
+      void loadClients();
+    }, [loadFolders, loadClients])
+  );
 
   const currentFolders: Folder[] = useMemo(() => {
     if (parent_id) {
