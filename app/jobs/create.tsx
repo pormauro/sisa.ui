@@ -176,19 +176,56 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
-    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.tariff)) {
+    const pendingValue = pendingSelections[SELECTION_KEYS.jobs.tariff];
+    if (pendingValue === undefined || pendingValue === null) {
       return;
     }
-    const pendingTariffId = consumeSelection<string>(SELECTION_KEYS.jobs.tariff);
+
+    let pendingTariffId: string | null = null;
+    let hasFallbackAmount = false;
+    let fallbackAmount: unknown;
+    let hasFallbackSelection = false;
+
+    if (typeof pendingValue === 'object') {
+      const selection = pendingValue as Partial<ModalPickerItem> & { amount?: unknown };
+      if (selection.id != null) {
+        pendingTariffId = String(selection.id);
+        hasFallbackSelection = true;
+      }
+      if (Object.prototype.hasOwnProperty.call(selection, 'amount')) {
+        hasFallbackAmount = true;
+        fallbackAmount = selection.amount;
+      }
+    } else if (typeof pendingValue === 'string' || typeof pendingValue === 'number') {
+      const normalized = String(pendingValue).trim();
+      if (normalized) {
+        pendingTariffId = normalized;
+      }
+    }
+
     if (!pendingTariffId) {
       return;
     }
+
     const tariff = tariffs.find(t => t.id.toString() === pendingTariffId);
-    if (!tariff) {
+    if (tariff) {
+      consumeSelection(SELECTION_KEYS.jobs.tariff);
+      setSelectedTariff(pendingTariffId);
+      setManualAmount(tariff.amount.toString());
       return;
     }
-    setSelectedTariff(pendingTariffId);
-    setManualAmount(tariff.amount.toString());
+
+    if (hasFallbackSelection) {
+      consumeSelection(SELECTION_KEYS.jobs.tariff);
+      setSelectedTariff(pendingTariffId);
+      if (hasFallbackAmount) {
+        if (fallbackAmount == null) {
+          setManualAmount('');
+        } else {
+          setManualAmount(typeof fallbackAmount === 'string' ? fallbackAmount : String(fallbackAmount));
+        }
+      }
+    }
   }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => {
