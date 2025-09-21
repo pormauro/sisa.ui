@@ -200,6 +200,11 @@ export default function EditJobScreen() {
     const shouldSkipManualAmountReset = isInitializingRef.current;
     const shouldPreserveManualAmount = shouldSkipManualAmountReset && trimmedManualAmount !== '';
 
+    if (isInitializingRef.current) {
+      previousClientIdRef.current = selectedClientId;
+      return;
+    }
+
     if (previousClientIdRef.current === null) {
       previousClientIdRef.current = selectedClientId;
       return;
