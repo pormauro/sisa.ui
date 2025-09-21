@@ -198,7 +198,12 @@ const PermissionScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: background }]}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
       <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
       <UserSelector onSelect={(user) => {
         if (user) {
@@ -261,6 +266,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+  },
+  contentContainer: {
+    paddingBottom: 120,
   },
   title: {
     fontSize: 26,

@@ -426,7 +426,11 @@ export default function ReceiptDetailPage() {
   };
 
   return (
-      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
+    >
         <ThemedText style={styles.label}>Fecha y hora</ThemedText>
         <TouchableOpacity
           style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
@@ -663,7 +667,7 @@ export default function ReceiptDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

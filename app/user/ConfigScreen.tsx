@@ -70,7 +70,12 @@ const ConfigScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: background }]}
+      contentContainerStyle={styles.contentContainer}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
       <ThemedText style={styles.subtitle}>Configuración</ThemedText>
       {configDetails ? (
         <ThemedView style={styles.dataContainer} lightColor="#f5f5f5" darkColor="#1e1e1e">
@@ -129,6 +134,7 @@ const ConfigScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
+  contentContainer: { paddingBottom: 120 },
   subtitle: {
     fontSize: 22,
     fontWeight: 'bold',

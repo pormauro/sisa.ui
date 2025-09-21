@@ -306,7 +306,11 @@ export default function EditAppointmentScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}>
           <ThemedText style={styles.label}>Cliente</ThemedText>
           <SearchableSelect
@@ -451,7 +455,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   card: {
     borderWidth: 1,

@@ -73,7 +73,11 @@ export default function EditTariff() {
 
   if (!tariff) {
     return (
-      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}> 
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={[styles.container, { backgroundColor: background }]}
+      >
         {isFetchingItem || !hasAttemptedLoad ? (
           <ActivityIndicator color={buttonColor} />
         ) : (
@@ -128,7 +132,11 @@ export default function EditTariff() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { backgroundColor: background }]}
+    >
       <ThemedText style={styles.label}>Nombre</ThemedText>
       <TextInput
         style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
@@ -180,7 +188,7 @@ export default function EditTariff() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
+  container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },

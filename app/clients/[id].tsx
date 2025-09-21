@@ -197,7 +197,11 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}>
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
+    >
       <ThemedText style={styles.label}>Imagen del Cliente</ThemedText>
       <CircleImagePicker
         fileId={brandFileId}
@@ -305,7 +309,7 @@ export default function ClientDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, flexGrow: 1 },
+  container: { padding: 16, paddingBottom: 120, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
   input: {
     borderWidth: 1,
