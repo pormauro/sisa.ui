@@ -1,5 +1,5 @@
 // app/tariffs/index.tsx
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import {
   FlatList,
   TouchableOpacity,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { TariffsContext, Tariff } from '@/contexts/TariffsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -29,10 +29,17 @@ export default function TariffsScreen() {
     if (!permissions.includes('listTariffs')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver tarifas.');
       router.back();
-    } else {
-      loadTariffs();
     }
-  }, [permissions, loadTariffs, router]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listTariffs')) {
+        return;
+      }
+      void loadTariffs();
+    }, [permissions, loadTariffs])
+  );
 
   const filteredTariffs = useMemo(() => {
     if (!search) return tariffs;

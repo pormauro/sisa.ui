@@ -1,5 +1,5 @@
 // /app/clients/index.tsx
-import React, { useContext, useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useContext, useState, useMemo, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -10,7 +10,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -37,9 +37,11 @@ export default function ClientsListPage() {
   const canDeleteClient = permissions.includes('deleteClient');
   const canEditClient = permissions.includes('updateClient');
 
-  useEffect(() => {
-    loadClients();
-  }, [loadClients]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadClients();
+    }, [loadClients])
+  );
 
   const fuse = useMemo(
     () =>

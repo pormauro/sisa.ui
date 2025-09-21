@@ -11,7 +11,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import { ProvidersContext, Provider } from '@/contexts/ProvidersContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -44,10 +44,17 @@ export default function ProvidersListPage() {
     if (!permissions.includes('listProviders')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver proveedores.');
       router.back();
-    } else {
-      loadProviders();
     }
-  }, [permissions, loadProviders, router]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listProviders')) {
+        return;
+      }
+      void loadProviders();
+    }, [permissions, loadProviders])
+  );
 
   const fuse = useMemo(
     () =>

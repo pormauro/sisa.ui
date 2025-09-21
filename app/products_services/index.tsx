@@ -1,7 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/products_services/index.tsx
-import React, { useContext, useState, useMemo, useEffect } from 'react';
+import React, { useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -31,10 +31,17 @@ export default function ProductsServicesScreen() {
     if (!permissions.includes('listProductsServices')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver productos y servicios.');
       router.back();
-    } else {
-      loadProductsServices();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listProductsServices')) {
+        return;
+      }
+      void loadProductsServices();
+    }, [permissions, loadProductsServices])
+  );
 
   const fuse = new Fuse(productsServices, { keys: ['description', 'category'] });
   const filteredItems = useMemo(() => {

@@ -1,10 +1,10 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { JobsContext, Job } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -40,10 +40,17 @@ export default function JobsScreen() {
     if (!permissions.includes('listJobs')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver trabajos.');
       router.back();
-    } else {
-      loadJobs();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listJobs')) {
+        return;
+      }
+      void loadJobs();
+    }, [permissions, loadJobs])
+  );
 
   const fuse = new Fuse(jobs, { keys: ['description', 'type_of_work'] });
   const filteredJobs = useMemo(() => {

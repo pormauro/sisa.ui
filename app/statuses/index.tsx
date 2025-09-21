@@ -1,7 +1,7 @@
 // app/statuses/index.tsx
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import Fuse from 'fuse.js';
@@ -28,10 +28,17 @@ export default function StatusesScreen() {
     if (!permissions.includes('listStatuses')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los estados.');
       router.back();
-    } else {
-      loadStatuses();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listStatuses')) {
+        return;
+      }
+      void loadStatuses();
+    }, [permissions, loadStatuses])
+  );
 
   const fuse = new Fuse(statuses, { keys: ['label', 'value'] });
   const filteredStatuses = useMemo(() => {

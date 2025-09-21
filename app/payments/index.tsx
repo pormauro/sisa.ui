@@ -1,5 +1,5 @@
 // app/payments/index.tsx
-import React, { useContext, useEffect, useState, useMemo } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   FlatList,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { PaymentsContext, Payment } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -42,10 +42,17 @@ export default function PaymentsScreen() {
     if (!permissions.includes('listPayments')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver pagos.');
       router.back();
-    } else {
-      loadPayments();
     }
-  }, [permissions]);
+  }, [permissions, router]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissions.includes('listPayments')) {
+        return;
+      }
+      void loadPayments();
+    }, [permissions, loadPayments])
+  );
 
   const fuse = new Fuse(payments, { keys: ['description'] });
   const filteredPayments = useMemo(() => {
