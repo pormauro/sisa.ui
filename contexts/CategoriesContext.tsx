@@ -110,25 +110,55 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     [loadCategories, setCategories, token]
   );
 
-  const deleteCategory = async (id: number): Promise<boolean> => {
-    try {
-      const response = await fetch(`${BASE_URL}/categories/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.message === 'Category deleted successfully') {
+  const deleteCategory = useCallback(
+    async (id: number): Promise<boolean> => {
+      try {
+        const response = await fetch(`${BASE_URL}/categories/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const responseText = await response.text();
+        let data: Record<string, unknown> | null = null;
+
+        if (responseText) {
+          try {
+            const parsed = JSON.parse(responseText) as unknown;
+            if (parsed && typeof parsed === 'object') {
+              data = parsed as Record<string, unknown>;
+            }
+          } catch (parseError) {
+            console.warn('Unexpected delete category response format:', parseError);
+          }
+        }
+
+        if (!response.ok) {
+          const errorMessage =
+            (data && typeof data.error === 'string' && data.error) ||
+            (data && typeof data.message === 'string' && data.message) ||
+            response.statusText;
+          console.error('Error deleting category:', errorMessage);
+          return false;
+        }
+
+        if (data && typeof data.error === 'string') {
+          console.error('Error deleting category:', data.error);
+          return false;
+        }
+
         setCategories(prev => prev.filter(c => c.id !== id));
+        await loadCategories();
         return true;
+      } catch (error) {
+        console.error('Error deleting category:', error);
       }
-    } catch (error) {
-      console.error('Error deleting category:', error);
-    }
-    return false;
-  };
+      return false;
+    },
+    [loadCategories, setCategories, token]
+  );
 
   useEffect(() => {
     if (token) {
