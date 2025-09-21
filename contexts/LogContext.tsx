@@ -84,16 +84,10 @@ export const LogProvider: React.FC<PropsWithChildren> = ({ children }) => {
   useEffect(() => {
     console.error = (...args: unknown[]) => {
       addLog({ type: 'error', message: formatArgs(args) });
-      if (typeof originalConsoleError.current === 'function') {
-        originalConsoleError.current.apply(console, args as any[]);
-      }
     };
 
     console.warn = (...args: unknown[]) => {
       addLog({ type: 'warn', message: formatArgs(args) });
-      if (typeof originalConsoleWarn.current === 'function') {
-        originalConsoleWarn.current.apply(console, args as any[]);
-      }
     };
 
     (Alert as any).alert = (
