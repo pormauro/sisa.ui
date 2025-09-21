@@ -97,6 +97,11 @@ export default function ReceiptDetailPage() {
     [cashBoxes]
   );
 
+  const loadedPaidInAccountId = useMemo(
+    () => String(receipt?.paid_in_account ?? ''),
+    [receipt?.paid_in_account]
+  );
+
   const payerTypeItems = useMemo(
     () => [
       { label: 'Cliente', value: 'client' },
@@ -149,7 +154,7 @@ export default function ReceiptDetailPage() {
     if (cashBoxes.length === 0) {
       return;
     }
-    const exists = cashBoxes.some(cb => cb.id.toString() === paidInAccount);
+    const exists = cashBoxes.some(cb => String(cb.id) === paidInAccount);
     if (exists) {
       return;
     }
@@ -161,8 +166,11 @@ export default function ReceiptDetailPage() {
     ) {
       return;
     }
+    if (loadedPaidInAccountId && loadedPaidInAccountId === paidInAccount) {
+      return;
+    }
     setPaidInAccount('');
-  }, [cashBoxes, paidInAccount, pendingSelections]);
+  }, [cashBoxes, paidInAccount, pendingSelections, loadedPaidInAccountId]);
 
   useEffect(() => {
     const pendingCashBox = pendingSelections[SELECTION_KEYS.receipts.cashBox];
@@ -170,7 +178,7 @@ export default function ReceiptDetailPage() {
       return;
     }
     const pendingCashBoxId = String(pendingCashBox);
-    const exists = cashBoxes.some(cb => cb.id.toString() === pendingCashBoxId);
+    const exists = cashBoxes.some(cb => String(cb.id) === pendingCashBoxId);
     if (!exists) {
       return;
     }
@@ -306,7 +314,7 @@ export default function ReceiptDetailPage() {
         setIsFetchingItem(false);
       }
       setReceiptDate(new Date(receipt.receipt_date.replace(' ', 'T')));
-      setPaidInAccount(receipt.paid_in_account);
+      setPaidInAccount(String(receipt.paid_in_account ?? ''));
       setPayerType(receipt.payer_type);
       setPayerClientId(
         receipt.payer_client_id ? String(receipt.payer_client_id) : ''
