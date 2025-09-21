@@ -197,6 +197,7 @@ export default function EditJobScreen() {
 
   useEffect(() => {
     const shouldSkipManualAmountReset = isInitializingRef.current;
+    const shouldPreserveManualAmount = shouldSkipManualAmountReset && trimmedManualAmount !== '';
 
     if (previousClientIdRef.current === null) {
       previousClientIdRef.current = selectedClientId;
@@ -223,7 +224,9 @@ export default function EditJobScreen() {
       const t = tariffs.find(t => t.id === client.tariff_id);
       if (t) {
         setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
-        setManualAmount(t.amount.toString());
+        if (!shouldPreserveManualAmount) {
+          setManualAmount(t.amount.toString());
+        }
         return;
       }
     }
@@ -232,7 +235,7 @@ export default function EditJobScreen() {
     if (!shouldSkipManualAmountReset) {
       setManualAmount('');
     }
-  }, [selectedClientId, clients, tariffs, manualTariffItem]);
+  }, [selectedClientId, clients, tariffs, manualTariffItem, trimmedManualAmount]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
