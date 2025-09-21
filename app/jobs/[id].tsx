@@ -31,6 +31,12 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
+const toNum = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
 const parseManualAmountValue = (value: unknown): number => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
@@ -83,14 +89,12 @@ export default function EditJobScreen() {
   } = usePendingSelection();
 
   const job = jobs.find(j => j.id === jobId);
+  const jobTariffId = toNum(job?.tariff_id);
   const jobTariff = useMemo(() => {
-    if (!job || job.tariff_id == null) {
-      return null;
-    }
-    const match = tariffs.find(t => t.id === job.tariff_id);
+    if (jobTariffId == null) return null;
+    const match = tariffs.find(t => toNum(t.id) === jobTariffId);
     return match ?? null;
-  }, [job, tariffs]);
-  const jobTariffId = job?.tariff_id ?? null;
+  }, [jobTariffId, tariffs]);
   const jobContextAmount = job?.manual_amount != null ? job.manual_amount : jobTariff?.amount;
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
@@ -239,7 +243,7 @@ export default function EditJobScreen() {
     Promise.resolve(loadJobs()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [job, jobTariff, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
+  }, [job, jobTariff, clients, folders, statuses, tariffs, manualTariffItem, hasAttemptedLoad, isFetchingItem, loadJobs, userId, jobContextAmount]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -275,8 +279,8 @@ export default function EditJobScreen() {
     }
 
     const client = clients.find(c => c.id.toString() === selectedClientId);
-    if (client?.tariff_id) {
-      const t = tariffs.find(t => t.id === client.tariff_id);
+    if (client?.tariff_id != null) {
+      const t = tariffs.find(t => toNum(t.id) === toNum(client.tariff_id));
       if (t) {
         setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
         if (!shouldPreserveManualAmount) {
@@ -342,7 +346,10 @@ export default function EditJobScreen() {
       return;
     }
 
-    const tariff = tariffs.find(t => t.id.toString() === pendingTariffId);
+    const normalizedPendingTariffId = toNum(pendingTariffId);
+    const tariff = normalizedPendingTariffId != null
+      ? tariffs.find(t => toNum(t.id) === normalizedPendingTariffId)
+      : undefined;
     if (tariff) {
       consumeSelection(SELECTION_KEYS.jobs.tariff);
       setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
@@ -450,7 +457,7 @@ export default function EditJobScreen() {
         { ...manualTariffItem, name: manualTariffListLabel },
         ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
       ];
-      if (jobTariffId != null && !tariffs.some(t => t.id === jobTariffId)) {
+      if (jobTariffId != null && !tariffs.some(t => toNum(t.id) === jobTariffId)) {
         items.push({ id: jobTariffId, name: `Tarifa #${jobTariffId}` });
       }
       return items;
@@ -468,8 +475,9 @@ export default function EditJobScreen() {
       }
 
       const selectedId = selectedTariff.id;
-      const matchedTariff = selectedId != null
-        ? tariffs.find(t => t.id.toString() === String(selectedId))
+      const normalizedSelectedId = toNum(selectedId);
+      const matchedTariff = normalizedSelectedId != null
+        ? tariffs.find(t => toNum(t.id) === normalizedSelectedId)
         : undefined;
       const baseName = matchedTariff?.name ?? selectedTariff.name ?? 'Tarifa';
       const idText = selectedId != null && selectedId !== '' ? `ID: ${selectedId}` : null;
@@ -708,7 +716,10 @@ export default function EditJobScreen() {
             }
 
             setSelectedTariff(item);
-            const t = tariffs.find(t => t.id === Number(item.id));
+            const normalizedItemId = toNum(item.id);
+            const t = normalizedItemId != null
+              ? tariffs.find(t => toNum(t.id) === normalizedItemId)
+              : undefined;
             if (t) {
               setManualAmount(formatManualAmountValue(t.amount));
             }
