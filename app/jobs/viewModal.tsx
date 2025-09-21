@@ -232,7 +232,7 @@ export default function ViewJobModal() {
       <ThemedText style={[styles.label, { color: textColor }]}>Nombre de la tarifa</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>{tariff ? tariff.name : 'Tarifa manual'}</ThemedText>
 
-      <ThemedText style={[styles.label, { color: textColor }]}>Monto manual</ThemedText>
+      <ThemedText style={[styles.label, { color: textColor }]}>Monto</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>
         {job.manual_amount != null ? job.manual_amount : tariff?.amount ?? 'Sin monto'}
       </ThemedText>
