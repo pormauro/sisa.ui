@@ -31,6 +31,36 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
+const parseManualAmountValue = (value: unknown): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return 0;
+    }
+    const normalized = trimmed.replace(/,/g, '.');
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const formatManualAmountValue = (value: unknown): string => {
+  if (value == null) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return '';
+    }
+  }
+  const parsed = parseManualAmountValue(value);
+  return Number.isFinite(parsed) ? parsed.toString() : '';
+};
+
 export default function EditJobScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
@@ -94,9 +124,13 @@ export default function EditJobScreen() {
   const isInitializingRef = useRef(true);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const trimmedManualAmount = manualAmount.trim();
-  const rate = useMemo(
-    () => (trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : 0),
+  const parsedManualAmount = useMemo(
+    () => parseManualAmountValue(trimmedManualAmount),
     [trimmedManualAmount]
+  );
+  const rate = useMemo(
+    () => (trimmedManualAmount !== '' ? parsedManualAmount : 0),
+    [trimmedManualAmount, parsedManualAmount]
   );
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
@@ -167,11 +201,11 @@ export default function EditJobScreen() {
       setStartTime(extractTime(job.start_time));
       setEndTime(extractTime(job.end_time));
 
-      const manualValue =
+      const manualValueFromContext =
         job.manual_amount != null
-          ? job.manual_amount.toString()
+          ? formatManualAmountValue(job.manual_amount)
           : jobTariff
-          ? jobTariff.amount.toString()
+          ? formatManualAmountValue(jobTariff.amount)
           : '';
 
       if (jobTariff) {
@@ -180,7 +214,7 @@ export default function EditJobScreen() {
         setSelectedTariff(manualTariffItem);
       }
 
-      setManualAmount(manualValue);
+      setManualAmount(manualValueFromContext);
 
       const parts = job.participants
         ? (typeof job.participants === 'string'
@@ -244,7 +278,7 @@ export default function EditJobScreen() {
       if (t) {
         setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
         if (!shouldPreserveManualAmount) {
-          setManualAmount(t.amount.toString());
+          setManualAmount(formatManualAmountValue(t.amount));
         }
         return;
       }
@@ -279,7 +313,7 @@ export default function EditJobScreen() {
       return;
     }
     setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
-    setManualAmount(tariff.amount.toString());
+    setManualAmount(formatManualAmountValue(tariff.amount));
   }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => {
@@ -409,7 +443,8 @@ export default function EditJobScreen() {
         start_time: startTime,
         end_time: endTime,
         tariff_id: selectedTariff && selectedTariff.id !== '' ? Number(selectedTariff.id) : null,
-        manual_amount: trimmedManualAmount !== '' ? Number(trimmedManualAmount) : null,
+        manual_amount:
+          trimmedManualAmount !== '' ? parseManualAmountValue(trimmedManualAmount) : null,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
@@ -610,7 +645,7 @@ export default function EditJobScreen() {
             setSelectedTariff(item);
             const t = tariffs.find(t => t.id === Number(item.id));
             if (t) {
-              setManualAmount(t.amount.toString());
+              setManualAmount(formatManualAmountValue(t.amount));
             }
           }}
           placeholder="-- Tarifa --"
