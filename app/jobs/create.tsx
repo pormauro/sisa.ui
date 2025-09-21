@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -59,6 +59,8 @@ export default function CreateJobScreen() {
   const [selectedStatus, setSelectedStatus] = useState<ModalPickerItem | null>(null);
   const [selectedTariff, setSelectedTariff] = useState<string>('');
   const [manualAmount, setManualAmount] = useState<string>('');
+  const manualAmountRef = useRef('');
+  const previousClientRef = useRef<string>('');
   const [description, setDescription] = useState<string>('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [jobDate, setJobDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -74,24 +76,15 @@ export default function CreateJobScreen() {
   );
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const trimmedManualAmount = manualAmount.trim();
+  useEffect(() => {
+    manualAmountRef.current = manualAmount;
+  }, [manualAmount]);
   const rate = useMemo(
     () => (trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : 0),
     [trimmedManualAmount]
   );
-  const selectedTariffData = useMemo(
-    () => tariffs.find(t => t.id.toString() === selectedTariff),
-    [tariffs, selectedTariff]
-  );
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
-  const filteredTariffs = useMemo(
-    () => tariffs.filter(t => jobDateValue >= new Date(t.last_update)),
-    [tariffs, jobDateValue]
-  );
-  const tariffsForSelection = useMemo(
-    () => (!jobDate || isJobDateInvalid ? tariffs : filteredTariffs),
-    [filteredTariffs, isJobDateInvalid, jobDate, tariffs]
-  );
 
   const clientItems = useMemo(
     () => [
@@ -127,12 +120,12 @@ export default function CreateJobScreen() {
     () => [
       { label: '-- Tarifa manual --', value: '' },
       { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
-      ...tariffsForSelection.map(tariff => ({
+      ...tariffs.map(tariff => ({
         label: `${tariff.name} - ${tariff.amount}`,
         value: tariff.id.toString(),
       })),
     ],
-    [tariffsForSelection]
+    [tariffs]
   );
   const price = useMemo(() => {
     const start = new Date(`1970-01-01T${startTime}`);
@@ -150,7 +143,6 @@ export default function CreateJobScreen() {
   const priceColor = useThemeColor({}, 'tint');
   const submitBtnColor = useThemeColor({}, 'button');
   const submitTextColor = useThemeColor({}, 'buttonText');
-  const tariffInfoColor = placeholderColor;
 
   const initialClientFromParams = useMemo(() => {
     if (!clientIdParam) return '';
@@ -200,25 +192,44 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => {
+    const previousClient = previousClientRef.current;
+    const clientChanged = previousClient !== selectedClient;
+    const manualAmountIsEmpty = manualAmountRef.current.trim() === '';
+
+    if (clientChanged) {
+      previousClientRef.current = selectedClient;
+    }
+
     if (!selectedClient) {
-      setSelectedFolder('');
       setSelectedTariff('');
-      setManualAmount('');
+      if (clientChanged) {
+        setSelectedFolder('');
+        setManualAmount('');
+      }
       return;
     }
+
+    if (clientChanged) {
+      setSelectedFolder('');
+    }
+
     const client = clients.find(c => c.id.toString() === selectedClient);
-    setSelectedFolder('');
     if (client?.tariff_id) {
       const clientTariff = tariffs.find(t => t.id === client.tariff_id);
-      if (clientTariff && !isJobDateInvalid && jobDateValue >= new Date(clientTariff.last_update)) {
+      if (clientTariff) {
         setSelectedTariff(clientTariff.id.toString());
-        setManualAmount(clientTariff.amount.toString());
+        if (clientChanged || manualAmountIsEmpty) {
+          setManualAmount(clientTariff.amount.toString());
+        }
         return;
       }
     }
+
     setSelectedTariff('');
-    setManualAmount('');
-  }, [selectedClient, clients, tariffs, jobDate, jobDateValue, isJobDateInvalid]);
+    if (clientChanged) {
+      setManualAmount('');
+    }
+  }, [selectedClient, clients, tariffs]);
 
   const statusItems = useMemo(
     () => [
@@ -276,17 +287,6 @@ export default function CreateJobScreen() {
     }
     setSelectedFolder(normalizedId);
   }, [pendingSelections, consumeSelection]);
-
-  useEffect(() => {
-    if (selectedTariff) {
-      const t = tariffs.find(t => t.id.toString() === selectedTariff);
-      if (t && !isJobDateInvalid && jobDateValue < new Date(t.last_update)) {
-        setSelectedTariff('');
-        setManualAmount('');
-      }
-    }
-  }, [isJobDateInvalid, jobDate, jobDateValue, selectedTariff, tariffs]);
-
 
   const handleSubmit = async () => {
     if (
@@ -469,17 +469,17 @@ export default function CreateJobScreen() {
           const stringValue = val?.toString() ?? '';
           if (stringValue === NEW_TARIFF_VALUE) {
             setSelectedTariff('');
-            setManualAmount('');
             beginSelection(SELECTION_KEYS.jobs.tariff);
             router.push('/tariffs/create');
             return;
           }
           setSelectedTariff(stringValue);
+          if (!stringValue) {
+            return;
+          }
           const t = tariffs.find(tariff => tariff.id.toString() === stringValue);
           if (t) {
             setManualAmount(t.amount.toString());
-          } else {
-            setManualAmount('');
           }
         }}
         placeholder="-- Tarifa manual --"
@@ -490,24 +490,16 @@ export default function CreateJobScreen() {
           router.push(`/tariffs/${value}`);
         }}
       />
-      {selectedTariffData && (
-        <ThemedText style={[styles.tariffInfo, { color: tariffInfoColor }]}>Última actualización: {selectedTariffData.last_update}</ThemedText>
-      )}
-
       {/* Tarifa manual */}
-      {selectedTariff === '' && (
-        <>
-          <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
-            placeholder="Ingresa tarifa manual"
-            placeholderTextColor={placeholderColor}
-            value={manualAmount}
-            onChangeText={setManualAmount}
-            keyboardType="numeric"
-          />
-        </>
-      )}
+      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
+        placeholder="Ingresa tarifa manual"
+        placeholderTextColor={placeholderColor}
+        value={manualAmount}
+        onChangeText={setManualAmount}
+        keyboardType="numeric"
+      />
 
       {/* Descripción */}
       <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
@@ -623,7 +615,6 @@ const styles = StyleSheet.create({
   },
   intervalText: { textAlign: 'center', marginBottom: 12 },
   priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
-  tariffInfo: { marginBottom: 12 },
   submitBtn: {
     marginTop: 20,
     padding: 16,

@@ -91,20 +91,8 @@ export default function EditJobScreen() {
     () => (trimmedManualAmount !== '' ? parseFloat(trimmedManualAmount) : 0),
     [trimmedManualAmount]
   );
-  const selectedTariffData = useMemo(
-    () => tariffs.find(t => t.id === Number(selectedTariff?.id)),
-    [tariffs, selectedTariff]
-  );
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
-  const filteredTariffs = useMemo(
-    () => tariffs.filter(t => jobDateValue >= new Date(t.last_update)),
-    [tariffs, jobDateValue]
-  );
-  const tariffsForSelection = useMemo(
-    () => (!jobDate || isJobDateInvalid ? tariffs : filteredTariffs),
-    [filteredTariffs, isJobDateInvalid, jobDate, tariffs]
-  );
 
   const clientItems = useMemo(
     () => [
@@ -133,7 +121,6 @@ export default function EditJobScreen() {
   const priceColor = useThemeColor({}, 'tint');
   const btnSaveColor = useThemeColor({}, 'button');
   const btnTextColor = useThemeColor({}, 'buttonText');
-  const tariffInfoColor = placeholderColor;
 
   // carga inicial del job
   useEffect(() => {
@@ -234,7 +221,7 @@ export default function EditJobScreen() {
     const client = clients.find(c => c.id.toString() === selectedClientId);
     if (client?.tariff_id) {
       const t = tariffs.find(t => t.id === client.tariff_id);
-      if (t && !isJobDateInvalid && jobDateValue >= new Date(t.last_update)) {
+      if (t) {
         setSelectedTariff({ id: t.id, name: `${t.name} - ${t.amount}` });
         setManualAmount(t.amount.toString());
         return;
@@ -245,7 +232,7 @@ export default function EditJobScreen() {
     if (!shouldSkipManualAmountReset) {
       setManualAmount('');
     }
-  }, [selectedClientId, clients, tariffs, manualTariffItem, jobDate, jobDateValue, isJobDateInvalid]);
+  }, [selectedClientId, clients, tariffs, manualTariffItem]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
@@ -298,20 +285,6 @@ export default function EditJobScreen() {
       backgroundColor: status.background_color,
     });
   }, [pendingSelections, consumeSelection, statuses]);
-
-  useEffect(() => {
-    const shouldSkipManualAmountReset = isInitializingRef.current;
-
-    if (selectedTariff && selectedTariff.id !== '') {
-      const t = tariffs.find(t => t.id === Number(selectedTariff.id));
-      if (t && !isJobDateInvalid && jobDateValue < new Date(t.last_update)) {
-        setSelectedTariff(manualTariffItem);
-        if (!shouldSkipManualAmountReset) {
-          setManualAmount('');
-        }
-      }
-    }
-  }, [isJobDateInvalid, jobDate, jobDateValue, selectedTariff, tariffs, manualTariffItem]);
 
   useEffect(() => {
     if (job && isInitializingRef.current) {
@@ -375,9 +348,9 @@ export default function EditJobScreen() {
     () => [
       { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
       manualTariffItem,
-      ...tariffsForSelection.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
+      ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
     ],
-    [manualTariffItem, tariffsForSelection]
+    [manualTariffItem, tariffs]
   );
 
 
@@ -595,12 +568,15 @@ export default function EditJobScreen() {
               return;
             }
 
+            if (item.id === manualTariffItem.id) {
+              setSelectedTariff(manualTariffItem);
+              return;
+            }
+
             setSelectedTariff(item);
-            if (item && item.id !== '') {
-              const t = tariffs.find(t => t.id === Number(item.id));
-              if (t) setManualAmount(t.amount.toString());
-            } else {
-              setManualAmount('');
+            const t = tariffs.find(t => t.id === Number(item.id));
+            if (t) {
+              setManualAmount(t.amount.toString());
             }
           }}
           placeholder="-- Tarifa --"
@@ -612,24 +588,16 @@ export default function EditJobScreen() {
           }}
         />
       </View>
-      {selectedTariffData && (
-        <ThemedText style={[styles.tariffInfo, { color: tariffInfoColor }]}>Última actualización: {selectedTariffData.last_update}</ThemedText>
-      )}
-
       {/* Tarifa manual */}
-      {selectedTariff?.id === '' && (
-        <>
-          <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
-            value={manualAmount}
-            onChangeText={setManualAmount}
-            keyboardType="numeric"
-            editable={canEdit}
-            placeholderTextColor={placeholderColor}
-          />
-        </>
-      )}
+      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa manual *</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
+        value={manualAmount}
+        onChangeText={setManualAmount}
+        keyboardType="numeric"
+        editable={canEdit}
+        placeholderTextColor={placeholderColor}
+      />
 
       {/* Descripción */}
       <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
@@ -774,7 +742,6 @@ const styles = StyleSheet.create({
   input:      { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
   priceText: { textAlign: 'center', marginBottom: 12, fontWeight: 'bold', fontSize: 16 },
-  tariffInfo: { marginBottom: 12 },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },
