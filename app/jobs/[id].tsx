@@ -665,7 +665,7 @@ export default function EditJobScreen() {
       )}
 
       {price > 0 && (
-        <ThemedText style={[styles.priceText, { color: priceColor }]}>Costo estimado: ${price.toFixed(2)}</ThemedText>
+        <ThemedText style={[styles.priceText, { color: priceColor }]}>Costo: ${price.toFixed(2)}</ThemedText>
       )}
 
       {/* Archivos adjuntos */}
