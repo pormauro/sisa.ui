@@ -300,19 +300,60 @@ export default function EditJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
-    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.tariff)) {
+    const pendingValue = pendingSelections[SELECTION_KEYS.jobs.tariff];
+    if (pendingValue === undefined || pendingValue === null) {
       return;
     }
-    const pendingTariffId = consumeSelection<string>(SELECTION_KEYS.jobs.tariff);
+
+    let pendingTariffId: string | null = null;
+    let fallbackSelection: ModalPickerItem | null = null;
+    let fallbackAmount: unknown;
+    let hasFallbackAmount = false;
+
+    if (typeof pendingValue === 'object') {
+      const selection = pendingValue as Partial<ModalPickerItem> & { amount?: unknown };
+      if (selection.id != null) {
+        pendingTariffId = String(selection.id);
+        const fallbackName =
+          typeof selection.name === 'string' && selection.name.trim()
+            ? selection.name
+            : `Tarifa #${pendingTariffId}`;
+        fallbackSelection = {
+          id: selection.id,
+          name: fallbackName,
+          ...(selection.backgroundColor ? { backgroundColor: selection.backgroundColor } : {}),
+        };
+      }
+      if (Object.prototype.hasOwnProperty.call(selection, 'amount')) {
+        hasFallbackAmount = true;
+        fallbackAmount = selection.amount;
+      }
+    } else if (typeof pendingValue === 'string' || typeof pendingValue === 'number') {
+      const normalized = String(pendingValue).trim();
+      if (normalized) {
+        pendingTariffId = normalized;
+      }
+    }
+
     if (!pendingTariffId) {
       return;
     }
+
     const tariff = tariffs.find(t => t.id.toString() === pendingTariffId);
-    if (!tariff) {
+    if (tariff) {
+      consumeSelection(SELECTION_KEYS.jobs.tariff);
+      setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
+      setManualAmount(formatManualAmountValue(tariff.amount));
       return;
     }
-    setSelectedTariff({ id: tariff.id, name: `${tariff.name} - ${tariff.amount}` });
-    setManualAmount(formatManualAmountValue(tariff.amount));
+
+    if (fallbackSelection) {
+      consumeSelection(SELECTION_KEYS.jobs.tariff);
+      setSelectedTariff(fallbackSelection);
+      if (hasFallbackAmount) {
+        setManualAmount(formatManualAmountValue(fallbackAmount));
+      }
+    }
   }, [pendingSelections, consumeSelection, tariffs]);
 
   useEffect(() => {
