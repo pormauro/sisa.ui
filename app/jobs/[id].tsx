@@ -284,6 +284,27 @@ export default function EditJobScreen() {
     }
   }, [jobDate, selectedTariff, tariffs, manualTariffItem]);
 
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.folder)) {
+      return;
+    }
+    const pendingFolderId = consumeSelection<string | number>(SELECTION_KEYS.jobs.folder);
+    if (pendingFolderId == null) {
+      return;
+    }
+    const normalizedId = pendingFolderId.toString().trim();
+    if (!normalizedId || normalizedId === 'null') {
+      setSelectedFolder(null);
+      return;
+    }
+    const matchingFolder = folders.find(f => f.id.toString() === normalizedId);
+    if (matchingFolder) {
+      setSelectedFolder({ id: matchingFolder.id, name: matchingFolder.name });
+      return;
+    }
+    setSelectedFolder({ id: normalizedId, name: `Carpeta #${normalizedId}` });
+  }, [pendingSelections, consumeSelection, folders]);
+
   // opciones para pickers
   const folderItems = useMemo(
     () => {
@@ -466,6 +487,7 @@ export default function EditJobScreen() {
           onSelect={(item) => {
             if (item.id === NEW_FOLDER_VALUE) {
               if (selectedClientId) {
+                beginSelection(SELECTION_KEYS.jobs.folder);
                 router.push({ pathname: '/folders/create', params: { client_id: selectedClientId } });
               }
               return;
@@ -483,6 +505,7 @@ export default function EditJobScreen() {
           onItemLongPress={(item) => {
             const value = String(item.id ?? '');
             if (!value || value === NEW_FOLDER_VALUE || value === NO_FOLDER_VALUE) return;
+            beginSelection(SELECTION_KEYS.jobs.folder);
             router.push(`/folders/${value}`);
           }}
         />

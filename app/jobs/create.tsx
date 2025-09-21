@@ -246,6 +246,22 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection, statuses]);
 
   useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.folder)) {
+      return;
+    }
+    const pendingFolderId = consumeSelection<string | number>(SELECTION_KEYS.jobs.folder);
+    if (pendingFolderId == null) {
+      return;
+    }
+    const normalizedId = pendingFolderId.toString().trim();
+    if (!normalizedId || normalizedId === 'null') {
+      setSelectedFolder('');
+      return;
+    }
+    setSelectedFolder(normalizedId);
+  }, [pendingSelections, consumeSelection]);
+
+  useEffect(() => {
     if (selectedTariff) {
       const t = tariffs.find(t => t.id.toString() === selectedTariff);
       if (t && new Date(jobDate) < new Date(t.last_update)) {
@@ -374,6 +390,7 @@ export default function CreateJobScreen() {
           if (stringValue === NEW_FOLDER_VALUE) {
             setSelectedFolder('');
             if (selectedClient) {
+              beginSelection(SELECTION_KEYS.jobs.folder);
               router.push({ pathname: '/folders/create', params: { client_id: selectedClient } });
             }
             return;
@@ -385,6 +402,7 @@ export default function CreateJobScreen() {
         onItemLongPress={(item) => {
           const value = String(item.value ?? '');
           if (!value || value === NEW_FOLDER_VALUE) return;
+          beginSelection(SELECTION_KEYS.jobs.folder);
           router.push(`/folders/${value}`);
         }}
       />

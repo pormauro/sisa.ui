@@ -6,6 +6,8 @@ import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityInd
 import { FoldersContext, Folder } from '@/contexts/FoldersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS, type SelectionKey } from '@/constants/selectionKeys';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -13,11 +15,17 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 export default function FolderDetailPage() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const folderId = Number(id);
+  const { id, selection_key } = useLocalSearchParams<{
+    id: string | string[];
+    selection_key?: string | string[];
+  }>();
+  const idParam = Array.isArray(id) ? id[0] : id;
+  const selectionKeyParam = Array.isArray(selection_key) ? selection_key[0] : selection_key;
+  const folderId = idParam ? Number(idParam) : NaN;
   const { folders, loadFolders, updateFolder, deleteFolder } = useContext(FoldersContext);
   const { clients } = useContext(ClientsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { activeKey, beginSelection, completeSelection, cancelSelection } = usePendingSelection();
 
   const folder = folders.find(f => f.id === folderId);
   const [name, setName] = useState('');
@@ -51,6 +59,23 @@ export default function FolderDetailPage() {
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    if (!selectionKeyParam) {
+      return;
+    }
+    const groups = Object.values(SELECTION_KEYS) as Record<string, SelectionKey>[];
+    const match = groups
+      .flatMap(group => Object.values(group) as SelectionKey[])
+      .find(key => key === selectionKeyParam);
+    if (match && activeKey !== match) {
+      beginSelection(match);
+    }
+  }, [selectionKeyParam, beginSelection, activeKey]);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
 
   useEffect(() => {
     if (folder) {
@@ -130,6 +155,9 @@ export default function FolderDetailPage() {
           setLoading(false);
           if (success) {
             Alert.alert('Actualizado', 'Carpeta actualizada correctamente');
+            if (!Number.isNaN(folderId)) {
+              completeSelection(folderId.toString());
+            }
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo actualizar');

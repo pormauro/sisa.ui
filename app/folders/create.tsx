@@ -9,21 +9,45 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
-import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { SELECTION_KEYS, type SelectionKey } from '@/constants/selectionKeys';
 
 export default function CreateFolderPage() {
   const router = useRouter();
-  const { client_id, parent_id } = useLocalSearchParams<{ client_id?: string; parent_id?: string }>();
+  const { client_id, parent_id, selection_key } = useLocalSearchParams<{
+    client_id?: string | string[];
+    parent_id?: string | string[];
+    selection_key?: string | string[];
+  }>();
   const { permissions } = useContext(PermissionsContext);
   const { addFolder, folders } = useContext(FoldersContext);
   const { clients, loadClients } = useContext(ClientsContext);
-  const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
+  const {
+    activeKey,
+    beginSelection,
+    consumeSelection,
+    pendingSelections,
+    completeSelection,
+    cancelSelection,
+  } = usePendingSelection();
 
-  const parentId = parent_id ? Number(parent_id) : null;
+  const clientIdParam = Array.isArray(client_id) ? client_id[0] : client_id;
+  const parentIdParam = Array.isArray(parent_id) ? parent_id[0] : parent_id;
+  const selectionKeyParam = Array.isArray(selection_key) ? selection_key[0] : selection_key;
+
+  const parsedParentId =
+    parentIdParam != null && parentIdParam !== '' ? Number(parentIdParam) : null;
+  const parentId = parsedParentId != null && !Number.isNaN(parsedParentId) ? parsedParentId : null;
   const folderParent = parentId ? folders.find(f => f.id === parentId) : null;
-  const resolvedClientId = client_id ? Number(client_id) : folderParent ? folderParent.client_id : null;
+  const parsedClientId =
+    clientIdParam != null && clientIdParam !== '' ? Number(clientIdParam) : null;
+  const resolvedClientId =
+    parsedClientId != null && !Number.isNaN(parsedClientId)
+      ? parsedClientId
+      : folderParent
+        ? folderParent.client_id
+        : null;
   const [clientId, setClientId] = useState<number | null>(resolvedClientId);
-  const isClientFixed = parentId !== null || !!client_id;
+  const isClientFixed = parentId !== null || !!clientIdParam;
 
   const NEW_CLIENT_VALUE = '__NEW_CLIENT__';
 
@@ -62,6 +86,23 @@ export default function CreateFolderPage() {
   }, [clients.length, loadClients]);
 
   useEffect(() => {
+    if (!selectionKeyParam) {
+      return;
+    }
+    const groups = Object.values(SELECTION_KEYS) as Record<string, SelectionKey>[];
+    const match = groups
+      .flatMap(group => Object.values(group) as SelectionKey[])
+      .find(key => key === selectionKeyParam);
+    if (match && activeKey !== match) {
+      beginSelection(match);
+    }
+  }, [selectionKeyParam, beginSelection, activeKey]);
+
+  useEffect(() => () => {
+    cancelSelection();
+  }, [cancelSelection]);
+
+  useEffect(() => {
     if (resolvedClientId !== null) {
       setClientId(resolvedClientId);
     }
@@ -83,15 +124,16 @@ export default function CreateFolderPage() {
       return;
     }
     setLoading(true);
-    const success = await addFolder({
+    const newFolderId = await addFolder({
       name,
       client_id: clientId,
       parent_id: parentId,
       folder_image_file_id: folderImageFileId,
     });
     setLoading(false);
-    if (success) {
+    if (newFolderId != null) {
       Alert.alert('Éxito', 'Carpeta creada exitosamente');
+      completeSelection(newFolderId.toString());
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo crear la carpeta');

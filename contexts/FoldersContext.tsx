@@ -31,7 +31,7 @@ export type FolderInput = {
 interface FoldersContextType {
   folders: Folder[];
   loadFolders: () => void;
-  addFolder: (folder: FolderInput) => Promise<boolean>;
+  addFolder: (folder: FolderInput) => Promise<number | null>;
   updateFolder: (id: number, folder: FolderInput) => Promise<boolean>;
   deleteFolder: (id: number) => Promise<boolean>;
 }
@@ -39,7 +39,7 @@ interface FoldersContextType {
 export const FoldersContext = createContext<FoldersContextType>({
   folders: [],
   loadFolders: () => {},
-  addFolder: async () => false,
+  addFolder: async () => null,
   updateFolder: async () => false,
   deleteFolder: async () => false,
 });
@@ -67,8 +67,8 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [permissions, setFolders, token]);
 
-  const addFolder = async (folderData: FolderInput): Promise<boolean> => {
-    if (!permissions.includes('addFolder')) return false;
+  const addFolder = async (folderData: FolderInput): Promise<number | null> => {
+    if (!permissions.includes('addFolder')) return null;
     try {
       const response = await fetch(`${BASE_URL}/folders`, {
         method: 'POST',
@@ -79,14 +79,21 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(folderData),
       });
       const data = await response.json();
-      if (data.folder_id) {
+      const newIdRaw =
+        data.folder_id != null
+          ? data.folder_id
+          : data.folder && data.folder.id != null
+            ? data.folder.id
+            : null;
+      if (newIdRaw != null) {
         await loadFolders();
-        return true;
+        const numericId = Number(newIdRaw);
+        return Number.isNaN(numericId) ? null : numericId;
       }
     } catch (error) {
       console.error("Error adding folder:", error);
     }
-    return false;
+    return null;
   };
 
   const updateFolder = async (id: number, folderData: FolderInput): Promise<boolean> => {
