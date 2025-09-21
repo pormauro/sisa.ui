@@ -95,11 +95,13 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify(category),
         });
         const data = await response.json();
-        if (data.message === 'Category updated successfully') {
-          setCategories(prev => prev.map(c => (c.id === id ? { id, ...category } : c)));
-          await loadCategories();
-          return true;
+        if (!response.ok || data?.error) {
+          console.error('Error updating category:', data?.error ?? response.statusText);
+          return false;
         }
+        setCategories(prev => prev.map(c => (c.id === id ? { id, ...category } : c)));
+        await loadCategories();
+        return true;
       } catch (error) {
         console.error('Error updating category:', error);
       }
