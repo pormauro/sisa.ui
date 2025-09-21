@@ -139,6 +139,7 @@ export default function ClientsListPage() {
           <ThemedText style={styles.emptyText}>No se encontraron clientes</ThemedText>
         }
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: canAddClient ? 120 : 0 }} />}
       />
       {canAddClient && (
         <TouchableOpacity
@@ -153,7 +154,7 @@ export default function ClientsListPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, paddingBottom: 80 },
+  container: { flex: 1, padding: 16 },
   searchInput: {
     borderWidth: 1,
     borderRadius: 8,
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   listContent: {
-    paddingBottom: 120,
+    paddingBottom: 16,
   },
   itemContainer: {
     flexDirection: 'row',

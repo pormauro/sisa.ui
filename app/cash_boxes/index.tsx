@@ -115,6 +115,7 @@ export default function CashBoxesScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: 120 }} />}
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron cajas</ThemedText>
         }
@@ -140,5 +141,5 @@ const styles = StyleSheet.create({
   addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
   addButtonText: { fontSize: 16, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 16 },
 });

@@ -146,6 +146,7 @@ export default function ProvidersListPage() {
           <ThemedText style={styles.emptyText}>No se encontraron proveedores</ThemedText>
         }
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
       />
       {canAdd && (
         <TouchableOpacity
@@ -160,7 +161,7 @@ export default function ProvidersListPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, paddingBottom: 80 },
+  container: { flex: 1, padding: 16 },
   searchInput: {
     borderWidth: 1,
     borderRadius: 8,
@@ -169,7 +170,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   listContent: {
-    paddingBottom: 120,
+    paddingBottom: 16,
   },
   itemContainer: {
     flexDirection: 'row',

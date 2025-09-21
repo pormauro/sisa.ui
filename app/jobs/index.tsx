@@ -164,6 +164,7 @@ export default function JobsScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: 120 }} />}
         ListEmptyComponent={
           <ThemedText style={styles.empty}>No hay trabajos cargados</ThemedText>
         }
@@ -212,5 +213,5 @@ const styles = StyleSheet.create({
   },
   addText: { fontWeight: 'bold', fontSize: 16 },
   empty: { marginTop: 20, textAlign: 'center', fontSize: 16 },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 16 },
 });

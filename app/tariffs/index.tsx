@@ -108,6 +108,7 @@ export default function TariffsScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
         ListEmptyComponent={
           <ThemedText style={styles.empty}>No se encontraron tarifas</ThemedText>
         }
@@ -134,5 +135,5 @@ const styles = StyleSheet.create({
   deleteText: { fontSize: 18 },
   addButton: { position: 'absolute', right: 16, bottom: 32, borderRadius: 50, padding: 16 },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 16 },
 });
