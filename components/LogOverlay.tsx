@@ -59,6 +59,10 @@ export const LogOverlay: React.FC = () => {
   const movedDuringGesture = useRef(false);
 
   const buttonColor = useThemeColor({}, 'tint');
+  const buttonBorderColor = useThemeColor(
+    { light: 'rgba(255,255,255,0.85)', dark: 'rgba(15,23,42,0.75)' },
+    'background'
+  );
   const textColor = useThemeColor({}, 'text');
   const modalBackground = useThemeColor({ light: '#ffffff', dark: '#1f2937' }, 'background');
   const secondaryText = useThemeColor(
@@ -138,6 +142,8 @@ export const LogOverlay: React.FC = () => {
             styles.floatingButton,
             {
               backgroundColor: buttonColor,
+              borderColor: buttonBorderColor,
+              borderWidth: 2,
               left: position.x,
               top: position.y,
             },
