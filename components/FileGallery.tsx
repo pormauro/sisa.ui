@@ -176,14 +176,33 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
 
       try {
         if (Platform.OS === 'android') {
-          const contentUri = await FileSystem.getContentUriAsync(file.localUri);
-          await Linking.openURL(contentUri);
-        } else {
-          await Linking.openURL(file.localUri);
+          const androidUri = file.localUri.startsWith('file://')
+            ? await FileSystem.getContentUriAsync(file.localUri)
+            : file.localUri;
+          const mimeType = file.fileType?.trim() || 'application/octet-stream';
+
+          try {
+            await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+              data: androidUri,
+              type: mimeType,
+              flags: 1,
+            });
+            return;
+          } catch (intentError) {
+            console.warn('Falling back to Linking for file open', intentError);
+            await Linking.openURL(androidUri);
+            return;
+          }
         }
-      } catch (e) {
+
+        await Linking.openURL(file.localUri);
+      } catch (e: any) {
         console.error('Error opening file:', e);
-        Alert.alert('Error', 'No se pudo abrir el archivo.');
+        const message =
+          Platform.OS === 'android'
+            ? 'No se encontró una aplicación instalada para abrir este tipo de archivo.'
+            : 'No se pudo abrir el archivo.';
+        Alert.alert('Error', message);
       }
     }
   };
