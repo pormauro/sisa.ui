@@ -78,11 +78,15 @@ export default function StatusesScreen() {
         <ThemedText style={[styles.itemValue, { color: secondaryTextColor }]}>{item.value}</ThemedText>
       </View>
       {canDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
+        <TouchableOpacity
+          style={styles.deleteButton}
+          onPress={() => handleDelete(item.id)}
+          accessibilityLabel={`Eliminar estado ${item.label}`}
+        >
           {loadingId === item.id ? (
-            <ActivityIndicator color={spinnerColor} />
+            <ActivityIndicator color={spinnerColor} size="small" />
           ) : (
-            <ThemedText style={styles.deleteButtonText}>Eliminar</ThemedText>
+            <ThemedText style={styles.deleteIcon}>🗑️</ThemedText>
           )}
         </TouchableOpacity>
       )}
@@ -150,12 +154,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   deleteButton: {
-    backgroundColor: '#dc3545',
     padding: 8,
-    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  deleteButtonText: {
-    color: '#fff',
+  deleteIcon: {
+    fontSize: 18,
   },
   addButton: {
     position: 'absolute',
