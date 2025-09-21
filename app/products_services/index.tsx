@@ -102,6 +102,7 @@ export default function ProductsServicesScreen() {
         data={filteredItems}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={<ThemedText style={styles.emptyText}>No se encontraron registros</ThemedText>}
       />
       <TouchableOpacity
@@ -115,7 +116,7 @@ export default function ProductsServicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   searchInput: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1, marginLeft: 12 },
@@ -125,4 +126,5 @@ const styles = StyleSheet.create({
   addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
   addButtonText: { fontSize: 16, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
+  listContent: { paddingBottom: 120 },
 });

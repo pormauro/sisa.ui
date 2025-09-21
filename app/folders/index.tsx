@@ -137,6 +137,7 @@ export default function FoldersPage() {
               )}
             </TouchableOpacity>
           )}
+          contentContainerStyle={styles.listContent}
         />
       ) : (
         <FlatList
@@ -150,6 +151,7 @@ export default function FoldersPage() {
               <ThemedText style={[styles.text, { color: textColor }]}>{item.business_name}</ThemedText>
             </TouchableOpacity>
           )}
+          contentContainerStyle={styles.listContent}
         />
       )}
 
@@ -167,7 +169,7 @@ export default function FoldersPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { padding: 10, borderWidth: 1, borderRadius: 8, marginBottom: 10 },
   item: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1 },
   text: { flex: 1, marginLeft: 10 },
@@ -176,4 +178,5 @@ const styles = StyleSheet.create({
   addText: { fontWeight: 'bold' },
   backButton: { marginBottom: 10, padding: 8, borderRadius: 8 },
   backButtonText: { fontSize: 16 },
+  listContent: { paddingBottom: 120 },
 });
