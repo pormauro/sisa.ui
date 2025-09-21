@@ -254,6 +254,9 @@ export default function AppointmentsCalendarScreen() {
           </View>
         }
         contentContainerStyle={[styles.listContent, selectedAppointments.length === 0 && styles.listEmpty]}
+        ListFooterComponent={
+          <View style={{ height: canCreate && selectedAppointments.length > 0 ? 120 : 0 }} />
+        }
       />
       {canCreate && (
         <TouchableOpacity
@@ -273,7 +276,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    paddingBottom: 80,
   },
   calendar: {
     borderWidth: 1,
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   listContent: {
-    paddingBottom: 120,
+    paddingBottom: 16,
   },
   listEmpty: {
     flexGrow: 1,

@@ -110,6 +110,7 @@ export default function StatusesScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: 120 }} />}
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron estados</ThemedText>
         }
@@ -180,5 +181,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
   },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 16 },
 });

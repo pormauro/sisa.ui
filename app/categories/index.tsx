@@ -135,6 +135,7 @@ export default function CategoriesScreen() {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
         ListEmptyComponent={
           <ThemedText style={styles.empty}>No se encontraron categorías</ThemedText>
         }
@@ -170,5 +171,5 @@ const styles = StyleSheet.create({
   },
   addText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 16 },
 });

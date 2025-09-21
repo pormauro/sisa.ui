@@ -1,7 +1,7 @@
 // Archivo: app/folders/index.tsx
 
 import React, { useContext, useEffect, useState, useMemo } from 'react';
-import { FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -138,6 +138,7 @@ export default function FoldersPage() {
             </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={<View style={{ height: canAddFolder ? 120 : 0 }} />}
         />
       ) : (
         <FlatList
@@ -152,6 +153,7 @@ export default function FoldersPage() {
             </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={<View style={{ height: canAddFolder ? 120 : 0 }} />}
         />
       )}
 
@@ -178,5 +180,5 @@ const styles = StyleSheet.create({
   addText: { fontWeight: 'bold' },
   backButton: { marginBottom: 10, padding: 8, borderRadius: 8 },
   backButtonText: { fontSize: 16 },
-  listContent: { paddingBottom: 120 },
+  listContent: { paddingBottom: 16 },
 });
