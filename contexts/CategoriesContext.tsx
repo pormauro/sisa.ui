@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   ReactNode,
+  useRef,
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -40,7 +41,12 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   );
   const { token } = useContext(AuthContext);
 
+  const latestLoadRequestIdRef = useRef(0);
+
   const loadCategories = useCallback(async () => {
+    const requestId = latestLoadRequestIdRef.current + 1;
+    latestLoadRequestIdRef.current = requestId;
+
     try {
       const response = await fetch(`${BASE_URL}/categories`, {
         headers: {
@@ -49,11 +55,13 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
         },
       });
       const data = await response.json();
-      if (data.categories) {
+      if (latestLoadRequestIdRef.current === requestId && data.categories) {
         setCategories(data.categories);
       }
     } catch (error) {
-      console.error('Error loading categories:', error);
+      if (latestLoadRequestIdRef.current === requestId) {
+        console.error('Error loading categories:', error);
+      }
     }
   }, [setCategories, token]);
 
