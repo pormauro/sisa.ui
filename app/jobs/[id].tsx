@@ -90,6 +90,7 @@ export default function EditJobScreen() {
     const match = tariffs.find(t => t.id === job.tariff_id);
     return match ?? null;
   }, [job, tariffs]);
+  const jobTariffId = job?.tariff_id ?? null;
   const jobContextAmount = job?.manual_amount != null ? job.manual_amount : jobTariff?.amount;
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
@@ -202,15 +203,12 @@ export default function EditJobScreen() {
       setStartTime(extractTime(job.start_time));
       setEndTime(extractTime(job.end_time));
 
-      const manualValueFromContext =
-        job.manual_amount != null
-          ? formatManualAmountValue(job.manual_amount)
-          : jobTariff
-          ? formatManualAmountValue(jobTariff.amount)
-          : '';
+      const manualValueFromContext = formatManualAmountValue(jobContextAmount);
 
       if (jobTariff) {
         setSelectedTariff({ id: jobTariff.id, name: `${jobTariff.name} - ${jobTariff.amount}` });
+      } else if (job?.tariff_id != null) {
+        setSelectedTariff({ id: job.tariff_id, name: `Tarifa #${job.tariff_id}` });
       } else {
         setSelectedTariff(manualTariffItem);
       }
@@ -402,12 +400,18 @@ export default function EditJobScreen() {
   );
 
   const tariffItems = useMemo(
-    () => [
-      { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
-      { ...manualTariffItem, name: manualTariffDisplayName },
-      ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
-    ],
-    [manualTariffItem, tariffs, manualTariffDisplayName]
+    () => {
+      const items: ModalPickerItem[] = [
+        { id: NEW_TARIFF_VALUE, name: '➕ Nueva tarifa' },
+        { ...manualTariffItem, name: manualTariffDisplayName },
+        ...tariffs.map(t => ({ id: t.id, name: `${t.name} - ${t.amount}` })),
+      ];
+      if (jobTariffId != null && !tariffs.some(t => t.id === jobTariffId)) {
+        items.push({ id: jobTariffId, name: `Tarifa #${jobTariffId}` });
+      }
+      return items;
+    },
+    [manualTariffItem, tariffs, manualTariffDisplayName, jobTariffId]
   );
   const selectedTariffForDisplay = useMemo(
     () => {
@@ -658,10 +662,12 @@ export default function EditJobScreen() {
           }}
         />
       </View>
-      {job?.id != null && (
+      {job && (
         <>
           <ThemedText style={[styles.infoLabel, { color: textColor }]}>ID</ThemedText>
-          <ThemedText style={[styles.infoValue, { color: textColor }]}>{job.id}</ThemedText>
+          <ThemedText style={[styles.infoValue, { color: textColor }]}>
+            {jobTariffId != null ? jobTariffId : 'Tarifa manual'}
+          </ThemedText>
         </>
       )}
       {/* Tarifa manual */}
