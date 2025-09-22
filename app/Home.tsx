@@ -2,11 +2,11 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useRouter } from 'expo-router';
 import React, { useContext } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+
+import { MenuButton } from '@/components/MenuButton';
 
 import { ThemedText } from '@/components/ThemedText';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem } from '@/constants/menuSections';
 
@@ -34,11 +34,6 @@ const Menu: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
-  const iconForegroundColor = useThemeColor({ light: '#FFFFFF', dark: '#2f273e' }, 'text');
-  const colorScheme = useColorScheme();
-  const isLightMode = colorScheme === 'light';
-  const cardBackgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#3d2f4d' }, 'background');
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
@@ -53,31 +48,19 @@ const Menu: React.FC = () => {
             </View>
           ) : (
             visibleSections.map((section) => (
-              <TouchableOpacity
+              <MenuButton
                 key={section.key}
-                style={[
-                  styles.sectionCard,
-                  {
-                    backgroundColor: cardBackgroundColor,
-                    borderColor: tintColor,
-                    shadowColor: isLightMode ? '#00000020' : '#00000080',
-                  },
-                ]}
-                onPress={() => router.push({ pathname: '/menu/[section]', params: { section: section.key } })}
-              >
-                <View style={[styles.sectionIconContainer, { backgroundColor: tintColor }]}>
-                  <Ionicons name={section.icon} size={32} color={iconForegroundColor} />
-                </View>
-                <View style={styles.sectionContent}>
-                  <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
-                  <ThemedText style={styles.sectionSubtitle}>
-                    {section.items.length === 1
-                      ? '1 opción disponible'
-                      : `${section.items.length} opciones disponibles`}
-                  </ThemedText>
-                </View>
-                <Ionicons name="chevron-forward" size={24} color={textColor} />
-              </TouchableOpacity>
+                icon={section.icon}
+                title={section.title}
+                subtitle={
+                  section.items.length === 1
+                    ? '1 opción disponible'
+                    : `${section.items.length} opciones disponibles`
+                }
+                onPress={() =>
+                  router.push({ pathname: '/menu/[section]', params: { section: section.key } })
+                }
+              />
             ))
           )}
         </View>
@@ -98,38 +81,6 @@ const styles = StyleSheet.create({
   },
   sectionsContainer: {
     paddingBottom: 30,
-  },
-  sectionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  sectionIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  sectionContent: {
-    flex: 1,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    opacity: 0.7,
   },
   emptyStateContainer: {
     padding: 20,
