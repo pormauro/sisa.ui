@@ -313,6 +313,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `listFeedbacks` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar feedback deberían contar con él).【F:constants/menuSections.ts†L63-L70】
 - `addFeedback` controla la visibilidad del formulario de envío en la app móvil.【F:app/feedback/index.tsx†L50-L61】【F:app/feedback/create.tsx†L32-L45】
 - `respondFeedback` habilita la vista consolidada y la posibilidad de responder feedback ajenos.【F:app/feedback/index.tsx†L44-L55】【F:app/feedback/[id].tsx†L37-L49】
+- La pantalla de administración de permisos agrupa `listFeedbacks`, `addFeedback` y `respondFeedback` dentro del bloque "Feedback" para habilitar su asignación desde la app.【F:app/permission/PermissionScreen.tsx†L20-L41】
 
 ### Pantallas relacionadas
 - `app/feedback/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/feedback/index.tsx†L1-L204】
