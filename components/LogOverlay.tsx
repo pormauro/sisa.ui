@@ -60,7 +60,7 @@ export const LogOverlay: React.FC = () => {
 
   const buttonColor = useThemeColor({}, 'tint');
   const buttonBorderColor = useThemeColor(
-    { light: 'rgba(255,255,255,0.85)', dark: 'rgba(15,23,42,0.75)' },
+    { light: 'rgba(15, 23, 42, 0.2)', dark: 'rgba(255, 255, 255, 0.7)' },
     'background'
   );
   const textColor = useThemeColor({}, 'text');
