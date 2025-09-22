@@ -15,11 +15,19 @@ const NOTIFICATION_SCOPE = 'appointment-reminder';
 const NOTIFICATION_CHANNEL_ID = 'appointments';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async () =>
+    Platform.OS === 'ios'
+      ? {
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }
+      : {
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        },
 });
 
 type AppointmentReminderInput = {
