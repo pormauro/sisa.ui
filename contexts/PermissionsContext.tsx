@@ -25,9 +25,8 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [loading, setLoading] = useState<boolean>(false);
 
   const fetchPermissions = useCallback(async () => {
-    // Si no hay token o userId, limpiamos los permisos.
+    // Si no hay token o userId disponible, conservamos la información en caché.
     if (!token || !userId) {
-      setPermissions([]);
       return;
     }
     setLoading(true);

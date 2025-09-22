@@ -197,23 +197,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const autoLogin = useCallback(async () => {
-    const storedUsername = await getItem('username');
-    const storedPassword = await getItem('password');
-    const storedToken = await getItem('token');
-    const storedEmail = await getItem('email');
-    const tokenValid = await checkTokenValidity();
+    try {
+      const [
+        storedUsername,
+        storedPassword,
+        storedToken,
+        storedEmail,
+        storedUserId,
+      ] = await Promise.all([
+        getItem('username'),
+        getItem('password'),
+        getItem('token'),
+        getItem('email'),
+        getItem('user_id'),
+      ]);
 
-    if (storedUsername && storedPassword && storedToken && tokenValid) {
-      const storedUserId = await getItem('user_id');
-      setToken(storedToken);
-      setUserId(storedUserId);
-      setUsername(storedUsername);
-      setPassword(storedPassword);
-      setEmail(storedEmail);
-    } else if (storedUsername && storedPassword) {
-      await performLogin(storedUsername, storedPassword);
+      if (storedUsername) {
+        setUsername(storedUsername);
+      }
+      if (storedPassword) {
+        setPassword(storedPassword);
+      }
+      if (storedEmail) {
+        setEmail(storedEmail);
+      }
+      if (storedUserId) {
+        setUserId(storedUserId);
+      }
+      if (storedToken) {
+        setToken(storedToken);
+      }
+
+      const tokenValid = storedToken ? await checkTokenValidity() : false;
+
+      if (storedUsername && storedPassword && (!storedToken || !tokenValid)) {
+        void performLogin(storedUsername, storedPassword);
+      }
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }, [checkTokenValidity, performLogin]);
 
   const logout = useCallback(async () => {
@@ -222,7 +244,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkConnection = useCallback(async () => {
     if (!token) {
-      setIsOffline(true);
+      if (username && password) {
+        await performLogin(username, password);
+      } else {
+        setIsOffline(true);
+      }
       return;
     }
     try {
