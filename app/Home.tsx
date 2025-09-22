@@ -6,70 +6,9 @@ import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 're
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
-import { Collapsible } from '@/components/Collapsible';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
-
-interface MenuItem {
-  title: string;
-  route: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  // Si no se especifica, se asume que la sección siempre está habilitada.
-  requiredPermissions?: string[];
-}
-
-interface MenuSection {
-  title: string;
-  items: MenuItem[];
-}
-
-const menuSections: MenuSection[] = [
-  {
-    title: 'Gestión financiera',
-    items: [
-      { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
-      { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
-      {
-        title: 'Cajas',
-        route: '/cash_boxes',
-        icon: 'cash-outline',
-        requiredPermissions: ['listCashBoxes'],
-      },
-      { title: 'Categorías contables', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
-    ],
-  },
-  {
-    title: 'Catálogos comerciales',
-    items: [
-      { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
-      { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
-      {
-        title: 'Productos y servicios',
-        route: '/products_services',
-        icon: 'pricetags',
-        requiredPermissions: ['listProductsServices'],
-      },
-      { title: 'Tarifas', route: '/tariffs', icon: 'pricetag', requiredPermissions: ['listTariffs'] },
-    ],
-  },
-  {
-    title: 'Operaciones',
-    items: [
-      { title: 'Trabajos', route: '/jobs', icon: 'briefcase', requiredPermissions: ['listJobs'] },
-      { title: 'Agenda', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
-      { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
-      { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
-    ],
-  },
-  {
-    title: 'Configuración y perfil',
-    items: [
-      { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
-      { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
-      { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
-    ],
-  },
-];
+import { MENU_SECTIONS, MenuItem } from '@/constants/menuSections';
 
 const Menu: React.FC = () => {
   const router = useRouter();
@@ -86,7 +25,7 @@ const Menu: React.FC = () => {
     return item.requiredPermissions.every((perm) => permissions.includes(perm));
   };
 
-  const visibleSections = menuSections
+  const visibleSections = MENU_SECTIONS
     .map((section) => ({
       ...section,
       items: section.items.filter(isEnabled),
@@ -96,44 +35,51 @@ const Menu: React.FC = () => {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
+  const iconForegroundColor = useThemeColor({ light: '#FFFFFF', dark: '#2f273e' }, 'text');
   const colorScheme = useColorScheme();
   const isLightMode = colorScheme === 'light';
-  const menuBackgroundColor = isLightMode ? '#FFFFFF' : backgroundColor;
-  const menuContentColor = isLightMode ? '#FFFFFF' : textColor;
+  const cardBackgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#3d2f4d' }, 'background');
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: menuBackgroundColor }]}> 
-      <ScrollView style={{ backgroundColor: menuBackgroundColor }} contentContainerStyle={styles.container}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+      <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
         <ThemedText style={styles.title}>Menú Principal</ThemedText>
         <View style={styles.sectionsContainer}>
-          {visibleSections.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <Collapsible title={section.title}>
-                <View style={styles.menuContainer}>
-                  {section.items.map((item) => (
-                    <TouchableOpacity
-                      key={item.route}
-                      style={[styles.menuItem, { backgroundColor: tintColor }]}
-                      onPress={() => router.push(item.route as any)}
-                    >
-                      <Ionicons
-                        name={item.icon}
-                        size={40}
-                        color={isLightMode ? menuContentColor : textColor}
-                        style={styles.menuIcon}
-                      />
-                      <ThemedText
-                        lightColor={isLightMode ? menuContentColor : undefined}
-                        style={styles.menuText}
-                      >
-                        {item.title}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </Collapsible>
+          {visibleSections.length === 0 ? (
+            <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
+              <ThemedText style={styles.emptyStateText}>
+                No tienes permisos para acceder a ninguna sección del menú.
+              </ThemedText>
             </View>
-          ))}
+          ) : (
+            visibleSections.map((section) => (
+              <TouchableOpacity
+                key={section.key}
+                style={[
+                  styles.sectionCard,
+                  {
+                    backgroundColor: cardBackgroundColor,
+                    borderColor: tintColor,
+                    shadowColor: isLightMode ? '#00000020' : '#00000080',
+                  },
+                ]}
+                onPress={() => router.push({ pathname: '/menu/[section]', params: { section: section.key } })}
+              >
+                <View style={[styles.sectionIconContainer, { backgroundColor: tintColor }]}>
+                  <Ionicons name={section.icon} size={32} color={iconForegroundColor} />
+                </View>
+                <View style={styles.sectionContent}>
+                  <ThemedText style={styles.sectionTitle}>{section.title}</ThemedText>
+                  <ThemedText style={styles.sectionSubtitle}>
+                    {section.items.length === 1
+                      ? '1 opción disponible'
+                      : `${section.items.length} opciones disponibles`}
+                  </ThemedText>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={textColor} />
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -153,34 +99,53 @@ const styles = StyleSheet.create({
   sectionsContainer: {
     paddingBottom: 30,
   },
-  section: {
-    marginBottom: 20,
-  },
-  menuContainer: {
+  sectionCard: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  sectionIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  sectionContent: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  emptyStateContainer: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    textAlign: 'center',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 20,
-    textAlign: 'center',
-  },
-  menuItem: {
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderRadius: 10,
-    marginBottom: 10,
-    width: '48%',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  menuIcon: {
-    marginBottom: 5,
-  },
-  menuText: {
-    fontSize: 18,
     textAlign: 'center',
   },
 });
