@@ -292,3 +292,29 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/folders/index.tsx` — navegación jerárquica por clientes y subcarpetas.【F:app/folders/index.tsx†L1-L165】
 - `app/folders/create.tsx` — alta con selección de cliente/carpeta padre.【F:app/folders/create.tsx†L16-L104】
 - `app/folders/[id].tsx` — edición, cambio de jerarquía y eliminación.【F:app/folders/[id].tsx†L14-L155】
+
+## Feedback (`FeedbackContext`)
+### Modelo
+- `Feedback`: identifica autor, asunto, mensaje, estado, respuesta y metadatos de seguimiento (fechas y usuario que responde).【F:contexts/FeedbackContext.tsx†L15-L40】
+
+### Métodos del contexto
+- `loadMyFeedbacks()`: sincroniza los feedback enviados por el usuario autenticado.【F:contexts/FeedbackContext.tsx†L107-L131】
+- `loadAllFeedbacks()`: recupera todos los feedback para usuarios con permisos de respuesta.【F:contexts/FeedbackContext.tsx†L133-L155】
+- `submitFeedback(payload)`: registra un nuevo feedback del usuario y actualiza las colecciones en caché.【F:contexts/FeedbackContext.tsx†L157-L187】
+- `respondFeedback(id, response)`: guarda la respuesta del superusuario y refresca los listados.【F:contexts/FeedbackContext.tsx†L189-L217】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/feedbacks/mine` — listado personal del usuario.【F:contexts/FeedbackContext.tsx†L116-L121】
+- `GET ${BASE_URL}/feedbacks` — listado global para revisión del superusuario.【F:contexts/FeedbackContext.tsx†L138-L143】
+- `POST ${BASE_URL}/feedbacks` — envío de feedback por parte del usuario autenticado.【F:contexts/FeedbackContext.tsx†L165-L179】
+- `POST ${BASE_URL}/feedbacks/{id}/respond` — registro/actualización de la respuesta del superusuario.【F:contexts/FeedbackContext.tsx†L197-L209】
+
+### Permisos requeridos
+- `listFeedbacks` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar feedback deberían contar con él).【F:constants/menuSections.ts†L63-L70】
+- `addFeedback` controla la visibilidad del formulario de envío en la app móvil.【F:app/feedback/index.tsx†L50-L61】【F:app/feedback/create.tsx†L32-L45】
+- `respondFeedback` habilita la vista consolidada y la posibilidad de responder feedback ajenos.【F:app/feedback/index.tsx†L44-L55】【F:app/feedback/[id].tsx†L37-L49】
+
+### Pantallas relacionadas
+- `app/feedback/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/feedback/index.tsx†L1-L204】
+- `app/feedback/create.tsx` — formulario para que cualquier usuario envíe un nuevo feedback.【F:app/feedback/create.tsx†L1-L146】
+- `app/feedback/[id].tsx` — detalle del feedback con lectura de respuesta y formulario para responder si corresponde.【F:app/feedback/[id].tsx†L1-L221】
