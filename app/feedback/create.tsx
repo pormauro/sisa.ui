@@ -15,6 +15,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import FileGallery from '@/components/FileGallery';
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -32,6 +33,7 @@ const FeedbackCreateScreen = () => {
 
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = useMemo(
@@ -61,7 +63,11 @@ const FeedbackCreateScreen = () => {
     }
 
     setSubmitting(true);
-    const result = await submitFeedback({ subject: trimmedSubject, message: trimmedMessage });
+    const result = await submitFeedback({
+      subject: trimmedSubject,
+      message: trimmedMessage,
+      attached_files: attachedFiles || null,
+    });
     setSubmitting(false);
 
     if (result) {
@@ -77,10 +83,11 @@ const FeedbackCreateScreen = () => {
       );
       setSubject('');
       setMessage('');
+      setAttachedFiles('');
     } else {
       Alert.alert('Error', 'No se pudo enviar el feedback. Volvé a intentarlo en unos minutos.');
     }
-  }, [message, router, subject, submitFeedback]);
+  }, [attachedFiles, message, router, subject, submitFeedback]);
 
   return (
     <ThemedView style={[styles.screen, { backgroundColor }]}> 
@@ -122,6 +129,9 @@ const FeedbackCreateScreen = () => {
           <ThemedText style={styles.helperText}>
             {message.length}/{MAX_MESSAGE_LENGTH} caracteres
           </ThemedText>
+
+          <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
+          <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
           <ThemedButton
             title={submitting ? 'Enviando…' : 'Enviar feedback'}

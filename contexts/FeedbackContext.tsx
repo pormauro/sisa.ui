@@ -18,6 +18,8 @@ export interface Feedback {
   user_name: string;
   subject: string;
   message: string;
+  /** Identificadores de archivos adjuntos en formato JSON */
+  attached_files?: number[] | string | null;
   status: 'pending' | 'responded';
   response_message?: string | null;
   responded_at?: string | null;
@@ -30,6 +32,7 @@ export interface Feedback {
 interface FeedbackInput {
   subject: string;
   message: string;
+  attached_files?: number[] | string | null;
 }
 
 interface FeedbackContextValue {
@@ -56,6 +59,65 @@ const defaultContext: FeedbackContextValue = {
 
 export const FeedbackContext = createContext<FeedbackContextValue>(defaultContext);
 
+const normalizeAttachedFiles = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed.toLowerCase() === 'null') {
+      return null;
+    }
+    return trimmed;
+  }
+
+  if (Array.isArray(value)) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof value === 'object') {
+    const nested =
+      (value as any)?.attached_files ??
+      (value as any)?.files ??
+      (value as any)?.attachments ??
+      (value as any)?.data ??
+      null;
+    if (nested) {
+      return normalizeAttachedFiles(nested);
+    }
+  }
+
+  return null;
+};
+
+const serializeAttachedFiles = (
+  value: FeedbackInput['attached_files']
+): string | null => {
+  if (!value && value !== '') {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  if (Array.isArray(value)) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+};
+
 const normalizeFeedback = (raw: any): Feedback => {
   const respondedBy = raw?.responded_by ?? raw?.response_user ?? raw?.responder ?? null;
   const respondedById =
@@ -81,6 +143,9 @@ const normalizeFeedback = (raw: any): Feedback => {
       '',
     subject: raw?.subject ?? raw?.title ?? '',
     message: raw?.message ?? raw?.body ?? '',
+    attached_files: normalizeAttachedFiles(
+      raw?.attached_files ?? raw?.attachments ?? raw?.files ?? raw?.file_ids ?? null
+    ),
     status: statusRaw === 'responded' || statusRaw === 'resolved' ? 'responded' : 'pending',
     response_message: raw?.response_message ?? raw?.response ?? raw?.answer ?? null,
     responded_at: raw?.responded_at ?? raw?.response_at ?? raw?.answered_at ?? raw?.updated_at ?? null,
@@ -206,6 +271,7 @@ export const FeedbackProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify({
             subject: payload.subject.trim(),
             message: payload.message.trim(),
+            attached_files: serializeAttachedFiles(payload.attached_files),
           }),
         });
         const data = await response.json().catch(() => ({}));
