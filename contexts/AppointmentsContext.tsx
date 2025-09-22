@@ -10,6 +10,7 @@ import React, {
 import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { NotificationsContext } from '@/contexts/NotificationsContext';
 import { useCachedState } from '@/hooks/useCachedState';
 
 export interface Appointment {
@@ -73,11 +74,12 @@ const serializeAttachedFiles = (value: Appointment['attached_files']) => {
 
 export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
-  const [appointments, setAppointments] = useCachedState<Appointment[]>(
+  const [appointments, setAppointments, appointmentsHydrated] = useCachedState<Appointment[]>(
     'appointments',
     []
   );
   const [isLoading, setIsLoading] = useState(false);
+  const { syncAppointmentReminders } = useContext(NotificationsContext);
 
   const parseAppointment = useCallback((raw: any): Appointment => ({
     id: Number(raw.id),
@@ -226,6 +228,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     },
     [token]
   );
+
+  useEffect(() => {
+    if (appointmentsHydrated) {
+      void syncAppointmentReminders(appointments);
+    }
+  }, [appointments, appointmentsHydrated, syncAppointmentReminders]);
 
   useEffect(() => {
     if (token) {

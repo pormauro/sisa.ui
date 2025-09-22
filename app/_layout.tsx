@@ -7,6 +7,7 @@ import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
 import { JobsProvider } from '@/contexts/JobsContext';
 import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { PaymentsProvider } from '@/contexts/PaymentsContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
@@ -85,8 +86,9 @@ export default function RootLayout() {
                                 <StatusesProvider>
                                   <TariffsProvider>
                                     <JobsProvider>
-                                      <AppointmentsProvider>
-                                        <PaymentsProvider>
+                                      <NotificationsProvider>
+                                        <AppointmentsProvider>
+                                          <PaymentsProvider>
                                           <ReceiptsProvider>
                                             <FoldersProvider>
                                               <PendingSelectionProvider>
@@ -97,8 +99,9 @@ export default function RootLayout() {
                                               </PendingSelectionProvider>
                                             </FoldersProvider>
                                           </ReceiptsProvider>
-                                        </PaymentsProvider>
-                                      </AppointmentsProvider>
+                                          </PaymentsProvider>
+                                        </AppointmentsProvider>
+                                      </NotificationsProvider>
                                     </JobsProvider>
                                   </TariffsProvider>
                                 </StatusesProvider>
