@@ -79,6 +79,12 @@ export const MENU_SECTIONS: MenuSection[] = [
       { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
       { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
       { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
+      {
+        title: 'Feedback',
+        route: '/feedback',
+        icon: 'chatbubbles',
+        requiredPermissions: ['listFeedbacks'],
+      },
     ],
   },
 ];

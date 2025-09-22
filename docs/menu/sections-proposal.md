@@ -23,6 +23,7 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 ## Configuración y perfil
 - **Perfil** — Ruta: `/user/ProfileScreen`. Disponible para todos los usuarios autenticados.
 - **Configuración** — Ruta: `/user/ConfigScreen`. Disponible para todos los usuarios autenticados.
+- **Feedback** — Ruta: `/feedback`. Permiso: `listFeedbacks` (muestra envío propio; el permiso `respondFeedback` habilita la bandeja global).
 - **Permisos** — Ruta: `/permission`. Permiso: `listPermissions` (siempre visible para el usuario maestro con `userId === '1'`).
 
 > Esta propuesta queda sujeta a revisión y ajustes según las prioridades que defina el usuario final antes de cerrar la entrega.
