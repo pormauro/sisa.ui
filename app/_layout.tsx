@@ -18,6 +18,7 @@ import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -70,12 +71,13 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <PermissionsProvider>
-        <FilesProvider>
-          <ProfileProvider>
-            <ProfilesProvider>
-              <ProfilesListProvider>
-                <ConfigProvider>
-                  <ThemeProvider>
+        <NotificationsProvider>
+          <FilesProvider>
+            <ProfileProvider>
+              <ProfilesProvider>
+                <ProfilesListProvider>
+                  <ConfigProvider>
+                    <ThemeProvider>
                     <LogProvider>
                       <CashBoxesProvider>
                         <ClientsProvider>
@@ -113,7 +115,8 @@ export default function RootLayout() {
               </ProfilesListProvider>
             </ProfilesProvider>
           </ProfileProvider>
-        </FilesProvider>
+          </FilesProvider>
+        </NotificationsProvider>
       </PermissionsProvider>
     </AuthProvider>
   );

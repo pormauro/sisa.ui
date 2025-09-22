@@ -35,6 +35,7 @@
           "backgroundColor": "#ffffff"
         }
       ],
+      "expo-notifications",
       "expo-secure-store"
     ],
     "experiments": {

@@ -11,6 +11,7 @@ import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { NotificationsContext } from '@/contexts/NotificationsContext';
 
 export interface Appointment {
   id: number;
@@ -73,6 +74,9 @@ const serializeAttachedFiles = (value: Appointment['attached_files']) => {
 
 export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
+  const { syncAppointments, cancelAppointmentNotifications, isReady: notificationsReady, preferences } =
+    useContext(NotificationsContext);
+  const { appointmentAtTime: notifyAtTime, appointmentOneHourBefore: notifyOneHourBefore } = preferences;
   const [appointments, setAppointments] = useCachedState<Appointment[]>(
     'appointments',
     []
@@ -217,6 +221,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
           throw new Error(data.error || 'No se pudo eliminar la cita.');
         }
         setAppointments(prev => prev.filter(item => item.id !== id));
+        void cancelAppointmentNotifications(id);
         return true;
       } catch (error) {
         console.error('Error deleting appointment:', error);
@@ -224,7 +229,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
     },
-    [token]
+    [cancelAppointmentNotifications, token]
   );
 
   useEffect(() => {
@@ -234,6 +239,13 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       setAppointments([]);
     }
   }, [loadAppointments, token]);
+
+  useEffect(() => {
+    if (!notificationsReady) {
+      return;
+    }
+    void syncAppointments(appointments);
+  }, [appointments, notificationsReady, notifyAtTime, notifyOneHourBefore, syncAppointments]);
 
   const value = useMemo(
     () => ({ appointments, isLoading, loadAppointments, addAppointment, updateAppointment, deleteAppointment }),
