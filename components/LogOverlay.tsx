@@ -60,8 +60,12 @@ export const LogOverlay: React.FC = () => {
 
   const buttonColor = useThemeColor({}, 'tint');
   const buttonBorderColor = useThemeColor(
-    { light: 'rgba(255,255,255,0.85)', dark: 'rgba(15,23,42,0.75)' },
+    { light: 'rgba(255,255,255,0.95)', dark: 'rgba(255,255,255,0.75)' },
     'background'
+  );
+  const buttonShadowColor = useThemeColor(
+    { light: 'rgba(59,130,246,0.35)', dark: 'rgba(15,23,42,0.6)' },
+    'tint'
   );
   const textColor = useThemeColor({}, 'text');
   const modalBackground = useThemeColor({ light: '#ffffff', dark: '#1f2937' }, 'background');
@@ -143,6 +147,7 @@ export const LogOverlay: React.FC = () => {
             {
               backgroundColor: buttonColor,
               borderColor: buttonBorderColor,
+              shadowColor: buttonShadowColor,
               borderWidth: 2,
               left: position.x,
               top: position.y,

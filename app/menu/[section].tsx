@@ -25,6 +25,11 @@ const MenuGroupScreen: React.FC = () => {
   const colorScheme = useColorScheme();
   const isLightMode = colorScheme === 'light';
   const menuContentColor = isLightMode ? '#FFFFFF' : textColor;
+  const menuTitleColor = useThemeColor({ light: '#FFFFFF', dark: '#F8FAFC' }, 'text');
+  const menuTitleShadowColor = useThemeColor(
+    { light: 'rgba(17, 24, 39, 0.35)', dark: 'rgba(15, 23, 42, 0.55)' },
+    'background'
+  );
 
   const isEnabled = (item: MenuItem): boolean => {
     if (item.route === '/permission' && userId === '1') return true;
@@ -66,7 +71,15 @@ const MenuGroupScreen: React.FC = () => {
                     color={menuContentColor}
                     style={styles.menuIcon}
                   />
-                  <ThemedText lightColor={isLightMode ? '#FFFFFF' : undefined} style={styles.menuText}>
+                  <ThemedText
+                    style={[
+                      styles.menuText,
+                      {
+                        color: menuTitleColor,
+                        textShadowColor: menuTitleShadowColor,
+                      },
+                    ]}
+                  >
                     {item.title}
                   </ThemedText>
                 </TouchableOpacity>
@@ -158,8 +171,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   menuText: {
-    fontSize: 18,
+    fontSize: 19,
     textAlign: 'center',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    lineHeight: 24,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
   },
   emptyStateContainer: {
     padding: 24,
