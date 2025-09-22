@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -192,11 +193,49 @@ const mergeFeedback = (collection: Feedback[], updated: Feedback): Feedback[] =>
 };
 
 export const FeedbackProvider = ({ children }: { children: ReactNode }) => {
-  const { token } = useContext(AuthContext);
-  const [myFeedbacks, setMyFeedbacks] = useCachedState<Feedback[]>('my_feedbacks', []);
-  const [allFeedbacks, setAllFeedbacks] = useCachedState<Feedback[]>('all_feedbacks', []);
+  const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
+  const [myFeedbacks, setMyFeedbacks, myFeedbacksHydrated] = useCachedState<Feedback[]>(
+    'my_feedbacks',
+    []
+  );
+  const [allFeedbacks, setAllFeedbacks, allFeedbacksHydrated] = useCachedState<Feedback[]>(
+    'all_feedbacks',
+    []
+  );
   const [loadingMyFeedbacks, setLoadingMyFeedbacks] = useState(false);
   const [loadingAllFeedbacks, setLoadingAllFeedbacks] = useState(false);
+  const previousUserIdRef = useRef<string | null>(null);
+
+  const clearCachedFeedbacks = useCallback(() => {
+    setMyFeedbacks(prev => (prev.length > 0 ? [] : prev));
+    setAllFeedbacks(prev => (prev.length > 0 ? [] : prev));
+  }, [setAllFeedbacks, setMyFeedbacks]);
+
+  useEffect(() => {
+    if (!myFeedbacksHydrated || !allFeedbacksHydrated) {
+      return;
+    }
+
+    if (!authIsLoading && !userId) {
+      clearCachedFeedbacks();
+      previousUserIdRef.current = null;
+      return;
+    }
+
+    if (userId && previousUserIdRef.current && previousUserIdRef.current !== userId) {
+      clearCachedFeedbacks();
+    }
+
+    if (userId !== previousUserIdRef.current) {
+      previousUserIdRef.current = userId ?? null;
+    }
+  }, [
+    allFeedbacksHydrated,
+    authIsLoading,
+    clearCachedFeedbacks,
+    myFeedbacksHydrated,
+    userId,
+  ]);
 
   const authorizedFetch = useCallback(
     async (url: string, options?: RequestInit) => {

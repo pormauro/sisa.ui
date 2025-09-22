@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   ReactNode,
+  useRef,
   useState,
 } from 'react';
 import { Alert } from 'react-native';
@@ -72,12 +73,13 @@ const serializeAttachedFiles = (value: Appointment['attached_files']) => {
 };
 
 export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
-  const { token } = useContext(AuthContext);
-  const [appointments, setAppointments] = useCachedState<Appointment[]>(
+  const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
+  const [appointments, setAppointments, appointmentsHydrated] = useCachedState<Appointment[]>(
     'appointments',
     []
   );
   const [isLoading, setIsLoading] = useState(false);
+  const previousUserIdRef = useRef<string | null>(null);
 
   const parseAppointment = useCallback((raw: any): Appointment => ({
     id: Number(raw.id),
@@ -224,6 +226,26 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     },
     [token]
   );
+
+  useEffect(() => {
+    if (!appointmentsHydrated) {
+      return;
+    }
+
+    if (!authIsLoading && !userId) {
+      setAppointments(prev => (prev.length > 0 ? [] : prev));
+      previousUserIdRef.current = null;
+      return;
+    }
+
+    if (userId && previousUserIdRef.current && previousUserIdRef.current !== userId) {
+      setAppointments(prev => (prev.length > 0 ? [] : prev));
+    }
+
+    if (userId !== previousUserIdRef.current) {
+      previousUserIdRef.current = userId ?? null;
+    }
+  }, [appointmentsHydrated, authIsLoading, setAppointments, userId]);
 
   useEffect(() => {
     if (token) {

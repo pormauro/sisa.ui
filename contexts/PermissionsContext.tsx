@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useContext, useCallback, useState } from 'react';
+import React, { createContext, useEffect, useContext, useCallback, useState, useRef } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -17,12 +17,37 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
 });
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token, userId } = useContext(AuthContext);
-  const [permissions, setPermissions] = useCachedState<string[]>(
+  const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
+  const [permissions, setPermissions, permissionsHydrated] = useCachedState<string[]>(
     'permissions',
     []
   );
   const [loading, setLoading] = useState<boolean>(false);
+  const previousUserIdRef = useRef<string | null>(null);
+
+  const clearCachedPermissions = useCallback(() => {
+    setPermissions(prev => (prev.length > 0 ? [] : prev));
+  }, [setPermissions]);
+
+  useEffect(() => {
+    if (!permissionsHydrated) {
+      return;
+    }
+
+    if (!authIsLoading && !userId) {
+      clearCachedPermissions();
+      previousUserIdRef.current = null;
+      return;
+    }
+
+    if (userId && previousUserIdRef.current && previousUserIdRef.current !== userId) {
+      clearCachedPermissions();
+    }
+
+    if (userId !== previousUserIdRef.current) {
+      previousUserIdRef.current = userId ?? null;
+    }
+  }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
 
   const fetchPermissions = useCallback(async () => {
     // Si no hay token o userId disponible, conservamos la información en caché.
