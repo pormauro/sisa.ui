@@ -1,8 +1,8 @@
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { findMenuSection, MenuItem } from '@/constants/menuSections';
+import { MenuButton } from '@/components/MenuButton';
 import { ThemedText } from '@/components/ThemedText';
-import { useColorScheme } from '@/hooks/useColorScheme';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,11 +20,7 @@ const MenuGroupScreen: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
   const iconForegroundColor = useThemeColor({ light: '#FFFFFF', dark: '#2f273e' }, 'text');
-  const colorScheme = useColorScheme();
-  const isLightMode = colorScheme === 'light';
-  const menuContentColor = isLightMode ? '#FFFFFF' : textColor;
 
   const isEnabled = (item: MenuItem): boolean => {
     if (item.route === '/permission' && userId === '1') return true;
@@ -55,21 +51,12 @@ const MenuGroupScreen: React.FC = () => {
           visibleItems.length > 0 ? (
             <View style={styles.menuContainer}>
               {visibleItems.map((item) => (
-                <TouchableOpacity
+                <MenuButton
                   key={item.route}
-                  style={[styles.menuItem, { backgroundColor: tintColor }]}
+                  icon={item.icon}
+                  title={item.title}
                   onPress={() => router.push(item.route as any)}
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={40}
-                    color={menuContentColor}
-                    style={styles.menuIcon}
-                  />
-                  <ThemedText lightColor={isLightMode ? '#FFFFFF' : undefined} style={styles.menuText}>
-                    {item.title}
-                  </ThemedText>
-                </TouchableOpacity>
+                />
               ))}
             </View>
           ) : (
@@ -145,27 +132,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   menuContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  menuItem: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    width: '48%',
-    alignItems: 'center',
-  },
-  menuIcon: {
-    marginBottom: 8,
-  },
-  menuText: {
-    fontSize: 18,
-    textAlign: 'center',
-    width: '100%',
-    flexShrink: 1,
-    lineHeight: 24,
+    paddingBottom: 8,
   },
   emptyStateContainer: {
     padding: 24,
