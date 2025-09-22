@@ -132,6 +132,9 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+    flex: 1,
+    flexShrink: 1,
+    lineHeight: 30,
   },
   sectionIconContainer: {
     width: 46,
@@ -160,6 +163,9 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 18,
     textAlign: 'center',
+    width: '100%',
+    flexShrink: 1,
+    lineHeight: 24,
   },
   emptyStateContainer: {
     padding: 24,
