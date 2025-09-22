@@ -12,10 +12,13 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 interface MenuItem {
   title: string;
-  route: string;
+  route?: string;
   icon: keyof typeof Ionicons.glyphMap;
   // Si no se especifica, se asume que la sección siempre está habilitada.
   requiredPermissions?: string[];
+  disabled?: boolean;
+  comingSoon?: boolean;
+  disabledIcon?: keyof typeof Ionicons.glyphMap;
 }
 
 interface MenuSection {
@@ -36,6 +39,41 @@ const menuSections: MenuSection[] = [
         requiredPermissions: ['listCashBoxes'],
       },
       { title: 'Categorías contables', route: '/categories', icon: 'list', requiredPermissions: ['listCategories'] },
+      {
+        title: 'Facturación',
+        icon: 'document-text',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'hourglass-outline',
+      },
+      {
+        title: 'Bancos',
+        icon: 'business',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'time-outline',
+      },
+      {
+        title: 'Presupuestos',
+        icon: 'calculator',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'calculator-outline',
+      },
+      {
+        title: 'Impuestos',
+        icon: 'receipt-outline',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'time-outline',
+      },
+      {
+        title: 'Reportes',
+        icon: 'bar-chart',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'stats-chart-outline',
+      },
     ],
   },
   {
@@ -59,6 +97,27 @@ const menuSections: MenuSection[] = [
       { title: 'Agenda', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
       { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
       { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
+      {
+        title: 'Inventario',
+        icon: 'cube',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'cube-outline',
+      },
+      {
+        title: 'RR.HH.',
+        icon: 'people-circle',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'people-circle-outline',
+      },
+      {
+        title: 'Activos Fijos',
+        icon: 'build',
+        disabled: true,
+        comingSoon: true,
+        disabledIcon: 'build-outline',
+      },
     ],
   },
   {
@@ -78,10 +137,11 @@ const Menu: React.FC = () => {
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
+    if (item.disabled) return true;
     // El botón de permisos siempre está disponible para el usuario maestro.
     if (item.route === '/permission' && userId === '1') return true;
     // Si no hay permisos requeridos, se muestra.
-    if (!item.requiredPermissions) return true;
+    if (!item.requiredPermissions || item.requiredPermissions.length === 0) return true;
     // De lo contrario, se verifica que el usuario tenga todos los permisos requeridos.
     return item.requiredPermissions.every((perm) => permissions.includes(perm));
   };
@@ -100,6 +160,9 @@ const Menu: React.FC = () => {
   const isLightMode = colorScheme === 'light';
   const menuBackgroundColor = isLightMode ? '#FFFFFF' : backgroundColor;
   const menuContentColor = isLightMode ? '#FFFFFF' : textColor;
+  const disabledBackgroundColor = isLightMode ? '#F4F4F5' : '#1F2937';
+  const disabledBorderColor = isLightMode ? '#E5E7EB' : '#374151';
+  const disabledTextColor = isLightMode ? '#6B7280' : '#9CA3AF';
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: menuBackgroundColor }]}> 
@@ -110,26 +173,71 @@ const Menu: React.FC = () => {
             <View key={section.title} style={styles.section}>
               <Collapsible title={section.title}>
                 <View style={styles.menuContainer}>
-                  {section.items.map((item) => (
-                    <TouchableOpacity
-                      key={item.route}
-                      style={[styles.menuItem, { backgroundColor: tintColor }]}
-                      onPress={() => router.push(item.route as any)}
-                    >
-                      <Ionicons
-                        name={item.icon}
-                        size={40}
-                        color={isLightMode ? menuContentColor : textColor}
-                        style={styles.menuIcon}
-                      />
-                      <ThemedText
-                        lightColor={isLightMode ? menuContentColor : undefined}
-                        style={styles.menuText}
+                  {section.items.map((item) => {
+                    const isItemDisabled = item.disabled ?? false;
+                    const iconName = isItemDisabled && item.disabledIcon ? item.disabledIcon : item.icon;
+                    const iconColor = isItemDisabled
+                      ? disabledTextColor
+                      : isLightMode
+                        ? menuContentColor
+                        : textColor;
+                    const titleLightColor = isItemDisabled
+                      ? disabledTextColor
+                      : isLightMode
+                        ? menuContentColor
+                        : undefined;
+                    const titleDarkColor = isItemDisabled ? disabledTextColor : undefined;
+                    const helperText = item.comingSoon
+                      ? 'Disponible próximamente'
+                      : item.disabled
+                        ? 'No disponible'
+                        : undefined;
+
+                    return (
+                      <TouchableOpacity
+                        key={`${section.title}-${item.title}`}
+                        style={[
+                          styles.menuItem,
+                          { backgroundColor: tintColor },
+                          isItemDisabled && styles.menuItemDisabled,
+                          isItemDisabled && {
+                            backgroundColor: disabledBackgroundColor,
+                            borderColor: disabledBorderColor,
+                            borderWidth: 1,
+                          },
+                        ]}
+                        disabled={isItemDisabled}
+                        onPress={() => {
+                          if (!isItemDisabled && item.route) {
+                            router.push(item.route as any);
+                          }
+                        }}
                       >
-                        {item.title}
-                      </ThemedText>
-                    </TouchableOpacity>
-                  ))}
+                        <Ionicons
+                          name={iconName}
+                          size={40}
+                          color={iconColor}
+                          style={styles.menuIcon}
+                        />
+                        <ThemedText
+                          lightColor={titleLightColor}
+                          darkColor={titleDarkColor}
+                          style={styles.menuText}
+                        >
+                          {item.title}
+                        </ThemedText>
+                        {helperText ? (
+                          <ThemedText
+                            lightColor={disabledTextColor}
+                            darkColor={disabledTextColor}
+                            style={styles.menuHelperText}
+                          >
+                            {helperText}
+                          </ThemedText>
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </Collapsible>
             </View>
@@ -181,6 +289,14 @@ const styles = StyleSheet.create({
   },
   menuText: {
     fontSize: 18,
+    textAlign: 'center',
+  },
+  menuItemDisabled: {
+    opacity: 0.6,
+  },
+  menuHelperText: {
+    fontSize: 12,
+    marginTop: 6,
     textAlign: 'center',
   },
 });
