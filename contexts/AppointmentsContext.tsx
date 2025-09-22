@@ -112,8 +112,6 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       if (Array.isArray(data.appointments)) {
         setAppointments(data.appointments.map(parseAppointment));
-      } else {
-        setAppointments([]);
       }
     } catch (error) {
       console.error('Error loading appointments:', error);
@@ -230,8 +228,6 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (token) {
       loadAppointments();
-    } else {
-      setAppointments([]);
     }
   }, [loadAppointments, token]);
 

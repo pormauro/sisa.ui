@@ -218,7 +218,6 @@ export const FeedbackProvider = ({ children }: { children: ReactNode }) => {
 
   const loadMyFeedbacks = useCallback(async () => {
     if (!token) {
-      setMyFeedbacks([]);
       return;
     }
     setLoadingMyFeedbacks(true);
@@ -240,7 +239,6 @@ export const FeedbackProvider = ({ children }: { children: ReactNode }) => {
 
   const loadAllFeedbacks = useCallback(async () => {
     if (!token) {
-      setAllFeedbacks([]);
       return;
     }
     setLoadingAllFeedbacks(true);
@@ -323,13 +321,6 @@ export const FeedbackProvider = ({ children }: { children: ReactNode }) => {
     },
     [authorizedFetch, loadAllFeedbacks, loadMyFeedbacks, setAllFeedbacks, setMyFeedbacks]
   );
-
-  useEffect(() => {
-    if (!token) {
-      setMyFeedbacks([]);
-      setAllFeedbacks([]);
-    }
-  }, [setAllFeedbacks, setMyFeedbacks, token]);
 
   const contextValue = useMemo(
     () => ({
