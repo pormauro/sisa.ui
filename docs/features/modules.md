@@ -295,26 +295,26 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Feedback (`FeedbackContext`)
 ### Modelo
-- `Feedback`: identifica autor, asunto, mensaje, estado, respuesta y metadatos de seguimiento (fechas y usuario que responde).【F:contexts/FeedbackContext.tsx†L15-L40】
+- `Feedback`: identifica autor, asunto, mensaje, archivos adjuntos (`attached_files` con IDs en JSON), estado, respuesta y metadatos de seguimiento (fechas y usuario que responde).【F:contexts/FeedbackContext.tsx†L15-L73】
 
 ### Métodos del contexto
-- `loadMyFeedbacks()`: sincroniza los feedback enviados por el usuario autenticado.【F:contexts/FeedbackContext.tsx†L107-L131】
-- `loadAllFeedbacks()`: recupera todos los feedback para usuarios con permisos de respuesta.【F:contexts/FeedbackContext.tsx†L133-L155】
-- `submitFeedback(payload)`: registra un nuevo feedback del usuario y actualiza las colecciones en caché.【F:contexts/FeedbackContext.tsx†L157-L187】
-- `respondFeedback(id, response)`: guarda la respuesta del superusuario y refresca los listados.【F:contexts/FeedbackContext.tsx†L189-L217】
+- `loadMyFeedbacks()`: sincroniza los feedback enviados por el usuario autenticado.【F:contexts/FeedbackContext.tsx†L219-L239】
+- `loadAllFeedbacks()`: recupera todos los feedback para usuarios con permisos de respuesta.【F:contexts/FeedbackContext.tsx†L241-L261】
+- `submitFeedback(payload)`: registra un nuevo feedback del usuario y actualiza las colecciones en caché.【F:contexts/FeedbackContext.tsx†L263-L292】
+- `respondFeedback(id, response)`: guarda la respuesta del superusuario y refresca los listados.【F:contexts/FeedbackContext.tsx†L295-L324】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/feedbacks/mine` — listado personal del usuario.【F:contexts/FeedbackContext.tsx†L116-L121】
-- `GET ${BASE_URL}/feedbacks` — listado global para revisión del superusuario.【F:contexts/FeedbackContext.tsx†L138-L143】
-- `POST ${BASE_URL}/feedbacks` — envío de feedback por parte del usuario autenticado.【F:contexts/FeedbackContext.tsx†L165-L179】
-- `POST ${BASE_URL}/feedbacks/{id}/respond` — registro/actualización de la respuesta del superusuario.【F:contexts/FeedbackContext.tsx†L197-L209】
+- `GET ${BASE_URL}/feedbacks/mine` — listado personal del usuario.【F:contexts/FeedbackContext.tsx†L226-L233】
+- `GET ${BASE_URL}/feedbacks` — listado global para revisión del superusuario.【F:contexts/FeedbackContext.tsx†L248-L255】
+- `POST ${BASE_URL}/feedbacks` — envío de feedback por parte del usuario autenticado.【F:contexts/FeedbackContext.tsx†L269-L275】
+- `POST ${BASE_URL}/feedbacks/{id}/respond` — registro/actualización de la respuesta del superusuario.【F:contexts/FeedbackContext.tsx†L301-L304】
 
 ### Permisos requeridos
 - `listFeedbacks` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar feedback deberían contar con él).【F:constants/menuSections.ts†L63-L70】
-- `addFeedback` controla la visibilidad del formulario de envío en la app móvil.【F:app/feedback/index.tsx†L50-L61】【F:app/feedback/create.tsx†L32-L45】
-- `respondFeedback` habilita la vista consolidada y la posibilidad de responder feedback ajenos.【F:app/feedback/index.tsx†L44-L55】【F:app/feedback/[id].tsx†L37-L49】
+- `addFeedback` controla la visibilidad del formulario de envío en la app móvil.【F:app/feedback/index.tsx†L55-L65】【F:app/feedback/create.tsx†L34-L90】
+- `respondFeedback` habilita la vista consolidada y la posibilidad de responder feedback ajenos.【F:app/feedback/index.tsx†L55-L75】【F:app/feedback/[id].tsx†L70-L146】
 
 ### Pantallas relacionadas
 - `app/feedback/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/feedback/index.tsx†L1-L204】
-- `app/feedback/create.tsx` — formulario para que cualquier usuario envíe un nuevo feedback.【F:app/feedback/create.tsx†L1-L146】
-- `app/feedback/[id].tsx` — detalle del feedback con lectura de respuesta y formulario para responder si corresponde.【F:app/feedback/[id].tsx†L1-L221】
+- `app/feedback/create.tsx` — formulario para que cualquier usuario envíe un nuevo feedback.【F:app/feedback/create.tsx†L1-L209】
+- `app/feedback/[id].tsx` — detalle del feedback con lectura de respuesta, archivos adjuntos y formulario para responder si corresponde.【F:app/feedback/[id].tsx†L1-L253】

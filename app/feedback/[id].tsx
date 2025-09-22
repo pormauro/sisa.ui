@@ -23,6 +23,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import FileGallery from '@/components/FileGallery';
 
 const formatDateTime = (value?: string | null): string => {
   if (!value) return 'Sin fecha';
@@ -82,6 +83,21 @@ const FeedbackDetailScreen = () => {
   const [responseText, setResponseText] = useState('');
   const [responding, setResponding] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const attachmentsJson = useMemo(() => {
+    const attachments = feedback?.attached_files;
+    if (!attachments) {
+      return '';
+    }
+    if (typeof attachments === 'string') {
+      return attachments;
+    }
+    try {
+      return JSON.stringify(attachments);
+    } catch {
+      return '';
+    }
+  }, [feedback?.attached_files]);
 
   useEffect(() => {
     setResponseText(feedback?.response_message ?? '');
@@ -180,6 +196,13 @@ const FeedbackDetailScreen = () => {
               <ThemedText style={styles.sectionTitle}>Mensaje</ThemedText>
               <ThemedText style={styles.bodyText}>{feedback.message}</ThemedText>
             </View>
+
+            {attachmentsJson ? (
+              <View style={styles.section}>
+                <ThemedText style={styles.sectionTitle}>Archivos adjuntos</ThemedText>
+                <FileGallery filesJson={attachmentsJson} onChangeFilesJson={() => {}} editable={false} />
+              </View>
+            ) : null}
 
             <View style={styles.section}>
               <ThemedText style={styles.sectionTitle}>Respuesta</ThemedText>
