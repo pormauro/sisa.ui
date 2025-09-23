@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 
-import { FeedbackContext, type Feedback } from '@/contexts/FeedbackContext';
+import { CommentsContext, type CommentEntry } from '@/contexts/CommentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedView } from '@/components/ThemedView';
@@ -26,19 +26,19 @@ const formatDateTime = (value?: string | null): string => {
   return parsed.toLocaleString('es-AR');
 };
 
-const statusLabel = (item: Feedback): 'Pendiente' | 'Respondido' =>
-  item.status === 'responded' || !!item.response_message ? 'Respondido' : 'Pendiente';
+const statusLabel = (item: CommentEntry): 'Pendiente' | 'Respondido' =>
+  item.status === 'responded' || !!item.response ? 'Respondido' : 'Pendiente';
 
-const FeedbackListScreen = () => {
+const CommentsListScreen = () => {
   const router = useRouter();
   const {
-    myFeedbacks,
-    allFeedbacks,
-    loadMyFeedbacks,
-    loadAllFeedbacks,
-    loadingMyFeedbacks,
-    loadingAllFeedbacks,
-  } = useContext(FeedbackContext);
+    myComments,
+    allComments,
+    loadMyComments,
+    loadAllComments,
+    loadingMyComments,
+    loadingAllComments,
+  } = useContext(CommentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { userId } = useContext(AuthContext);
 
@@ -53,11 +53,16 @@ const FeedbackListScreen = () => {
   const spinnerColor = useThemeColor({}, 'tint');
 
   const canRespond = useMemo(
-    () => userId === '1' || permissions.includes('respondFeedback'),
+    () =>
+      userId === '1' ||
+      permissions.includes('respondComment') ||
+      permissions.includes('respondFeedback'),
     [permissions, userId]
   );
   const canSubmit = useMemo(
     () =>
+      permissions.includes('addComment') ||
+      permissions.includes('listComments') ||
       permissions.includes('addFeedback') ||
       permissions.includes('listFeedbacks') ||
       userId === '1',
@@ -69,10 +74,10 @@ const FeedbackListScreen = () => {
 
   const dataset = useMemo(() => {
     if (canRespond && activeTab === 'all') {
-      return allFeedbacks;
+      return allComments;
     }
-    return myFeedbacks;
-  }, [activeTab, allFeedbacks, canRespond, myFeedbacks]);
+    return myComments;
+  }, [activeTab, allComments, canRespond, myComments]);
 
   useEffect(() => {
     if (!canRespond && activeTab === 'all') {
@@ -82,31 +87,31 @@ const FeedbackListScreen = () => {
 
   const isLoading = useMemo(() => {
     if (canRespond && activeTab === 'all') {
-      return loadingAllFeedbacks;
+      return loadingAllComments;
     }
-    return loadingMyFeedbacks;
-  }, [activeTab, canRespond, loadingAllFeedbacks, loadingMyFeedbacks]);
+    return loadingMyComments;
+  }, [activeTab, canRespond, loadingAllComments, loadingMyComments]);
 
   const emptyState = useMemo(() => {
     if (canRespond && activeTab === 'all') {
       return {
-        title: 'Sin feedback recibido',
+        title: 'Sin comentarios recibidos',
         description: 'Todavía no se registraron comentarios para revisar.',
       };
     }
     if (canRespond && activeTab === 'mine') {
       return {
-        title: 'No enviaste feedback todavía',
+        title: 'No enviaste comentarios todavía',
         description: canSubmit
-          ? 'Usa el botón "Nuevo feedback" para iniciar una conversación con el equipo administrador.'
+          ? 'Usa el botón "Nuevo comentario" para iniciar una conversación con el equipo administrador.'
           : 'No tenés permisos para enviar comentarios desde esta cuenta.',
       };
     }
     return {
-      title: 'No hay feedback cargado.',
+      title: 'No hay comentarios cargados.',
       description: canSubmit
-        ? 'Usa el botón "Nuevo feedback" para enviar tus comentarios o mejoras.'
-        : 'No tenés permisos para cargar feedback. Contactá al administrador.',
+        ? 'Usa el botón "Nuevo comentario" para enviar tus dudas o mejoras.'
+        : 'No tenés permisos para cargar comentarios. Contactá al administrador.',
     };
   }, [activeTab, canRespond, canSubmit]);
 
@@ -114,36 +119,36 @@ const FeedbackListScreen = () => {
     setRefreshing(true);
     try {
       if (canRespond && activeTab === 'all') {
-        await loadAllFeedbacks();
+        await loadAllComments();
       } else {
-        await loadMyFeedbacks();
+        await loadMyComments();
       }
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, canRespond, loadAllFeedbacks, loadMyFeedbacks]);
+  }, [activeTab, canRespond, loadAllComments, loadMyComments]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadMyFeedbacks();
+      void loadMyComments();
       if (canRespond) {
-        void loadAllFeedbacks();
+        void loadAllComments();
       }
-    }, [canRespond, loadAllFeedbacks, loadMyFeedbacks])
+    }, [canRespond, loadAllComments, loadMyComments])
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: Feedback }) => {
+    ({ item }: { item: CommentEntry }) => {
       const status = statusLabel(item);
       const isPending = status === 'Pendiente';
       return (
         <TouchableOpacity
-          style={[styles.feedbackCard, { borderColor: cardBorderColor }]}
-          onPress={() => router.push(`/feedback/${item.id}`)}
+          style={[styles.commentCard, { borderColor: cardBorderColor }]}
+          onPress={() => router.push(`/comments/${item.id}`)}
           activeOpacity={0.85}
         >
-          <View style={styles.feedbackHeader}>
-            <ThemedText style={styles.subject}>{item.subject || 'Sin asunto'}</ThemedText>
+          <View style={styles.commentHeader}>
+            <ThemedText style={styles.titleText}>{item.title || 'Sin título'}</ThemedText>
             <View
               style={[
                 styles.statusBadge,
@@ -166,7 +171,7 @@ const FeedbackListScreen = () => {
             Enviado el {formatDateTime(item.created_at)}
           </ThemedText>
           <ThemedText style={styles.preview} numberOfLines={2}>
-            {item.response_message ? `Respuesta: ${item.response_message}` : item.message}
+            {item.response ? `Respuesta: ${item.response}` : item.comment}
           </ThemedText>
         </TouchableOpacity>
       );
@@ -177,14 +182,14 @@ const FeedbackListScreen = () => {
   return (
     <ThemedView style={[styles.container, { backgroundColor }]}>
       <View style={styles.header}>
-        <ThemedText style={styles.title}>Feedback</ThemedText>
+        <ThemedText style={styles.screenTitle}>Comentarios</ThemedText>
         {canSubmit ? (
-          <ThemedButton title="Nuevo feedback" onPress={() => router.push('/feedback/create')} />
+          <ThemedButton title="Nuevo comentario" onPress={() => router.push('/comments/create')} />
         ) : null}
       </View>
 
       {canRespond ? (
-        <View style={[styles.tabSelector, { borderColor: sectionBorder }]}> 
+        <View style={[styles.tabSelector, { borderColor: sectionBorder }]}>
           <TouchableOpacity
             style={[
               styles.tabButton,
@@ -243,7 +248,7 @@ const FeedbackListScreen = () => {
   );
 };
 
-export default FeedbackListScreen;
+export default CommentsListScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -257,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  title: {
+  screenTitle: {
     fontSize: 24,
     fontWeight: 'bold',
   },
@@ -281,19 +286,19 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#ffffff',
   },
-  feedbackCard: {
+  commentCard: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
   },
-  feedbackHeader: {
+  commentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  subject: {
+  titleText: {
     fontSize: 16,
     fontWeight: 'bold',
     flex: 1,

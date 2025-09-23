@@ -36,7 +36,7 @@ const PERMISSION_GROUPS = [
   { group: "Accounting Closings", permissions: ['listClosings', 'getClosing', 'addClosing', 'updateClosing', 'deleteClosing', 'listClosingHistory'] },
   { group: "User Profile", permissions: ['listUserProfiles', 'getUserProfile', 'addUserProfile'] },
   { group: "User Configurations", permissions: ['listUserConfigurations', 'getUserConfigurations', 'addUserConfigurations'] },
-  { group: "Feedback", permissions: ['listFeedbacks', 'addFeedback', 'respondFeedback'] },
+  { group: "Comments", permissions: ['listComments', 'addComment', 'respondComment'] },
   { group: "Statuses", permissions: ['listStatuses', 'getStatus', 'addStatus', 'updateStatus', 'deleteStatus', 'reorderStatuses'] },
 ];
 

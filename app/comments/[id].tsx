@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
-import { FeedbackContext } from '@/contexts/FeedbackContext';
+import { CommentsContext } from '@/contexts/CommentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedView } from '@/components/ThemedView';
@@ -34,25 +34,25 @@ const formatDateTime = (value?: string | null): string => {
   return parsed.toLocaleString('es-AR');
 };
 
-const FeedbackDetailScreen = () => {
+const CommentDetailScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
   const paramId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const feedbackId = useMemo(() => {
+  const commentId = useMemo(() => {
     if (!paramId) return null;
     const parsed = Number(paramId);
     return Number.isNaN(parsed) ? null : parsed;
   }, [paramId]);
 
   const {
-    myFeedbacks,
-    allFeedbacks,
-    loadMyFeedbacks,
-    loadAllFeedbacks,
-    respondFeedback,
-    loadingMyFeedbacks,
-    loadingAllFeedbacks,
-  } = useContext(FeedbackContext);
+    myComments,
+    allComments,
+    loadMyComments,
+    loadAllComments,
+    respondComment,
+    loadingMyComments,
+    loadingAllComments,
+  } = useContext(CommentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { userId } = useContext(AuthContext);
 
@@ -68,65 +68,65 @@ const FeedbackDetailScreen = () => {
   const badgeRespondedText = useThemeColor({ light: '#0b60a1', dark: '#ffffff' }, 'text');
 
   const canRespond = useMemo(
-    () => userId === '1' || permissions.includes('respondFeedback'),
+    () =>
+      userId === '1' ||
+      permissions.includes('respondComment') ||
+      permissions.includes('respondFeedback'),
     [permissions, userId]
   );
 
-  const feedback = useMemo(() => {
-    if (feedbackId === null) return undefined;
+  const comment = useMemo(() => {
+    if (commentId === null) return undefined;
     return (
-      allFeedbacks.find(item => item.id === feedbackId) ??
-      myFeedbacks.find(item => item.id === feedbackId)
+      allComments.find(item => item.id === commentId) ??
+      myComments.find(item => item.id === commentId)
     );
-  }, [allFeedbacks, feedbackId, myFeedbacks]);
+  }, [allComments, commentId, myComments]);
 
   const [responseText, setResponseText] = useState('');
   const [responding, setResponding] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const attachmentsJson = useMemo(() => {
-    const attachments = feedback?.attached_files;
-    if (!attachments) {
+    const ids = comment?.file_ids ?? [];
+    if (!ids || ids.length === 0) {
       return '';
     }
-    if (typeof attachments === 'string') {
-      return attachments;
-    }
     try {
-      return JSON.stringify(attachments);
+      return JSON.stringify(ids);
     } catch {
       return '';
     }
-  }, [feedback?.attached_files]);
+  }, [comment?.file_ids]);
 
   useEffect(() => {
-    setResponseText(feedback?.response_message ?? '');
-  }, [feedback?.response_message]);
+    setResponseText(comment?.response ?? '');
+  }, [comment?.response]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadMyFeedbacks();
+      void loadMyComments();
       if (canRespond) {
-        void loadAllFeedbacks();
+        void loadAllComments();
       }
-    }, [canRespond, loadAllFeedbacks, loadMyFeedbacks])
+    }, [canRespond, loadAllComments, loadMyComments])
   );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       if (canRespond) {
-        await Promise.all([loadMyFeedbacks(), loadAllFeedbacks()]);
+        await Promise.all([loadMyComments(), loadAllComments()]);
       } else {
-        await loadMyFeedbacks();
+        await loadMyComments();
       }
     } finally {
       setRefreshing(false);
     }
-  }, [canRespond, loadAllFeedbacks, loadMyFeedbacks]);
+  }, [canRespond, loadAllComments, loadMyComments]);
 
   const handleRespond = useCallback(async () => {
-    if (!feedback) {
+    if (!comment) {
       return;
     }
     const trimmed = responseText.trim();
@@ -135,7 +135,7 @@ const FeedbackDetailScreen = () => {
       return;
     }
     setResponding(true);
-    const ok = await respondFeedback(feedback.id, trimmed);
+    const ok = await respondComment(comment.id, trimmed);
     setResponding(false);
     if (ok) {
       Alert.alert('Respuesta enviada', 'El usuario verá la actualización apenas inicie sesión.');
@@ -143,14 +143,14 @@ const FeedbackDetailScreen = () => {
     } else {
       Alert.alert('Error', 'No se pudo registrar la respuesta. Intentá nuevamente.');
     }
-  }, [feedback, handleRefresh, respondFeedback, responseText]);
+  }, [comment, handleRefresh, respondComment, responseText]);
 
-  const statusLabel = feedback?.response_message ? 'Respondido' : 'Pendiente';
-  const globalLoading = loadingMyFeedbacks || (canRespond && loadingAllFeedbacks);
-  const isInitialLoading = !feedback && globalLoading;
+  const statusLabel = comment?.response ? 'Respondido' : 'Pendiente';
+  const globalLoading = loadingMyComments || (canRespond && loadingAllComments);
+  const isInitialLoading = !comment && globalLoading;
 
   return (
-    <ThemedView style={[styles.screen, { backgroundColor }]}> 
+    <ThemedView style={[styles.screen, { backgroundColor }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -158,15 +158,15 @@ const FeedbackDetailScreen = () => {
         }
         keyboardShouldPersistTaps="handled"
       >
-        {feedbackId === null ? (
-          <View style={[styles.emptyCard, { borderColor }]}> 
-            <ThemedText style={styles.emptyTitle}>El feedback solicitado no es válido.</ThemedText>
+        {commentId === null ? (
+          <View style={[styles.emptyCard, { borderColor }]}>
+            <ThemedText style={styles.emptyTitle}>El comentario solicitado no es válido.</ThemedText>
             <ThemedButton title="Volver" onPress={() => router.back()} style={styles.backButton} />
           </View>
-        ) : feedback ? (
-          <View style={[styles.card, { backgroundColor: cardColor, borderColor }]}> 
+        ) : comment ? (
+          <View style={[styles.card, { backgroundColor: cardColor, borderColor }]}>
             <View style={styles.headerRow}>
-              <ThemedText style={styles.subject}>{feedback.subject || 'Sin asunto'}</ThemedText>
+              <ThemedText style={styles.title}>{comment.title || 'Sin título'}</ThemedText>
               <View
                 style={[
                   styles.statusBadge,
@@ -188,13 +188,13 @@ const FeedbackDetailScreen = () => {
             </View>
 
             <ThemedText style={styles.meta}>
-              Enviado por: {feedback.user_name || `Usuario #${feedback.user_id}`}
+              Enviado por: {comment.user_name || `Usuario #${comment.user_id}`}
             </ThemedText>
-            <ThemedText style={styles.meta}>Fecha: {formatDateTime(feedback.created_at)}</ThemedText>
+            <ThemedText style={styles.meta}>Fecha: {formatDateTime(comment.created_at)}</ThemedText>
 
             <View style={styles.section}>
-              <ThemedText style={styles.sectionTitle}>Mensaje</ThemedText>
-              <ThemedText style={styles.bodyText}>{feedback.message}</ThemedText>
+              <ThemedText style={styles.sectionTitle}>Comentario</ThemedText>
+              <ThemedText style={styles.bodyText}>{comment.comment}</ThemedText>
             </View>
 
             {attachmentsJson ? (
@@ -206,23 +206,23 @@ const FeedbackDetailScreen = () => {
 
             <View style={styles.section}>
               <ThemedText style={styles.sectionTitle}>Respuesta</ThemedText>
-              {feedback.response_message ? (
+              {comment.response ? (
                 <>
-                  {feedback.responded_by_name ? (
+                  {comment.responded_by_name ? (
                     <ThemedText style={styles.meta}>
-                      Respondido por: {feedback.responded_by_name}
+                      Respondido por: {comment.responded_by_name}
                     </ThemedText>
                   ) : null}
-                  {feedback.responded_at ? (
+                  {comment.responded_at ? (
                     <ThemedText style={styles.meta}>
-                      Fecha: {formatDateTime(feedback.responded_at)}
+                      Fecha: {formatDateTime(comment.responded_at)}
                     </ThemedText>
                   ) : null}
-                  <ThemedText style={styles.bodyText}>{feedback.response_message}</ThemedText>
+                  <ThemedText style={styles.bodyText}>{comment.response}</ThemedText>
                 </>
               ) : (
                 <ThemedText style={styles.pendingHint}>
-                  Aún no se registró una respuesta para este feedback.
+                  Aún no se registró una respuesta para este comentario.
                 </ThemedText>
               )}
             </View>
@@ -256,8 +256,8 @@ const FeedbackDetailScreen = () => {
             <ActivityIndicator color={spinnerColor} />
           </View>
         ) : (
-          <View style={[styles.emptyCard, { borderColor }]}> 
-            <ThemedText style={styles.emptyTitle}>No encontramos este feedback.</ThemedText>
+          <View style={[styles.emptyCard, { borderColor }]}>
+            <ThemedText style={styles.emptyTitle}>No encontramos este comentario.</ThemedText>
             <ThemedButton title="Volver" onPress={() => router.back()} style={styles.backButton} />
           </View>
         )}
@@ -266,7 +266,7 @@ const FeedbackDetailScreen = () => {
   );
 };
 
-export default FeedbackDetailScreen;
+export default CommentDetailScreen;
 
 const styles = StyleSheet.create({
   screen: {
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  subject: {
+  title: {
     fontSize: 20,
     fontWeight: 'bold',
     flex: 1,

@@ -293,28 +293,28 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/folders/create.tsx` — alta con selección de cliente/carpeta padre.【F:app/folders/create.tsx†L16-L104】
 - `app/folders/[id].tsx` — edición, cambio de jerarquía y eliminación.【F:app/folders/[id].tsx†L14-L155】
 
-## Feedback (`FeedbackContext`)
+## Comentarios (`CommentsContext`)
 ### Modelo
-- `Feedback`: identifica autor, asunto, mensaje, archivos adjuntos (`attached_files` con IDs en JSON), estado, respuesta y metadatos de seguimiento (fechas y usuario que responde).【F:contexts/FeedbackContext.tsx†L15-L73】
+- `CommentEntry`: identifica autor, título, comentario, archivos asociados (`file_ids` como arreglo), estado, respuesta y metadatos de seguimiento (fechas y usuario que responde).【F:contexts/CommentsContext.tsx†L17-L52】
 
 ### Métodos del contexto
-- `loadMyFeedbacks()`: sincroniza los feedback enviados por el usuario autenticado.【F:contexts/FeedbackContext.tsx†L219-L239】
-- `loadAllFeedbacks()`: recupera todos los feedback para usuarios con permisos de respuesta.【F:contexts/FeedbackContext.tsx†L241-L261】
-- `submitFeedback(payload)`: registra un nuevo feedback del usuario y actualiza las colecciones en caché.【F:contexts/FeedbackContext.tsx†L263-L292】
-- `respondFeedback(id, response)`: guarda la respuesta del superusuario y refresca los listados.【F:contexts/FeedbackContext.tsx†L295-L324】
+- `loadMyComments()`: sincroniza los comentarios enviados por el usuario autenticado.【F:contexts/CommentsContext.tsx†L214-L239】
+- `loadAllComments()`: recupera todos los comentarios para usuarios con permisos de respuesta.【F:contexts/CommentsContext.tsx†L241-L268】
+- `submitComment(payload)`: registra un nuevo comentario del usuario y actualiza las colecciones en caché.【F:contexts/CommentsContext.tsx†L270-L306】
+- `respondComment(id, response)`: guarda la respuesta del superusuario y refresca los listados.【F:contexts/CommentsContext.tsx†L308-L340】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/feedbacks/mine` — listado personal del usuario.【F:contexts/FeedbackContext.tsx†L226-L233】
-- `GET ${BASE_URL}/feedbacks` — listado global para revisión del superusuario.【F:contexts/FeedbackContext.tsx†L248-L255】
-- `POST ${BASE_URL}/feedbacks` — envío de feedback por parte del usuario autenticado.【F:contexts/FeedbackContext.tsx†L269-L275】
-- `POST ${BASE_URL}/feedbacks/{id}/respond` — registro/actualización de la respuesta del superusuario.【F:contexts/FeedbackContext.tsx†L301-L304】
+- `GET ${BASE_URL}/comments/mine` — listado personal del usuario.【F:contexts/CommentsContext.tsx†L226-L235】
+- `GET ${BASE_URL}/comments` — listado global para revisión del superusuario.【F:contexts/CommentsContext.tsx†L239-L268】
+- `POST ${BASE_URL}/comments` — envío de comentarios por parte del usuario autenticado.【F:contexts/CommentsContext.tsx†L270-L306】
+- `POST ${BASE_URL}/comments/{id}/respond` — registro/actualización de la respuesta del superusuario.【F:contexts/CommentsContext.tsx†L308-L340】
 
 ### Permisos requeridos
-- `listFeedbacks` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar feedback deberían contar con él).【F:constants/menuSections.ts†L63-L70】
-- `addFeedback` controla la visibilidad del formulario de envío en la app móvil.【F:app/feedback/index.tsx†L55-L65】【F:app/feedback/create.tsx†L34-L90】
-- `respondFeedback` habilita la vista consolidada y la posibilidad de responder feedback ajenos.【F:app/feedback/index.tsx†L55-L75】【F:app/feedback/[id].tsx†L70-L146】
+- `listComments` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar comentarios deberían contar con él).【F:constants/menuSections.ts†L63-L70】
+- `addComment` controla la visibilidad del formulario de envío en la app móvil.【F:app/comments/index.tsx†L53-L84】【F:app/comments/create.tsx†L32-L99】
+- `respondComment` habilita la vista consolidada y la posibilidad de responder comentarios ajenos.【F:app/comments/index.tsx†L53-L113】【F:app/comments/[id].tsx†L69-L170】
 
 ### Pantallas relacionadas
-- `app/feedback/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/feedback/index.tsx†L1-L204】
-- `app/feedback/create.tsx` — formulario para que cualquier usuario envíe un nuevo feedback.【F:app/feedback/create.tsx†L1-L209】
-- `app/feedback/[id].tsx` — detalle del feedback con lectura de respuesta, archivos adjuntos y formulario para responder si corresponde.【F:app/feedback/[id].tsx†L1-L253】
+- `app/comments/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/comments/index.tsx†L1-L214】
+- `app/comments/create.tsx` — formulario para que cualquier usuario envíe un nuevo comentario.【F:app/comments/create.tsx†L1-L168】
+- `app/comments/[id].tsx` — detalle del comentario con lectura de respuesta, archivos adjuntos y formulario para responder si corresponde.【F:app/comments/[id].tsx†L1-L228】
