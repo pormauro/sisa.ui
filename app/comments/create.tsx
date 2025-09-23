@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 
-import { FeedbackContext } from '@/contexts/FeedbackContext';
+import { CommentsContext } from '@/contexts/CommentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -17,11 +17,11 @@ import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import FileGallery from '@/components/FileGallery';
 
-const MAX_MESSAGE_LENGTH = 2000;
+const MAX_COMMENT_LENGTH = 2000;
 
-const FeedbackCreateScreen = () => {
+const CommentsCreateScreen = () => {
   const router = useRouter();
-  const { submitFeedback } = useContext(FeedbackContext);
+  const { submitComment } = useContext(CommentsContext);
   const { permissions } = useContext(PermissionsContext);
 
   const backgroundColor = useThemeColor({}, 'background');
@@ -31,82 +31,87 @@ const FeedbackCreateScreen = () => {
   const placeholderColor = useThemeColor({ light: '#7a7a7a', dark: '#c5c5c5' }, 'text');
   const spinnerColor = useThemeColor({}, 'tint');
 
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState<string>('');
+  const [title, setTitle] = useState('');
+  const [comment, setComment] = useState('');
+  const [fileIdsJson, setFileIdsJson] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = useMemo(
-    () => permissions.includes('addFeedback') || permissions.includes('listFeedbacks') || permissions.length === 0,
+    () =>
+      permissions.includes('addComment') ||
+      permissions.includes('listComments') ||
+      permissions.includes('addFeedback') ||
+      permissions.includes('listFeedbacks') ||
+      permissions.length === 0,
     [permissions]
   );
 
   useEffect(() => {
     if (!canSubmit) {
-      Alert.alert('Acceso denegado', 'No tenés permisos para enviar feedback.');
+      Alert.alert('Acceso denegado', 'No tenés permisos para enviar comentarios.');
       router.back();
     }
   }, [canSubmit, router]);
 
   const handleSubmit = useCallback(async () => {
-    const trimmedSubject = subject.trim();
-    const trimmedMessage = message.trim();
+    const trimmedTitle = title.trim();
+    const trimmedComment = comment.trim();
 
-    if (!trimmedSubject) {
-      Alert.alert('Campos incompletos', 'Indicá un asunto breve para tu mensaje.');
+    if (!trimmedTitle) {
+      Alert.alert('Campos incompletos', 'Indicá un título breve para tu comentario.');
       return;
     }
 
-    if (!trimmedMessage) {
-      Alert.alert('Campos incompletos', 'Escribí el detalle del feedback que querés compartir.');
+    if (!trimmedComment) {
+      Alert.alert('Campos incompletos', 'Escribí el detalle del comentario que querés compartir.');
       return;
     }
 
     setSubmitting(true);
-    const result = await submitFeedback({
-      subject: trimmedSubject,
-      message: trimmedMessage,
-      attached_files: attachedFiles || null,
+    const result = await submitComment({
+      title: trimmedTitle,
+      comment: trimmedComment,
+      file_ids: fileIdsJson || null,
     });
     setSubmitting(false);
 
     if (result) {
       Alert.alert(
-        'Feedback enviado',
+        'Comentario enviado',
         'Gracias por tu mensaje. El equipo de administración responderá desde esta misma pantalla.',
         [
           {
             text: 'Aceptar',
-            onPress: () => router.replace('/feedback'),
+            onPress: () => router.replace('/comments'),
           },
         ]
       );
-      setSubject('');
-      setMessage('');
-      setAttachedFiles('');
+      setTitle('');
+      setComment('');
+      setFileIdsJson('');
     } else {
-      Alert.alert('Error', 'No se pudo enviar el feedback. Volvé a intentarlo en unos minutos.');
+      Alert.alert('Error', 'No se pudo enviar el comentario. Volvé a intentarlo en unos minutos.');
     }
-  }, [attachedFiles, message, router, subject, submitFeedback]);
+  }, [comment, fileIdsJson, router, submitComment, title]);
 
   return (
-    <ThemedView style={[styles.screen, { backgroundColor }]}> 
+    <ThemedView style={[styles.screen, { backgroundColor }]}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <View style={[styles.card, { backgroundColor: cardColor, borderColor }]}> 
-          <ThemedText style={styles.title}>Nuevo feedback</ThemedText>
+        <View style={[styles.card, { backgroundColor: cardColor, borderColor }]}>
+          <ThemedText style={styles.title}>Nuevo comentario</ThemedText>
           <ThemedText style={styles.description}>
             Contanos qué necesitás, detectaste o querés mejorar. El mensaje llegará al usuario maestro, quien te
             responderá dentro de la aplicación.
           </ThemedText>
 
-          <ThemedText style={styles.label}>Asunto</ThemedText>
+          <ThemedText style={styles.label}>Título</ThemedText>
           <TextInput
-            value={subject}
-            onChangeText={setSubject}
+            value={title}
+            onChangeText={setTitle}
             placeholder="Ejemplo: Necesito reportar un problema con los trabajos"
             placeholderTextColor={placeholderColor}
             style={[styles.input, { borderColor, color: inputTextColor }]}
@@ -115,11 +120,11 @@ const FeedbackCreateScreen = () => {
             returnKeyType="next"
           />
 
-          <ThemedText style={styles.label}>Mensaje</ThemedText>
+          <ThemedText style={styles.label}>Comentario</ThemedText>
           <TextInput
-            value={message}
-            onChangeText={text => setMessage(text.slice(0, MAX_MESSAGE_LENGTH))}
-            placeholder="Detallá el feedback para que podamos ayudarte"
+            value={comment}
+            onChangeText={text => setComment(text.slice(0, MAX_COMMENT_LENGTH))}
+            placeholder="Detallá el comentario para que podamos ayudarte"
             placeholderTextColor={placeholderColor}
             style={[styles.textArea, { borderColor, color: inputTextColor }]}
             multiline
@@ -127,14 +132,14 @@ const FeedbackCreateScreen = () => {
             textAlignVertical="top"
           />
           <ThemedText style={styles.helperText}>
-            {message.length}/{MAX_MESSAGE_LENGTH} caracteres
+            {comment.length}/{MAX_COMMENT_LENGTH} caracteres
           </ThemedText>
 
           <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-          <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
+          <FileGallery filesJson={fileIdsJson} onChangeFilesJson={setFileIdsJson} editable />
 
           <ThemedButton
-            title={submitting ? 'Enviando…' : 'Enviar feedback'}
+            title={submitting ? 'Enviando…' : 'Enviar comentario'}
             onPress={handleSubmit}
             style={styles.submitButton}
             textStyle={styles.submitButtonText}
@@ -147,7 +152,7 @@ const FeedbackCreateScreen = () => {
   );
 };
 
-export default FeedbackCreateScreen;
+export default CommentsCreateScreen;
 
 const styles = StyleSheet.create({
   screen: {
@@ -204,6 +209,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   spinner: {
-    marginTop: 16,
+    marginTop: 12,
   },
 });

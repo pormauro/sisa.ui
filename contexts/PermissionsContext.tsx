@@ -10,6 +10,26 @@ interface PermissionsContextProps {
   refreshPermissions: () => Promise<void>;
 }
 
+const PERMISSION_ALIASES: Record<string, string[]> = {
+  listFeedbacks: ['listComments'],
+  addFeedback: ['addComment'],
+  respondFeedback: ['respondComment'],
+  listComments: ['listFeedbacks'],
+  addComment: ['addFeedback'],
+  respondComment: ['respondFeedback'],
+};
+
+const expandWithAliases = (values: string[]): string[] => {
+  const set = new Set(values);
+  values.forEach(value => {
+    const aliases = PERMISSION_ALIASES[value];
+    if (aliases) {
+      aliases.forEach(alias => set.add(alias));
+    }
+  });
+  return Array.from(set);
+};
+
 export const PermissionsContext = createContext<PermissionsContextProps>({
   permissions: [],
   loading: false,
@@ -81,7 +101,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
-      setPermissions(mergedPermissions);
+      setPermissions(expandWithAliases(mergedPermissions));
     } catch (error) {
       console.error("Error fetching permissions", error);
       Alert.alert("Error", "No se pudieron cargar los permisos.");
