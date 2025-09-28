@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { MAX_FILE_SIZE } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { FileContext } from '@/contexts/FilesContext';
