@@ -1,7 +1,6 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
 import { Buffer } from 'buffer';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -10,6 +9,7 @@ import {
   getCachedFileMeta,
   setCachedFileMeta,
 } from '@/utils/cache';
+import { fileStorage } from '@/utils/files/storage';
 
 // Tipo de archivo que devuelve el backend
 export interface FileData {
@@ -22,6 +22,8 @@ export interface FileData {
   updated_at: string;
 }
 
+type CachedFileMeta = FileData & { localUri: string; storagePath?: string };
+
 interface FileContextType {
   uploadFile: (
     fileUri: string,
@@ -32,7 +34,7 @@ interface FileContextType {
   getFile: (fileId: number) => Promise<string | null>;
   getFileMetadata: (
     fileId: number
-  ) => Promise<(FileData & { localUri: string }) | null>;
+  ) => Promise<CachedFileMeta | null>;
   clearLocalFiles: () => Promise<void>;
 }
 
@@ -61,24 +63,36 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     const extension = file.file_type.split('/').pop() || 'bin';
     const defaultName = `file_${fileId}.${extension}`;
     const sanitized = sanitizeFileName(file.original_name || defaultName);
-    const localUri = `${FileSystem.documentDirectory}${sanitized}`;
-    await FileSystem.writeAsStringAsync(localUri, base64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    await setCachedFileMeta(fileId, { ...file, localUri });
+    const storagePath = `${fileStorage.documentDirectory}${sanitized}`;
+    const { uri } = await fileStorage.write(storagePath, base64, file.file_type);
+    const localUri = Platform.OS === 'web' ? uri : storagePath;
+    const cachedMeta: CachedFileMeta = {
+      ...file,
+      localUri,
+      storagePath,
+    };
+    await setCachedFileMeta(fileId, cachedMeta);
     return localUri;
   };
 
   const getFile = async (fileId: number): Promise<string | null> => {
     try {
-      const meta = await getCachedFileMeta<FileData & { localUri: string }>(fileId);
-      if (meta) {
-        const info = await FileSystem.getInfoAsync(meta.localUri);
-        if (info.exists) {
-          const base64 = await FileSystem.readAsStringAsync(meta.localUri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-          return `data:${meta.file_type};base64,${base64}`;
+      const meta = await getCachedFileMeta<CachedFileMeta>(fileId);
+      const target = meta?.storagePath ?? meta?.localUri;
+      if (meta && target) {
+        const base64 = await fileStorage.read(target, meta.file_type);
+        if (base64 !== null) {
+          if (Platform.OS === 'web') {
+            const dataUri = `data:${meta.file_type};base64,${base64}`;
+            if (meta.localUri !== dataUri) {
+              await setCachedFileMeta(fileId, { ...meta, localUri: dataUri, storagePath: target });
+            }
+            return dataUri;
+          }
+          return meta.localUri || target;
+        }
+        if (Platform.OS === 'web' && meta.localUri?.startsWith('data:')) {
+          return meta.localUri;
         }
       }
 
@@ -117,8 +131,11 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
           updated_at: '',
         };
 
-        await saveFileLocally(fileId, base64, file);
-        return `data:${contentType};base64,${base64}`;
+        const localUri = await saveFileLocally(fileId, base64, file);
+        if (Platform.OS === 'web') {
+          return `data:${contentType};base64,${base64}`;
+        }
+        return localUri;
       } else {
         Alert.alert('Error', 'No se pudo descargar el archivo.');
       }
@@ -164,9 +181,15 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
         const sanitized = sanitizeFileName(
           data.file.original_name || defaultName
         );
-        const localUri = `${FileSystem.documentDirectory}${sanitized}`;
-        await FileSystem.copyAsync({ from: fileUri, to: localUri });
-        await setCachedFileMeta(data.file.id, { ...data.file, localUri });
+        const storagePath = `${fileStorage.documentDirectory}${sanitized}`;
+        const { uri } = await fileStorage.copy(fileUri, storagePath, fileType);
+        const localUri = Platform.OS === 'web' ? uri : storagePath;
+        const cachedMeta: CachedFileMeta = {
+          ...data.file,
+          localUri,
+          storagePath,
+        };
+        await setCachedFileMeta(data.file.id, cachedMeta);
         return data.file;
       }
     } catch (error: any) {
@@ -178,13 +201,13 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
 
   const getFileMetadata = async (
     fileId: number
-  ): Promise<(FileData & { localUri: string }) | null> => {
-    const meta = await getCachedFileMeta<FileData & { localUri: string }>(fileId);
+  ): Promise<CachedFileMeta | null> => {
+    const meta = await getCachedFileMeta<CachedFileMeta>(fileId);
     if (meta) {
       return meta;
     }
     await getFile(fileId);
-    const newMeta = await getCachedFileMeta<FileData & { localUri: string }>(fileId);
+    const newMeta = await getCachedFileMeta<CachedFileMeta>(fileId);
     if (newMeta) {
       return newMeta;
     }
@@ -200,9 +223,13 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
       metas.map(async ([, value]) => {
         if (value) {
           try {
-            const meta = JSON.parse(value) as { localUri?: string };
-            if (meta?.localUri) {
-              await FileSystem.deleteAsync(meta.localUri, { idempotent: true });
+            const meta = JSON.parse(value) as {
+              localUri?: string;
+              storagePath?: string;
+            };
+            const target = meta?.storagePath ?? meta?.localUri;
+            if (target) {
+              await fileStorage.delete(target);
             }
           } catch (error) {
             console.log('Error clearing cached file', error);
