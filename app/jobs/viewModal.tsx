@@ -80,41 +80,6 @@ export default function ViewJobModal() {
   const endStr = job?.end_time?.slice(0, 5) || '';
   const interval = formatTimeInterval(startStr, endStr);
 
-  const parseHourlyRate = (value: unknown): number => {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return 0;
-      }
-      const normalized = trimmed.replace(/,/g, '.');
-      const parsed = Number.parseFloat(normalized);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-    return 0;
-  };
-
-  const hourlyRate =
-    job?.manual_amount != null
-      ? parseHourlyRate(job.manual_amount)
-      : parseHourlyRate(tariff?.amount);
-
-  let workedHours = 0;
-  if (startStr && endStr) {
-    const startDate = new Date(`1970-01-01T${startStr}:00`);
-    const endDate = new Date(`1970-01-01T${endStr}:00`);
-    const diffHours = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60);
-    workedHours = Number.isFinite(diffHours) && diffHours > 0 ? diffHours : 0;
-  }
-
-  const hasBothTimes = Boolean(startStr && endStr);
-  const finalCost = hasBothTimes ? workedHours * hourlyRate : 0;
-  const workedHoursText = hasBothTimes ? `${workedHours.toFixed(2)} h` : '0.00 h';
-  const hourlyRateText = hourlyRate > 0 ? `$${hourlyRate.toFixed(2)}/h` : '$0.00/h';
-  const finalCostText = `$${finalCost.toFixed(2)}`;
-
   const filesJson = job?.attached_files
     ? typeof job.attached_files === 'string'
       ? job.attached_files
@@ -203,19 +168,6 @@ export default function ViewJobModal() {
         {interval ? (
           <ThemedText style={[styles.intervalText, { color: subtleTextColor }]}>Tiempo trabajado: {interval}</ThemedText>
         ) : null}
-
-        <View style={styles.costDetailRow}>
-          <ThemedText style={[styles.costDetailText, { color: subtleTextColor }]}>
-            {workedHoursText}
-          </ThemedText>
-          <ThemedText style={[styles.costDetailSymbol, { color: accentColor }]}>×</ThemedText>
-          <ThemedText style={[styles.costDetailText, { color: subtleTextColor }]}>
-            {hourlyRateText}
-          </ThemedText>
-          <ThemedText style={[styles.costDetailSymbol, { color: accentColor }]}>=</ThemedText>
-          <ThemedText style={[styles.costHighlight, { color: accentColor }]}>{finalCostText}</ThemedText>
-        </View>
-        <ThemedText style={[styles.costCaption, { color: subtleTextColor }]}>Costo final</ThemedText>
       </View>
 
       <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
@@ -277,16 +229,5 @@ const styles = StyleSheet.create({
   cardLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   cardValue: { fontSize: 20, fontWeight: '700' },
   intervalText: { marginTop: 8, fontSize: 14 },
-  costDetailRow: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  costDetailText: { fontSize: 16, fontWeight: '500', marginHorizontal: 4 },
-  costDetailSymbol: { fontSize: 18, fontWeight: '700', marginHorizontal: 4 },
-  costHighlight: { fontSize: 20, fontWeight: '700' },
-  costCaption: { marginTop: 4, fontSize: 12, textAlign: 'center', fontWeight: '500', letterSpacing: 1 },
   editButton: { marginTop: 16 },
 });
