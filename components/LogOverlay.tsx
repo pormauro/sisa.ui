@@ -33,7 +33,6 @@ const typeColors = {
 
 const overlayRootStyle: ViewStyle = {
   ...StyleSheet.absoluteFillObject,
-  pointerEvents: 'box-none',
 };
 
 const clampPosition = (x: number, y: number) => {
@@ -141,7 +140,7 @@ export const LogOverlay: React.FC = () => {
   const hasLogs = logs.length > 0;
 
   return (
-    <View style={overlayRootStyle}>
+    <View pointerEvents="box-none" style={overlayRootStyle}>
       {hasLogs && (
         <View
           style={[
