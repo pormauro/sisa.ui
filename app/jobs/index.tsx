@@ -91,7 +91,14 @@ export default function JobsScreen() {
     const jobStatus = getJobStatus(item);
     const clientName = getClientName(item.client_id); // Usamos client_id para obtener el nombre del cliente
     const extractDate = (d?: string | null) => (d && d.includes(' ') ? d.split(' ')[0] : d || '');
-    const extractTime = (t?: string | null) => (t && t.includes(' ') ? t.split(' ')[1].slice(0,5) : t || '');
+    const extractTime = (t?: string | null) => {
+      if (!t) return '';
+      const [datePart, timePart] = t.trim().split(' ');
+      const rawTime = timePart ?? datePart;
+      if (!rawTime) return '';
+      const [hours, minutes] = rawTime.split(':');
+      return minutes != null ? `${hours}:${minutes}` : rawTime;
+    };
     const dateStr = extractDate(item.job_date);
     const startStr = extractTime(item.start_time);
     const endStr = extractTime(item.end_time);
