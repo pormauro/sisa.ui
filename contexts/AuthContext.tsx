@@ -119,11 +119,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         if (response.ok) {
+          let responseData: any = null;
+          try {
+            responseData = await response.json();
+          } catch (parseError) {
+            // Ignoramos errores de parseo ya que algunas respuestas pueden no incluir cuerpo JSON
+          }
+
           const authHeader = response.headers.get('Authorization');
-          const newToken =
+          let newToken =
             authHeader && authHeader.startsWith('Bearer ')
               ? authHeader.split(' ')[1]
               : null;
+
+          if (!newToken && responseData) {
+            const bodyToken =
+              typeof responseData === 'object' && responseData !== null
+                ? responseData.token || responseData.access_token || responseData.Authorization || responseData.authorization
+                : null;
+            if (typeof bodyToken === 'string' && bodyToken.length > 0) {
+              newToken = bodyToken.startsWith('Bearer ')
+                ? bodyToken.split(' ')[1]
+                : bodyToken;
+            }
+          }
+
           // Si el token está vacío, se considera que las credenciales fallaron
           if (!newToken) {
             await clearCredentials();
