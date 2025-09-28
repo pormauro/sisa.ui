@@ -25,6 +25,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
@@ -102,7 +103,7 @@ export default function ReceiptDetailPage() {
     [receipt?.paid_in_account]
   );
 
-  const payerTypeItems = useMemo(
+  const payerTypeOptions = useMemo(
     () => [
       { label: 'Cliente', value: 'client' },
       { label: 'Proveedor', value: 'provider' },
@@ -504,13 +505,11 @@ export default function ReceiptDetailPage() {
       />
 
       <ThemedText style={styles.label}>Tipo de pagador</ThemedText>
-      <SearchableSelect
-        style={styles.select}
-        items={payerTypeItems}
-        selectedValue={payerType}
-        onValueChange={(val) => setPayerType((val as 'client' | 'provider' | 'other') ?? payerType)}
-        placeholder="Selecciona tipo"
-        showSearch={false}
+      <RadioGroup
+        style={styles.radioGroup}
+        options={payerTypeOptions}
+        value={payerType}
+        onValueChange={(val) => setPayerType(val)}
         disabled={!canEdit}
       />
 
@@ -670,6 +669,9 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
+    marginBottom: 8,
+  },
+  radioGroup: {
     marginBottom: 8,
   },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },

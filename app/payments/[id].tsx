@@ -25,6 +25,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
@@ -103,7 +104,7 @@ export default function PaymentDetailPage() {
     [payment?.paid_with_account]
   );
 
-  const creditorTypeItems = useMemo(
+  const creditorTypeOptions = useMemo(
     () => [
       { label: 'Cliente', value: 'client' },
       { label: 'Proveedor', value: 'provider' },
@@ -500,13 +501,11 @@ export default function PaymentDetailPage() {
       />
 
       <ThemedText style={styles.label}>Tipo de acreedor</ThemedText>
-      <SearchableSelect
-        style={styles.select}
-        items={creditorTypeItems}
-        selectedValue={creditorType}
-        onValueChange={(val) => setCreditorType((val as 'client' | 'provider' | 'other') ?? creditorType)}
-        placeholder="Selecciona tipo"
-        showSearch={false}
+      <RadioGroup
+        style={styles.radioGroup}
+        options={creditorTypeOptions}
+        value={creditorType}
+        onValueChange={(val) => setCreditorType(val)}
         disabled={!canEdit}
       />
 
@@ -678,6 +677,9 @@ const styles = StyleSheet.create({
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   select: {
+    marginBottom: 8,
+  },
+  radioGroup: {
     marginBottom: 8,
   },
   submitButton: {
