@@ -12,6 +12,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext, Status } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
+import { FoldersContext } from '@/contexts/FoldersContext';
 import { formatTimeInterval } from '@/utils/time';
 
 export default function JobsScreen() {
@@ -20,6 +21,7 @@ export default function JobsScreen() {
   const { statuses } = useContext(StatusesContext);
   const { clients } = useContext(ClientsContext); // Accedemos al contexto de clientes
   const { tariffs } = useContext(TariffsContext);
+  const { folders } = useContext(FoldersContext);
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
@@ -90,6 +92,7 @@ export default function JobsScreen() {
   const renderItem = ({ item }: { item: Job }) => {
     const jobStatus = getJobStatus(item);
     const clientName = getClientName(item.client_id); // Usamos client_id para obtener el nombre del cliente
+    const folderName = item.folder_id ? folders.find(folder => folder.id === item.folder_id)?.name : null;
     const extractDate = (d?: string | null) => (d && d.includes(' ') ? d.split(' ')[0] : d || '');
     const extractTime = (t?: string | null) => {
       if (!t) return '';
@@ -134,6 +137,11 @@ export default function JobsScreen() {
           {item.description ? (
             <ThemedText style={[styles.subTitle, itemTextStyle]}>{item.description}</ThemedText>
           ) : null}
+
+          {/* Carpeta */}
+          <ThemedText style={[styles.folder, itemTextStyle]}>
+            Carpeta: {folderName ?? 'Sin carpeta'}
+          </ThemedText>
 
           {/* Fecha y horario */}
           {(dateStr || startStr || endStr) && (
@@ -213,6 +221,7 @@ const styles = StyleSheet.create({
   itemRight: { justifyContent: 'space-between', alignItems: 'flex-end' },
   title: { fontWeight: 'bold', fontSize: 16 },
   subTitle: { fontSize: 14, marginVertical: 4 },
+  folder: { fontSize: 12, marginBottom: 4 },
   date: { fontSize: 12 },
   cost: { fontSize: 12, fontWeight: 'bold', marginTop: 4 },
   statusText: { fontSize: 12, fontWeight: 'bold', marginBottom: 4 },
