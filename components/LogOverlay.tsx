@@ -135,7 +135,7 @@ export const LogOverlay: React.FC = () => {
   const hasLogs = logs.length > 0;
 
   return (
-    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, styles.passThrough]}>
       {hasLogs && (
         <View
           style={[
@@ -244,6 +244,9 @@ export const LogOverlay: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  passThrough: {
+    pointerEvents: 'box-none',
+  },
   floatingButton: {
     position: 'absolute',
     width: BUTTON_SIZE,
