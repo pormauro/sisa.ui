@@ -11,6 +11,7 @@ import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface Folder {
   id: number;
@@ -49,6 +50,10 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
 
+  useEffect(() => {
+    setFolders(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setFolders]);
+
   const loadFolders = useCallback(async () => {
     if (!permissions.includes('listFolders')) return;
     try {
@@ -60,7 +65,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.folders) {
-        setFolders(data.folders);
+        setFolders(sortByNewest(data.folders, getDefaultSortValue));
       }
     } catch (error) {
       console.error("Error loading folders:", error);

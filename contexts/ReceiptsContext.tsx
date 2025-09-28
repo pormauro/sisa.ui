@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface Receipt {
   id: number;
@@ -48,6 +49,10 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
   const [receipts, setReceipts] = useCachedState<Receipt[]>('receipts', []);
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setReceipts(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setReceipts]);
+
   const loadReceipts = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/receipts`, {
@@ -59,7 +64,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.receipts) {
-        setReceipts(data.receipts);
+        setReceipts(sortByNewest(data.receipts, getDefaultSortValue));
       }
     } catch (error) {
       console.error('Error loading receipts:', error);
@@ -90,7 +95,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         if (data.receipt_id) {
           const newReceipt: Receipt = { id: parseInt(data.receipt_id, 10), ...payload };
-          setReceipts(prev => [...prev, newReceipt]);
+          setReceipts(prev => ensureSortedByNewest([...prev, newReceipt], getDefaultSortValue));
           await loadReceipts();
           return newReceipt;
         }
@@ -125,7 +130,12 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         });
         const data = await response.json();
         if (data.message === 'Receipt updated successfully') {
-          setReceipts(prev => prev.map(r => (r.id === id ? { id, ...payload } : r)));
+          setReceipts(prev =>
+            ensureSortedByNewest(
+              prev.map(r => (r.id === id ? { id, ...payload } : r)),
+              getDefaultSortValue
+            )
+          );
           await loadReceipts();
           return true;
         }

@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, sortByNewest, SortableDate } from '@/utils/sort';
 
 export interface Job {
   id: number;
@@ -34,6 +35,21 @@ export interface Job {
   /** IDs de participantes en formato JSON */
   participants?: number[] | string | null;
 }
+
+const getJobSortValue = (job: Job): SortableDate => {
+  const meta = job as unknown as { created_at?: string | null; updated_at?: string | null };
+  if (meta.created_at) {
+    return meta.created_at;
+  }
+  if (meta.updated_at) {
+    return meta.updated_at;
+  }
+  if (job.job_date) {
+    const time = job.start_time?.length === 5 ? `${job.start_time}:00` : job.start_time ?? '00:00:00';
+    return `${job.job_date}T${time}`;
+  }
+  return job.id;
+};
 
 const parseNumberValue = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -126,6 +142,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
   const [jobs, setJobs] = useCachedState<Job[]>('jobs', []);
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setJobs(prev => ensureSortedByNewest(prev, getJobSortValue, job => job.id));
+  }, [setJobs]);
+
   const normalizeTime = (time: string) => (time && time.length === 5 ? `${time}:00` : time);
 
   const loadJobs = useCallback(async () => {
@@ -156,7 +176,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             participants,
           } as Job;
         });
-        setJobs(parsed);
+        setJobs(sortByNewest(parsed, getJobSortValue, job => job.id));
       }
     } catch (err) {
       console.error('Error loading jobs:', err);

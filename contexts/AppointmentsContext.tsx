@@ -12,6 +12,7 @@ import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, sortByNewest } from '@/utils/sort';
 
 export interface Appointment {
   id: number;
@@ -72,6 +73,22 @@ const serializeAttachedFiles = (value: Appointment['attached_files']) => {
   }
 };
 
+const getAppointmentSortValue = (appointment: Appointment) => {
+  if (appointment.created_at) {
+    return appointment.created_at;
+  }
+  if (appointment.updated_at) {
+    return appointment.updated_at;
+  }
+  if (appointment.appointment_date) {
+    const time = appointment.appointment_time?.length === 5
+      ? `${appointment.appointment_time}:00`
+      : appointment.appointment_time ?? '00:00:00';
+    return `${appointment.appointment_date}T${time}`;
+  }
+  return appointment.id;
+};
+
 export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
   const [appointments, setAppointments, appointmentsHydrated] = useCachedState<Appointment[]>(
@@ -80,6 +97,12 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   );
   const [isLoading, setIsLoading] = useState(false);
   const previousUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (appointmentsHydrated) {
+      setAppointments(prev => ensureSortedByNewest(prev, getAppointmentSortValue, item => item.id));
+    }
+  }, [appointmentsHydrated, setAppointments]);
 
   const parseAppointment = useCallback((raw: any): Appointment => ({
     id: Number(raw.id),
@@ -113,7 +136,8 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (Array.isArray(data.appointments)) {
-        setAppointments(data.appointments.map(parseAppointment));
+        const parsedAppointments = data.appointments.map(parseAppointment);
+        setAppointments(sortByNewest(parsedAppointments, getAppointmentSortValue, item => item.id));
       }
     } catch (error) {
       console.error('Error loading appointments:', error);

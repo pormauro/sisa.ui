@@ -18,6 +18,7 @@ import { JobsContext } from '@/contexts/JobsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { sortByNewest } from '@/utils/sort';
 
 LocaleConfig.locales.es = {
   monthNames: [
@@ -42,6 +43,22 @@ LocaleConfig.locales.es = {
 LocaleConfig.defaultLocale = 'es';
 
 const today = new Date().toISOString().split('T')[0];
+
+const buildAppointmentSortValue = (appointment: Appointment) => {
+  if (appointment.created_at) {
+    return appointment.created_at;
+  }
+  if (appointment.updated_at) {
+    return appointment.updated_at;
+  }
+  if (appointment.appointment_date) {
+    const time = appointment.appointment_time?.length === 5
+      ? `${appointment.appointment_time}:00`
+      : appointment.appointment_time ?? '00:00:00';
+    return `${appointment.appointment_date}T${time}`;
+  }
+  return appointment.id;
+};
 
 export default function AppointmentsCalendarScreen() {
   const router = useRouter();
@@ -96,7 +113,7 @@ export default function AppointmentsCalendarScreen() {
 
   const selectedAppointments = useMemo(() => {
     const items = appointmentsByDate[selectedDate] ?? [];
-    return [...items].sort((a, b) => a.appointment_time.localeCompare(b.appointment_time));
+    return sortByNewest(items, buildAppointmentSortValue, item => item.id);
   }, [appointmentsByDate, selectedDate]);
 
   const markedDates = useMemo(() => {

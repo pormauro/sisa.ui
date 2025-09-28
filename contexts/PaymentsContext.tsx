@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface Payment {
   id: number;
@@ -48,6 +49,10 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const [payments, setPayments] = useCachedState<Payment[]>('payments', []);
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setPayments(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setPayments]);
+
   const loadPayments = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/payments`, {
@@ -59,7 +64,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.payments) {
-        setPayments(data.payments);
+        setPayments(sortByNewest(data.payments, getDefaultSortValue));
       }
     } catch (error) {
       console.error('Error loading payments:', error);
@@ -90,7 +95,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         if (data.payment_id) {
           const newPayment: Payment = { id: parseInt(data.payment_id, 10), ...payload };
-          setPayments(prev => [...prev, newPayment]);
+          setPayments(prev => ensureSortedByNewest([...prev, newPayment], getDefaultSortValue));
           await loadPayments();
           return newPayment;
         }
@@ -125,7 +130,12 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
         });
         const data = await response.json();
         if (data.message === 'Payment updated successfully') {
-          setPayments(prev => prev.map(p => (p.id === id ? { id, ...payload } : p)));
+          setPayments(prev =>
+            ensureSortedByNewest(
+              prev.map(p => (p.id === id ? { id, ...payload } : p)),
+              getDefaultSortValue
+            )
+          );
           await loadPayments();
           return true;
         }

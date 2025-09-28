@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface Category {
   id: number;
@@ -40,6 +41,10 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   );
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setCategories(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setCategories]);
+
   const loadCategories = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/categories`, {
@@ -50,7 +55,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.categories) {
-        setCategories(data.categories);
+        setCategories(sortByNewest(data.categories, getDefaultSortValue));
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -99,7 +104,12 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
           console.error('Error updating category:', data?.error ?? response.statusText);
           return false;
         }
-        setCategories(prev => prev.map(c => (c.id === id ? { id, ...category } : c)));
+        setCategories(prev =>
+          ensureSortedByNewest(
+            prev.map(c => (c.id === id ? { id, ...category } : c)),
+            getDefaultSortValue
+          )
+        );
         await loadCategories();
         return true;
       } catch (error) {
