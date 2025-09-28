@@ -11,8 +11,9 @@
 - Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; cuando la respuesta falla por motivos distintos, se limpia el estado y se notifica al usuario mediante alertas.【F:contexts/AuthContext.tsx†L161-L179】
 
 ## Persistencia segura de credenciales
-- El proveedor encapsula utilidades para guardar, obtener y eliminar valores en `expo-secure-store`, evitando exponer credenciales en almacenamiento sin cifrar y centralizando el manejo de errores de lectura/escritura.【F:contexts/AuthContext.tsx†L59-L83】
-- Tras un inicio de sesión válido se persisten token, usuario, credenciales y expiración; `clearCredentials` elimina estos valores durante cierres de sesión o fallas críticas para evitar residuos de información sensible.【F:contexts/AuthContext.tsx†L84-L98】【F:contexts/AuthContext.tsx†L142-L156】
+- El proveedor delega la persistencia en `utils/auth/secureStore`, que usa `expo-secure-store` cuando la plataforma lo soporta y recurre a `localStorage` (o `AsyncStorage` en su defecto) al ejecutar en la web, garantizando un almacenamiento disponible en cada entorno con manejo homogéneo de errores.【F:utils/auth/secureStore.ts†L1-L133】【F:contexts/AuthContext.tsx†L50-L57】
+- Durante la carga inicial en web se leen explícitamente las claves desde el almacenamiento alternativo para restaurar el estado antes de que existan credenciales seguras, alineando el flujo con el comportamiento de plataformas móviles.【F:contexts/AuthContext.tsx†L173-L205】
+- Tras un inicio de sesión válido se persisten token, usuario, credenciales y expiración; `clearCredentials` elimina estos valores durante cierres de sesión o fallas críticas para evitar residuos de información sensible.【F:contexts/AuthContext.tsx†L59-L72】【F:contexts/AuthContext.tsx†L116-L121】
 
 ## Renovación y vigencia de sesión
 - `checkTokenValidity` comprueba el tiempo de expiración almacenado antes de reutilizar un token; si caducó, la sesión no se reutiliza.【F:contexts/AuthContext.tsx†L191-L197】

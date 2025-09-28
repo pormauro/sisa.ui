@@ -1,8 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { BASE_URL } from '@/config/Index';
+import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 
 interface AuthContextProps {
   userId: string | null;
@@ -55,31 +54,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [password, setPassword] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isOffline, setIsOffline] = useState<boolean>(false);
-
-  const saveItem = async (key: string, value: string) => {
-    try {
-      await SecureStore.setItemAsync(key, value);
-    } catch (error) {
-      console.error(`Error saving ${key}:`, error);
-    }
-  };
-
-  const getItem = async (key: string): Promise<string | null> => {
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch (error) {
-      console.error(`Error getting ${key}:`, error);
-      return null;
-    }
-  };
-
-  const removeItem = async (key: string) => {
-    try {
-      await SecureStore.deleteItemAsync(key);
-    } catch (error) {
-      console.error(`Error deleting ${key}:`, error);
-    }
-  };
 
   // Función auxiliar para limpiar las credenciales (usada en logout y login fallido)
   const clearCredentials = async () => {
@@ -198,19 +172,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const autoLogin = useCallback(async () => {
     try {
-      const [
-        storedUsername,
-        storedPassword,
-        storedToken,
-        storedEmail,
-        storedUserId,
-      ] = await Promise.all([
-        getItem('username'),
-        getItem('password'),
-        getItem('token'),
-        getItem('email'),
-        getItem('user_id'),
-      ]);
+      const keys = ['username', 'password', 'token', 'email', 'user_id'];
+      const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId] =
+        Platform.OS === 'web'
+          ? await getInitialItems(keys)
+          : await Promise.all(keys.map((key) => getItem(key)));
 
       if (storedUsername) {
         setUsername(storedUsername);
