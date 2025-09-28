@@ -71,6 +71,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsOffline(false);
   };
 
+  const restoreOfflineSession = useCallback(
+    async (loginUsername: string, loginPassword: string) => {
+      const keys = ['token', 'user_id', 'username', 'password', 'token_expiration', 'email'];
+      const [storedToken, storedUserId, storedUsername, storedPassword, storedExpiration, storedEmail] =
+        await getInitialItems(keys);
+
+      if (
+        !storedToken ||
+        !storedUserId ||
+        !storedUsername ||
+        !storedPassword ||
+        !storedExpiration
+      ) {
+        return false;
+      }
+
+      const expirationTime = parseInt(storedExpiration, 10);
+      const now = new Date().getTime();
+      const sameCredentials = storedUsername === loginUsername && storedPassword === loginPassword;
+
+      if (!sameCredentials || Number.isNaN(expirationTime) || now >= expirationTime) {
+        return false;
+      }
+
+      setToken(storedToken);
+      setUserId(storedUserId);
+      setUsername(storedUsername);
+      setPassword(storedPassword);
+      setEmail(storedEmail ?? null);
+      setIsOffline(true);
+
+      return true;
+    },
+    []
+  );
+
   const performLogin = useCallback(
     async (loginUsername: string, loginPassword: string, retryCount = 0) => {
       try {
@@ -145,21 +181,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         // Si es un error de red, marcar como offline
         const normalizedMessage = typeof error.message === 'string' ? error.message.toLowerCase() : '';
-        if (normalizedMessage.includes('network') || normalizedMessage.includes('fetch')) {
+        const isNetworkError =
+          normalizedMessage.includes('network') || normalizedMessage.includes('fetch');
+
+        if (isNetworkError) {
           setIsOffline(true);
+          const restored = await restoreOfflineSession(loginUsername, loginPassword);
+          if (restored) {
+            Alert.alert(
+              'Modo sin conexión',
+              'No se pudo conectar con el servidor, se restauró la última sesión guardada para continuar offline.'
+            );
+            return;
+          }
         } else {
           setIsOffline(false);
         }
-        const readableMessage =
-          normalizedMessage.includes('failed to fetch') ||
-          normalizedMessage.includes('network request failed') ||
-          normalizedMessage.includes('network')
-            ? 'No se pudo conectar con el servidor. Verificá tu conexión e intentá nuevamente.'
-            : error.message;
+        const readableMessage = isNetworkError
+          ? 'No se pudo conectar con el servidor. Verificá tu conexión e intentá nuevamente.'
+          : error.message;
         Alert.alert('Error de Login', readableMessage ?? 'Error en el login');
       }
     },
-    []
+    [restoreOfflineSession]
   );
 
   const login = useCallback(
