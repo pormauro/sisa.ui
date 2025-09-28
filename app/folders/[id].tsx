@@ -188,7 +188,7 @@ export default function FolderDetailPage() {
     ]);
   };
 
-  const folderTree = [{ id: null, name: clientName, level: 0 }, ...buildFolderTree(null, 1)];
+  const folderTree = buildFolderTree(null, 0);
 
   return (
     <ScrollView
@@ -217,15 +217,27 @@ export default function FolderDetailPage() {
           <FlatList
             data={folderTree}
             keyExtractor={(item) => `folder-${item.id}`}
+            ListHeaderComponent={(
+              <TouchableOpacity
+                style={[styles.item, { borderColor: itemBorderColor }, parentId == null && { backgroundColor: modalItemHighlight }]}
+                onPress={() => {
+                  setParentId(null);
+                  setSelectingParent(false);
+                }}
+              >
+                <ThemedText>Sin carpeta padre</ThemedText>
+              </TouchableOpacity>
+            )}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[styles.item, { borderColor: itemBorderColor }, item.id === null && { backgroundColor: modalItemHighlight }]}
+                style={[styles.item, { borderColor: itemBorderColor }, item.id === parentId && { backgroundColor: modalItemHighlight }]}
                 onPress={() => {
                   setParentId(item.id);
                   setSelectingParent(false);
-                }}>
+                }}
+              >
                 <ThemedText>
-                  {'     '.repeat(item.level)}{item.id === null ? clientName : `─ ${item.name}`}
+                  {'     '.repeat(item.level)}─ {item.name}
                 </ThemedText>
               </TouchableOpacity>
             )}
