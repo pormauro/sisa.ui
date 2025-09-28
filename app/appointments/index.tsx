@@ -18,7 +18,6 @@ import { JobsContext } from '@/contexts/JobsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { sortByNewest } from '@/utils/sort';
 
 LocaleConfig.locales.es = {
   monthNames: [
@@ -58,6 +57,52 @@ const buildAppointmentSortValue = (appointment: Appointment) => {
     return `${appointment.appointment_date}T${time}`;
   }
   return appointment.id;
+};
+
+const toTimeSeconds = (time?: string | null) => {
+  if (!time) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const normalized = time.trim();
+  if (!normalized) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const [hours = 0, minutes = 0, seconds = 0] = normalized.split(':').map(part => Number.parseInt(part, 10));
+  if ([hours, minutes, seconds].some(value => Number.isNaN(value))) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return hours * 3600 + minutes * 60 + seconds;
+};
+
+const compareAppointmentsByTime = (a: Appointment, b: Appointment) => {
+  const timeDiff = toTimeSeconds(a.appointment_time) - toTimeSeconds(b.appointment_time);
+  if (timeDiff !== 0) {
+    return timeDiff;
+  }
+
+  const aSortValue = buildAppointmentSortValue(a);
+  const bSortValue = buildAppointmentSortValue(b);
+
+  if (aSortValue == null && bSortValue == null) {
+    return 0;
+  }
+  if (aSortValue == null) {
+    return 1;
+  }
+  if (bSortValue == null) {
+    return -1;
+  }
+
+  if (aSortValue > bSortValue) {
+    return 1;
+  }
+  if (aSortValue < bSortValue) {
+    return -1;
+  }
+  return 0;
 };
 
 export default function AppointmentsCalendarScreen() {
@@ -113,7 +158,7 @@ export default function AppointmentsCalendarScreen() {
 
   const selectedAppointments = useMemo(() => {
     const items = appointmentsByDate[selectedDate] ?? [];
-    return sortByNewest(items, buildAppointmentSortValue, item => item.id);
+    return [...items].sort(compareAppointmentsByTime);
   }, [appointmentsByDate, selectedDate]);
 
   const markedDates = useMemo(() => {
