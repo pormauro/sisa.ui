@@ -76,35 +76,51 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     setLoading(true);
     try {
+      const parsePermissionsResponse = async (response: Response, scope: 'usuario' | 'global') => {
+        if (!response.ok) {
+          let errorDetail = '';
+          try {
+            const errorText = await response.text();
+            errorDetail = errorText ? `: ${errorText}` : '';
+          } catch {
+            // Ignoramos errores al leer el cuerpo para no enmascarar la causa original.
+          }
+          throw new Error(`HTTP ${response.status} al cargar permisos ${scope}${errorDetail}`);
+        }
+
+        try {
+          return await response.json();
+        } catch (jsonError) {
+          throw new Error(`Respuesta inválida al cargar permisos ${scope}: ${String(jsonError)}`);
+        }
+      };
+
       // Se realizan ambas peticiones de forma concurrente:
-      const [userRes, globalRes] = await Promise.all([
+      const [userData, globalData] = await Promise.all([
         fetch(`${BASE_URL}/permissions/user/${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        }),
+        }).then(response => parsePermissionsResponse(response, 'usuario')),
         fetch(`${BASE_URL}/permissions/global`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        }),
+        }).then(response => parsePermissionsResponse(response, 'global')),
       ]);
-      
-      const userData = await userRes.json();
-      const globalData = await globalRes.json();
 
       // Suponemos que la respuesta tiene la forma: { permissions: [ { id, sector, ... }, ... ] }
       const userPerms: string[] = userData.permissions?.map((p: any) => p.sector) || [];
       const globalPerms: string[] = globalData.permissions?.map((p: any) => p.sector) || [];
-      
+
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
       setPermissions(expandWithAliases(mergedPermissions));
     } catch (error) {
-      console.error("Error fetching permissions", error);
-      Alert.alert("Error", "No se pudieron cargar los permisos.");
+      console.error('Error fetching permissions', error);
+      Alert.alert('Error', 'No se pudieron cargar los permisos actuales. Se conservarán los últimos permisos válidos.');
     } finally {
       setLoading(false);
     }
