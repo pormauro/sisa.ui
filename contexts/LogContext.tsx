@@ -66,28 +66,78 @@ export const LogProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const originalConsoleError = useRef(console.error);
   const originalConsoleWarn = useRef(console.warn);
   const originalAlert = useRef(Alert.alert);
+  const isMounted = useRef(false);
+  const pendingLogs = useRef<LogEntry[]>([]);
+  const flushHandle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const addLog = useCallback((entry: { type: LogType; message: string }) => {
-    setLogs((previous) => {
-      const nextLogs = [...previous, createLogEntry(entry)];
+  const flushPendingLogs = useCallback(() => {
+    if (!isMounted.current || pendingLogs.current.length === 0) {
+      return;
+    }
+
+    setLogs(previous => {
+      if (pendingLogs.current.length === 0) {
+        return previous;
+      }
+
+      const nextLogs = [...previous, ...pendingLogs.current];
+      pendingLogs.current = [];
+
       if (nextLogs.length > MAX_LOG_ITEMS) {
         return nextLogs.slice(nextLogs.length - MAX_LOG_ITEMS);
       }
+
       return nextLogs;
     });
   }, []);
+
+  const scheduleFlush = useCallback(() => {
+    if (flushHandle.current !== null) {
+      return;
+    }
+
+    flushHandle.current = setTimeout(() => {
+      flushHandle.current = null;
+      flushPendingLogs();
+    }, 0);
+  }, [flushPendingLogs]);
+
+  const addLog = useCallback((entry: { type: LogType; message: string }) => {
+    pendingLogs.current.push(createLogEntry(entry));
+    scheduleFlush();
+  }, [scheduleFlush]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);
   }, []);
 
   useEffect(() => {
+    isMounted.current = true;
+
+    return () => {
+      isMounted.current = false;
+      pendingLogs.current = [];
+      if (flushHandle.current !== null) {
+        clearTimeout(flushHandle.current);
+        flushHandle.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const logWithConsole = (type: LogType, args: unknown[], original?: typeof console.error) => {
+      addLog({ type, message: formatArgs(args) });
+      if (typeof original === 'function') {
+        original.apply(console, args as any);
+      }
+    };
+
     console.error = (...args: unknown[]) => {
-      addLog({ type: 'error', message: formatArgs(args) });
+      logWithConsole('error', args, originalConsoleError.current);
     };
 
     console.warn = (...args: unknown[]) => {
-      addLog({ type: 'warn', message: formatArgs(args) });
+      logWithConsole('warn', args, originalConsoleWarn.current);
     };
 
     (Alert as any).alert = (
