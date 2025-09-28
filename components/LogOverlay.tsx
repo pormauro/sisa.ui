@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -29,6 +30,11 @@ const typeColors = {
   warn: '#f59e0b',
   alert: '#2563eb',
 } as const;
+
+const overlayRootStyle: ViewStyle = {
+  ...StyleSheet.absoluteFillObject,
+  pointerEvents: 'box-none',
+};
 
 const clampPosition = (x: number, y: number) => {
   const { width, height } = Dimensions.get('window');
@@ -135,7 +141,7 @@ export const LogOverlay: React.FC = () => {
   const hasLogs = logs.length > 0;
 
   return (
-    <View style={[StyleSheet.absoluteFill, styles.passThrough]}>
+    <View style={overlayRootStyle}>
       {hasLogs && (
         <View
           style={[
@@ -244,9 +250,6 @@ export const LogOverlay: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  passThrough: {
-    pointerEvents: 'box-none',
-  },
   floatingButton: {
     position: 'absolute',
     width: BUTTON_SIZE,

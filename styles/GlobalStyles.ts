@@ -14,6 +14,9 @@ export default StyleSheet.create({
     padding: 10,
     marginBottom: 10,
     borderRadius: 5,
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -23,6 +26,9 @@ export default StyleSheet.create({
   },
   button: {
     marginTop: 15,
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   passwordContainer: {
     position: 'relative',

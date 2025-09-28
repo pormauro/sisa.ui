@@ -144,12 +144,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         // Si es un error de red, marcar como offline
-        if (error.message && error.message.toLowerCase().includes('network')) {
+        const normalizedMessage = typeof error.message === 'string' ? error.message.toLowerCase() : '';
+        if (normalizedMessage.includes('network') || normalizedMessage.includes('fetch')) {
           setIsOffline(true);
         } else {
           setIsOffline(false);
         }
-        Alert.alert('Error de Login', error.message);
+        const readableMessage =
+          normalizedMessage.includes('failed to fetch') ||
+          normalizedMessage.includes('network request failed') ||
+          normalizedMessage.includes('network')
+            ? 'No se pudo conectar con el servidor. Verificá tu conexión e intentá nuevamente.'
+            : error.message;
+        Alert.alert('Error de Login', readableMessage ?? 'Error en el login');
       }
     },
     []
