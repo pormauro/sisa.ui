@@ -14,7 +14,7 @@ import {
 import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { FileContext } from '@/contexts/FilesContext';
 // @ts-ignore - types are not provided for this library
 import ImageViewing from 'react-native-image-viewing';

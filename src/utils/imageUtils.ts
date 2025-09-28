@@ -2,7 +2,7 @@
 
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Alert } from 'react-native';
 import { BASE_URL, MAX_FILE_SIZE } from '../config/index';
 
