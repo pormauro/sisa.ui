@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Button, Alert, TouchableOpacity, StyleSheet, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,7 +8,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 const Login: React.FC = () => {
-  const { login } = useContext(AuthContext);
+  const { login, username: loggedUsername } = useContext(AuthContext);
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -27,8 +27,13 @@ const Login: React.FC = () => {
       return;
     }
     await login(username, password);
-    router.replace('./');
   };
+
+  useEffect(() => {
+    if (loggedUsername) {
+      router.replace('/Home');
+    }
+  }, [loggedUsername, router]);
 
   return (
     <ThemedView style={[globalStyles.container, { backgroundColor }]}>
