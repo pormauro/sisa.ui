@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 
@@ -174,9 +174,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const keys = ['username', 'password', 'token', 'email', 'user_id'];
       const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId] =
-        Platform.OS === 'web'
-          ? await getInitialItems(keys)
-          : await Promise.all(keys.map((key) => getItem(key)));
+        await getInitialItems(keys);
 
       if (storedUsername) {
         setUsername(storedUsername);

@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const isWeb = Platform.OS === 'web';
 let secureStoreAvailable: boolean | null = null;
+let cachedWebStorage: Storage | null | undefined;
 
 const ensureSecureStoreAvailability = async () => {
   if (secureStoreAvailable !== null) {
@@ -22,20 +23,25 @@ const ensureSecureStoreAvailability = async () => {
   return secureStoreAvailable ?? false;
 };
 
-const getLocalStorage = () => {
+const getWebStorage = () => {
+  if (cachedWebStorage !== undefined) {
+    return cachedWebStorage;
+  }
   if (typeof window === 'undefined') {
-    return null;
+    cachedWebStorage = null;
+    return cachedWebStorage;
   }
   try {
-    return window.localStorage ?? null;
+    cachedWebStorage = window.localStorage ?? null;
   } catch (error) {
     console.warn('Access to localStorage failed, falling back to AsyncStorage.', error);
-    return null;
+    cachedWebStorage = null;
   }
+  return cachedWebStorage;
 };
 
 const saveToWebStorage = async (key: string, value: string) => {
-  const storage = getLocalStorage();
+  const storage = getWebStorage();
   if (storage) {
     storage.setItem(key, value);
     return;
@@ -44,7 +50,7 @@ const saveToWebStorage = async (key: string, value: string) => {
 };
 
 const getFromWebStorage = async (key: string): Promise<string | null> => {
-  const storage = getLocalStorage();
+  const storage = getWebStorage();
   if (storage) {
     return storage.getItem(key);
   }
@@ -52,7 +58,7 @@ const getFromWebStorage = async (key: string): Promise<string | null> => {
 };
 
 const removeFromWebStorage = async (key: string) => {
-  const storage = getLocalStorage();
+  const storage = getWebStorage();
   if (storage) {
     storage.removeItem(key);
     return;
@@ -61,7 +67,7 @@ const removeFromWebStorage = async (key: string) => {
 };
 
 const getManyFromWebStorage = async (keys: string[]): Promise<(string | null)[]> => {
-  const storage = getLocalStorage();
+  const storage = getWebStorage();
   if (storage) {
     return keys.map((key) => storage.getItem(key));
   }
