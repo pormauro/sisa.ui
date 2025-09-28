@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface Provider {
   id: number;
@@ -43,6 +44,10 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
   );
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setProviders(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setProviders]);
+
   const loadProviders = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/providers`, {
@@ -54,7 +59,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       if (data.providers) {
         const fetchedProviders = data.providers as Provider[];
-        setProviders(fetchedProviders);
+        setProviders(sortByNewest(fetchedProviders, getDefaultSortValue));
       }
     } catch (error) {
       console.error('Error loading providers:', error);
@@ -75,7 +80,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         if (data.provider_id) {
           const newProvider: Provider = { id: parseInt(data.provider_id, 10), ...provider };
-          setProviders(prev => [...prev, newProvider]);
+          setProviders(prev => ensureSortedByNewest([...prev, newProvider], getDefaultSortValue));
           await loadProviders();
           return newProvider;
         }
@@ -107,7 +112,12 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             /* ignore body parsing errors */
           }
 
-          setProviders(prev => prev.map(p => (p.id === id ? { id, ...provider } : p)));
+          setProviders(prev =>
+            ensureSortedByNewest(
+              prev.map(p => (p.id === id ? { id, ...provider } : p)),
+              getDefaultSortValue
+            )
+          );
           await loadProviders();
           return true;
         }

@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface ProductService {
   id: number;
@@ -46,13 +47,19 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
   );
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setProductsServices(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setProductsServices]);
+
   const loadProductsServices = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/products_services`, {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
-      if (data.products_services) setProductsServices(data.products_services);
+      if (data.products_services) {
+        setProductsServices(sortByNewest(data.products_services, getDefaultSortValue));
+      }
     } catch (error) {
       console.error('Error loading products/services:', error);
     }
@@ -69,7 +76,7 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
         const data = await response.json();
         if (data.id) {
           const newItem: ProductService = { id: data.id, user_id: 0, ...item };
-          setProductsServices(prev => [...prev, newItem]);
+          setProductsServices(prev => ensureSortedByNewest([...prev, newItem], getDefaultSortValue));
           await loadProductsServices();
           return newItem;
         }
@@ -91,7 +98,12 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
         });
         const data = await response.json();
         if (data.message === 'Record updated successfully') {
-          setProductsServices(prev => prev.map(p => (p.id === id ? { ...p, ...item } : p)));
+          setProductsServices(prev =>
+            ensureSortedByNewest(
+              prev.map(p => (p.id === id ? { ...p, ...item } : p)),
+              getDefaultSortValue
+            )
+          );
           await loadProductsServices();
           return true;
         }

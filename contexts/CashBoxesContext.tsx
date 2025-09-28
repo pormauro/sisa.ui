@@ -9,6 +9,7 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface CashBox {
   id: number;
@@ -43,6 +44,10 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
   );
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setCashBoxes(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setCashBoxes]);
+
   const loadCashBoxes = useCallback(async () => {
     try {
       const response = await fetch(`${BASE_URL}/cash_boxes`, {
@@ -53,7 +58,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.cash_boxes) {
-        setCashBoxes(data.cash_boxes);
+        setCashBoxes(sortByNewest(data.cash_boxes, getDefaultSortValue));
       }
     } catch (error) {
       console.error("Error loading cash boxes:", error);
@@ -74,7 +79,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         if (data.cash_box_id) {
           const newCashBox: CashBox = { id: parseInt(data.cash_box_id, 10), user_id: 0, ...cashBoxData };
-          setCashBoxes(prev => [...prev, newCashBox]);
+          setCashBoxes(prev => ensureSortedByNewest([...prev, newCashBox], getDefaultSortValue));
           await loadCashBoxes();
           return newCashBox;
         }
@@ -100,7 +105,10 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         if (data.message === 'Cash box updated successfully') {
           setCashBoxes(prev =>
-            prev.map(cb => (cb.id === id ? { ...cb, ...cashBoxData } : cb))
+            ensureSortedByNewest(
+              prev.map(cb => (cb.id === id ? { ...cb, ...cashBoxData } : cb)),
+              getDefaultSortValue
+            )
           );
           await loadCashBoxes();
           return true;

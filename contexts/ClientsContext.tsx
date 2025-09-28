@@ -8,6 +8,7 @@ import React, {
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
+import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export interface Client {
   id: number;
@@ -46,6 +47,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useCachedState<Client[]>('clients', []);
   const { token } = useContext(AuthContext);
 
+  useEffect(() => {
+    setClients(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+  }, [setClients]);
+
   const loadClients = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/clients`, {
@@ -54,7 +59,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const data = await res.json();
       if (data.clients) {
         const fetchedClients = data.clients as Client[];
-        setClients(fetchedClients);
+        setClients(sortByNewest(fetchedClients, getDefaultSortValue));
       }
     } catch (err) {
       console.error('Error loading clients:', err);
@@ -81,7 +86,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             version: 1,
             ...clientData,
           };
-          setClients(prev => [...prev, newClient]);
+          setClients(prev => ensureSortedByNewest([...prev, newClient], getDefaultSortValue));
           await loadClients();
           return newClient;
         }
@@ -109,7 +114,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         });
         if (res.ok) {
           setClients(prev =>
-            prev.map(c => (c.id === id ? { ...c, ...clientData } : c))
+            ensureSortedByNewest(
+              prev.map(c => (c.id === id ? { ...c, ...clientData } : c)),
+              getDefaultSortValue
+            )
           );
           await loadClients();
           return true;
