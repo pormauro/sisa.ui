@@ -78,9 +78,24 @@ const toTimeSeconds = (time?: string | null) => {
 };
 
 const compareAppointmentsByTime = (a: Appointment, b: Appointment) => {
-  const timeDiff = toTimeSeconds(a.appointment_time) - toTimeSeconds(b.appointment_time);
-  if (timeDiff !== 0) {
-    return timeDiff;
+  const aTime = toTimeSeconds(a.appointment_time);
+  const bTime = toTimeSeconds(b.appointment_time);
+
+  const aHasTime = Number.isFinite(aTime);
+  const bHasTime = Number.isFinite(bTime);
+
+  if (aHasTime || bHasTime) {
+    if (!aHasTime) {
+      return 1;
+    }
+    if (!bHasTime) {
+      return -1;
+    }
+
+    const timeDiff = aTime - bTime;
+    if (timeDiff !== 0) {
+      return timeDiff;
+    }
   }
 
   const aSortValue = buildAppointmentSortValue(a);
