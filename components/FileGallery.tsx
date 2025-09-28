@@ -9,19 +9,18 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
-  Linking,
   Platform,
 } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import * as IntentLauncher from 'expo-intent-launcher'; // eslint-disable-line import/no-unresolved
 import { FileContext } from '@/contexts/FilesContext';
 // @ts-ignore - types are not provided for this library
 import ImageViewing from 'react-native-image-viewing';
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { openAttachment } from '@/utils/files/openAttachment';
 
 
 interface FileGalleryProps {
@@ -115,6 +114,46 @@ const PdfThumbnail: React.FC<PdfThumbnailProps> = ({ title }) => {
   );
 };
 
+const iframeStyle: React.CSSProperties = {
+  border: 'none',
+  width: '100%',
+  height: '100%',
+};
+
+const PdfViewer: React.FC<{ uri: string }> = ({ uri }) => {
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.fullImage, styles.pdfWebContainer]}>
+        <iframe
+          src={uri}
+          title="Visor PDF"
+          style={iframeStyle}
+        />
+      </View>
+    );
+  }
+
+  const allowingReadAccessToURL = uri.startsWith('file://')
+    ? uri.replace(/[^/]+$/, '')
+    : undefined;
+
+  return (
+    <WebView
+      originWhitelist={["*"]}
+      source={{ uri }}
+      style={styles.fullImage}
+      startInLoadingState
+      allowFileAccess
+      allowingReadAccessToURL={allowingReadAccessToURL}
+      renderLoading={() => (
+        <View style={styles.pdfLoading}>
+          <ActivityIndicator size="large" color="#fff" />
+        </View>
+      )}
+    />
+  );
+};
+
 const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPreviewPdf, index, editable }) => {
   if (file.loading) {
     return (
@@ -135,28 +174,20 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
     } else if (isPdf) {
       try {
         const uri = file.localUri || file.previewUri;
+        if (!uri) {
+          Alert.alert('Error', 'El archivo PDF no está disponible.');
+          return;
+        }
 
-        if (Platform.OS === 'android') {
-          if (!uri) {
-            Alert.alert('Error', 'El archivo PDF no está disponible.');
-            return;
-          }
+        const opened = await openAttachment({
+          uri,
+          mimeType: file.fileType,
+          fileName: file.originalName,
+          kind: 'pdf',
+          onInAppOpen: () => onPreviewPdf(uri),
+        });
 
-          if (uri.startsWith('data:')) {
-            onPreviewPdf(uri);
-            return;
-          }
-
-          const androidUri = uri.startsWith('file://')
-            ? await FileSystem.getContentUriAsync(uri)
-            : uri;
-
-          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-            data: androidUri,
-            type: 'application/pdf',
-            flags: 1,
-          });
-        } else {
+        if (!opened) {
           onPreviewPdf(uri);
         }
       } catch (e: any) {
@@ -175,27 +206,14 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
       }
 
       try {
-        if (Platform.OS === 'android') {
-          const androidUri = file.localUri.startsWith('file://')
-            ? await FileSystem.getContentUriAsync(file.localUri)
-            : file.localUri;
-          const mimeType = file.fileType?.trim() || 'application/octet-stream';
+        const openKind = lowerType.includes('octet-stream') ? 'binary' : 'generic';
 
-          try {
-            await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-              data: androidUri,
-              type: mimeType,
-              flags: 1,
-            });
-            return;
-          } catch (intentError) {
-            console.warn('Falling back to Linking for file open', intentError);
-            await Linking.openURL(androidUri);
-            return;
-          }
-        }
-
-        await Linking.openURL(file.localUri);
+        await openAttachment({
+          uri: file.localUri,
+          mimeType: file.fileType,
+          fileName: file.originalName,
+          kind: openKind,
+        });
       } catch (e: any) {
         console.error('Error opening file:', e);
         const message =
@@ -230,26 +248,10 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
 };
 
 const PdfPreviewModal: React.FC<{ uri: string; onClose: () => void }> = ({ uri, onClose }) => {
-  const allowingReadAccessToURL = uri.startsWith('file://')
-    ? uri.replace(/[^/]+$/, '')
-    : undefined;
-
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <WebView
-          originWhitelist={["*"]}
-          source={{ uri }}
-          style={styles.fullImage}
-          startInLoadingState
-          allowFileAccess
-          allowingReadAccessToURL={allowingReadAccessToURL}
-          renderLoading={() => (
-            <View style={styles.pdfLoading}>
-              <ActivityIndicator size="large" color="#fff" />
-            </View>
-          )}
-        />
+        <PdfViewer uri={uri} />
         <View style={styles.modalTopOverlay}>
           <TouchableOpacity style={styles.modalCloseButton} onPress={onClose}>
             <Text style={styles.modalCloseText}>Cerrar</Text>
@@ -665,5 +667,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  pdfWebContainer: {
+    backgroundColor: '#fff',
   },
 });
