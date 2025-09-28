@@ -32,7 +32,7 @@ export function RadioGroup<T extends string>({
 }: RadioGroupProps<T>) {
   const borderColor = useThemeColor({ light: '#d4d4d4', dark: '#4a4a4a' }, 'background');
   const selectedColor = useThemeColor({}, 'button');
-  const radioBackground = useThemeColor({ light: '#ffffff', dark: '#1f1f1f' }, 'background');
+  const backgroundColor = useThemeColor({ light: '#ffffff', dark: '#1f1f1f' }, 'background');
   const textColor = useThemeColor({}, 'text');
   const disabledTextColor = useThemeColor({ light: '#9a9a9a', dark: '#7a7a7a' }, 'text');
 
@@ -45,7 +45,11 @@ export function RadioGroup<T extends string>({
             key={option.value}
             style={[
               styles.option,
-              { borderColor, opacity: disabled ? 0.6 : 1 },
+              {
+                borderColor: isSelected ? selectedColor : borderColor,
+                backgroundColor: isSelected ? selectedColor : backgroundColor,
+                opacity: disabled ? 0.6 : 1,
+              },
             ]}
             activeOpacity={0.7}
             disabled={disabled}
@@ -55,30 +59,16 @@ export function RadioGroup<T extends string>({
               }
             }}
           >
-            <View
-              style={[
-                styles.radio,
-                {
-                  borderColor: isSelected ? selectedColor : borderColor,
-                  backgroundColor: radioBackground,
-                },
-              ]}
-            >
-              {isSelected && (
-                <View
-                  style={[
-                    styles.radioInner,
-                    {
-                      backgroundColor: selectedColor,
-                    },
-                  ]}
-                />
-              )}
-            </View>
             <ThemedText
               style={[
                 styles.optionLabel,
-                { color: disabled ? disabledTextColor : textColor },
+                {
+                  color: disabled
+                    ? disabledTextColor
+                    : isSelected
+                      ? backgroundColor
+                      : textColor,
+                },
               ]}
             >
               {option.label}
@@ -92,32 +82,22 @@ export function RadioGroup<T extends string>({
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
+    columnGap: 8,
     rowGap: 8,
+    flexWrap: 'wrap',
   },
   option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-  },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 999,
   },
   optionLabel: {
     fontSize: 16,
+    fontWeight: '500',
   },
 });
 
