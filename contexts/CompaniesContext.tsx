@@ -55,6 +55,8 @@ export interface Company {
   email?: string | null;
   status?: string | null;
   notes?: string | null;
+  brand_file_id?: string | null;
+  attached_files?: number[] | string | null;
   tax_identities: TaxIdentity[];
   addresses: CompanyAddress[];
   contacts: CompanyContact[];
@@ -169,6 +171,16 @@ const parseCompany = (raw: any): Company => {
     email: raw?.email ?? null,
     status: raw?.status ?? null,
     notes: raw?.notes ?? null,
+    brand_file_id:
+      typeof raw?.brand_file_id === 'number' || typeof raw?.brand_file_id === 'string'
+        ? String(raw.brand_file_id)
+        : null,
+    attached_files:
+      typeof raw?.attached_files === 'string'
+        ? raw.attached_files
+        : raw?.attached_files
+        ? JSON.stringify(raw.attached_files)
+        : null,
     tax_identities: parseNestedArray(raw?.tax_identities ?? raw?.tax_identifications).map(parseTaxIdentity),
     addresses: parseNestedArray(raw?.addresses).map(parseAddress),
     contacts: parseNestedArray(raw?.contacts).map(parseContact),
@@ -191,12 +203,18 @@ const serializeNestedArray = (value: unknown) => {
 };
 
 const serializeCompanyPayload = (payload: CompanyPayload) => {
-  const { tax_identities, addresses, contacts, ...rest } = payload;
+  const { tax_identities, addresses, contacts, attached_files, ...rest } = payload;
   return {
     ...rest,
     tax_identities: serializeNestedArray(tax_identities),
     addresses: serializeNestedArray(addresses),
     contacts: serializeNestedArray(contacts),
+    attached_files:
+      typeof attached_files === 'string'
+        ? attached_files
+        : attached_files
+        ? JSON.stringify(attached_files)
+        : null,
   };
 };
 
