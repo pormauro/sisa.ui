@@ -71,29 +71,51 @@ const identityValue = (company: Company | undefined, key: string) => {
 
 const sanitizeAddresses = (items: CompanyAddress[]) =>
   items
-    .map(address => ({
-      street: address.street.trim(),
-      number: address.number?.toString().trim() || null,
-      floor: address.floor?.toString().trim() || null,
-      apartment: address.apartment?.toString().trim() || null,
-      city: address.city?.toString().trim() || null,
-      state: address.state?.toString().trim() || null,
-      country: address.country?.toString().trim() || null,
-      postal_code: address.postal_code?.toString().trim() || null,
-      notes: address.notes?.toString().trim() || null,
-    }))
+    .map(address => {
+      const sanitized: CompanyAddress = {
+        street: address.street.trim(),
+        number: address.number?.toString().trim() || null,
+        floor: address.floor?.toString().trim() || null,
+        apartment: address.apartment?.toString().trim() || null,
+        city: address.city?.toString().trim() || null,
+        state: address.state?.toString().trim() || null,
+        country: address.country?.toString().trim() || null,
+        postal_code: address.postal_code?.toString().trim() || null,
+        notes: address.notes?.toString().trim() || null,
+      };
+
+      if (address.id !== undefined) {
+        sanitized.id = address.id;
+      }
+      if (address.version !== undefined) {
+        sanitized.version = address.version;
+      }
+
+      return sanitized;
+    })
     .filter(address => address.street || address.city || address.country);
 
 const sanitizeContacts = (items: CompanyContact[]) =>
   items
-    .map(contact => ({
-      name: contact.name.trim(),
-      role: contact.role?.trim() || null,
-      email: contact.email?.trim() || null,
-      phone: contact.phone?.trim() || null,
-      mobile: contact.mobile?.trim() || null,
-      notes: contact.notes?.trim() || null,
-    }))
+    .map(contact => {
+      const sanitized: CompanyContact = {
+        name: contact.name.trim(),
+        role: contact.role?.trim() || null,
+        email: contact.email?.trim() || null,
+        phone: contact.phone?.trim() || null,
+        mobile: contact.mobile?.trim() || null,
+        notes: contact.notes?.trim() || null,
+      };
+
+      if (contact.id !== undefined) {
+        sanitized.id = contact.id;
+      }
+      if (contact.version !== undefined) {
+        sanitized.version = contact.version;
+      }
+
+      return sanitized;
+    })
     .filter(contact => contact.name || contact.email || contact.phone || contact.mobile);
 
 const buildIdentitiesPayload = (
@@ -103,31 +125,64 @@ const buildIdentitiesPayload = (
   grossIncomeNumber: string,
   fiscalNotes: string,
   additionalIdentities: TaxIdentity[],
+  existingIdentities: TaxIdentity[] = [],
 ) => {
+  const findExisting = (type: string): Partial<TaxIdentity> => {
+    const match = existingIdentities.find(identity => identity.type === type);
+    if (!match) {
+      return {};
+    }
+    const preserved: Partial<TaxIdentity> = {};
+    if (match.id !== undefined) {
+      preserved.id = match.id;
+    }
+    if (match.version !== undefined) {
+      preserved.version = match.version;
+    }
+    if (match.country !== undefined) {
+      preserved.country = match.country;
+    }
+    if (match.notes !== undefined) {
+      preserved.notes = match.notes;
+    }
+    return preserved;
+  };
+
   const baseIdentities: TaxIdentity[] = [];
   if (taxId.trim()) {
-    baseIdentities.push({ type: 'CUIT', value: taxId.trim() });
+    baseIdentities.push({ type: 'CUIT', value: taxId.trim(), ...findExisting('CUIT') });
   }
   if (ivaCondition) {
-    baseIdentities.push({ type: 'IVA_CONDITION', value: ivaCondition });
+    baseIdentities.push({ type: 'IVA_CONDITION', value: ivaCondition, ...findExisting('IVA_CONDITION') });
   }
   if (startDate.trim()) {
-    baseIdentities.push({ type: 'START_DATE', value: startDate.trim() });
+    baseIdentities.push({ type: 'START_DATE', value: startDate.trim(), ...findExisting('START_DATE') });
   }
   if (grossIncomeNumber.trim()) {
-    baseIdentities.push({ type: 'GROSS_INCOME', value: grossIncomeNumber.trim() });
+    baseIdentities.push({ type: 'GROSS_INCOME', value: grossIncomeNumber.trim(), ...findExisting('GROSS_INCOME') });
   }
   if (fiscalNotes.trim()) {
-    baseIdentities.push({ type: 'FISCAL_NOTES', value: fiscalNotes.trim() });
+    baseIdentities.push({ type: 'FISCAL_NOTES', value: fiscalNotes.trim(), ...findExisting('FISCAL_NOTES') });
   }
 
   const dynamicIdentities = additionalIdentities
-    .map(identity => ({
-      type: identity.type.trim(),
-      value: identity.value.trim(),
-      country: identity.country?.trim() || null,
-      notes: identity.notes?.trim() || null,
-    }))
+    .map(identity => {
+      const sanitized: TaxIdentity = {
+        type: identity.type.trim(),
+        value: identity.value.trim(),
+        country: identity.country?.trim() || null,
+        notes: identity.notes?.trim() || null,
+      };
+
+      if (identity.id !== undefined) {
+        sanitized.id = identity.id;
+      }
+      if (identity.version !== undefined) {
+        sanitized.version = identity.version;
+      }
+
+      return sanitized;
+    })
     .filter(identity => identity.type && identity.value);
 
   return [...baseIdentities, ...dynamicIdentities];
@@ -332,10 +387,12 @@ export default function EditCompanyPage() {
         grossIncomeNumber,
         fiscalNotes,
         additionalIdentities,
+        company.tax_identities,
       ),
       addresses: sanitizeAddresses(addresses),
       contacts: sanitizeContacts(contacts),
       attached_files: attachmentsJson || null,
+      version: company.version,
     };
 
     Alert.alert('Confirmar actualización', '¿Actualizar los datos de la empresa?', [
