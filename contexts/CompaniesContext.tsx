@@ -4,7 +4,6 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
   ReactNode,
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -102,9 +101,9 @@ const readJsonSafely = async <T = any>(response: Response): Promise<T | null> =>
   }
 };
 
-const parseNestedArray = <T,>(value: unknown): T[] => {
+const parseNestedArray = (value: unknown): any[] => {
   if (Array.isArray(value)) {
-    return value.filter(item => typeof item === 'object' && item !== null) as T[];
+    return value.filter(item => typeof item === 'object' && item !== null);
   }
   if (typeof value === 'string') {
     const trimmed = value.trim();
@@ -112,7 +111,7 @@ const parseNestedArray = <T,>(value: unknown): T[] => {
       try {
         const parsed = JSON.parse(trimmed);
         if (Array.isArray(parsed)) {
-          return parsed.filter(item => typeof item === 'object' && item !== null) as T[];
+          return parsed.filter(item => typeof item === 'object' && item !== null);
         }
       } catch (error) {
         console.warn('Unable to parse nested block:', error);
@@ -121,6 +120,40 @@ const parseNestedArray = <T,>(value: unknown): T[] => {
   }
   return [];
 };
+
+const parseTaxIdentity = (raw: any): TaxIdentity => ({
+  id: raw?.id,
+  type: typeof raw?.type === 'string' ? raw.type : '',
+  value: typeof raw?.value === 'string' ? raw.value : '',
+  country: raw?.country ?? null,
+  notes: raw?.notes ?? null,
+  version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
+});
+
+const parseAddress = (raw: any): CompanyAddress => ({
+  id: raw?.id,
+  street: typeof raw?.street === 'string' ? raw.street : '',
+  number: raw?.number ?? null,
+  floor: raw?.floor ?? null,
+  apartment: raw?.apartment ?? null,
+  city: raw?.city ?? null,
+  state: raw?.state ?? null,
+  country: raw?.country ?? null,
+  postal_code: raw?.postal_code ?? null,
+  notes: raw?.notes ?? null,
+  version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
+});
+
+const parseContact = (raw: any): CompanyContact => ({
+  id: raw?.id,
+  name: typeof raw?.name === 'string' ? raw.name : '',
+  role: raw?.role ?? null,
+  email: raw?.email ?? null,
+  phone: raw?.phone ?? null,
+  mobile: raw?.mobile ?? null,
+  notes: raw?.notes ?? null,
+  version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
+});
 
 const parseCompany = (raw: any): Company => {
   const baseId = raw?.id ?? raw?.company_id;
@@ -136,9 +169,9 @@ const parseCompany = (raw: any): Company => {
     email: raw?.email ?? null,
     status: raw?.status ?? null,
     notes: raw?.notes ?? null,
-    tax_identities: parseNestedArray<TaxIdentity>(raw?.tax_identities ?? raw?.tax_identifications),
-    addresses: parseNestedArray<CompanyAddress>(raw?.addresses),
-    contacts: parseNestedArray<CompanyContact>(raw?.contacts),
+    tax_identities: parseNestedArray(raw?.tax_identities ?? raw?.tax_identifications).map(parseTaxIdentity),
+    addresses: parseNestedArray(raw?.addresses).map(parseAddress),
+    contacts: parseNestedArray(raw?.contacts).map(parseContact),
     version: typeof version === 'number' ? version : parseInt(version ?? '1', 10) || 1,
     created_at: raw?.created_at ?? null,
     updated_at: raw?.updated_at ?? null,
@@ -170,7 +203,6 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
 export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   const [companies, setCompanies] = useCachedState<Company[]>('companies', []);
   const { token } = useContext(AuthContext);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     setCompanies(prev => ensureSortedByNewest(prev, getDefaultSortValue));
@@ -195,8 +227,6 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error('Error loading companies:', error);
-    } finally {
-      setIsInitialized(true);
     }
   }, [setCompanies, token]);
 
@@ -311,10 +341,10 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
-    if (token && !isInitialized) {
+    if (token) {
       loadCompanies();
     }
-  }, [isInitialized, loadCompanies, token]);
+  }, [loadCompanies, token]);
 
   const value = useMemo(
     () => ({ companies, loadCompanies, addCompany, updateCompany, deleteCompany }),
