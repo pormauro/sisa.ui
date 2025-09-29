@@ -203,12 +203,43 @@ const serializeNestedArray = (value: unknown) => {
 };
 
 const serializeCompanyPayload = (payload: CompanyPayload) => {
-  const { tax_identities, addresses, contacts, attached_files, ...rest } = payload;
-  return {
+  const {
+    tax_identities,
+    addresses,
+    contacts,
+    attached_files,
+    version,
+    brand_file_id,
+    ...rest
+  } = payload;
+
+  const normalizedBrandFileId = (() => {
+    if (brand_file_id === undefined || brand_file_id === null || brand_file_id === '') {
+      return null;
+    }
+    const numeric = Number(brand_file_id);
+    return Number.isFinite(numeric) ? numeric : brand_file_id;
+  })();
+
+  const base = {
     ...rest,
+    ...(normalizedBrandFileId !== undefined ? { brand_file_id: normalizedBrandFileId } : {}),
+  } as Record<string, unknown>;
+
+  if (version !== undefined) {
+    base.version = version;
+  }
+
+  const nested = {
     tax_identities: serializeNestedArray(tax_identities),
+    tax_identifications: serializeNestedArray(tax_identities),
     addresses: serializeNestedArray(addresses),
     contacts: serializeNestedArray(contacts),
+  };
+
+  return {
+    ...base,
+    ...nested,
     attached_files:
       typeof attached_files === 'string'
         ? attached_files
@@ -290,38 +321,68 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
-      try {
-        const response = await fetch(`${BASE_URL}/companies/${id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(serializeCompanyPayload(companyData)),
+      const serializedPayload = serializeCompanyPayload(companyData);
+      const headers = {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      } as const;
+
+      const performRequest = async (
+        method: 'PUT' | 'PATCH' | 'POST',
+        payload: Record<string, unknown>
+      ) =>
+        fetch(`${BASE_URL}/companies/${id}`, {
+          method,
+          headers,
+          body: JSON.stringify(payload),
         });
 
-        if (response.ok) {
-          let updatedCompany: Company | null = null;
-          try {
-            const payload = await readJsonSafely<{ company?: any }>(response);
-            if (payload?.company) {
-              updatedCompany = parseCompany(payload.company);
-            }
-          } catch (parseError) {
-            // Some endpoints may return 204 without a body; ignore parse errors.
-          }
+      try {
+        let response = await performRequest('PUT', serializedPayload);
 
-          setCompanies(prev => {
-            const existing = prev.find(company => company.id === id);
-            const merged = updatedCompany ?? parseCompany({ ...(existing ?? {}), ...companyData, id });
-            return ensureSortedByNewest(
-              prev.map(company => (company.id === id ? merged : company)),
-              getDefaultSortValue
-            );
-          });
-          await loadCompanies();
-          return true;
+        if (!response.ok && (response.status === 405 || response.status === 404)) {
+          response = await performRequest('PATCH', serializedPayload);
         }
+
+        if (!response.ok && response.status >= 400 && response.status < 500) {
+          const fallbackPayload = {
+            ...serializedPayload,
+            _method: 'PUT',
+            id,
+            company_id: id,
+          };
+          response = await performRequest('POST', fallbackPayload);
+        }
+
+        if (!response.ok) {
+          const errorPayload = await readJsonSafely(response);
+          console.error('Error updating company:', {
+            status: response.status,
+            body: errorPayload,
+          });
+          return false;
+        }
+
+        let updatedCompany: Company | null = null;
+        try {
+          const payload = await readJsonSafely<{ company?: any }>(response);
+          if (payload?.company) {
+            updatedCompany = parseCompany(payload.company);
+          }
+        } catch (parseError) {
+          // Some endpoints may return 204 without a body; ignore parse errors.
+        }
+
+        setCompanies(prev => {
+          const existing = prev.find(company => company.id === id);
+          const merged = updatedCompany ?? parseCompany({ ...(existing ?? {}), ...companyData, id });
+          return ensureSortedByNewest(
+            prev.map(company => (company.id === id ? merged : company)),
+            getDefaultSortValue
+          );
+        });
+        await loadCompanies();
+        return true;
       } catch (error) {
         console.error('Error updating company:', error);
       }
