@@ -9,6 +9,7 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 - **Categorías contables** — Ruta: `/categories`. Permiso: `listCategories`.
 
 ## Catálogos comerciales
+- **Empresas** — Ruta: `/companies`. Permiso: `listCompanies`.
 - **Clientes** — Ruta: `/clients`. Permiso: `listClients`.
 - **Proveedores** — Ruta: `/providers`. Permiso: `listProviders`.
 - **Productos y servicios** — Ruta: `/products_services`. Permiso: `listProductsServices`.
