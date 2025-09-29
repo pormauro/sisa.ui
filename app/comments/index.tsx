@@ -38,6 +38,7 @@ const CommentsListScreen = () => {
     loadAllComments,
     loadingMyComments,
     loadingAllComments,
+    listingAvailable,
   } = useContext(CommentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { userId } = useContext(AuthContext);
@@ -73,11 +74,14 @@ const CommentsListScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   const dataset = useMemo(() => {
+    if (!listingAvailable) {
+      return [];
+    }
     if (canRespond && activeTab === 'all') {
       return allComments;
     }
     return myComments;
-  }, [activeTab, allComments, canRespond, myComments]);
+  }, [activeTab, allComments, canRespond, listingAvailable, myComments]);
 
   useEffect(() => {
     if (!canRespond && activeTab === 'all') {
@@ -86,13 +90,23 @@ const CommentsListScreen = () => {
   }, [activeTab, canRespond]);
 
   const isLoading = useMemo(() => {
+    if (!listingAvailable) {
+      return false;
+    }
     if (canRespond && activeTab === 'all') {
       return loadingAllComments;
     }
     return loadingMyComments;
-  }, [activeTab, canRespond, loadingAllComments, loadingMyComments]);
+  }, [activeTab, canRespond, listingAvailable, loadingAllComments, loadingMyComments]);
 
   const emptyState = useMemo(() => {
+    if (!listingAvailable) {
+      return {
+        title: 'Listado de comentarios no disponible',
+        description:
+          'El servicio remoto no admite la consulta del historial. Solo es posible registrar nuevos comentarios.',
+      };
+    }
     if (canRespond && activeTab === 'all') {
       return {
         title: 'Sin comentarios recibidos',
@@ -113,9 +127,12 @@ const CommentsListScreen = () => {
         ? 'Usa el botón "Nuevo comentario" para enviar tus dudas o mejoras.'
         : 'No tenés permisos para cargar comentarios. Contactá al administrador.',
     };
-  }, [activeTab, canRespond, canSubmit]);
+  }, [activeTab, canRespond, canSubmit, listingAvailable]);
 
   const handleRefresh = useCallback(async () => {
+    if (!listingAvailable) {
+      return;
+    }
     setRefreshing(true);
     try {
       if (canRespond && activeTab === 'all') {
@@ -126,15 +143,18 @@ const CommentsListScreen = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, canRespond, loadAllComments, loadMyComments]);
+  }, [activeTab, canRespond, listingAvailable, loadAllComments, loadMyComments]);
 
   useFocusEffect(
     useCallback(() => {
+      if (!listingAvailable) {
+        return;
+      }
       void loadMyComments();
       if (canRespond) {
         void loadAllComments();
       }
-    }, [canRespond, loadAllComments, loadMyComments])
+    }, [canRespond, listingAvailable, loadAllComments, loadMyComments])
   );
 
   const renderItem = useCallback(
