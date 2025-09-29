@@ -32,6 +32,38 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/clients/[id].tsx` — edición y eliminación condicionadas por permisos.【F:app/clients/[id].tsx†L1-L160】
 - `app/clients/viewModal.tsx` — modal de lectura rápida.【F:app/clients/viewModal.tsx†L1-L100】
 
+## Empresas (`CompaniesContext`)
+### Modelo
+- `Company`: agrupa razón social, datos de contacto y arrays embebidos para identidad fiscal, direcciones y contactos comerciales.【F:contexts/CompaniesContext.tsx†L48-L66】
+- `TaxIdentity`, `CompanyAddress`, `CompanyContact`: describen cada elemento de los bloques anidados consumidos por las pantallas de Expo.【F:contexts/CompaniesContext.tsx†L14-L45】
+
+### Métodos del contexto
+- `loadCompanies()`: lee `/companies`, normaliza la respuesta y la ordena por fecha antes de hidratar el estado compartido.【F:contexts/CompaniesContext.tsx†L229-L245】
+- `addCompany(company)`: serializa los bloques anidados, envía el `POST /companies` y fuerza un refresco posterior para mantener la caché alineada.【F:contexts/CompaniesContext.tsx†L251-L278】
+- `updateCompany(id, company)`: ejecuta `PUT /companies/{id}`, fusiona el resultado con el estado local y vuelve a consultar el listado.【F:contexts/CompaniesContext.tsx†L287-L324】
+- `deleteCompany(id)`: llama a `DELETE /companies/{id}` y depura la empresa eliminada del store local.【F:contexts/CompaniesContext.tsx†L333-L351】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/companies` — listado completo con identidades fiscales, direcciones y contactos embebidos.【F:contexts/CompaniesContext.tsx†L229-L245】
+- `POST ${BASE_URL}/companies` — creación de empresa con payload serializado para arrays anidados.【F:contexts/CompaniesContext.tsx†L251-L278】
+- `PUT ${BASE_URL}/companies/{id}` — actualización del registro y sincronización local.【F:contexts/CompaniesContext.tsx†L287-L324】
+- `DELETE ${BASE_URL}/companies/{id}` — baja lógica y limpieza de caché.【F:contexts/CompaniesContext.tsx†L333-L351】
+
+### Permisos requeridos
+- `listCompanies` habilita el listado y la navegación desde el menú principal.【F:app/companies/index.tsx†L57-L99】【F:constants/menuSections.ts†L48-L62】
+- `addCompany`, `updateCompany`, `deleteCompany` controlan accesos a formularios de alta, edición y baja en las pantallas protegidas.【F:app/companies/create.tsx†L61-L105】【F:app/companies/[id].tsx†L136-L157】【F:app/companies/viewModal.tsx†L11-L45】
+
+### Pantallas relacionadas
+- `app/companies/index.tsx` — listado con búsqueda difusa y accesos a modal/detalle.【F:app/companies/index.tsx†L1-L200】
+- `app/companies/create.tsx` — formulario de alta con constructores de identidades, direcciones y contactos.【F:app/companies/create.tsx†L1-L200】
+- `app/companies/[id].tsx` — edición avanzada que reutiliza los bloques anidados y permite bajas condicionadas por permisos.【F:app/companies/[id].tsx†L1-L157】
+- `app/companies/viewModal.tsx` — modal de lectura que expone identidades fiscales, direcciones y contactos cargados por la API.【F:app/companies/viewModal.tsx†L1-L160】
+
+### Consumo de identidad fiscal, direcciones y contactos
+- El `GET /companies` retorna las colecciones `tax_identities`, `addresses` y `contacts`; `parseCompany` las transforma en estructuras tipadas que el frontend muestra directamente en las pantallas de Expo.【F:contexts/CompaniesContext.tsx†L160-L188】【F:app/companies/viewModal.tsx†L107-L160】
+- Las operaciones de alta y edición serializan los bloques anidados antes de invocar la API, manteniendo la compatibilidad con la base `sisa.api`, que continúa sin claves foráneas según lo acordado a nivel backend.【F:contexts/CompaniesContext.tsx†L205-L218】【F:docs/setup-and-configuration.md†L21-L26】
+- Todos los requests al endpoint `/companies` incluyen el encabezado `Authorization: Bearer <token>`, requisito obligatorio salvo en el flujo de login inicial.【F:contexts/CompaniesContext.tsx†L229-L344】【F:docs/setup-and-configuration.md†L14-L24】
+
 ## Proveedores (`ProvidersContext`)
 ### Modelo
 - `Provider`: razón social, identificadores y datos de contacto opcionales.【F:contexts/ProvidersContext.tsx†L13-L21】
