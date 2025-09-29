@@ -214,7 +214,10 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   } = payload;
 
   const normalizedBrandFileId = (() => {
-    if (brand_file_id === undefined || brand_file_id === null || brand_file_id === '') {
+    if (!Object.prototype.hasOwnProperty.call(payload, 'brand_file_id')) {
+      return undefined;
+    }
+    if (brand_file_id === null || brand_file_id === '') {
       return null;
     }
     const numeric = Number(brand_file_id);
