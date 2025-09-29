@@ -49,6 +49,7 @@ export const MENU_SECTIONS: MenuSection[] = [
     title: 'Catálogos comerciales',
     icon: 'pricetags',
     items: [
+      { title: 'Empresas', route: '/companies', icon: 'business', requiredPermissions: ['listCompanies'] },
       { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
       { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
       {

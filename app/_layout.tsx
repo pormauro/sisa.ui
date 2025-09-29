@@ -2,6 +2,7 @@ import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
 import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
+import { CompaniesProvider } from '@/contexts/CompaniesContext';
 import { ConfigProvider } from '@/contexts/ConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
@@ -79,11 +80,12 @@ export default function RootLayout() {
                   <ThemeProvider>
                     <LogProvider>
                       <CashBoxesProvider>
-                        <ClientsProvider>
-                          <ProvidersProvider>
-                            <CategoriesProvider>
-                              <ProductsServicesProvider>
-                                <StatusesProvider>
+                        <CompaniesProvider>
+                          <ClientsProvider>
+                            <ProvidersProvider>
+                              <CategoriesProvider>
+                                <ProductsServicesProvider>
+                                  <StatusesProvider>
                                   <TariffsProvider>
                                     <JobsProvider>
                                       <AppointmentsProvider>
@@ -108,7 +110,8 @@ export default function RootLayout() {
                               </ProductsServicesProvider>
                             </CategoriesProvider>
                           </ProvidersProvider>
-                        </ClientsProvider>
+                          </ClientsProvider>
+                        </CompaniesProvider>
                       </CashBoxesProvider>
                     </LogProvider>
                   </ThemeProvider>

@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
 import FileGallery from '@/components/FileGallery';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 
 export default function ViewCompanyModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -13,7 +14,11 @@ export default function ViewCompanyModal() {
   const router = useRouter();
 
   const { companies } = useContext(CompaniesContext);
+  const { permissions } = useContext(PermissionsContext);
   const company = companies.find(item => item.id === companyId);
+
+  const canView = permissions.includes('listCompanies') || permissions.includes('updateCompany');
+  const canEdit = permissions.includes('updateCompany');
 
   const background = useThemeColor({}, 'background');
   const cardBorder = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
@@ -32,9 +37,17 @@ export default function ViewCompanyModal() {
     }
   }, [company?.attached_files]);
 
+  if (!canView) {
+    return (
+      <View style={[styles.container, { backgroundColor: background }]}>
+        <ThemedText>No tienes permiso para ver esta empresa.</ThemedText>
+      </View>
+    );
+  }
+
   if (!company) {
     return (
-      <View style={[styles.container, { backgroundColor: background }]}> 
+      <View style={[styles.container, { backgroundColor: background }]}>
         <ThemedText>Empresa no encontrada</ThemedText>
       </View>
     );
@@ -159,9 +172,11 @@ export default function ViewCompanyModal() {
         </>
       ) : null}
 
-      <TouchableOpacity style={styles.editButton} onPress={() => router.push(`/companies/${company.id}`)}>
-        <ThemedText style={styles.editButtonText}>Editar</ThemedText>
-      </TouchableOpacity>
+      {canEdit ? (
+        <TouchableOpacity style={styles.editButton} onPress={() => router.push(`/companies/${company.id}`)}>
+          <ThemedText style={styles.editButtonText}>Editar</ThemedText>
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 }
