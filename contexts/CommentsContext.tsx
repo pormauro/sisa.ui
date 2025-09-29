@@ -44,6 +44,7 @@ interface CommentsContextValue {
   respondComment: (commentId: number, response: string) => Promise<boolean>;
   loadingMyComments: boolean;
   loadingAllComments: boolean;
+  listingAvailable: boolean;
 }
 
 const defaultContext: CommentsContextValue = {
@@ -55,6 +56,7 @@ const defaultContext: CommentsContextValue = {
   respondComment: async () => false,
   loadingMyComments: false,
   loadingAllComments: false,
+  listingAvailable: true,
 };
 
 export const CommentsContext = createContext<CommentsContextValue>(defaultContext);
@@ -208,12 +210,14 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
   );
   const [loadingMyComments, setLoadingMyComments] = useState(false);
   const [loadingAllComments, setLoadingAllComments] = useState(false);
+  const [listingAvailable, setListingAvailable] = useState(true);
   const previousUserIdRef = useRef<string | null>(null);
 
   const clearCachedComments = useCallback(() => {
     setMyComments(prev => (prev.length > 0 ? [] : prev));
     setAllComments(prev => (prev.length > 0 ? [] : prev));
-  }, [setAllComments, setMyComments]);
+    setListingAvailable(true);
+  }, [setAllComments, setListingAvailable, setMyComments]);
 
   useEffect(() => {
     if (!myCommentsHydrated || !allCommentsHydrated) {
@@ -259,8 +263,26 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
     [token]
   );
 
+  const disableListingIfNeeded = useCallback(
+    (reason: unknown) => {
+      setListingAvailable(prev => {
+        if (!prev) {
+          return prev;
+        }
+        console.warn(
+          'El backend no soporta la lectura del historial de comentarios. Se mantendrá oculta la bandeja.',
+          reason
+        );
+        return false;
+      });
+      setMyComments(prev => (prev.length > 0 ? [] : prev));
+      setAllComments(prev => (prev.length > 0 ? [] : prev));
+    },
+    [setAllComments, setMyComments]
+  );
+
   const loadMyComments = useCallback(async () => {
-    if (!token) {
+    if (!token || !listingAvailable) {
       return;
     }
     setLoadingMyComments(true);
@@ -268,20 +290,26 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
       const response = await authorizedFetch(`${BASE_URL}/comments/mine`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        console.error('Error loading personal comments:', data);
+        const status = response.status;
+        if (status === 404 || status === 405 || status === 400) {
+          disableListingIfNeeded({ scope: 'mine', status, data });
+        } else {
+          console.warn('Error loading personal comments:', data);
+        }
         return;
       }
+      setListingAvailable(true);
       const parsed = extractCommentArray(data);
       setMyComments(sortComments(parsed));
     } catch (error) {
-      console.error('Error loading personal comments:', error);
+      console.warn('Error loading personal comments:', error);
     } finally {
       setLoadingMyComments(false);
     }
-  }, [authorizedFetch, setMyComments, token]);
+  }, [authorizedFetch, disableListingIfNeeded, listingAvailable, setMyComments, token]);
 
   const loadAllComments = useCallback(async () => {
-    if (!token) {
+    if (!token || !listingAvailable) {
       return;
     }
     setLoadingAllComments(true);
@@ -289,17 +317,23 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
       const response = await authorizedFetch(`${BASE_URL}/comments`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        console.error('Error loading global comments:', data);
+        const status = response.status;
+        if (status === 404 || status === 405 || status === 400) {
+          disableListingIfNeeded({ scope: 'all', status, data });
+        } else {
+          console.warn('Error loading global comments:', data);
+        }
         return;
       }
+      setListingAvailable(true);
       const parsed = extractCommentArray(data);
       setAllComments(sortComments(parsed));
     } catch (error) {
-      console.error('Error loading global comments:', error);
+      console.warn('Error loading global comments:', error);
     } finally {
       setLoadingAllComments(false);
     }
-  }, [authorizedFetch, setAllComments, token]);
+  }, [authorizedFetch, disableListingIfNeeded, listingAvailable, setAllComments, token]);
 
   const submitComment = useCallback(
     async (payload: CommentInput): Promise<CommentEntry | null> => {
@@ -379,9 +413,11 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
       respondComment,
       loadingMyComments,
       loadingAllComments,
+      listingAvailable,
     }),
     [
       allComments,
+      listingAvailable,
       loadAllComments,
       loadMyComments,
       loadingAllComments,
