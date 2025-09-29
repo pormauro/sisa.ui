@@ -37,7 +37,7 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
 });
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
+  const { token, userId, isLoading: authIsLoading, checkConnection } = useContext(AuthContext);
   const [permissions, setPermissions, permissionsHydrated] = useCachedState<string[]>(
     'permissions',
     []
@@ -85,6 +85,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } catch {
             // Ignoramos errores al leer el cuerpo para no enmascarar la causa original.
           }
+          if (response.status === 401) {
+            try {
+              await checkConnection();
+            } catch (checkError) {
+              console.log('No fue posible revalidar la sesión tras un 401.', checkError);
+            }
+          }
           throw new Error(`HTTP ${response.status} al cargar permisos ${scope}${errorDetail}`);
         }
 
@@ -124,7 +131,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [setPermissions, token, userId]);
+  }, [checkConnection, setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();
