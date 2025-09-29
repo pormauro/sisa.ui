@@ -76,7 +76,10 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     setLoading(true);
     try {
-      const parsePermissionsResponse = async (response: Response, scope: 'usuario' | 'global') => {
+      const parsePermissionsResponse = async (
+        response: Response,
+        scope: 'usuario' | 'global'
+      ) => {
         if (!response.ok) {
           let errorDetail = '';
           try {
@@ -85,14 +88,23 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } catch {
             // Ignoramos errores al leer el cuerpo para no enmascarar la causa original.
           }
-          if (response.status === 401) {
+          const authorizationError = response.status === 401 || response.status === 403;
+          if (authorizationError) {
             try {
               await checkConnection();
             } catch (checkError) {
-              console.log('No fue posible revalidar la sesión tras un 401.', checkError);
+              console.log(
+                `No fue posible revalidar la sesión tras un ${response.status}.`,
+                checkError
+              );
             }
           }
-          throw new Error(`HTTP ${response.status} al cargar permisos ${scope}${errorDetail}`);
+          const error: Error & { status?: number; scope?: string } = new Error(
+            `HTTP ${response.status} al cargar permisos ${scope}${errorDetail}`
+          );
+          error.status = response.status;
+          error.scope = scope;
+          throw error;
         }
 
         try {
@@ -125,13 +137,25 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
       setPermissions(expandWithAliases(mergedPermissions));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching permissions', error);
-      Alert.alert('Error', 'No se pudieron cargar los permisos actuales. Se conservarán los últimos permisos válidos.');
+      const status = typeof error?.status === 'number' ? error.status : undefined;
+      if (status === 401 || status === 403) {
+        clearCachedPermissions();
+        Alert.alert(
+          'Sesión no válida',
+          'Detectamos un problema con tu sesión. Se conservarán los últimos permisos hasta que vuelvas a iniciar sesión.'
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          'No se pudieron cargar los permisos actuales. Se conservarán los últimos permisos válidos.'
+        );
+      }
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, setPermissions, token, userId]);
+  }, [checkConnection, clearCachedPermissions, setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();
