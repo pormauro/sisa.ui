@@ -19,6 +19,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 // Definición de grupos de permisos. Cada grupo contiene una lista de "sectors" (cadenas que representan los permisos)
 const PERMISSION_GROUPS = [
   { group: "Permissions", permissions: ['listGlobalPermissions','listPermissionsByUser','listPermissions', 'addPermission', 'deletePermission','listAllProfiles'] },
+  { group: "Companies", permissions: ['listCompanies', 'addCompany', 'updateCompany', 'deleteCompany'] },
   { group: "Files", permissions: ['uploadFile', 'downloadFile'] },
   { group: "Clients", permissions: ['getClient', 'addClient', 'updateClient', 'deleteClient', 'listClients'] },
   { group: "Folders", permissions: ['listFolders', 'getFolder', 'addFolder', 'updateFolder', 'deleteFolder', 'listFolderHistory', 'listFoldersByClient'] },
@@ -305,6 +306,19 @@ const PermissionScreen: React.FC = () => {
     });
   };
 
+  const removeAll = () => {
+    if (!canEditSelection) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
+      return;
+    }
+
+    Object.keys(assignedPermissions).forEach(sector => {
+      if (assignedPermissions[sector]) {
+        togglePermission(sector, false);
+      }
+    });
+  };
+
   const handleUserSelection = useCallback(
     (user: SelectorProfile | null) => {
       if (user === null) {
@@ -375,8 +389,13 @@ const PermissionScreen: React.FC = () => {
           <ActivityIndicator size="large" color={spinnerColor} />
         ) : (
           <>
-            <View style={{ marginBottom: 10 }}>
-              <Button title="Activar todo" onPress={toggleAll} disabled={!canEditSelection} />
+            <View style={styles.actionsRow}>
+              <View style={[styles.actionButton, styles.actionButtonSpacing]}>
+                <Button title="Activar todo" onPress={toggleAll} disabled={!canEditSelection} />
+              </View>
+              <View style={styles.actionButton}>
+                <Button title="Quitar todo" onPress={removeAll} disabled={!canEditSelection} />
+              </View>
             </View>
             {PERMISSION_GROUPS.map(group => (
               <ThemedView
@@ -467,5 +486,15 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     marginRight: 8,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  actionButtonSpacing: {
+    marginRight: 12,
   },
 });
