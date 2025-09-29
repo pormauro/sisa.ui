@@ -212,11 +212,13 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
   const [loadingAllComments, setLoadingAllComments] = useState(false);
   const [listingAvailable, setListingAvailable] = useState(true);
   const previousUserIdRef = useRef<string | null>(null);
+  const listingDisabledRef = useRef(false);
 
   const clearCachedComments = useCallback(() => {
     setMyComments(prev => (prev.length > 0 ? [] : prev));
     setAllComments(prev => (prev.length > 0 ? [] : prev));
     setListingAvailable(true);
+    listingDisabledRef.current = false;
   }, [setAllComments, setListingAvailable, setMyComments]);
 
   useEffect(() => {
@@ -265,18 +267,25 @@ export const CommentsProvider = ({ children }: { children: ReactNode }) => {
 
   const disableListingIfNeeded = useCallback(
     (reason: unknown) => {
+      let disabled = false;
       setListingAvailable(prev => {
         if (!prev) {
           return prev;
         }
-        console.warn(
-          'El backend no soporta la lectura del historial de comentarios. Se mantendrá oculta la bandeja.',
-          reason
-        );
+        disabled = true;
+        if (!listingDisabledRef.current) {
+          listingDisabledRef.current = true;
+          console.warn(
+            'El backend no soporta la lectura del historial de comentarios. Se mantendrá oculta la bandeja.',
+            reason
+          );
+        }
         return false;
       });
-      setMyComments(prev => (prev.length > 0 ? [] : prev));
-      setAllComments(prev => (prev.length > 0 ? [] : prev));
+      if (disabled || listingDisabledRef.current) {
+        setMyComments(prev => (prev.length > 0 ? [] : prev));
+        setAllComments(prev => (prev.length > 0 ? [] : prev));
+      }
     },
     [setAllComments, setMyComments]
   );
