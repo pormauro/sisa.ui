@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -29,6 +29,52 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { TariffsContext } from '@/contexts/TariffsContext';
+import { formatCurrency } from '@/utils/currency';
+
+const NEW_TARIFF_VALUE = '__new_tariff__';
+
+const parseManualAmountInput = (value: string): number | null | undefined => {
+  if (value == null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const cleaned = trimmed.replace(/[^0-9,.-]/g, '');
+  if (!cleaned) {
+    return undefined;
+  }
+
+  let normalized = cleaned;
+  const hasDot = cleaned.includes('.');
+  const hasComma = cleaned.includes(',');
+
+  if (hasDot && hasComma) {
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+    const decimalSeparator = lastDot > lastComma ? '.' : ',';
+    const thousandsSeparator = decimalSeparator === '.' ? ',' : '.';
+
+    normalized = cleaned.replace(new RegExp(`\\${thousandsSeparator}`, 'g'), '');
+
+    if (decimalSeparator !== '.') {
+      normalized = normalized.replace(new RegExp(`\\${decimalSeparator}`, 'g'), '.');
+    }
+  } else if (hasComma) {
+    normalized = cleaned.replace(/,/g, '.');
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) {
+    return undefined;
+  }
+
+  return parsed;
+};
 
 export default function CreateJobScreen() {
   const router = useRouter();
@@ -38,6 +84,7 @@ export default function CreateJobScreen() {
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
+  const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -54,6 +101,9 @@ export default function CreateJobScreen() {
   const [selectedClient, setSelectedClient] = useState<string>('');
   const [selectedFolder, setSelectedFolder] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<ModalPickerItem | null>(null);
+  const [selectedTariff, setSelectedTariff] = useState<string>('');
+  const [manualAmount, setManualAmount] = useState<string>('');
+  const [manualAmountTouched, setManualAmountTouched] = useState<boolean>(false);
   const [description, setDescription] = useState<string>('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [jobDate, setJobDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -101,6 +151,34 @@ export default function CreateJobScreen() {
     [filteredFolders]
   );
 
+  const tariffItems = useMemo(
+    () => [
+      { label: '-- Sin tarifa --', value: '' },
+      { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
+      ...tariffs.map(tariff => ({
+        label: `${tariff.name} — ${formatCurrency(tariff.amount)}`,
+        value: tariff.id.toString(),
+      })),
+    ],
+    [tariffs]
+  );
+
+  const applyTariffSelection = useCallback(
+    (value: string) => {
+      setSelectedTariff(value);
+      if (!value) {
+        setManualAmountTouched(true);
+        return;
+      }
+      const tariff = tariffs.find(t => t.id.toString() === value);
+      if (tariff) {
+        setManualAmount(tariff.amount.toString());
+        setManualAmountTouched(false);
+      }
+    },
+    [tariffs]
+  );
+
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#999', dark: '#555' }, 'background');
@@ -144,6 +222,33 @@ export default function CreateJobScreen() {
   useEffect(() => {
     setSelectedFolder('');
   }, [selectedClient]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.tariff)) {
+      return;
+    }
+    const pendingTariffId = consumeSelection<string | number>(SELECTION_KEYS.jobs.tariff);
+    if (pendingTariffId == null) {
+      applyTariffSelection('');
+      return;
+    }
+    const normalizedId = pendingTariffId.toString().trim();
+    if (!normalizedId || normalizedId === 'null') {
+      applyTariffSelection('');
+      return;
+    }
+    applyTariffSelection(normalizedId);
+  }, [pendingSelections, consumeSelection, applyTariffSelection]);
+
+  useEffect(() => {
+    if (!selectedTariff || manualAmountTouched) {
+      return;
+    }
+    const tariff = tariffs.find(t => t.id.toString() === selectedTariff);
+    if (tariff) {
+      setManualAmount(tariff.amount.toString());
+    }
+  }, [selectedTariff, manualAmountTouched, tariffs]);
 
   const statusItems = useMemo(
     () => [
@@ -207,14 +312,25 @@ export default function CreateJobScreen() {
       Alert.alert('Error', 'Completa todos los campos obligatorios.');
       return;
     }
+
+    const manualAmountValue = parseManualAmountInput(manualAmount);
+    if (typeof manualAmountValue === 'undefined') {
+      Alert.alert('Monto inválido', 'Ingresa un monto manual válido.');
+      return;
+    }
+
+    const parsedTariffId = selectedTariff ? Number.parseInt(selectedTariff, 10) : null;
+    const tariffIdValue =
+      parsedTariffId !== null && !Number.isNaN(parsedTariffId) ? parsedTariffId : null;
+
     const saveJob = async () => {
       const jobData = {
         client_id: Number.parseInt(selectedClient, 10),
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: null,
-        manual_amount: null,
+        tariff_id: tariffIdValue,
+        manual_amount: manualAmountValue,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? parseInt(selectedFolder, 10) : null,
         job_date: jobDate,
@@ -359,6 +475,46 @@ export default function CreateJobScreen() {
         />
       </View>
 
+      {/* Tarifa */}
+      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
+      <SearchableSelect
+        style={styles.select}
+        items={tariffItems}
+        selectedValue={selectedTariff}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_TARIFF_VALUE) {
+            applyTariffSelection('');
+            beginSelection(SELECTION_KEYS.jobs.tariff);
+            router.push('/tariffs/create');
+            return;
+          }
+          applyTariffSelection(stringValue);
+        }}
+        placeholder="-- Sin tarifa --"
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_TARIFF_VALUE) return;
+          beginSelection(SELECTION_KEYS.jobs.tariff);
+          router.push(`/tariffs/${value}`);
+        }}
+      />
+      <ThemedText style={[styles.helperText, { color: placeholderColor }]}>El monto manual se inicia con el valor actual de la tarifa seleccionada.</ThemedText>
+
+      {/* Monto manual */}
+      <ThemedText style={[styles.label, { color: textColor }]}>Monto manual</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
+        placeholder="Ingresa un monto"
+        placeholderTextColor={placeholderColor}
+        keyboardType="decimal-pad"
+        value={manualAmount}
+        onChangeText={(text) => {
+          setManualAmount(text);
+          setManualAmountTouched(true);
+        }}
+      />
+
       {/* Participantes */}
       <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
       <ParticipantsBubbles
@@ -467,6 +623,11 @@ const styles = StyleSheet.create({
   label: { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
   select: {
     marginBottom: 12,
+  },
+  helperText: {
+    marginTop: -4,
+    marginBottom: 8,
+    fontSize: 12,
   },
   input: {
     borderWidth: 1,
