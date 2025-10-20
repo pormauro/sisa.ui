@@ -63,6 +63,7 @@ export interface Invoice {
   amount?: number | null;
   total_amount?: number | null;
   subtotal?: number | null;
+  vat_amount?: number | null;
   status?: InvoiceStatus | null;
   state?: InvoiceStatus | null;
   issued_at?: string | null;
@@ -129,7 +130,7 @@ interface InvoicesContextValue {
 
 const noop = async () => {};
 
-const INVOICE_ENDPOINT_CANDIDATES = ['/invoices', '/billing/invoices'];
+const INVOICE_ENDPOINT_CANDIDATES = ['/comprobantes', '/invoices', '/billing/invoices'];
 
 export const InvoicesContext = createContext<InvoicesContextValue>({
   invoices: [],
@@ -188,6 +189,17 @@ const toInvoice = (raw: unknown): Invoice | null => {
     if (typeof value === 'string') {
       const parsed = Number(value);
       return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  };
+
+  const parseString = (value: unknown): string | undefined => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? trimmed : undefined;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
     }
     return undefined;
   };
@@ -372,6 +384,7 @@ const toInvoice = (raw: unknown): Invoice | null => {
     record['amount'],
     record['subtotal'],
     record['grand_total'],
+    record['imp_total'],
   ];
   for (const value of possibleTotals) {
     if (value === undefined || value === null) {
@@ -384,7 +397,24 @@ const toInvoice = (raw: unknown): Invoice | null => {
     }
   }
 
-  const possibleStatuses = [record['status'], record['state'], record['invoice_status']];
+  if (normalised.total !== undefined && normalised.total !== null) {
+    normalised.total_amount = normalised.total;
+  }
+
+  const netAmount = parseNumeric(record['imp_neto_gravado']);
+  if (typeof netAmount === 'number') {
+    normalised.subtotal = netAmount;
+    if (normalised.amount === undefined || normalised.amount === null) {
+      normalised.amount = netAmount;
+    }
+  }
+
+  const vatAmount = parseNumeric(record['imp_iva']);
+  if (typeof vatAmount === 'number') {
+    normalised.vat_amount = vatAmount;
+  }
+
+  const possibleStatuses = [record['status'], record['state'], record['invoice_status'], record['estado']];
   for (const value of possibleStatuses) {
     if (typeof value === 'string' && value.trim()) {
       normalised.status = value as InvoiceStatus;
@@ -394,6 +424,11 @@ const toInvoice = (raw: unknown): Invoice | null => {
 
   if (!normalised.status) {
     normalised.status = 'pending';
+  }
+
+  const currency = parseString(record['currency'] ?? record['afip_moneda_id']);
+  if (currency) {
+    normalised.currency = currency;
   }
 
   const vatBreakdown = parseVatBreakdown(record['vat_breakdown']);
@@ -421,11 +456,58 @@ const toInvoice = (raw: unknown): Invoice | null => {
     normalised.cae = caeRaw.toString();
   }
 
-  const caeDueRaw = record['cae_due_date'] ?? record['caeDueDate'] ?? record['cae_expiration'];
+  const caeDueRaw =
+    record['cae_due_date'] ?? record['caeDueDate'] ?? record['cae_expiration'] ?? record['cae_vencimiento'];
   if (typeof caeDueRaw === 'string' || typeof caeDueRaw === 'number') {
     const value = caeDueRaw === null ? null : String(caeDueRaw);
     if (value) {
       normalised.cae_due_date = value;
+    }
+  }
+
+  const issueDateCandidates = [record['issue_date'], record['issued_at'], record['fecha_emision']];
+  for (const candidate of issueDateCandidates) {
+    const parsed = parseString(candidate);
+    if (parsed) {
+      normalised.issue_date = parsed;
+      break;
+    }
+  }
+
+  const dueDateCandidates = [record['due_date'], record['due_at'], record['fecha_vencimiento']];
+  for (const candidate of dueDateCandidates) {
+    const parsed = parseString(candidate);
+    if (parsed) {
+      normalised.due_date = parsed;
+      break;
+    }
+  }
+
+  const createdAtCandidates = [record['created_at'], record['creado_en']];
+  for (const candidate of createdAtCandidates) {
+    const parsed = parseString(candidate);
+    if (parsed) {
+      normalised.created_at = parsed;
+      break;
+    }
+  }
+
+  const updatedAtCandidates = [record['updated_at'], record['actualizado_en']];
+  for (const candidate of updatedAtCandidates) {
+    const parsed = parseString(candidate);
+    if (parsed) {
+      normalised.updated_at = parsed;
+      break;
+    }
+  }
+
+  const invoiceNumber = parseString(
+    record['invoice_number'] ?? record['invoiceNumber'] ?? record['numero'] ?? record['comprobante']
+  );
+  if (invoiceNumber) {
+    normalised.invoice_number = invoiceNumber;
+    if (!normalised.number) {
+      normalised.number = invoiceNumber;
     }
   }
 
@@ -445,7 +527,7 @@ const toInvoice = (raw: unknown): Invoice | null => {
     normalised.afip_events = [];
   }
 
-  const exchangeRate = parseNumeric(record['exchange_rate'] ?? record['exchangeRate']);
+  const exchangeRate = parseNumeric(record['exchange_rate'] ?? record['exchangeRate'] ?? record['cotizacion']);
   if (typeof exchangeRate === 'number') {
     normalised.exchange_rate = exchangeRate;
   }
