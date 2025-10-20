@@ -15,6 +15,15 @@ import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { AfipPointsOfSaleContext } from '@/contexts/AfipPointsOfSaleContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  formatConceptLabel,
+  formatDocumentTypeLabel,
+  formatExchangeRate,
+  formatInvoiceCurrency,
+  formatInvoiceDate,
+  formatVoucherType,
+} from '@/utils/invoiceFormatting';
+import { invoiceSharedStyles } from '@/components/invoices/InvoiceSharedStyles';
 
 interface InvoiceDetailViewProps {
   invoiceId: number;
@@ -35,108 +44,8 @@ const statusLabel = (status: string | null | undefined) => {
   return 'Pendiente';
 };
 
-const formatDate = (value: unknown) => {
-  if (typeof value !== 'string' && typeof value !== 'number') {
-    return '—';
-  }
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    if (typeof value === 'string') {
-      return value;
-    }
-    return '—';
-  }
-  return parsed.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-};
-
-const formatCurrency = (value: unknown, currencyCode?: string | null) => {
-  if (value === undefined || value === null) {
-    return '—';
-  }
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (Number.isNaN(numeric)) {
-    return String(value);
-  }
-  const resolvedCurrency = currencyCode && typeof currencyCode === 'string' && currencyCode.trim()
-    ? currencyCode.trim().toUpperCase()
-    : 'ARS';
-  try {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: resolvedCurrency,
-      minimumFractionDigits: 2,
-    }).format(numeric);
-  } catch {
-    return numeric.toFixed(2);
-  }
-};
-
-const VOUCHER_LABELS: Record<string, string> = {
-  '1': 'Factura A (01)',
-  '3': 'Nota de Crédito A (03)',
-  '6': 'Factura B (06)',
-  '8': 'Nota de Crédito B (08)',
-  '11': 'Factura C (11)',
-  '13': 'Nota de Crédito C (13)',
-};
-
-const CONCEPT_LABELS: Record<number, string> = {
-  1: 'Productos',
-  2: 'Servicios',
-  3: 'Productos y servicios',
-};
-
-const DOCUMENT_LABELS: Record<string, string> = {
-  '80': 'CUIT (80)',
-  '86': 'CUIL (86)',
-  '96': 'DNI (96)',
-  '94': 'Pasaporte (94)',
-};
-
-const formatVoucherType = (value: unknown) => {
-  if (value === null || value === undefined) {
-    return '—';
-  }
-  const key = String(value);
-  return VOUCHER_LABELS[key] ?? key;
-};
-
-const formatConceptLabel = (value: unknown) => {
-  if (value === null || value === undefined) {
-    return '—';
-  }
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && CONCEPT_LABELS[numeric]) {
-    return CONCEPT_LABELS[numeric];
-  }
-  return String(value);
-};
-
-const formatDocumentTypeLabel = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return '—';
-  }
-  const key = String(value);
-  return DOCUMENT_LABELS[key] ?? key;
-};
-
-const formatExchangeRate = (value: unknown) => {
-  if (value === null || value === undefined || value === '') {
-    return '—';
-  }
-  const numeric = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(numeric)) {
-    return String(value);
-  }
-  return numeric.toFixed(4);
-};
-
 export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId, onClose }) => {
-  const { invoices, refreshInvoice, updateInvoiceStatus } = useContext(InvoicesContext);
+  const { invoices, refreshInvoice, updateInvoiceStatus, reprintInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
@@ -144,12 +53,16 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showExpiryBanner, setShowExpiryBanner] = useState(false);
+  const [expiryDismissed, setExpiryDismissed] = useState(false);
+  const [isReprinting, setIsReprinting] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const sectionBackground = useThemeColor({ light: '#f9fafb', dark: 'rgba(255,255,255,0.05)' }, 'background');
   const borderColor = useThemeColor({ light: '#e5e7eb', dark: '#4b5563' }, 'background');
   const highlightColor = useThemeColor({ light: '#2563eb', dark: '#60a5fa' }, 'tint');
   const mutedText = useThemeColor({ light: '#6b7280', dark: '#d1d5db' }, 'text');
+  const bannerBackground = useThemeColor({ light: 'rgba(37,99,235,0.08)', dark: 'rgba(96,165,250,0.18)' }, 'background');
 
   const invoice = useMemo(() => invoices.find(item => item.id === invoiceId), [invoiceId, invoices]);
   const canUpdateStatus = permissions.includes('updateInvoice');
@@ -194,6 +107,30 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
     }
     return invoice.tributes;
   }, [invoice]);
+
+  useEffect(() => {
+    setExpiryDismissed(false);
+  }, [invoice?.id]);
+
+  useEffect(() => {
+    if (!invoice || expiryDismissed) {
+      setShowExpiryBanner(false);
+      return;
+    }
+    if (!invoice.cae_due_date) {
+      setShowExpiryBanner(false);
+      return;
+    }
+    const dueDate = new Date(invoice.cae_due_date);
+    if (Number.isNaN(dueDate.getTime())) {
+      setShowExpiryBanner(false);
+      return;
+    }
+    const now = Date.now();
+    const diffMs = dueDate.getTime() - now;
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    setShowExpiryBanner(diffDays <= 5);
+  }, [expiryDismissed, invoice]);
 
   useEffect(() => {
     if (!canView) {
@@ -266,6 +203,24 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
       .finally(() => setIsRefreshing(false));
   };
 
+  const handleReprint = async () => {
+    if (!invoice) {
+      return;
+    }
+    try {
+      setIsReprinting(true);
+      const success = await reprintInvoice(invoice.id);
+      if (success) {
+        Alert.alert('Reimpresión solicitada', 'Se envió la orden de reimpresión a AFIP.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo reimprimir el comprobante.';
+      Alert.alert('Error de reimpresión', message);
+    } finally {
+      setIsReprinting(false);
+    }
+  };
+
   const handleMarkPending = () => {
     if (!invoice || !canUpdateStatus) {
       return;
@@ -335,7 +290,7 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
       ? String(invoice.customer_document_number).trim()
       : null;
   const caeValue = invoice.cae ?? '—';
-  const caeDue = invoice.cae_due_date ? formatDate(invoice.cae_due_date) : '—';
+  const caeDue = invoice.cae_due_date ? formatInvoiceDate(invoice.cae_due_date) : '—';
   const exchangeRateLabel = formatExchangeRate(invoice.exchange_rate);
   const afipPointLabel = afipPoint
     ? `${afipPoint.point_number.toString().padStart(4, '0')} (${afipPoint.receipt_type})`
@@ -348,7 +303,37 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
       style={{ backgroundColor: background }}
       contentContainerStyle={[styles.container, { backgroundColor: background }]}
     >
-      <View style={[styles.card, { backgroundColor: sectionBackground, borderColor }]}> 
+      <View
+        style={[invoiceSharedStyles.card, styles.card, { backgroundColor: sectionBackground, borderColor }]}
+      >
+        {showExpiryBanner ? (
+          <View
+            style={[styles.expiryBanner, { borderColor: highlightColor, backgroundColor: bannerBackground }]}
+          >
+            <View style={styles.expiryMessage}>
+              <ThemedText style={[styles.expiryTitle, { color: highlightColor }]}>CAE por vencer</ThemedText>
+              <ThemedText style={styles.expiryDescription}>
+                El comprobante vence el {caeDue}. Reimprime el ticket para evitar rechazos.
+              </ThemedText>
+            </View>
+            <View style={styles.expiryActions}>
+              <TouchableOpacity
+                style={[styles.expiryButton, { borderColor: highlightColor }]}
+                onPress={handleReprint}
+                disabled={isReprinting}
+              >
+                {isReprinting ? (
+                  <ActivityIndicator color={highlightColor} />
+                ) : (
+                  <ThemedText style={[styles.expiryButtonText, { color: highlightColor }]}>Reimprimir</ThemedText>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setExpiryDismissed(true)}>
+                <ThemedText style={[styles.dismissText, { color: mutedText }]}>Ocultar</ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
         <View style={styles.header}>
           <ThemedText style={styles.title}>{invoiceNumber}</ThemedText>
           <View style={[styles.statusWrapper, statusStyles]}>
@@ -357,105 +342,111 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
         </View>
         <ThemedText style={[styles.subtitle, { color: mutedText }]}>{description}</ThemedText>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Total</ThemedText>
-          <ThemedText style={styles.metaValue}>{formatCurrency(total, resolvedCurrency)}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Total</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>
+            {formatInvoiceCurrency(total, resolvedCurrency)}
+          </ThemedText>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Fecha de emisión</ThemedText>
-          <ThemedText style={styles.metaValue}>{formatDate(issuedAt)}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Fecha de emisión</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(issuedAt)}</ThemedText>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Fecha de vencimiento</ThemedText>
-          <ThemedText style={styles.metaValue}>{formatDate(dueAt)}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Fecha de vencimiento</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(dueAt)}</ThemedText>
         </View>
 
         {clientName ? (
-          <View style={styles.metaRow}>
-            <ThemedText style={styles.metaLabel}>Cliente</ThemedText>
-            <ThemedText style={styles.metaValue}>{clientName}</ThemedText>
+          <View style={invoiceSharedStyles.metaRow}>
+            <ThemedText style={invoiceSharedStyles.metaLabel}>Cliente</ThemedText>
+            <ThemedText style={invoiceSharedStyles.metaValue}>{clientName}</ThemedText>
           </View>
         ) : null}
 
         {providerName ? (
-          <View style={styles.metaRow}>
-            <ThemedText style={styles.metaLabel}>Proveedor</ThemedText>
-            <ThemedText style={styles.metaValue}>{providerName}</ThemedText>
+          <View style={invoiceSharedStyles.metaRow}>
+            <ThemedText style={invoiceSharedStyles.metaLabel}>Proveedor</ThemedText>
+            <ThemedText style={invoiceSharedStyles.metaValue}>{providerName}</ThemedText>
           </View>
         ) : null}
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>ID interno</ThemedText>
-          <ThemedText style={styles.metaValue}>{invoice.id}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>ID interno</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{invoice.id}</ThemedText>
         </View>
 
         {invoice.created_at ? (
-          <View style={styles.metaRow}>
-            <ThemedText style={styles.metaLabel}>Creada</ThemedText>
-            <ThemedText style={styles.metaValue}>{formatDate(invoice.created_at)}</ThemedText>
+          <View style={invoiceSharedStyles.metaRow}>
+            <ThemedText style={invoiceSharedStyles.metaLabel}>Creada</ThemedText>
+            <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(invoice.created_at)}</ThemedText>
           </View>
         ) : null}
 
         {invoice.updated_at ? (
-          <View style={styles.metaRow}>
-            <ThemedText style={styles.metaLabel}>Actualizada</ThemedText>
-            <ThemedText style={styles.metaValue}>{formatDate(invoice.updated_at)}</ThemedText>
+          <View style={invoiceSharedStyles.metaRow}>
+            <ThemedText style={invoiceSharedStyles.metaLabel}>Actualizada</ThemedText>
+            <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(invoice.updated_at)}</ThemedText>
           </View>
         ) : null}
 
-        <View style={[styles.sectionDivider, { backgroundColor: borderColor }]} />
-        <ThemedText style={styles.sectionHeading}>Datos AFIP</ThemedText>
+        <View style={[invoiceSharedStyles.sectionDivider, { backgroundColor: borderColor }]} />
+        <ThemedText style={invoiceSharedStyles.sectionHeading}>Datos AFIP</ThemedText>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>CAE</ThemedText>
-          <ThemedText style={styles.metaValue}>{caeValue}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>CAE</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{caeValue}</ThemedText>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Vencimiento CAE</ThemedText>
-          <ThemedText style={styles.metaValue}>{caeDue}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Vencimiento CAE</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{caeDue}</ThemedText>
         </View>
 
-        <View style={[styles.metaRow, styles.metaRowMultiline]}>
-          <ThemedText style={styles.metaLabel}>Punto de venta AFIP</ThemedText>
-          <View style={styles.metaValueGroup}>
-            <ThemedText style={styles.metaValue}>{afipPointLabel}</ThemedText>
+        <View style={[invoiceSharedStyles.metaRow, invoiceSharedStyles.metaRowMultiline]}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Punto de venta AFIP</ThemedText>
+          <View style={invoiceSharedStyles.metaValueGroup}>
+            <ThemedText style={invoiceSharedStyles.metaValue}>{afipPointLabel}</ThemedText>
             {afipPoint?.description ? (
-              <ThemedText style={[styles.metaSubValue, { color: mutedText }]}>{afipPoint.description}</ThemedText>
+              <ThemedText style={[invoiceSharedStyles.metaSubValue, { color: mutedText }]}>
+                {afipPoint.description}
+              </ThemedText>
             ) : null}
           </View>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Tipo de comprobante</ThemedText>
-          <ThemedText style={styles.metaValue}>{voucherLabel}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Tipo de comprobante</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{voucherLabel}</ThemedText>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Concepto</ThemedText>
-          <ThemedText style={styles.metaValue}>{conceptText}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Concepto</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{conceptText}</ThemedText>
         </View>
 
-        <View style={[styles.metaRow, styles.metaRowMultiline]}>
-          <ThemedText style={styles.metaLabel}>Documento receptor</ThemedText>
-          <View style={styles.metaValueGroup}>
-            <ThemedText style={styles.metaValue}>{documentTypeLabel}</ThemedText>
+        <View style={[invoiceSharedStyles.metaRow, invoiceSharedStyles.metaRowMultiline]}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Documento receptor</ThemedText>
+          <View style={invoiceSharedStyles.metaValueGroup}>
+            <ThemedText style={invoiceSharedStyles.metaValue}>{documentTypeLabel}</ThemedText>
             {documentNumber ? (
-              <ThemedText style={[styles.metaSubValue, { color: mutedText }]}>{documentNumber}</ThemedText>
+              <ThemedText style={[invoiceSharedStyles.metaSubValue, { color: mutedText }]}>
+                {documentNumber}
+              </ThemedText>
             ) : null}
           </View>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Moneda</ThemedText>
-          <ThemedText style={styles.metaValue}>{resolvedCurrency}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Moneda</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{resolvedCurrency}</ThemedText>
         </View>
 
-        <View style={styles.metaRow}>
-          <ThemedText style={styles.metaLabel}>Cotización</ThemedText>
-          <ThemedText style={styles.metaValue}>{exchangeRateLabel}</ThemedText>
+        <View style={invoiceSharedStyles.metaRow}>
+          <ThemedText style={invoiceSharedStyles.metaLabel}>Cotización</ThemedText>
+          <ThemedText style={invoiceSharedStyles.metaValue}>{exchangeRateLabel}</ThemedText>
         </View>
 
         {vatBreakdown.length > 0 ? (
@@ -464,10 +455,10 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
             {vatBreakdown.map((entry, index) => (
               <View key={`vat-${index}`} style={styles.breakdownRow}>
                 <ThemedText style={[styles.breakdownLabel, { color: mutedText }]}>
-                  {entry.vat_rate}% sobre {formatCurrency(entry.taxable_amount, resolvedCurrency)}
+                  {entry.vat_rate}% sobre {formatInvoiceCurrency(entry.taxable_amount, resolvedCurrency)}
                 </ThemedText>
                 <ThemedText style={styles.breakdownValue}>
-                  {formatCurrency(entry.vat_amount, resolvedCurrency)}
+                  {formatInvoiceCurrency(entry.vat_amount, resolvedCurrency)}
                 </ThemedText>
               </View>
             ))}
@@ -488,12 +479,12 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
                   </ThemedText>
                   {entry.base_amount !== undefined && entry.base_amount !== null ? (
                     <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}>
-                      Base {formatCurrency(entry.base_amount, resolvedCurrency)}
+                      Base {formatInvoiceCurrency(entry.base_amount, resolvedCurrency)}
                     </ThemedText>
                   ) : null}
                 </View>
                 <ThemedText style={styles.breakdownValue}>
-                  {formatCurrency(entry.amount, resolvedCurrency)}
+                  {formatInvoiceCurrency(entry.amount, resolvedCurrency)}
                 </ThemedText>
               </View>
             ))}
@@ -541,6 +532,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 18,
+    marginBottom: 20,
   },
   header: {
     flexDirection: 'row',
@@ -589,6 +581,30 @@ const styles = StyleSheet.create({
   breakdownLabel: { fontSize: 14, fontWeight: '500' },
   breakdownSubLabel: { fontSize: 12, marginTop: 2 },
   breakdownValue: { fontSize: 14, fontWeight: '600' },
+  expiryBanner: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  expiryMessage: { flex: 1, marginRight: 12 },
+  expiryTitle: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  expiryDescription: { fontSize: 13 },
+  expiryActions: { alignItems: 'flex-end' },
+  expiryButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginBottom: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  expiryButtonText: { fontSize: 14, fontWeight: '600' },
+  dismissText: { fontSize: 12, textDecorationLine: 'underline' },
   primaryButton: {
     marginTop: 24,
     paddingVertical: 12,

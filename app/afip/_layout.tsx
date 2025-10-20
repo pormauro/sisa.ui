@@ -5,6 +5,7 @@ export default function AfipLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="points-of-sale" />
+      <Stack.Screen name="audit" />
     </Stack>
   );
 }

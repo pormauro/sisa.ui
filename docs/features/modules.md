@@ -224,13 +224,14 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Facturación AFIP (`InvoicesContext`)
 ### Modelo y payloads
-- `Invoice` incorpora datos fiscales (`afip_point_of_sale_id`, `afip_voucher_type`, `concept`, `customer_document_type`, `customer_document_number`, `vat_breakdown`, `tributes`, `currency`, `exchange_rate`, `cae`, `cae_due_date`, `items`) además de los campos tradicionales de facturación.【F:contexts/InvoicesContext.tsx†L19-L169】
+- `Invoice` incorpora datos fiscales (`afip_point_of_sale_id`, `afip_voucher_type`, `concept`, `customer_document_type`, `customer_document_number`, `vat_breakdown`, `tributes`, `currency`, `exchange_rate`, `cae`, `cae_due_date`, `items`) y almacena el resultado completo de AFIP (`afip_response_payload`, `afip_events`) para auditorías posteriores.【F:contexts/InvoicesContext.tsx†L19-L169】【F:contexts/InvoicesContext.tsx†L318-L356】
 - `CreateAfipInvoicePayload` y `SubmitAfipInvoicePayload` normalizan ítems, alícuotas de IVA, percepciones y metadatos del comprobante antes de llamar a la API.【F:contexts/InvoicesContext.tsx†L171-L238】【F:contexts/InvoicesContext.tsx†L341-L405】
 
 ### Métodos del contexto
 - `createInvoice(payload)` serializa el comprobante y ejecuta `POST /afip/invoices`, fusionando la respuesta con el estado local cuando AFIP devuelve el CAE.【F:contexts/InvoicesContext.tsx†L459-L500】
 - `submitAfipInvoice(id, payload)` envía `PUT /afip/invoices/{id}` para emitir o reintentar la autorización, refrescando la factura en memoria con los datos devueltos.【F:contexts/InvoicesContext.tsx†L502-L534】
 - `annulInvoice(id, payload?)` reutiliza `DELETE /afip/invoices/{id}` para anular comprobantes, manteniendo sincronizados los estados locales incluso cuando la API responde sin cuerpo.【F:contexts/InvoicesContext.tsx†L536-L576】
+- `reprintInvoice(id)` dispara `POST /afip/invoices/{id}/reprint` y actualiza la caché con el payload más reciente, habilitando reimpresiones directas cuando el CAE se acerca al vencimiento.【F:contexts/InvoicesContext.tsx†L468-L531】
 - Los helpers internos capturan mensajes de error específicos de AFIP (`afip_errors`, `afip_error`, `errors`, `message`) para mostrar validaciones claras en la UI.【F:contexts/InvoicesContext.tsx†L239-L339】【F:contexts/InvoicesContext.tsx†L408-L456】
 
 ### Pantallas y componentes
@@ -247,6 +248,24 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### UX asociada
 - El listado de facturas incorpora un CTA para "Nueva factura AFIP" cuando el usuario tiene permisos de emisión, reutilizando la navegación declarativa de Expo Router.【F:app/invoices/index.tsx†L24-L107】
 - La vista de detalle expone el resultado AFIP (CAE y vencimiento) junto a desgloses para auditorías rápidas sin salir del flujo principal.【F:app/invoices/InvoiceDetailView.tsx†L323-L468】
+- Se muestra un banner de alerta cuando el CAE está cerca de vencer, ofreciendo reimpresión inmediata y la opción de descartar la notificación tras la acción.【F:app/invoices/InvoiceDetailView.tsx†L214-L347】
+
+## Auditoría AFIP (`AfipEventsContext`)
+### Modelo y caché
+- `AfipEvent` conserva identificadores, factura asociada, punto de venta, tipo/estado y payload crudo para reconstruir cada interacción con AFIP.【F:types/afip.ts†L1-L93】
+- Los eventos se cachean con `useCachedState('afip-events', …)`, ordenados por timestamp y filtrables por factura, punto de venta y rango de fechas para inspecciones sin conexión.【F:contexts/AfipEventsContext.tsx†L15-L166】
+
+### Métodos del contexto
+- `loadEvents()` ejecuta `GET /afip/events` con token Bearer, normaliza respuestas heterogéneas y mantiene la caché ordenada de más reciente a más antiguo.【F:contexts/AfipEventsContext.tsx†L90-L146】
+- `setFilters()` aplica filtros locales (`invoiceId`, `pointOfSaleId`, `fromDate`, `toDate`) recalculando `filteredEvents` sobre la caché persistida.【F:contexts/AfipEventsContext.tsx†L148-L165】
+
+### Pantallas relacionadas
+- `app/afip/audit/index.tsx` reutiliza estilos de `InvoiceDetailView` para listar eventos, aplicar filtros instantáneos y enlazar al detalle de cada comprobante para reimpresiones o revisión manual.【F:app/afip/audit/index.tsx†L1-L274】
+
+### Procedimiento de certificación y reenvío
+1. Desde el menú Finanzas, abrir **Auditoría AFIP** y aplicar filtros por factura, punto de venta y fechas para verificar que los eventos esperados figuren y detectar estados `error`/`fail` recientes.【F:constants/menuSections.ts†L24-L52】【F:app/afip/audit/index.tsx†L48-L218】
+2. Documentar métricas clave de certificación: total de eventos, rechazos por punto de venta y fecha de la última autorización exitosa, visibles en cada tarjeta.【F:app/afip/audit/index.tsx†L198-L218】
+3. Ante un CAE próximo a vencer, abrir la factura, seguir el banner de alerta y utilizar **Reimprimir** para generar un nuevo comprobante verificando que `reprintInvoice` sincronice payload y eventos actualizados.【F:app/invoices/InvoiceDetailView.tsx†L214-L347】【F:contexts/InvoicesContext.tsx†L468-L531】
 
 ## Configuración AFIP (`AfipConfigContext`)
 ### Modelo
