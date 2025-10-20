@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/[id].tsx
-import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -29,13 +29,52 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { TariffsContext } from '@/contexts/TariffsContext';
+import { formatCurrency } from '@/utils/currency';
 
-const toNum = (v: unknown): number | null => {
-  if (v === null || v === undefined || v === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+const NEW_TARIFF_VALUE = '__new_tariff__';
+
+const parseManualAmountInput = (value: string): number | null | undefined => {
+  if (value == null) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const cleaned = trimmed.replace(/[^0-9,.-]/g, '');
+  if (!cleaned) {
+    return undefined;
+  }
+
+  let normalized = cleaned;
+  const hasDot = cleaned.includes('.');
+  const hasComma = cleaned.includes(',');
+
+  if (hasDot && hasComma) {
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+    const decimalSeparator = lastDot > lastComma ? '.' : ',';
+    const thousandsSeparator = decimalSeparator === '.' ? ',' : '.';
+
+    normalized = cleaned.replace(new RegExp(`\\${thousandsSeparator}`, 'g'), '');
+
+    if (decimalSeparator !== '.') {
+      normalized = normalized.replace(new RegExp(`\\${decimalSeparator}`, 'g'), '.');
+    }
+  } else if (hasComma) {
+    normalized = cleaned.replace(/,/g, '.');
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) {
+    return undefined;
+  }
+
+  return parsed;
 };
-
 
 export default function EditJobScreen() {
   const router = useRouter();
@@ -48,6 +87,7 @@ export default function EditJobScreen() {
   const { clients } = useContext(ClientsContext);
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
+  const { tariffs } = useContext(TariffsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -69,8 +109,9 @@ export default function EditJobScreen() {
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
   const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
-  const [tariffId,        setTariffId]        = useState<number | null>(null);
-  const [manualAmount,   setManualAmount]    = useState<number | null>(null);
+  const [selectedTariffId, setSelectedTariffId] = useState<string>('');
+  const [manualAmountInput, setManualAmountInput] = useState<string>('');
+  const [manualAmountTouched, setManualAmountTouched] = useState(false);
 
   // otros campos
   const [description,   setDescription] = useState('');
@@ -149,8 +190,19 @@ export default function EditJobScreen() {
       setStartTime(extractTime(job.start_time));
       setEndTime(extractTime(job.end_time));
 
-      setTariffId(toNum(job.tariff_id));
-      setManualAmount(typeof job.manual_amount === 'number' ? job.manual_amount : null);
+      const tariffValue =
+        job.tariff_id != null && !Number.isNaN(Number(job.tariff_id))
+          ? job.tariff_id.toString()
+          : '';
+      setSelectedTariffId(tariffValue);
+
+      if (typeof job.manual_amount === 'number' && Number.isFinite(job.manual_amount)) {
+        setManualAmountInput(job.manual_amount.toString());
+        setManualAmountTouched(true);
+      } else {
+        setManualAmountInput('');
+        setManualAmountTouched(false);
+      }
 
       const parts = job.participants
         ? (typeof job.participants === 'string'
@@ -233,7 +285,7 @@ export default function EditJobScreen() {
     if (job && isInitializingRef.current) {
       isInitializingRef.current = false;
     }
-  }, [job, selectedClientId, jobDate, manualAmount]);
+  }, [job, selectedClientId, jobDate, manualAmountInput]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.folder)) {
@@ -255,6 +307,33 @@ export default function EditJobScreen() {
     }
     setSelectedFolder({ id: normalizedId, name: `Carpeta #${normalizedId}` });
   }, [pendingSelections, consumeSelection, folders]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.tariff)) {
+      return;
+    }
+    const pendingTariffId = consumeSelection<string | number>(SELECTION_KEYS.jobs.tariff);
+    if (pendingTariffId == null) {
+      applyTariffSelection('');
+      return;
+    }
+    const normalizedId = pendingTariffId.toString().trim();
+    if (!normalizedId || normalizedId === 'null') {
+      applyTariffSelection('');
+      return;
+    }
+    applyTariffSelection(normalizedId);
+  }, [pendingSelections, consumeSelection, applyTariffSelection]);
+
+  useEffect(() => {
+    if (!selectedTariffId || manualAmountTouched) {
+      return;
+    }
+    const tariff = tariffs.find(t => t.id.toString() === selectedTariffId);
+    if (tariff) {
+      setManualAmountInput(tariff.amount.toString());
+    }
+  }, [selectedTariffId, manualAmountTouched, tariffs]);
 
   // opciones para pickers
   const folderItems = useMemo(
@@ -287,12 +366,50 @@ export default function EditJobScreen() {
     [statuses]
   );
 
+  const tariffItems = useMemo(
+    () => [
+      { label: '-- Sin tarifa --', value: '' },
+      { label: '➕ Nueva tarifa', value: NEW_TARIFF_VALUE },
+      ...tariffs.map(tariff => ({
+        label: `${tariff.name} — ${formatCurrency(tariff.amount)}`,
+        value: tariff.id.toString(),
+      })),
+    ],
+    [tariffs]
+  );
+
+  const applyTariffSelection = useCallback(
+    (value: string) => {
+      setSelectedTariffId(value);
+      if (!value) {
+        setManualAmountTouched(true);
+        return;
+      }
+      const tariff = tariffs.find(t => t.id.toString() === value);
+      if (tariff) {
+        setManualAmountInput(tariff.amount.toString());
+        setManualAmountTouched(false);
+      }
+    },
+    [tariffs]
+  );
+
   // submit
   const handleSubmit = async () => {
     if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
+    const manualAmountValue = parseManualAmountInput(manualAmountInput);
+    if (typeof manualAmountValue === 'undefined') {
+      Alert.alert('Monto inválido', 'Ingresa un monto manual válido.');
+      return;
+    }
+
+    const parsedTariffId = selectedTariffId ? Number.parseInt(selectedTariffId, 10) : null;
+    const tariffIdValue =
+      parsedTariffId !== null && !Number.isNaN(parsedTariffId) ? parsedTariffId : null;
+
     const saveJob = async () => {
       setLoading(true);
       const updated = await updateJob(jobId, {
@@ -300,8 +417,8 @@ export default function EditJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: tariffId,
-        manual_amount: manualAmount,
+        tariff_id: tariffIdValue,
+        manual_amount: manualAmountValue,
         attached_files: attachedFiles || null,
         folder_id: selectedFolder ? Number(selectedFolder.id) : null,
         job_date: jobDate,
@@ -474,6 +591,48 @@ export default function EditJobScreen() {
         />
       </View>
 
+      {/* Tarifa */}
+      <ThemedText style={[styles.label, { color: textColor }]}>Tarifa</ThemedText>
+      <SearchableSelect
+        style={styles.select}
+        items={tariffItems}
+        selectedValue={selectedTariffId}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_TARIFF_VALUE) {
+            applyTariffSelection('');
+            beginSelection(SELECTION_KEYS.jobs.tariff);
+            router.push('/tariffs/create');
+            return;
+          }
+          applyTariffSelection(stringValue);
+        }}
+        placeholder="-- Sin tarifa --"
+        disabled={!canEdit}
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_TARIFF_VALUE) return;
+          beginSelection(SELECTION_KEYS.jobs.tariff);
+          router.push(`/tariffs/${value}`);
+        }}
+      />
+      <ThemedText style={[styles.helperText, { color: placeholderColor }]}>El monto manual se inicia con el valor actual de la tarifa seleccionada.</ThemedText>
+
+      {/* Monto manual */}
+      <ThemedText style={[styles.label, { color: textColor }]}>Monto manual</ThemedText>
+      <TextInput
+        style={[styles.input, { backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
+        placeholder="Ingresa un monto"
+        placeholderTextColor={placeholderColor}
+        keyboardType="decimal-pad"
+        value={manualAmountInput}
+        onChangeText={(text) => {
+          setManualAmountInput(text);
+          setManualAmountTouched(true);
+        }}
+        editable={canEdit}
+      />
+
       {/* Participantes */}
       <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
       <ParticipantsBubbles
@@ -604,9 +763,10 @@ export default function EditJobScreen() {
             startTime,
             endTime,
             selectedStatus,
-            manualAmount,
+            manualAmountInput,
+            manualAmountTouched,
             participants,
-            tariffId,
+            selectedTariffId,
             jobId: job?.id,
           }}
         />
@@ -618,6 +778,7 @@ const styles = StyleSheet.create({
   container:  { padding: 16, flexGrow: 1 },
   label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
   select: { marginBottom: 12 },
+  helperText: { marginTop: -4, marginBottom: 8, fontSize: 12 },
   input:      { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   infoLabel: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   infoValue: { fontSize: 16, marginBottom: 8 },
