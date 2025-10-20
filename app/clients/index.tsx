@@ -11,6 +11,7 @@ import {
   Modal,
   Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -51,6 +52,7 @@ export default function ClientsListPage() {
   const { statuses } = useContext(StatusesContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<ClientFilter>('all');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
   const background = useThemeColor({}, 'background');
@@ -61,8 +63,6 @@ export default function ClientsListPage() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
-  const filterButtonColor = useThemeColor({}, 'button');
-  const filterButtonTextColor = useThemeColor({}, 'buttonText');
 
   const canAddClient = permissions.includes('addClient');
   const canDeleteClient = permissions.includes('deleteClient');
@@ -72,71 +72,6 @@ export default function ClientsListPage() {
     useCallback(() => {
       void loadClients();
     }, [loadClients])
-  );
-
-  const fuse = useMemo(
-    () =>
-      new Fuse(clients, {
-        keys: ['business_name', 'tax_id', 'email', 'address'],
-      }),
-    [clients]
-  );
-
-  const filteredClients = useMemo(() => {
-    const baseClients = searchQuery
-      ? fuse.search(searchQuery).map(result => result.item)
-      : clients;
-
-    let result = [...baseClients];
-
-    switch (selectedFilter) {
-      case 'finalizedJobs':
-        result = result.filter(client => (finalizedTotalsByClient[client.id] ?? 0) > 0);
-        result.sort(
-          (a, b) =>
-            (finalizedTotalsByClient[b.id] ?? 0) - (finalizedTotalsByClient[a.id] ?? 0)
-        );
-        break;
-      case 'unpaidInvoices':
-        result = result.filter(client => (client.unpaid_invoices_total ?? 0) > 0);
-        result.sort(
-          (a, b) =>
-            (b.unpaid_invoices_total ?? 0) - (a.unpaid_invoices_total ?? 0)
-        );
-        break;
-      case 'name':
-        result.sort((a, b) => a.business_name.localeCompare(b.business_name));
-        break;
-      case 'created':
-        result.sort((a, b) => {
-          const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
-          const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return bDate - aDate;
-        });
-        break;
-      case 'updated':
-        result.sort((a, b) => {
-          const aDate = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-          const bDate = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-          return bDate - aDate;
-        });
-        break;
-      case 'all':
-      default:
-        break;
-    }
-
-    return result;
-  }, [clients, fuse, searchQuery, selectedFilter, finalizedTotalsByClient]);
-
-  const handleSelectFilter = useCallback((filter: ClientFilter) => {
-    setSelectedFilter(filter);
-    setIsFilterModalVisible(false);
-  }, []);
-
-  const currentFilterLabel = useMemo(
-    () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
-    [selectedFilter]
   );
 
   const tariffsById = useMemo(() => {
@@ -207,6 +142,96 @@ export default function ClientsListPage() {
     return result;
   }, [jobs, finalStatusIds, tariffsById]);
 
+  const fuse = useMemo(
+    () =>
+      new Fuse(clients, {
+        keys: ['business_name', 'tax_id', 'email', 'address'],
+        threshold: 0.3,
+        ignoreLocation: true,
+      }),
+    [clients]
+  );
+
+  const filteredClients = useMemo(() => {
+    const baseClients = searchQuery
+      ? fuse.search(searchQuery).map(result => result.item)
+      : clients;
+
+    let result = [...baseClients];
+
+    const getTimestamp = (value?: string | null) => {
+      if (!value) {
+        return 0;
+      }
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) ? time : 0;
+    };
+
+    const getSafeTotal = (value: number | null | undefined) =>
+      typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+    let comparator: ((a: Client, b: Client) => number) | null = null;
+
+    switch (selectedFilter) {
+      case 'finalizedJobs':
+        result = result.filter(client => getSafeTotal(finalizedTotalsByClient[client.id]) > 0);
+        comparator = (a, b) =>
+          getSafeTotal(finalizedTotalsByClient[a.id]) - getSafeTotal(finalizedTotalsByClient[b.id]);
+        break;
+      case 'unpaidInvoices':
+        result = result.filter(client => getSafeTotal(client.unpaid_invoices_total) > 0);
+        comparator = (a, b) =>
+          getSafeTotal(a.unpaid_invoices_total) - getSafeTotal(b.unpaid_invoices_total);
+        break;
+      case 'name':
+        comparator = (a, b) =>
+          (a.business_name ?? '').localeCompare(b.business_name ?? '', undefined, {
+            sensitivity: 'base',
+          });
+        break;
+      case 'created':
+        comparator = (a, b) => getTimestamp(a.created_at) - getTimestamp(b.created_at);
+        break;
+      case 'updated':
+        comparator = (a, b) => getTimestamp(a.updated_at) - getTimestamp(b.updated_at);
+        break;
+      case 'all':
+      default:
+        comparator = (a, b) =>
+          getTimestamp(a.updated_at ?? a.created_at) - getTimestamp(b.updated_at ?? b.created_at);
+        break;
+    }
+
+    if (comparator) {
+      result.sort((a, b) => {
+        const comparison = comparator?.(a, b) ?? 0;
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return result;
+  }, [clients, fuse, searchQuery, selectedFilter, finalizedTotalsByClient, sortDirection]);
+
+  const currentFilterLabel = useMemo(
+    () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
+    [selectedFilter]
+  );
+
+  const sortDirectionLabel = useMemo(
+    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
+    [sortDirection]
+  );
+
+  const handleSelectFilter = useCallback((filter: ClientFilter) => {
+    setSelectedFilter(filter);
+    if (filter === 'name') {
+      setSortDirection('asc');
+    } else {
+      setSortDirection('desc');
+    }
+    setIsFilterModalVisible(false);
+  }, []);
+
   const handleDelete = useCallback(
     (id: number) => {
       Alert.alert(
@@ -245,7 +270,11 @@ export default function ClientsListPage() {
       <View style={styles.itemContent}>
         <CircleImagePicker fileId={item.brand_file_id} size={50} />
         <View style={styles.itemInfo}>
-          <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
+          <ThemedText style={styles.itemTitle}>
+            {item.business_name && item.business_name.trim().length > 0
+              ? item.business_name
+              : 'Cliente sin nombre'}
+          </ThemedText>
           {item.tax_id ? (
             <ThemedText style={styles.itemSubtitle}>CUIT: {item.tax_id}</ThemedText>
           ) : null}
@@ -305,13 +334,18 @@ export default function ClientsListPage() {
           placeholderTextColor={placeholderColor}
         />
         <TouchableOpacity
-          style={[styles.filterButton, { backgroundColor: filterButtonColor }]}
+          style={[styles.filterButton, { backgroundColor: inputBackground, borderColor }]}
           onPress={() => setIsFilterModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir filtros de clientes"
         >
-          <ThemedText style={[styles.filterButtonText, { color: filterButtonTextColor }]}>
-            Filtro: {currentFilterLabel}
-          </ThemedText>
+          <Ionicons name="filter" size={20} color={inputTextColor} />
         </TouchableOpacity>
+      </View>
+      <View style={styles.filterSummaryRow}>
+        <ThemedText style={styles.filterSummaryText}>
+          {currentFilterLabel} · {sortDirectionLabel}
+        </ThemedText>
       </View>
       <FlatList
         data={filteredClients}
@@ -343,37 +377,55 @@ export default function ClientsListPage() {
             onPress={() => setIsFilterModalVisible(false)}
           />
           <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
-            <ThemedText style={styles.modalTitle}>Filtrar por</ThemedText>
-            {FILTER_OPTIONS.map(option => {
-              const isSelected = option.value === selectedFilter;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.modalOption,
-                    isSelected && {
-                      borderColor: addButtonColor,
-                      backgroundColor: background,
-                    },
-                  ]}
-                  onPress={() => handleSelectFilter(option.value)}
-                >
-                  <ThemedText
+            <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
+            <View style={styles.modalSection}>
+              <ThemedText style={styles.modalSectionTitle}>Filtrar por</ThemedText>
+              {FILTER_OPTIONS.map(option => {
+                const isSelected = option.value === selectedFilter;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
                     style={[
-                      styles.modalOptionText,
-                      isSelected && { color: addButtonColor, fontWeight: '600' },
+                      styles.modalOption,
+                      isSelected && {
+                        borderColor: addButtonColor,
+                        backgroundColor: background,
+                      },
                     ]}
+                    onPress={() => handleSelectFilter(option.value)}
                   >
-                    {option.label}
-                  </ThemedText>
-                </TouchableOpacity>
-              );
-            })}
+                    <ThemedText
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.modalSection}>
+              <ThemedText style={styles.modalSectionTitle}>Dirección</ThemedText>
+              <TouchableOpacity
+                style={[styles.sortDirectionButton, { borderColor }]}
+                onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+              >
+                <ThemedText style={styles.sortDirectionText}>
+                  {sortDirection === 'asc' ? 'Ascendente ⬆️' : 'Descendente ⬇️'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
-              style={styles.modalCloseButton}
+              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
               onPress={() => setIsFilterModalVisible(false)}
             >
-              <ThemedText style={styles.modalCloseButtonText}>Cerrar</ThemedText>
+              <ThemedText
+                style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}
+              >
+                Aplicar filtros
+              </ThemedText>
             </TouchableOpacity>
           </View>
         </View>
@@ -398,11 +450,17 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    padding: 10,
     borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  filterButtonText: {
+  filterSummaryRow: {
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  filterSummaryText: {
     fontSize: 13,
     fontWeight: '600',
   },
@@ -473,6 +531,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
+  modalSection: {
+    marginBottom: 16,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   modalOption: {
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -485,9 +552,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  modalCloseButton: {
-    marginTop: 12,
+  sortDirectionButton: {
     paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  sortDirectionText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
     alignItems: 'center',
   },
   modalCloseButtonText: {
