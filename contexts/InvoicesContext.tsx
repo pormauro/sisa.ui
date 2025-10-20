@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
   ReactNode,
 } from 'react';
 import { Alert } from 'react-native';
@@ -16,6 +17,22 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
 export type InvoiceStatus = 'pending' | 'paid' | 'cancelled' | string;
+
+export interface AfipEvent {
+  id: string;
+  invoice_id?: number | null;
+  invoiceId?: number | null;
+  point_of_sale?: string | number | null;
+  pointOfSale?: string | number | null;
+  event?: string | null;
+  status?: string | null;
+  level?: string | null;
+  message?: string | null;
+  detail?: string | null;
+  created_at?: string | null;
+  createdAt?: string | null;
+  [key: string]: unknown;
+}
 
 export interface Invoice {
   id: number;
@@ -43,7 +60,26 @@ export interface Invoice {
   due_date?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  cae?: string | null;
+  cae_due_date?: string | null;
+  afip_response_payload?: unknown;
+  afip_events?: AfipEvent[];
   [key: string]: unknown;
+}
+
+interface AfipInvoiceMetadata {
+  cae: string | null;
+  cae_due_date: string | null;
+  afip_response_payload: unknown;
+  afip_events: AfipEvent[];
+}
+
+export interface CaeExpiryAlert {
+  invoiceId: number;
+  cae?: string | null;
+  caeDueDate: string;
+  daysUntilExpiration: number;
+  invoiceNumber: string;
 }
 
 interface InvoicesContextValue {
@@ -51,6 +87,9 @@ interface InvoicesContextValue {
   loadInvoices: () => Promise<void>;
   updateInvoiceStatus: (id: number, status: InvoiceStatus) => Promise<boolean>;
   refreshInvoice: (id: number) => Promise<Invoice | null>;
+  requestInvoiceReprint: (id: number) => Promise<boolean>;
+  caeAlerts: CaeExpiryAlert[];
+  dismissCaeAlert: (invoiceId: number) => void;
 }
 
 const noop = async () => {};
@@ -62,6 +101,9 @@ export const InvoicesContext = createContext<InvoicesContextValue>({
   loadInvoices: noop,
   updateInvoiceStatus: async () => false,
   refreshInvoice: async () => null,
+  requestInvoiceReprint: async () => false,
+  caeAlerts: [],
+  dismissCaeAlert: () => {},
 });
 
 const extractInvoiceList = (payload: unknown): unknown[] => {
@@ -136,10 +178,135 @@ const toInvoice = (raw: unknown): Invoice | null => {
   return normalised;
 };
 
+export const normaliseAfipEvent = (raw: unknown): AfipEvent | null => {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const record = raw as Record<string, unknown>;
+  const idCandidates = [
+    record['id'],
+    record['event_id'],
+    record['uuid'],
+    record['log_id'],
+  ];
+  let id: string | null = null;
+  for (const candidate of idCandidates) {
+    if (candidate === undefined || candidate === null) {
+      continue;
+    }
+    id = String(candidate);
+    break;
+  }
+
+  if (!id) {
+    return null;
+  }
+
+  return {
+    id,
+    ...record,
+  } as AfipEvent;
+};
+
+const mergeInvoiceWithMetadata = (
+  invoice: Invoice,
+  metadata?: AfipInvoiceMetadata | null
+): Invoice => {
+  if (!metadata) {
+    return invoice;
+  }
+
+  return {
+    ...invoice,
+    cae: metadata.cae ?? invoice.cae ?? null,
+    cae_due_date: metadata.cae_due_date ?? invoice.cae_due_date ?? null,
+    afip_response_payload:
+      metadata.afip_response_payload ?? invoice.afip_response_payload,
+    afip_events: metadata.afip_events ?? invoice.afip_events ?? [],
+  };
+};
+
+const normaliseAfipInvoicePayload = (payload: unknown): AfipInvoiceMetadata | null => {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const candidates: Record<string, unknown>[] = [record];
+
+  const nestedKeys = ['data', 'invoice', 'result', 'payload'];
+  for (const key of nestedKeys) {
+    const value = record[key];
+    if (value && typeof value === 'object') {
+      candidates.push(value as Record<string, unknown>);
+    }
+  }
+
+  let cae: string | null = null;
+  let caeDueDate: string | null = null;
+  let responsePayload: unknown = payload;
+  let events: AfipEvent[] = [];
+
+  for (const candidate of candidates) {
+    if (!cae) {
+      const value = candidate['cae'] ?? candidate['CAE'];
+      if (value !== undefined && value !== null && String(value).trim()) {
+        cae = String(value);
+      }
+    }
+
+    if (!caeDueDate) {
+      const value =
+        candidate['cae_due_date'] ??
+        candidate['caeVencimiento'] ??
+        candidate['caeDueDate'] ??
+        candidate['due_date'];
+      if (value !== undefined && value !== null && String(value).trim()) {
+        caeDueDate = String(value);
+      }
+    }
+
+    const eventsRaw =
+      candidate['events'] ?? candidate['afip_events'] ?? candidate['logs'];
+    if (Array.isArray(eventsRaw)) {
+      const parsed = eventsRaw
+        .map(normaliseAfipEvent)
+        .filter((event): event is AfipEvent => event !== null);
+      if (parsed.length > 0) {
+        events = parsed;
+      }
+    }
+
+    const responseCandidate =
+      candidate['response'] ??
+      candidate['afip_response'] ??
+      candidate['afip_response_payload'];
+    if (responseCandidate !== undefined) {
+      responsePayload = responseCandidate;
+    }
+  }
+
+  return {
+    cae,
+    cae_due_date: caeDueDate,
+    afip_response_payload: responsePayload,
+    afip_events: events,
+  };
+};
+
 export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const [invoices, setInvoices] = useCachedState<Invoice[]>('invoices', []);
+  const [afipMetadataCache, setAfipMetadataCache] = useCachedState<
+    Record<number, AfipInvoiceMetadata>
+  >('invoiceAfipMetadata', {});
+  const [dismissedCaeAlerts, setDismissedCaeAlerts] = useCachedState<number[]>(
+    'dismissedCaeAlerts',
+    []
+  );
+  const [caeAlerts, setCaeAlerts] = useState<CaeExpiryAlert[]>([]);
   const invoicesRef = useRef(invoices);
   const resolvedEndpointRef = useRef<string | null>(null);
 
@@ -225,6 +392,32 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [token]
   );
 
+  const performAfipRequest = useCallback(
+    async (path: string, init?: RequestInit) => {
+      if (!token) {
+        throw new Error('Token no disponible para AFIP');
+      }
+
+      const response = await fetch(`${BASE_URL}${path}`, {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...normaliseHeaders(init?.headers),
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(`HTTP ${response.status} ${path} ${text}`);
+      }
+
+      return response;
+    },
+    [token]
+  );
+
   const loadInvoices = useCallback(async () => {
     if (!token || !canListInvoices) {
       return;
@@ -237,11 +430,33 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
         .map(toInvoice)
         .filter((invoice): invoice is Invoice => invoice !== null);
 
-      setInvoices(sortByNewest(list, getDefaultSortValue));
+      const hydrated = list.map(item =>
+        mergeInvoiceWithMetadata(item, afipMetadataCache[item.id])
+      );
+
+      setInvoices(sortByNewest(hydrated, getDefaultSortValue));
     } catch (error) {
       console.error('Error loading invoices:', error);
     }
-  }, [canListInvoices, performInvoiceRequest, setInvoices, token]);
+  }, [afipMetadataCache, canListInvoices, performInvoiceRequest, setInvoices, token]);
+
+  const fetchAfipInvoiceMetadata = useCallback(
+    async (id: number): Promise<AfipInvoiceMetadata | null> => {
+      try {
+        const response = await performAfipRequest(`/afip/invoices/${id}`);
+        const payload = await response.json().catch(() => ({}));
+        const normalised = normaliseAfipInvoicePayload(payload);
+        if (normalised) {
+          setAfipMetadataCache(prev => ({ ...prev, [id]: normalised }));
+        }
+        return normalised;
+      } catch (error) {
+        console.error('Error fetching AFIP invoice metadata:', error);
+        return null;
+      }
+    },
+    [performAfipRequest, setAfipMetadataCache]
+  );
 
   const refreshInvoice = useCallback(
     async (id: number): Promise<Invoice | null> => {
@@ -253,28 +468,29 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
         const response = await performInvoiceRequest(basePath => `${basePath}/${id}`);
         const data = await response.json().catch(() => ({}));
         const list = extractInvoiceList(data);
+        let parsed: Invoice | null = null;
         if (list.length > 0) {
-          const parsed = toInvoice(list[0]);
-          if (parsed) {
-            setInvoices(prev =>
-              ensureSortedByNewest(
-                prev.map(item => (item.id === parsed.id ? { ...item, ...parsed } : item)),
-                getDefaultSortValue
-              )
-            );
-            return parsed;
-          }
+          parsed = list.map(toInvoice).find(item => item !== null) ?? null;
+        } else {
+          parsed = toInvoice(data);
         }
 
-        const parsed = toInvoice(data);
         if (parsed) {
+          const afipMetadata =
+            (await fetchAfipInvoiceMetadata(parsed.id)) ??
+            afipMetadataCache[parsed.id] ??
+            null;
+          const merged = mergeInvoiceWithMetadata(parsed, afipMetadata);
+
           setInvoices(prev =>
             ensureSortedByNewest(
-              prev.map(item => (item.id === parsed.id ? { ...item, ...parsed } : item)),
+              prev.some(item => item.id === merged.id)
+                ? prev.map(item => (item.id === merged.id ? { ...item, ...merged } : item))
+                : [...prev, merged],
               getDefaultSortValue
             )
           );
-          return parsed;
+          return merged;
         }
       } catch (error) {
         console.error('Error refreshing invoice:', error);
@@ -282,7 +498,14 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
       return null;
     },
-    [canAccessInvoices, performInvoiceRequest, setInvoices, token]
+    [
+      afipMetadataCache,
+      canAccessInvoices,
+      fetchAfipInvoiceMetadata,
+      performInvoiceRequest,
+      setInvoices,
+      token,
+    ]
   );
 
   const updateInvoiceStatus = useCallback(
@@ -363,15 +586,104 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [canUpdateInvoiceStatus, performInvoiceRequest, setInvoices, token]
   );
 
+  const requestInvoiceReprint = useCallback(
+    async (id: number): Promise<boolean> => {
+      if (!token) {
+        return false;
+      }
+
+      try {
+        await performAfipRequest(`/afip/invoices/${id}/reprint`, {
+          method: 'POST',
+        });
+        await refreshInvoice(id);
+        setDismissedCaeAlerts(prev => prev.filter(item => item !== id));
+        return true;
+      } catch (error) {
+        console.error('Error requesting invoice reprint:', error);
+        return false;
+      }
+    },
+    [performAfipRequest, refreshInvoice, setDismissedCaeAlerts, token]
+  );
+
   useEffect(() => {
     if (token && canListInvoices) {
       void loadInvoices();
     }
   }, [canListInvoices, loadInvoices, token]);
 
+  useEffect(() => {
+    const now = new Date();
+    const threshold = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const alerts: CaeExpiryAlert[] = invoices
+      .map(invoice => mergeInvoiceWithMetadata(invoice, afipMetadataCache[invoice.id]))
+      .map(invoice => {
+        const caeDueDate = invoice.cae_due_date ?? afipMetadataCache[invoice.id]?.cae_due_date ?? null;
+        if (!caeDueDate) {
+          return null;
+        }
+
+        const parsed = new Date(caeDueDate);
+        if (Number.isNaN(parsed.getTime())) {
+          return null;
+        }
+
+        if (parsed <= now || parsed > threshold) {
+          return null;
+        }
+
+        const days = Math.ceil((parsed.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        const invoiceNumber =
+          invoice.number ??
+          invoice.invoice_number ??
+          invoice.code ??
+          `#${invoice.id}`;
+
+        return {
+          invoiceId: invoice.id,
+          cae: invoice.cae ?? afipMetadataCache[invoice.id]?.cae ?? null,
+          caeDueDate: parsed.toISOString(),
+          daysUntilExpiration: days,
+          invoiceNumber,
+        } satisfies CaeExpiryAlert;
+      })
+      .filter((alert): alert is CaeExpiryAlert => alert !== null)
+      .filter(alert => !dismissedCaeAlerts.includes(alert.invoiceId));
+
+    setCaeAlerts(alerts);
+  }, [afipMetadataCache, dismissedCaeAlerts, invoices]);
+
+  const dismissCaeAlert = useCallback(
+    (invoiceId: number) => {
+      setDismissedCaeAlerts(prev =>
+        prev.includes(invoiceId) ? prev : [...prev, invoiceId]
+      );
+      setCaeAlerts(prev => prev.filter(alert => alert.invoiceId !== invoiceId));
+    },
+    [setCaeAlerts, setDismissedCaeAlerts]
+  );
+
   const contextValue = useMemo(
-    () => ({ invoices, loadInvoices, updateInvoiceStatus, refreshInvoice }),
-    [invoices, loadInvoices, refreshInvoice, updateInvoiceStatus]
+    () => ({
+      invoices,
+      loadInvoices,
+      updateInvoiceStatus,
+      refreshInvoice,
+      requestInvoiceReprint,
+      caeAlerts,
+      dismissCaeAlert,
+    }),
+    [
+      caeAlerts,
+      dismissCaeAlert,
+      invoices,
+      loadInvoices,
+      refreshInvoice,
+      requestInvoiceReprint,
+      updateInvoiceStatus,
+    ]
   );
 
   return <InvoicesContext.Provider value={contextValue}>{children}</InvoicesContext.Provider>;

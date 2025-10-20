@@ -194,6 +194,26 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/receipts/[id].tsx` — edición avanzada y gestión de adjuntos.【F:app/receipts/[id].tsx†L31-L314】
 - `app/receipts/viewModal.tsx` — vista de detalle condensada.【F:app/receipts/viewModal.tsx†L1-L99】
 
+## Auditoría y trazabilidad AFIP
+### Contextos involucrados
+- `InvoicesContext` cachea metadatos AFIP (`cae`, `cae_due_date`, `afip_response_payload`, `afip_events`) y expone utilidades para reimpresiones y avisos de vencimiento de CAE.【F:contexts/InvoicesContext.tsx†L27-L241】【F:contexts/InvoicesContext.tsx†L243-L421】
+- `AfipEventsContext` centraliza la lectura de `/afip/events`, mantiene filtros activos (factura, punto de venta, rango de fechas) y entrega la colección filtrada lista para renderizar en la auditoría.【F:contexts/AfipEventsContext.tsx†L1-L212】
+
+### Pantalla de auditoría
+- `app/afip/audit/index.tsx` reutiliza estilos de `InvoiceDetailView`, permite aplicar filtros combinados, muestra el historial de eventos AFIP y resalta mensajes de error con su metadata clave (timestamps, punto de venta, payload bruto).【F:app/afip/audit/index.tsx†L1-L310】
+- Los avisos de vencimiento de CAE se muestran como banners reutilizables (`components/CaeExpiryNotifications.tsx`) insertados en el layout raíz para no perder alertas críticas durante la navegación.【F:components/CaeExpiryNotifications.tsx†L1-L141】【F:app/_layout.tsx†L1-L109】
+
+### Procedimiento de certificación y reenvío
+1. Abrir `/afip/audit` y aplicar filtros por factura o rango para aislar la transacción a auditar.【F:app/afip/audit/index.tsx†L120-L196】
+2. Revisar los eventos ordenados, verificando estatus y mensajes de error reportados por AFIP; expandir el detalle para validar el payload original.【F:app/afip/audit/index.tsx†L206-L282】
+3. Ante CAE próximos a vencer, utilizar la notificación in-app para disparar la reimpresión segura y confirmar que la caché local se refresca tras el reenvío.【F:components/CaeExpiryNotifications.tsx†L47-L116】【F:contexts/InvoicesContext.tsx†L310-L420】
+
+### Métricas a monitorear durante certificación
+- **Latencia de respuesta AFIP:** comparar la marca temporal del evento con la hora local para detectar demoras anómalas.【F:app/afip/audit/index.tsx†L222-L242】
+- **Tasa de reintentos fallidos:** contar eventos con severidad de error por factura para garantizar que los reenvíos no se repitan indefinidamente.【F:app/afip/audit/index.tsx†L229-L265】
+- **Vencimientos de CAE pendientes:** revisar el listado de banners activos y registrar cuántos CAE se reimprimen antes de las 72 h previas al vencimiento.【F:components/CaeExpiryNotifications.tsx†L25-L116】【F:contexts/InvoicesContext.tsx†L360-L409】
+- **Integridad del payload AFIP:** inspeccionar los campos `afip_response_payload` y el detalle formateado para asegurar que la información necesaria para certificación esté disponible sin recurrir al backend.【F:contexts/InvoicesContext.tsx†L187-L239】【F:app/afip/audit/index.tsx†L247-L282】
+
 ## Tarifas (`TariffsContext`)
 ### Modelo
 - `Tariff`: nombre, monto y fecha de última actualización.【F:contexts/TariffsContext.tsx†L13-L17】

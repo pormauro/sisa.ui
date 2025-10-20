@@ -21,12 +21,14 @@ import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { CommentsProvider } from '@/contexts/CommentsContext';
+import { AfipEventsProvider } from '@/contexts/AfipEventsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
+import { CaeExpiryNotifications } from '@/components/CaeExpiryNotifications';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { LogProvider } from '@/contexts/LogContext';
 
@@ -92,18 +94,21 @@ export default function RootLayout() {
                                       <AppointmentsProvider>
                                         <PaymentsProvider>
                                           <InvoicesProvider>
-                                            <ReceiptsProvider>
-                                            <FoldersProvider>
-                                              <CommentsProvider>
-                                                <PendingSelectionProvider>
-                                                  <>
-                                                    <RootLayoutContent />
-                                                    <LogOverlay />
-                                                  </>
-                                                </PendingSelectionProvider>
-                                              </CommentsProvider>
-                                            </FoldersProvider>
-                                          </ReceiptsProvider>
+                                            <AfipEventsProvider>
+                                              <ReceiptsProvider>
+                                              <FoldersProvider>
+                                                <CommentsProvider>
+                                                  <PendingSelectionProvider>
+                                                    <>
+                                                      <RootLayoutContent />
+                                                      <CaeExpiryNotifications />
+                                                      <LogOverlay />
+                                                    </>
+                                                  </PendingSelectionProvider>
+                                                </CommentsProvider>
+                                              </FoldersProvider>
+                                              </ReceiptsProvider>
+                                            </AfipEventsProvider>
                                           </InvoicesProvider>
                                         </PaymentsProvider>
                                       </AppointmentsProvider>
