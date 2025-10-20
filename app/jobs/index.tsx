@@ -1,6 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
 import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -213,17 +214,27 @@ export default function JobsScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <TouchableOpacity
-        style={[
-          styles.filterButton,
-          { backgroundColor: inputBackground, borderColor }
-        ]}
-        onPress={() => setFiltersVisible(true)}
-      >
-        <ThemedText style={[styles.filterButtonText, { color: inputTextColor }]}>
-          Filtros y orden
-        </ThemedText>
-      </TouchableOpacity>
+      <View style={styles.searchRow}>
+        <TextInput
+          style={[
+            styles.search,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor }
+          ]}
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Buscar trabajo..."
+          placeholderTextColor={placeholderColor}
+        />
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            { backgroundColor: inputBackground, borderColor }
+          ]}
+          onPress={() => setFiltersVisible(true)}
+        >
+          <Ionicons name="filter" size={20} color={inputTextColor} />
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={sortedJobs}
         keyExtractor={(item) => item.id.toString()}
@@ -251,16 +262,6 @@ export default function JobsScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: inputBackground }]}>
             <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
-            <TextInput
-              style={[
-                styles.search,
-                { backgroundColor: inputBackground, color: inputTextColor, borderColor }
-              ]}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Buscar trabajo..."
-              placeholderTextColor={placeholderColor}
-            />
             <View style={styles.modalSection}>
               <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
               <View style={styles.sortButtons}>
@@ -311,16 +312,25 @@ export default function JobsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  search: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12
+  },
   filterButton: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    alignItems: 'center'
+    padding: 12,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  filterButtonText: { fontWeight: '600' },
   sortButtons: { flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap' as const },
   sortButton: {
     borderWidth: 1,
