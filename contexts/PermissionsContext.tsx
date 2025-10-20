@@ -141,10 +141,9 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
       if (status === 401 || status === 403) {
-        clearCachedPermissions();
         Alert.alert(
           'Sesión no válida',
-          'Detectamos un problema con tu sesión. Se conservarán los últimos permisos hasta que vuelvas a iniciar sesión.'
+          'Detectamos un problema con tu sesión. Mantendremos los últimos permisos hasta que vuelvas a iniciar sesión.'
         );
       } else {
         Alert.alert(
@@ -155,7 +154,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, clearCachedPermissions, setPermissions, token, userId]);
+  }, [checkConnection, setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();
