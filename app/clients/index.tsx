@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
+import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
 
 type ClientFilter =
   | 'all'
@@ -41,6 +42,7 @@ const FILTER_OPTIONS: { label: string; value: ClientFilter }[] = [
 
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
+  const { getTotalForClient } = useClientFinalizedJobTotals();
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,20 +69,42 @@ export default function ClientsListPage() {
     }, [loadClients])
   );
 
+  const clientsWithComputedTotals = useMemo(
+    () =>
+      clients.map(client => {
+        const computedTotal = getTotalForClient(client.id);
+        const currentTotal = typeof client.unbilled_total === 'number' ? client.unbilled_total : 0;
+
+        if (currentTotal === computedTotal) {
+          return client;
+        }
+
+        if (computedTotal === 0 && (client.unbilled_total == null || client.unbilled_total === 0)) {
+          return client;
+        }
+
+        return {
+          ...client,
+          unbilled_total: computedTotal,
+        };
+      }),
+    [clients, getTotalForClient]
+  );
+
   const fuse = useMemo(
     () =>
-      new Fuse(clients, {
+      new Fuse(clientsWithComputedTotals, {
         keys: ['business_name', 'tax_id', 'email', 'address'],
         threshold: 0.3,
         ignoreLocation: true,
       }),
-    [clients]
+    [clientsWithComputedTotals]
   );
 
   const filteredClients = useMemo(() => {
     const baseClients = searchQuery
       ? fuse.search(searchQuery).map(result => result.item)
-      : clients;
+      : clientsWithComputedTotals;
 
     let result = [...baseClients];
 
@@ -135,7 +159,7 @@ export default function ClientsListPage() {
     }
 
     return result;
-  }, [clients, fuse, searchQuery, selectedFilter, sortDirection]);
+  }, [clientsWithComputedTotals, fuse, searchQuery, selectedFilter, sortDirection]);
 
   const currentFilterLabel = useMemo(
     () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
