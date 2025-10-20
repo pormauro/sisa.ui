@@ -28,6 +28,8 @@ interface ModalPickerProps {
   disabled?: boolean;
   onItemLongPress?: (item: ModalPickerItem) => void;
   showSearch?: boolean;
+  hasError?: boolean;
+  errorColor?: string;
 }
 
 export const ModalPicker: React.FC<ModalPickerProps> = ({
@@ -38,6 +40,8 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   disabled = false,
   onItemLongPress,
   showSearch = true,
+  hasError = false,
+  errorColor,
 }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,6 +51,10 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
   const placeholderColor = useThemeColor({ light: '#999', dark: '#aaa' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const backgroundColor = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const errorBorderColor = useThemeColor({ light: '#ef4444', dark: '#fca5a5' }, 'text');
+
+  const resolvedBorderColor = hasError ? errorColor ?? errorBorderColor : borderColor;
+  const resolvedPlaceholderColor = hasError ? errorColor ?? errorBorderColor : placeholderColor;
 
   // Si se pasa el objeto completo se usa; si no, se intenta hallar a partir de selectedValue (si fuera necesario)
   const computedSelectedItem = useMemo(() => {
@@ -107,7 +115,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
       <TouchableOpacity
         style={[
           styles.selectorButton,
-          { borderColor, backgroundColor },
+          { borderColor: resolvedBorderColor, backgroundColor },
           computedSelectedItem && computedSelectedItem.backgroundColor
             ? { backgroundColor: computedSelectedItem.backgroundColor }
             : {},
@@ -127,7 +135,7 @@ export const ModalPicker: React.FC<ModalPickerProps> = ({
             {computedSelectedItem.name}
           </Text>
         ) : (
-          <Text style={[styles.placeholderText, { color: placeholderColor }]}>
+          <Text style={[styles.placeholderText, { color: resolvedPlaceholderColor }]}>
             {placeholder}
           </Text>
         )}

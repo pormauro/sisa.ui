@@ -21,6 +21,8 @@ interface SearchableSelectProps {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   showSearch?: boolean;
+  hasError?: boolean;
+  errorColor?: string;
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -34,6 +36,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled,
   style,
   showSearch = true,
+  hasError = false,
+  errorColor,
 }) => {
   const normalizedSelectedValue =
     selectedValue === null || typeof selectedValue === 'undefined'
@@ -123,6 +127,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         disabled={isDisabled}
         onItemLongPress={onItemLongPress ? handleItemLongPress : undefined}
         showSearch={showSearch}
+        hasError={hasError}
+        errorColor={errorColor}
       />
     </View>
   );

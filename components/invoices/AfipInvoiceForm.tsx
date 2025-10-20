@@ -20,7 +20,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ClientsContext } from '@/contexts/ClientsContext';
-import { AfipPointsOfSaleContext } from '@/contexts/AfipPointsOfSaleContext';
+import { AfipPointOfSale, AfipPointsOfSaleContext } from '@/contexts/AfipPointsOfSaleContext';
 import {
   AfipInvoiceItem,
   AfipTributeEntry,
@@ -71,14 +71,25 @@ const CONCEPT_OPTIONS = [
   { label: 'Productos y servicios', value: '3' },
 ];
 
-const VOUCHER_TYPES = [
-  { label: 'Factura A (01)', value: '1' },
-  { label: 'Factura B (06)', value: '6' },
-  { label: 'Factura C (11)', value: '11' },
-  { label: 'Nota de Crédito A (03)', value: '3' },
-  { label: 'Nota de Crédito B (08)', value: '8' },
-  { label: 'Nota de Crédito C (13)', value: '13' },
+interface VoucherDefinition {
+  value: string;
+  label: string;
+  keywords: string[];
+}
+
+const VOUCHER_DEFINITIONS: VoucherDefinition[] = [
+  { value: '1', label: 'Factura A (01)', keywords: ['factura a'] },
+  { value: '6', label: 'Factura B (06)', keywords: ['factura b'] },
+  { value: '11', label: 'Factura C (11)', keywords: ['factura c'] },
+  { value: '3', label: 'Nota de Crédito A (03)', keywords: ['nota de credito a'] },
+  { value: '8', label: 'Nota de Crédito B (08)', keywords: ['nota de credito b'] },
+  { value: '13', label: 'Nota de Crédito C (13)', keywords: ['nota de credito c'] },
+  { value: '201', label: 'Factura X (201)', keywords: ['factura x'] },
 ];
+
+const VOUCHER_KEYWORDS = new Map<string, string[]>(
+  VOUCHER_DEFINITIONS.map(definition => [definition.value, definition.keywords])
+);
 
 const DOCUMENT_TYPES = [
   { label: 'Sin documento', value: '' },
@@ -121,6 +132,14 @@ const formatNumber = (value: number): string => {
   return value.toFixed(Math.abs(value) >= 1 ? 2 : 4);
 };
 
+const normalizeText = (value: string): string =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+type FieldErrorKey = 'client' | 'pointOfSale' | 'voucherType' | 'concept' | 'items';
+
 export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   initialInvoice,
   submitting = false,
@@ -149,6 +168,13 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   const [observations, setObservations] = useState('');
   const [items, setItems] = useState<ItemRow[]>([createEmptyItem()]);
   const [tributes, setTributes] = useState<TributeRow[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<FieldErrorKey, boolean>>({
+    client: false,
+    pointOfSale: false,
+    voucherType: false,
+    concept: false,
+    items: false,
+  });
 
   const initialisedRef = useRef(false);
 
@@ -161,6 +187,10 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const destructiveColor = useThemeColor({ light: '#dc2626', dark: '#f87171' }, 'text');
   const accentColor = useThemeColor({ light: '#2563eb', dark: '#60a5fa' }, 'tint');
+
+  const setFieldError = useCallback((field: FieldErrorKey, value: boolean) => {
+    setFieldErrors(prev => (prev[field] === value ? prev : { ...prev, [field]: value }));
+  }, []);
 
   useEffect(() => {
     if (!initialisedRef.current && initialInvoice) {
@@ -248,11 +278,79 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     [points]
   );
 
+  const isPointCompatible = useCallback(
+    (point: AfipPointOfSale, voucher: string): boolean => {
+      if (!voucher) {
+        return true;
+      }
+      const keywords = VOUCHER_KEYWORDS.get(voucher);
+      if (!keywords || keywords.length === 0) {
+        return true;
+      }
+      const normalizedReceipt = normalizeText(point.receipt_type ?? '');
+      if (!normalizedReceipt) {
+        return false;
+      }
+      return keywords.some(keyword => normalizedReceipt.includes(keyword));
+    },
+    []
+  );
+
   const documentOptions = useMemo(() => DOCUMENT_TYPES, []);
 
   const conceptOptions = useMemo(() => CONCEPT_OPTIONS, []);
 
-  const voucherOptions = useMemo(() => VOUCHER_TYPES, []);
+  const voucherOptions = useMemo(
+    () => VOUCHER_DEFINITIONS.map(definition => ({ label: definition.label, value: definition.value })),
+    []
+  );
+
+  useEffect(() => {
+    if (!voucherType) {
+      return;
+    }
+    const activePoints = points.filter(point => point.active);
+    if (activePoints.length === 0) {
+      return;
+    }
+    const currentPoint = activePoints.find(point => String(point.id) === pointOfSaleId);
+    if (currentPoint && isPointCompatible(currentPoint, voucherType)) {
+      return;
+    }
+    const fallback = activePoints.find(point => isPointCompatible(point, voucherType));
+    if (!fallback) {
+      return;
+    }
+    const fallbackId = String(fallback.id);
+    if (fallbackId !== pointOfSaleId) {
+      setPointOfSaleId(fallbackId);
+    }
+    setFieldError('pointOfSale', false);
+  }, [voucherType, points, pointOfSaleId, isPointCompatible, setFieldError]);
+
+  useEffect(() => {
+    if (clientId) {
+      setFieldError('client', false);
+    }
+  }, [clientId, setFieldError]);
+
+  useEffect(() => {
+    if (pointOfSaleId) {
+      setFieldError('pointOfSale', false);
+    }
+  }, [pointOfSaleId, setFieldError]);
+
+  useEffect(() => {
+    if (voucherType) {
+      setFieldError('voucherType', false);
+    }
+  }, [voucherType, setFieldError]);
+
+  useEffect(() => {
+    if (concept) {
+      setFieldError('concept', false);
+    }
+  }, [concept, setFieldError]);
 
   const parsedItems = useMemo(() => {
     return items
@@ -279,6 +377,12 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       })
       .filter((item): item is (AfipInvoiceItem & { net: number }) => Boolean(item) && item.description.length > 0);
   }, [items]);
+
+  useEffect(() => {
+    if (parsedItems.length > 0) {
+      setFieldError('items', false);
+    }
+  }, [parsedItems, setFieldError]);
 
   const vatBreakdown = useMemo(() => {
     const map = new Map<number, { taxable: number; vat: number }>();
@@ -367,23 +471,25 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   }, []);
 
   const buildPayload = useCallback((): CreateAfipInvoicePayload | null => {
-    if (!clientId) {
-      Alert.alert('Datos incompletos', 'Debes seleccionar un cliente.');
+    const missingClient = !clientId;
+    const missingPoint = !pointOfSaleId;
+    const missingVoucher = !voucherType;
+    const missingConcept = !concept;
+
+    if (missingClient || missingPoint || missingVoucher || missingConcept) {
+      setFieldErrors(prev => ({
+        ...prev,
+        client: prev.client || missingClient,
+        pointOfSale: prev.pointOfSale || missingPoint,
+        voucherType: prev.voucherType || missingVoucher,
+        concept: prev.concept || missingConcept,
+      }));
+      Alert.alert('Datos incompletos', 'Revisa los campos marcados como obligatorios.');
       return null;
     }
-    if (!pointOfSaleId) {
-      Alert.alert('Datos incompletos', 'Selecciona un punto de venta AFIP.');
-      return null;
-    }
-    if (!voucherType) {
-      Alert.alert('Datos incompletos', 'Selecciona el tipo de comprobante.');
-      return null;
-    }
-    if (!concept) {
-      Alert.alert('Datos incompletos', 'Selecciona el concepto de facturación.');
-      return null;
-    }
+
     if (parsedItems.length === 0) {
+      setFieldError('items', true);
       Alert.alert('Detalle vacío', 'Agrega al menos un ítem con cantidad, precio e IVA válidos.');
       return null;
     }
@@ -420,6 +526,8 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     issueDate,
     dueDate,
     observations,
+    setFieldError,
+    setFieldErrors,
   ]);
 
   const handleSubmit = useCallback(() => {
@@ -458,18 +566,27 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
+        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}>
           <ThemedText style={styles.sectionTitle}>Datos del comprobante</ThemedText>
-          <ThemedText style={styles.label}>Cliente</ThemedText>
+          <ThemedText style={[styles.label, fieldErrors.client ? { color: destructiveColor } : null]}>Cliente</ThemedText>
           <SearchableSelect
             items={clientOptions}
             selectedValue={clientId || null}
             onValueChange={value => setClientId(value ? String(value) : '')}
             placeholder="Selecciona cliente"
+            hasError={fieldErrors.client}
+            errorColor={destructiveColor}
           />
+          {fieldErrors.client ? (
+            <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona un cliente.</ThemedText>
+          ) : null}
 
           <View style={[styles.pointOfSaleHeader, styles.spacingTop]}>
-            <ThemedText style={styles.label}>Punto de venta AFIP</ThemedText>
+            <ThemedText
+              style={[styles.label, fieldErrors.pointOfSale ? { color: destructiveColor } : null]}
+            >
+              Punto de venta AFIP
+            </ThemedText>
             {onManagePointsOfSale ? (
               <TouchableOpacity onPress={onManagePointsOfSale} style={styles.manageLink}>
                 <ThemedText style={[styles.manageLinkText, { color: accentColor }]}>
@@ -483,24 +600,55 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
             selectedValue={pointOfSaleId || null}
             onValueChange={value => setPointOfSaleId(value ? String(value) : '')}
             placeholder="Selecciona punto de venta"
+            hasError={fieldErrors.pointOfSale}
+            errorColor={destructiveColor}
           />
+          {fieldErrors.pointOfSale ? (
+            <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona un punto de venta válido.</ThemedText>
+          ) : null}
 
-          <ThemedText style={[styles.label, styles.spacingTop]}>Tipo de comprobante</ThemedText>
+          <ThemedText
+            style={[
+              styles.label,
+              styles.spacingTop,
+              fieldErrors.voucherType ? { color: destructiveColor } : null,
+            ]}
+          >
+            Tipo de comprobante
+          </ThemedText>
           <SearchableSelect
             items={voucherOptions}
             selectedValue={voucherType || null}
             onValueChange={value => setVoucherType(value ? String(value) : '')}
             placeholder="Selecciona tipo de comprobante"
+            hasError={fieldErrors.voucherType}
+            errorColor={destructiveColor}
           />
+          {fieldErrors.voucherType ? (
+            <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona el tipo de comprobante.</ThemedText>
+          ) : null}
 
-          <ThemedText style={[styles.label, styles.spacingTop]}>Concepto</ThemedText>
+          <ThemedText
+            style={[
+              styles.label,
+              styles.spacingTop,
+              fieldErrors.concept ? { color: destructiveColor } : null,
+            ]}
+          >
+            Concepto
+          </ThemedText>
           <SearchableSelect
             items={conceptOptions}
             selectedValue={concept || null}
             onValueChange={value => setConcept(value ? String(value) : '')}
             placeholder="Selecciona concepto"
             showSearch={false}
+            hasError={fieldErrors.concept}
+            errorColor={destructiveColor}
           />
+          {fieldErrors.concept ? (
+            <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona el concepto de facturación.</ThemedText>
+          ) : null}
 
           <View style={styles.row}>
             <View style={styles.halfInput}>
@@ -577,13 +725,24 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           />
         </View>
 
-        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: cardBackground,
+              borderColor: fieldErrors.items ? destructiveColor : borderColor,
+            },
+          ]}
+        >
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>Ítems</ThemedText>
             <TouchableOpacity style={[styles.addButton, { borderColor: accentColor }]} onPress={handleAddItem}>
               <ThemedText style={[styles.addButtonText, { color: accentColor }]}>Agregar ítem</ThemedText>
             </TouchableOpacity>
           </View>
+          {fieldErrors.items ? (
+            <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Agrega al menos un ítem válido.</ThemedText>
+          ) : null}
           {items.map((item, index) => (
             <View key={`item-${index}`} style={[styles.itemCard, { borderColor }]}> 
               <ThemedText style={styles.label}>Descripción</ThemedText>
@@ -782,6 +941,10 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     marginBottom: 4,
+  },
+  errorText: {
+    fontSize: 12,
+    marginBottom: 12,
   },
   spacingTop: {
     marginTop: 12,
