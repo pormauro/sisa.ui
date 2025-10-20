@@ -140,6 +140,31 @@ const normalizeText = (value: string): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
+const formatDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateString = (value: string): Date | null => {
+  if (!value) {
+    return null;
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  if ([year, month, day].some(part => Number.isNaN(part))) {
+    return null;
+  }
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+};
+
+const computeDueDateFromIssueDate = (issueDate: string): string => {
+  const parsedIssue = parseDateString(issueDate) ?? new Date();
+  const dueDate = new Date(parsedIssue.getTime());
+  dueDate.setDate(dueDate.getDate() + 15);
+  return formatDateString(dueDate);
+};
+
 type FieldErrorKey = 'client' | 'pointOfSale' | 'voucherType' | 'concept' | 'items';
 
 export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
@@ -161,15 +186,17 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   const [pointOfSaleId, setPointOfSaleId] = useState('');
   const [voucherType, setVoucherType] = useState('');
   const [concept, setConcept] = useState('1');
-  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [dueDate, setDueDate] = useState('');
+  const [issueDate, setIssueDate] = useState(() => formatDateString(new Date()));
+  const [dueDate, setDueDate] = useState(() => computeDueDateFromIssueDate(formatDateString(new Date())));
   const [currency, setCurrency] = useState('ARS');
   const [exchangeRate, setExchangeRate] = useState('1');
-  const [customerDocumentType, setCustomerDocumentType] = useState('');
+  const [customerDocumentType, setCustomerDocumentType] = useState('80');
   const [customerDocumentNumber, setCustomerDocumentNumber] = useState('');
   const [observations, setObservations] = useState('');
   const [items, setItems] = useState<ItemRow[]>([createEmptyItem()]);
   const [tributes, setTributes] = useState<TributeRow[]>([]);
+  const [dueDateManuallySet, setDueDateManuallySet] = useState(false);
+  const [customerDocumentManuallySet, setCustomerDocumentManuallySet] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<FieldErrorKey, boolean>>({
     client: false,
     pointOfSale: false,
@@ -213,6 +240,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       }
       if (initialInvoice.due_date) {
         setDueDate(String(initialInvoice.due_date).slice(0, 10));
+        setDueDateManuallySet(true);
       }
       if (initialInvoice.currency) {
         setCurrency(String(initialInvoice.currency));
@@ -225,6 +253,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       }
       if (initialInvoice.customer_document_number) {
         setCustomerDocumentNumber(String(initialInvoice.customer_document_number));
+        setCustomerDocumentManuallySet(true);
       }
       if (initialInvoice.notes || initialInvoice.description) {
         setObservations(String(initialInvoice.notes ?? initialInvoice.description ?? ''));
@@ -347,6 +376,15 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   }, [clientId, setFieldError]);
 
   useEffect(() => {
+    if (!dueDateManuallySet) {
+      const computedDueDate = computeDueDateFromIssueDate(issueDate);
+      if (computedDueDate !== dueDate) {
+        setDueDate(computedDueDate);
+      }
+    }
+  }, [dueDate, dueDateManuallySet, issueDate]);
+
+  useEffect(() => {
     if (isFacturaXVoucher) {
       setFieldError('pointOfSale', false);
       return;
@@ -373,6 +411,41 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       setFieldError('concept', false);
     }
   }, [concept, setFieldError]);
+
+  const handleClientChange = useCallback(
+    (value: string | number | null) => {
+      const id = value ? String(value) : '';
+      setClientId(id);
+      setCustomerDocumentManuallySet(false);
+      if (id) {
+        const selectedClient = clients.find(client => String(client.id) === id);
+        setCustomerDocumentNumber(selectedClient?.tax_id ?? '');
+      } else {
+        setCustomerDocumentNumber('');
+      }
+    },
+    [clients]
+  );
+
+  const handleDueDateChange = useCallback((value: string) => {
+    setDueDateManuallySet(value.trim().length > 0);
+    setDueDate(value);
+  }, []);
+
+  const handleCustomerDocumentNumberChange = useCallback((value: string) => {
+    setCustomerDocumentManuallySet(value.trim().length > 0);
+    setCustomerDocumentNumber(value);
+  }, []);
+
+  useEffect(() => {
+    if (!clientId || customerDocumentManuallySet) {
+      return;
+    }
+    const selectedClient = clients.find(client => String(client.id) === clientId);
+    if (selectedClient?.tax_id && selectedClient.tax_id !== customerDocumentNumber) {
+      setCustomerDocumentNumber(selectedClient.tax_id);
+    }
+  }, [clientId, clients, customerDocumentManuallySet, customerDocumentNumber]);
 
   const parsedItems = useMemo(() => {
     return items
@@ -609,7 +682,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           <SearchableSelect
             items={clientOptions}
             selectedValue={clientId || null}
-            onValueChange={value => setClientId(value ? String(value) : '')}
+            onValueChange={handleClientChange}
             placeholder="Selecciona cliente"
             hasError={fieldErrors.client}
             errorColor={destructiveColor}
@@ -706,7 +779,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
               <ThemedText style={styles.label}>Vencimiento</ThemedText>
               <TextInput
                 value={dueDate}
-                onChangeText={setDueDate}
+                onChangeText={handleDueDateChange}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor={placeholderColor}
                 style={[styles.input, { borderColor, color: textColor }]}
@@ -748,7 +821,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           />
           <TextInput
             value={customerDocumentNumber}
-            onChangeText={setCustomerDocumentNumber}
+            onChangeText={handleCustomerDocumentNumberChange}
             placeholder="Número de documento"
             placeholderTextColor={placeholderColor}
             style={[styles.input, { borderColor, color: textColor }]}
