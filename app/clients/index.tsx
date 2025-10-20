@@ -21,10 +21,6 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
-import { JobsContext } from '@/contexts/JobsContext';
-import { TariffsContext } from '@/contexts/TariffsContext';
-import { StatusesContext } from '@/contexts/StatusesContext';
-import { calculateJobTotal } from '@/utils/jobCost';
 
 type ClientFilter =
   | 'all'
@@ -47,9 +43,6 @@ export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
-  const { jobs } = useContext(JobsContext);
-  const { tariffs } = useContext(TariffsContext);
-  const { statuses } = useContext(StatusesContext);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<ClientFilter>('all');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -73,74 +66,6 @@ export default function ClientsListPage() {
       void loadClients();
     }, [loadClients])
   );
-
-  const tariffsById = useMemo(() => {
-    const map = new Map<number, number>();
-    tariffs.forEach(tariff => {
-      if (typeof tariff.amount === 'number' && Number.isFinite(tariff.amount)) {
-        map.set(tariff.id, tariff.amount);
-      }
-    });
-    return map;
-  }, [tariffs]);
-
-  const finalStatusIds = useMemo(() => {
-    if (!statuses.length) {
-      return [] as number[];
-    }
-
-    const keywords = ['finaliz', 'complet', 'cerrad', 'termin', 'finish', 'done'];
-
-    return statuses
-      .filter(status => {
-        const label = status.label ? status.label.toLowerCase() : '';
-        const value = status.value ? status.value.toLowerCase() : '';
-        return keywords.some(keyword => label.includes(keyword) || value.includes(keyword));
-      })
-      .map(status => status.id);
-  }, [statuses]);
-
-  const finalizedTotalsByClient = useMemo(() => {
-    if (!jobs.length || !finalStatusIds.length) {
-      return {} as Record<number, number>;
-    }
-
-    const totals = new Map<number, number>();
-
-    jobs.forEach(job => {
-      if (job.status_id == null || !finalStatusIds.includes(job.status_id)) {
-        return;
-      }
-
-      const manualRate =
-        typeof job.manual_amount === 'number' && Number.isFinite(job.manual_amount)
-          ? job.manual_amount
-          : null;
-      const tariffRate =
-        job.tariff_id != null ? tariffsById.get(job.tariff_id) ?? null : null;
-      const rate = manualRate ?? tariffRate;
-
-      if (rate === null) {
-        return;
-      }
-
-      const jobTotal = calculateJobTotal(rate, job.start_time, job.end_time);
-
-      if (jobTotal === null) {
-        return;
-      }
-
-      const previous = totals.get(job.client_id) ?? 0;
-      totals.set(job.client_id, previous + jobTotal);
-    });
-
-    const result: Record<number, number> = {};
-    totals.forEach((value, key) => {
-      result[key] = value;
-    });
-
-    return result;
-  }, [jobs, finalStatusIds, tariffsById]);
 
   const fuse = useMemo(
     () =>
@@ -174,10 +99,6 @@ export default function ClientsListPage() {
 
     switch (selectedFilter) {
       case 'finalizedJobs':
-        result = result.filter(client => getSafeTotal(finalizedTotalsByClient[client.id]) > 0);
-        comparator = (a, b) =>
-          getSafeTotal(finalizedTotalsByClient[a.id]) - getSafeTotal(finalizedTotalsByClient[b.id]);
-        break;
       case 'unpaidInvoices':
         result = result.filter(client => getSafeTotal(client.unpaid_invoices_total) > 0);
         comparator = (a, b) =>
@@ -210,7 +131,7 @@ export default function ClientsListPage() {
     }
 
     return result;
-  }, [clients, fuse, searchQuery, selectedFilter, finalizedTotalsByClient, sortDirection]);
+  }, [clients, fuse, searchQuery, selectedFilter, sortDirection]);
 
   const currentFilterLabel = useMemo(
     () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
@@ -300,7 +221,7 @@ export default function ClientsListPage() {
             <View style={styles.amountRow}>
               <ThemedText style={styles.amountLabel}>Trabajos finalizados</ThemedText>
               <ThemedText style={styles.amountValue}>
-                {formatCurrency(finalizedTotalsByClient[item.id] ?? 0)}
+                {formatCurrency(item.unpaid_invoices_total)}
               </ThemedText>
             </View>
           </View>
