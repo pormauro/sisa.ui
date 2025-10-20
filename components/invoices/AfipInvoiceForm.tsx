@@ -48,12 +48,21 @@ interface AfipInvoiceFormProps {
   initialInvoice?: Partial<Invoice> | null;
   submitting?: boolean;
   submitLabel?: string;
+  savingPending?: boolean;
+  savePendingLabel?: string;
   onSubmit: (payload: CreateAfipInvoicePayload, helpers: {
     items: AfipInvoiceItem[];
     vat_breakdown: AfipVatBreakdownEntry[];
     tributes: AfipTributeEntry[];
   }) => void | Promise<void>;
+  onSavePending?: (payload: CreateAfipInvoicePayload, helpers: {
+    items: AfipInvoiceItem[];
+    vat_breakdown: AfipVatBreakdownEntry[];
+    tributes: AfipTributeEntry[];
+  }) => void | Promise<void>;
   onCancel?: () => void;
+  onManagePointsOfSale?: () => void;
+  managePointsOfSaleLabel?: string;
 }
 
 const CONCEPT_OPTIONS = [
@@ -116,8 +125,13 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   initialInvoice,
   submitting = false,
   submitLabel = 'Guardar factura',
+  savingPending = false,
+  savePendingLabel = 'Guardar pendiente',
   onSubmit,
+  onSavePending,
   onCancel,
+  onManagePointsOfSale,
+  managePointsOfSaleLabel = 'Gestionar puntos de venta',
 }) => {
   const { clients } = useContext(ClientsContext);
   const { points, listPoints } = useContext(AfipPointsOfSaleContext);
@@ -352,29 +366,29 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     setTributes(prev => prev.map((tribute, idx) => (idx === index ? { ...tribute, ...next } : tribute)));
   }, []);
 
-  const handleSubmit = useCallback(() => {
+  const buildPayload = useCallback((): CreateAfipInvoicePayload | null => {
     if (!clientId) {
       Alert.alert('Datos incompletos', 'Debes seleccionar un cliente.');
-      return;
+      return null;
     }
     if (!pointOfSaleId) {
       Alert.alert('Datos incompletos', 'Selecciona un punto de venta AFIP.');
-      return;
+      return null;
     }
     if (!voucherType) {
       Alert.alert('Datos incompletos', 'Selecciona el tipo de comprobante.');
-      return;
+      return null;
     }
     if (!concept) {
       Alert.alert('Datos incompletos', 'Selecciona el concepto de facturación.');
-      return;
+      return null;
     }
     if (parsedItems.length === 0) {
       Alert.alert('Detalle vacío', 'Agrega al menos un ítem con cantidad, precio e IVA válidos.');
-      return;
+      return null;
     }
 
-    const payload: CreateAfipInvoicePayload = {
+    return {
       client_id: Number(clientId),
       afip_point_of_sale_id: Number(pointOfSaleId),
       afip_voucher_type: voucherType,
@@ -391,11 +405,6 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       observations: observations.trim() || undefined,
     };
 
-    onSubmit(payload, {
-      items: parsedItems,
-      vat_breakdown: vatBreakdown,
-      tributes: parsedTributes,
-    });
   }, [
     clientId,
     pointOfSaleId,
@@ -406,13 +415,41 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     parsedTributes,
     customerDocumentType,
     customerDocumentNumber,
-    currency,
+    resolvedCurrency,
     exchangeRate,
     issueDate,
     dueDate,
     observations,
-    onSubmit,
   ]);
+
+  const handleSubmit = useCallback(() => {
+    const payload = buildPayload();
+    if (!payload) {
+      return;
+    }
+
+    onSubmit(payload, {
+      items: parsedItems,
+      vat_breakdown: vatBreakdown,
+      tributes: parsedTributes,
+    });
+  }, [buildPayload, onSubmit, parsedItems, parsedTributes, vatBreakdown]);
+
+  const handleSavePending = useCallback(() => {
+    if (!onSavePending) {
+      return;
+    }
+    const payload = buildPayload();
+    if (!payload) {
+      return;
+    }
+
+    onSavePending(payload, {
+      items: parsedItems,
+      vat_breakdown: vatBreakdown,
+      tributes: parsedTributes,
+    });
+  }, [buildPayload, onSavePending, parsedItems, parsedTributes, vatBreakdown]);
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
@@ -431,7 +468,16 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
             placeholder="Selecciona cliente"
           />
 
-          <ThemedText style={[styles.label, styles.spacingTop]}>Punto de venta AFIP</ThemedText>
+          <View style={[styles.pointOfSaleHeader, styles.spacingTop]}>
+            <ThemedText style={styles.label}>Punto de venta AFIP</ThemedText>
+            {onManagePointsOfSale ? (
+              <TouchableOpacity onPress={onManagePointsOfSale} style={styles.manageLink}>
+                <ThemedText style={[styles.manageLinkText, { color: accentColor }]}>
+                  {managePointsOfSaleLabel}
+                </ThemedText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
           <SearchableSelect
             items={pointOptions}
             selectedValue={pointOfSaleId || null}
@@ -691,6 +737,17 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
               <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>Cancelar</ThemedText>
             </TouchableOpacity>
           ) : null}
+          {onSavePending ? (
+            <TouchableOpacity
+              onPress={handleSavePending}
+              style={[styles.pendingButton, { borderColor: accentColor, opacity: savingPending ? 0.7 : 1 }]}
+              disabled={savingPending || submitting}
+            >
+              <ThemedText style={[styles.pendingButtonText, { color: accentColor }]}>
+                {savingPending ? 'Guardando…' : savePendingLabel}
+              </ThemedText>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             onPress={handleSubmit}
             style={[styles.primaryButton, { backgroundColor: buttonColor, opacity: submitting ? 0.7 : 1 }]}
@@ -772,6 +829,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  manageLink: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  manageLinkText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   itemCard: {
     borderWidth: 1,
     borderRadius: 10,
@@ -790,6 +855,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     marginBottom: 12,
+  },
+  pointOfSaleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -810,6 +881,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'flex-end',
     gap: 12,
     marginTop: 8,
@@ -829,6 +901,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 18,
     paddingVertical: 12,
+  },
+  pendingButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  pendingButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   secondaryButtonText: {
     fontSize: 16,
