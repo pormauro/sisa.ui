@@ -140,9 +140,16 @@ export default function JobsScreen() {
     const startStr = extractTime(item.start_time);
     const endStr = extractTime(item.end_time);
     const intervalStr = formatTimeInterval(startStr, endStr);
-    const rate = item.tariff_id
-      ? tariffs.find(t => t.id === item.tariff_id)?.amount ?? 0
-      : item.manual_amount ?? 0;
+    const manualRate =
+      typeof item.manual_amount === 'number' && Number.isFinite(item.manual_amount)
+        ? item.manual_amount
+        : null;
+
+    const tariffRate = item.tariff_id
+      ? tariffs.find(t => t.id === item.tariff_id)?.amount ?? null
+      : null;
+
+    const rate = manualRate ?? tariffRate ?? 0;
     let cost = 0;
     if (startStr && endStr && rate) {
       const start = new Date(`1970-01-01T${startStr}`);
