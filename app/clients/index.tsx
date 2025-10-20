@@ -8,6 +8,8 @@ import {
   StyleSheet,
   Alert,
   GestureResponderEvent,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -23,6 +25,23 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { calculateJobTotal } from '@/utils/jobCost';
 
+type ClientFilter =
+  | 'all'
+  | 'finalizedJobs'
+  | 'unpaidInvoices'
+  | 'name'
+  | 'created'
+  | 'updated';
+
+const FILTER_OPTIONS: { label: string; value: ClientFilter }[] = [
+  { label: 'Todos', value: 'all' },
+  { label: 'Trabajos finalizados', value: 'finalizedJobs' },
+  { label: 'Facturas impagas', value: 'unpaidInvoices' },
+  { label: 'Nombre', value: 'name' },
+  { label: 'Creado', value: 'created' },
+  { label: 'Modificado', value: 'updated' },
+];
+
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
   const router = useRouter();
@@ -31,6 +50,8 @@ export default function ClientsListPage() {
   const { tariffs } = useContext(TariffsContext);
   const { statuses } = useContext(StatusesContext);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<ClientFilter>('all');
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -40,6 +61,8 @@ export default function ClientsListPage() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
+  const filterButtonColor = useThemeColor({}, 'button');
+  const filterButtonTextColor = useThemeColor({}, 'buttonText');
 
   const canAddClient = permissions.includes('addClient');
   const canDeleteClient = permissions.includes('deleteClient');
@@ -60,10 +83,61 @@ export default function ClientsListPage() {
   );
 
   const filteredClients = useMemo(() => {
-    if (!searchQuery) return clients;
-    const results = fuse.search(searchQuery);
-    return results.map(result => result.item);
-  }, [clients, fuse, searchQuery]);
+    const baseClients = searchQuery
+      ? fuse.search(searchQuery).map(result => result.item)
+      : clients;
+
+    let result = [...baseClients];
+
+    switch (selectedFilter) {
+      case 'finalizedJobs':
+        result = result.filter(client => (finalizedTotalsByClient[client.id] ?? 0) > 0);
+        result.sort(
+          (a, b) =>
+            (finalizedTotalsByClient[b.id] ?? 0) - (finalizedTotalsByClient[a.id] ?? 0)
+        );
+        break;
+      case 'unpaidInvoices':
+        result = result.filter(client => (client.unpaid_invoices_total ?? 0) > 0);
+        result.sort(
+          (a, b) =>
+            (b.unpaid_invoices_total ?? 0) - (a.unpaid_invoices_total ?? 0)
+        );
+        break;
+      case 'name':
+        result.sort((a, b) => a.business_name.localeCompare(b.business_name));
+        break;
+      case 'created':
+        result.sort((a, b) => {
+          const aDate = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bDate = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return bDate - aDate;
+        });
+        break;
+      case 'updated':
+        result.sort((a, b) => {
+          const aDate = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const bDate = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return bDate - aDate;
+        });
+        break;
+      case 'all':
+      default:
+        break;
+    }
+
+    return result;
+  }, [clients, fuse, searchQuery, selectedFilter, finalizedTotalsByClient]);
+
+  const handleSelectFilter = useCallback((filter: ClientFilter) => {
+    setSelectedFilter(filter);
+    setIsFilterModalVisible(false);
+  }, []);
+
+  const currentFilterLabel = useMemo(
+    () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
+    [selectedFilter]
+  );
 
   const tariffsById = useMemo(() => {
     const map = new Map<number, number>();
@@ -183,7 +257,7 @@ export default function ClientsListPage() {
           ) : null}
           <View style={styles.amountContainer}>
             <View style={styles.amountRow}>
-              <ThemedText style={styles.amountLabel}>Total no facturado</ThemedText>
+              <ThemedText style={styles.amountLabel}>Trabajos no facturados</ThemedText>
               <ThemedText style={styles.amountValue}>
                 {formatCurrency(item.unbilled_total)}
               </ThemedText>
@@ -219,16 +293,26 @@ export default function ClientsListPage() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <TextInput
-        placeholder="Buscar cliente..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        style={[
-          styles.searchInput,
-          { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-        ]}
-        placeholderTextColor={placeholderColor}
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          placeholder="Buscar cliente..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={[
+            styles.searchInput,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          placeholderTextColor={placeholderColor}
+        />
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: filterButtonColor }]}
+          onPress={() => setIsFilterModalVisible(true)}
+        >
+          <ThemedText style={[styles.filterButtonText, { color: filterButtonTextColor }]}>
+            Filtro: {currentFilterLabel}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={filteredClients}
         keyExtractor={(item) => item.id.toString()}
@@ -247,18 +331,80 @@ export default function ClientsListPage() {
           <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar Cliente</ThemedText>
         </TouchableOpacity>
       )}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setIsFilterModalVisible(false)}
+          />
+          <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
+            <ThemedText style={styles.modalTitle}>Filtrar por</ThemedText>
+            {FILTER_OPTIONS.map(option => {
+              const isSelected = option.value === selectedFilter;
+              return (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                    isSelected && {
+                      borderColor: addButtonColor,
+                      backgroundColor: background,
+                    },
+                  ]}
+                  onPress={() => handleSelectFilter(option.value)}
+                >
+                  <ThemedText
+                    style={[
+                      styles.modalOptionText,
+                      isSelected && { color: addButtonColor, fontWeight: '600' },
+                    ]}
+                  >
+                    {option.label}
+                  </ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setIsFilterModalVisible(false)}
+            >
+              <ThemedText style={styles.modalCloseButtonText}>Cerrar</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   searchInput: {
+    flex: 1,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    marginBottom: 12,
+    marginRight: 8,
+  },
+  filterButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  filterButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   listContent: {
     paddingBottom: 16,
@@ -307,4 +453,45 @@ const styles = StyleSheet.create({
   },
   addButtonText: { fontSize: 16, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    marginBottom: 8,
+  },
+  modalOptionText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
