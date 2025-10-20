@@ -5,6 +5,7 @@ import { ScrollView, View, StyleSheet, Button } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
+import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
@@ -15,9 +16,11 @@ export default function ViewClientModal() {
   const router = useRouter();
   const { clients } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
+  const { getTotalForClient } = useClientFinalizedJobTotals();
 
   const client = clients.find(c => c.id === clientId);
   const tariff = tariffs.find(t => t.id === client?.tariff_id);
+  const finalizedJobsTotal = getTotalForClient(client?.id);
 
   const background = useThemeColor({}, 'background');
 
@@ -69,7 +72,7 @@ export default function ViewClientModal() {
         <View style={styles.sectionRow}>
           <ThemedText style={styles.sectionLabel}>Total no facturado</ThemedText>
           <ThemedText style={styles.sectionValue}>
-            {formatCurrency(client.unbilled_total)}
+            {formatCurrency(finalizedJobsTotal)}
           </ThemedText>
         </View>
         <View style={styles.sectionRow}>
