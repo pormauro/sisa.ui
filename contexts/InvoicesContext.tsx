@@ -11,6 +11,7 @@ import React, {
 import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
@@ -135,8 +136,14 @@ const toInvoice = (raw: unknown): Invoice | null => {
 
 export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
+  const { permissions } = useContext(PermissionsContext);
   const [invoices, setInvoices] = useCachedState<Invoice[]>('invoices', []);
   const invoicesRef = useRef(invoices);
+
+  const canListInvoices = permissions.includes('listInvoices');
+  const canViewInvoices = permissions.includes('viewInvoice');
+  const canUpdateInvoiceStatus = permissions.includes('updateInvoice');
+  const canAccessInvoices = canListInvoices || canViewInvoices || canUpdateInvoiceStatus;
 
   useEffect(() => {
     invoicesRef.current = invoices;
@@ -146,8 +153,14 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     setInvoices(prev => ensureSortedByNewest(prev, getDefaultSortValue));
   }, [setInvoices]);
 
+  useEffect(() => {
+    if (!canAccessInvoices) {
+      setInvoices(prev => (prev.length > 0 ? [] : prev));
+    }
+  }, [canAccessInvoices, setInvoices]);
+
   const loadInvoices = useCallback(async () => {
-    if (!token) {
+    if (!token || !canListInvoices) {
       return;
     }
 
@@ -173,11 +186,11 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading invoices:', error);
     }
-  }, [setInvoices, token]);
+  }, [canListInvoices, setInvoices, token]);
 
   const refreshInvoice = useCallback(
     async (id: number): Promise<Invoice | null> => {
-      if (!token) {
+      if (!token || !canAccessInvoices) {
         return null;
       }
 
@@ -225,12 +238,12 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
       return null;
     },
-    [setInvoices, token]
+    [canAccessInvoices, setInvoices, token]
   );
 
   const updateInvoiceStatus = useCallback(
     async (id: number, status: InvoiceStatus): Promise<boolean> => {
-      if (!token) {
+      if (!token || !canUpdateInvoiceStatus) {
         return false;
       }
 
@@ -310,14 +323,14 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
       );
       return false;
     },
-    [setInvoices, token]
+    [canUpdateInvoiceStatus, setInvoices, token]
   );
 
   useEffect(() => {
-    if (token) {
+    if (token && canListInvoices) {
       void loadInvoices();
     }
-  }, [loadInvoices, token]);
+  }, [canListInvoices, loadInvoices, token]);
 
   const contextValue = useMemo(
     () => ({ invoices, loadInvoices, updateInvoiceStatus, refreshInvoice }),

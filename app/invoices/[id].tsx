@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { InvoiceDetailView } from './InvoiceDetailView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/ThemedText';
 
 export default function InvoiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const router = useRouter();
   const background = useThemeColor({}, 'background');
 
   const rawId = Array.isArray(id) ? id?.[0] : id;
@@ -23,7 +24,7 @@ export default function InvoiceDetailScreen() {
 
   return (
     <View style={[styles.flex, { backgroundColor: background }]}>
-      <InvoiceDetailView invoiceId={invoiceId} />
+      <InvoiceDetailView invoiceId={invoiceId} onClose={() => router.back()} />
     </View>
   );
 }
