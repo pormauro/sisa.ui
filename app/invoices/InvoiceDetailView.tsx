@@ -84,6 +84,9 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
 
   const invoice = useMemo(() => invoices.find(item => item.id === invoiceId), [invoiceId, invoices]);
   const canUpdateStatus = permissions.includes('updateInvoice');
+  const canListInvoices = permissions.includes('listInvoices');
+  const canViewInvoice = permissions.includes('viewInvoice');
+  const canView = canListInvoices || canViewInvoice || canUpdateStatus;
   const statusStyles = useMemo(() => {
     const statusKey = normaliseStatus(invoice?.status ?? invoice?.state);
     if (statusKey === 'paid') {
@@ -96,6 +99,19 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   }, [invoice?.state, invoice?.status]);
 
   useEffect(() => {
+    if (!canView) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para ver facturas.');
+      if (onClose) {
+        onClose();
+      }
+    }
+  }, [canView, onClose]);
+
+  useEffect(() => {
+    if (!canView) {
+      setIsRefreshing(false);
+      return;
+    }
     let mounted = true;
     setIsRefreshing(true);
     refreshInvoice(invoiceId)
@@ -110,7 +126,7 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
     return () => {
       mounted = false;
     };
-  }, [invoiceId, refreshInvoice]);
+  }, [canView, invoiceId, refreshInvoice]);
 
   const clientName = useMemo(() => {
     if (!invoice) {
@@ -141,6 +157,9 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   }, [invoice, providers]);
 
   const handleRefresh = () => {
+    if (!canView) {
+      return;
+    }
     setIsRefreshing(true);
     refreshInvoice(invoiceId)
       .catch(error => {
@@ -184,6 +203,14 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
       ]
     );
   };
+
+  if (!canView) {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: background }]}>
+        <ThemedText style={styles.emptyText}>No tienes permiso para ver facturas.</ThemedText>
+      </View>
+    );
+  }
 
   if (!invoice) {
     return (
