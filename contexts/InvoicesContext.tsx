@@ -55,6 +55,8 @@ interface InvoicesContextValue {
 
 const noop = async () => {};
 
+const INVOICE_ENDPOINT_CANDIDATES = ['/invoices', '/billing/invoices'];
+
 export const InvoicesContext = createContext<InvoicesContextValue>({
   invoices: [],
   loadInvoices: noop,
@@ -139,6 +141,7 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
   const { permissions } = useContext(PermissionsContext);
   const [invoices, setInvoices] = useCachedState<Invoice[]>('invoices', []);
   const invoicesRef = useRef(invoices);
+  const resolvedEndpointRef = useRef<string | null>(null);
 
   const canListInvoices = permissions.includes('listInvoices');
   const canViewInvoices = permissions.includes('viewInvoice');
@@ -159,24 +162,76 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [canAccessInvoices, setInvoices]);
 
+  const normaliseHeaders = (input?: HeadersInit): Record<string, string> => {
+    if (!input) {
+      return {};
+    }
+    if (input instanceof Headers) {
+      return Object.fromEntries(input.entries());
+    }
+    if (Array.isArray(input)) {
+      return Object.fromEntries(input);
+    }
+    return { ...input };
+  };
+
+  const performInvoiceRequest = useCallback(
+    async (buildPath: (basePath: string) => string, init?: RequestInit) => {
+      if (!token) {
+        throw new Error('Token no disponible para facturas');
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
+
+      const candidates = resolvedEndpointRef.current
+        ? [
+            resolvedEndpointRef.current,
+            ...INVOICE_ENDPOINT_CANDIDATES.filter(candidate => candidate !== resolvedEndpointRef.current),
+          ]
+        : INVOICE_ENDPOINT_CANDIDATES;
+
+      let last404Path: string | null = null;
+      let last404Status: number | null = null;
+
+      for (const basePath of candidates) {
+        const url = `${BASE_URL}${buildPath(basePath)}`;
+        const response = await fetch(url, {
+          ...init,
+          headers: { ...headers, ...normaliseHeaders(init?.headers) },
+        });
+
+        if (response.status === 404) {
+          last404Path = buildPath(basePath);
+          last404Status = response.status;
+          continue;
+        }
+
+        if (!response.ok) {
+          const text = await response.text().catch(() => '');
+          throw new Error(`HTTP ${response.status} ${buildPath(basePath)} ${text}`);
+        }
+
+        resolvedEndpointRef.current = basePath;
+        return response;
+      }
+
+      const detail = last404Path ? `${last404Status} en ${last404Path}` : 'sin respuesta válida';
+      throw new Error(`No se pudo resolver el endpoint de facturas (${detail}).`);
+    },
+    [token]
+  );
+
   const loadInvoices = useCallback(async () => {
     if (!token || !canListInvoices) {
       return;
     }
 
     try {
-      const response = await fetch(`${BASE_URL}/invoices`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} al cargar facturas`);
-      }
-
+      const response = await performInvoiceRequest(basePath => `${basePath}`);
       const payload = await response.json().catch(() => ({}));
       const list = extractInvoiceList(payload)
         .map(toInvoice)
@@ -186,7 +241,7 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading invoices:', error);
     }
-  }, [canListInvoices, setInvoices, token]);
+  }, [canListInvoices, performInvoiceRequest, setInvoices, token]);
 
   const refreshInvoice = useCallback(
     async (id: number): Promise<Invoice | null> => {
@@ -195,18 +250,7 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
       }
 
       try {
-        const response = await fetch(`${BASE_URL}/invoices/${id}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status} al cargar la factura ${id}`);
-        }
-
+        const response = await performInvoiceRequest(basePath => `${basePath}/${id}`);
         const data = await response.json().catch(() => ({}));
         const list = extractInvoiceList(data);
         if (list.length > 0) {
@@ -238,7 +282,7 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
       return null;
     },
-    [canAccessInvoices, setInvoices, token]
+    [canAccessInvoices, performInvoiceRequest, setInvoices, token]
   );
 
   const updateInvoiceStatus = useCallback(
@@ -249,20 +293,13 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
       const request = async (method: 'PATCH' | 'PUT', body: Record<string, unknown>) => {
         try {
-          const response = await fetch(`${BASE_URL}/invoices/${id}`, {
-            method,
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
-          });
-
-          if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            throw new Error(`HTTP ${response.status} ${method} /invoices/${id} ${text}`);
-          }
+          const response = await performInvoiceRequest(
+            basePath => `${basePath}/${id}`,
+            {
+              method,
+              body: JSON.stringify(body),
+            }
+          );
 
           if (response.status === 204) {
             return true;
@@ -323,7 +360,7 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
       );
       return false;
     },
-    [canUpdateInvoiceStatus, setInvoices, token]
+    [canUpdateInvoiceStatus, performInvoiceRequest, setInvoices, token]
   );
 
   useEffect(() => {
