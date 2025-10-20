@@ -51,9 +51,15 @@ export default function InvoicesScreen() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const highlightColor = useThemeColor({ light: '#2563eb', dark: '#60a5fa' }, 'tint');
   const secondaryText = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canList = permissions.includes('listInvoices');
   const canUpdateStatus = permissions.includes('updateInvoice');
+  const canCreateInvoice =
+    permissions.includes('createInvoice') ||
+    permissions.includes('submitAfipInvoice') ||
+    permissions.includes('updateInvoice');
 
   useEffect(() => {
     if (!canList) {
@@ -236,6 +242,14 @@ export default function InvoicesScreen() {
         onChangeText={setSearch}
         placeholderTextColor={placeholderColor}
       />
+      {canCreateInvoice ? (
+        <TouchableOpacity
+          style={[styles.createButton, { backgroundColor: buttonColor }]}
+          onPress={() => router.push('/invoices/create')}
+        >
+          <ThemedText style={[styles.createButtonText, { color: buttonTextColor }]}>Nueva factura AFIP</ThemedText>
+        </TouchableOpacity>
+      ) : null}
       <FlatList
         data={filteredInvoices}
         keyExtractor={item => item.id.toString()}
@@ -253,6 +267,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
   listContent: { paddingBottom: 24 },
+  createButton: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   item: {
     flexDirection: 'row',
     paddingVertical: 12,

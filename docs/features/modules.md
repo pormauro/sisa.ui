@@ -222,6 +222,32 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 2. Todas las solicitudes se envían con encabezados `Authorization: Bearer <token>` reutilizando `buildHeaders`, lo que garantiza la compatibilidad con la política de autenticación del backend.【F:contexts/AfipPointsOfSaleContext.tsx†L136-L145】【F:contexts/AfipPointsOfSaleContext.tsx†L233-L296】
 3. El backend `sisa.api` debe exponer los endpoints mencionados y mantener el esquema sin claves foráneas, siguiendo la directiva general del proyecto.【F:contexts/AfipPointsOfSaleContext.tsx†L185-L317】【F:docs/setup-and-configuration.md†L21-L26】
 
+## Facturación AFIP (`InvoicesContext`)
+### Modelo y payloads
+- `Invoice` incorpora datos fiscales (`afip_point_of_sale_id`, `afip_voucher_type`, `concept`, `customer_document_type`, `customer_document_number`, `vat_breakdown`, `tributes`, `currency`, `exchange_rate`, `cae`, `cae_due_date`, `items`) además de los campos tradicionales de facturación.【F:contexts/InvoicesContext.tsx†L19-L169】
+- `CreateAfipInvoicePayload` y `SubmitAfipInvoicePayload` normalizan ítems, alícuotas de IVA, percepciones y metadatos del comprobante antes de llamar a la API.【F:contexts/InvoicesContext.tsx†L171-L238】【F:contexts/InvoicesContext.tsx†L341-L405】
+
+### Métodos del contexto
+- `createInvoice(payload)` serializa el comprobante y ejecuta `POST /afip/invoices`, fusionando la respuesta con el estado local cuando AFIP devuelve el CAE.【F:contexts/InvoicesContext.tsx†L459-L500】
+- `submitAfipInvoice(id, payload)` envía `PUT /afip/invoices/{id}` para emitir o reintentar la autorización, refrescando la factura en memoria con los datos devueltos.【F:contexts/InvoicesContext.tsx†L502-L534】
+- `annulInvoice(id, payload?)` reutiliza `DELETE /afip/invoices/{id}` para anular comprobantes, manteniendo sincronizados los estados locales incluso cuando la API responde sin cuerpo.【F:contexts/InvoicesContext.tsx†L536-L576】
+- Los helpers internos capturan mensajes de error específicos de AFIP (`afip_errors`, `afip_error`, `errors`, `message`) para mostrar validaciones claras en la UI.【F:contexts/InvoicesContext.tsx†L239-L339】【F:contexts/InvoicesContext.tsx†L408-L456】
+
+### Pantallas y componentes
+- `components/invoices/AfipInvoiceForm.tsx` integra selectores de clientes y puntos de venta AFIP, genera desgloses automáticos de IVA/percepciones y valida montos antes de enviar la solicitud.【F:components/invoices/AfipInvoiceForm.tsx†L1-L438】
+- `app/invoices/create.tsx` utiliza el formulario para emitir nuevos comprobantes y muestra feedback de AFIP, navegando al detalle tras la confirmación.【F:app/invoices/create.tsx†L1-L73】
+- `app/invoices/[id]/edit.tsx` permite reintentos de envío o edición antes de solicitar el CAE, controlando permisos y estados de carga/submisión.【F:app/invoices/[id]/edit.tsx†L1-L154】
+- `app/invoices/InvoiceDetailView.tsx` amplía el resumen con CAE, vencimiento, moneda, cotización y tablas de IVA/percepciones devueltas por la API.【F:app/invoices/InvoiceDetailView.tsx†L1-L468】
+
+### Endpoints consumidos
+- `POST ${BASE_URL}/afip/invoices` — creación de comprobantes AFIP (CAE).【F:contexts/InvoicesContext.tsx†L459-L500】
+- `PUT ${BASE_URL}/afip/invoices/{id}` — reenvío/edición para obtener autorización AFIP.【F:contexts/InvoicesContext.tsx†L502-L534】
+- `DELETE ${BASE_URL}/afip/invoices/{id}` — anulación de comprobantes autorizados o pendientes.【F:contexts/InvoicesContext.tsx†L536-L576】
+
+### UX asociada
+- El listado de facturas incorpora un CTA para "Nueva factura AFIP" cuando el usuario tiene permisos de emisión, reutilizando la navegación declarativa de Expo Router.【F:app/invoices/index.tsx†L24-L107】
+- La vista de detalle expone el resultado AFIP (CAE y vencimiento) junto a desgloses para auditorías rápidas sin salir del flujo principal.【F:app/invoices/InvoiceDetailView.tsx†L323-L468】
+
 ## Configuración AFIP (`AfipConfigContext`)
 ### Modelo
 - `AfipConfig`: almacena CUIT normalizado, certificado, clave privada, entorno (homologación/producción) y marcas de sincronización.【F:contexts/AfipConfigContext.tsx†L18-L72】
