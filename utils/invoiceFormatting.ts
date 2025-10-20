@@ -5,6 +5,7 @@ const VOUCHER_LABELS: Record<string, string> = {
   '8': 'Nota de Crédito B (08)',
   '11': 'Factura C (11)',
   '13': 'Nota de Crédito C (13)',
+  '201': 'Factura X (201)',
 };
 
 const CONCEPT_LABELS: Record<number, string> = {
