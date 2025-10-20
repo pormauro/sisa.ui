@@ -12,6 +12,7 @@ import { InvoicesContext } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { AfipPointsOfSaleContext } from '@/contexts/AfipPointsOfSaleContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
@@ -52,7 +53,7 @@ const formatDate = (value: unknown) => {
   });
 };
 
-const formatCurrency = (value: unknown) => {
+const formatCurrency = (value: unknown, currencyCode?: string | null) => {
   if (value === undefined || value === null) {
     return '—';
   }
@@ -60,11 +61,78 @@ const formatCurrency = (value: unknown) => {
   if (Number.isNaN(numeric)) {
     return String(value);
   }
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-  }).format(numeric);
+  const resolvedCurrency = currencyCode && typeof currencyCode === 'string' && currencyCode.trim()
+    ? currencyCode.trim().toUpperCase()
+    : 'ARS';
+  try {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: resolvedCurrency,
+      minimumFractionDigits: 2,
+    }).format(numeric);
+  } catch {
+    return numeric.toFixed(2);
+  }
+};
+
+const VOUCHER_LABELS: Record<string, string> = {
+  '1': 'Factura A (01)',
+  '3': 'Nota de Crédito A (03)',
+  '6': 'Factura B (06)',
+  '8': 'Nota de Crédito B (08)',
+  '11': 'Factura C (11)',
+  '13': 'Nota de Crédito C (13)',
+};
+
+const CONCEPT_LABELS: Record<number, string> = {
+  1: 'Productos',
+  2: 'Servicios',
+  3: 'Productos y servicios',
+};
+
+const DOCUMENT_LABELS: Record<string, string> = {
+  '80': 'CUIT (80)',
+  '86': 'CUIL (86)',
+  '96': 'DNI (96)',
+  '94': 'Pasaporte (94)',
+};
+
+const formatVoucherType = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  const key = String(value);
+  return VOUCHER_LABELS[key] ?? key;
+};
+
+const formatConceptLabel = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return '—';
+  }
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && CONCEPT_LABELS[numeric]) {
+    return CONCEPT_LABELS[numeric];
+  }
+  return String(value);
+};
+
+const formatDocumentTypeLabel = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  const key = String(value);
+  return DOCUMENT_LABELS[key] ?? key;
+};
+
+const formatExchangeRate = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return '—';
+  }
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) {
+    return String(value);
+  }
+  return numeric.toFixed(4);
 };
 
 export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId, onClose }) => {
@@ -72,6 +140,7 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
+  const { points } = useContext(AfipPointsOfSaleContext);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -97,6 +166,34 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
     }
     return { backgroundColor: 'rgba(250,204,21,0.18)', borderColor: 'rgba(217,119,6,0.4)' };
   }, [invoice?.state, invoice?.status]);
+
+  const afipPoint = useMemo(() => {
+    if (!invoice || !invoice.afip_point_of_sale_id) {
+      return null;
+    }
+    const parsedId =
+      typeof invoice.afip_point_of_sale_id === 'number'
+        ? invoice.afip_point_of_sale_id
+        : Number(invoice.afip_point_of_sale_id);
+    if (!Number.isFinite(parsedId)) {
+      return null;
+    }
+    return points.find(point => point.id === parsedId) ?? null;
+  }, [invoice, points]);
+
+  const vatBreakdown = useMemo(() => {
+    if (!invoice || !Array.isArray(invoice.vat_breakdown)) {
+      return [];
+    }
+    return invoice.vat_breakdown;
+  }, [invoice]);
+
+  const tributes = useMemo(() => {
+    if (!invoice || !Array.isArray(invoice.tributes)) {
+      return [];
+    }
+    return invoice.tributes;
+  }, [invoice]);
 
   useEffect(() => {
     if (!canView) {
@@ -226,6 +323,25 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   const dueAt = invoice.due_at ?? invoice.due_date;
   const total = invoice.total ?? invoice.total_amount ?? invoice.amount ?? invoice.subtotal;
   const isPending = normaliseStatus(invoice.status ?? invoice.state) === 'pending';
+  const resolvedCurrency =
+    typeof invoice.currency === 'string' && invoice.currency.trim()
+      ? invoice.currency.trim().toUpperCase()
+      : 'ARS';
+  const voucherLabel = formatVoucherType(invoice.afip_voucher_type);
+  const conceptText = formatConceptLabel(invoice.concept);
+  const documentTypeLabel = formatDocumentTypeLabel(invoice.customer_document_type);
+  const documentNumber =
+    invoice.customer_document_number && String(invoice.customer_document_number).trim()
+      ? String(invoice.customer_document_number).trim()
+      : null;
+  const caeValue = invoice.cae ?? '—';
+  const caeDue = invoice.cae_due_date ? formatDate(invoice.cae_due_date) : '—';
+  const exchangeRateLabel = formatExchangeRate(invoice.exchange_rate);
+  const afipPointLabel = afipPoint
+    ? `${afipPoint.point_number.toString().padStart(4, '0')} (${afipPoint.receipt_type})`
+    : invoice.afip_point_of_sale_id
+      ? `ID ${invoice.afip_point_of_sale_id}`
+      : '—';
 
   return (
     <ScrollView
@@ -243,7 +359,7 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
 
         <View style={styles.metaRow}>
           <ThemedText style={styles.metaLabel}>Total</ThemedText>
-          <ThemedText style={styles.metaValue}>{formatCurrency(total)}</ThemedText>
+          <ThemedText style={styles.metaValue}>{formatCurrency(total, resolvedCurrency)}</ThemedText>
         </View>
 
         <View style={styles.metaRow}>
@@ -286,6 +402,101 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
           <View style={styles.metaRow}>
             <ThemedText style={styles.metaLabel}>Actualizada</ThemedText>
             <ThemedText style={styles.metaValue}>{formatDate(invoice.updated_at)}</ThemedText>
+          </View>
+        ) : null}
+
+        <View style={[styles.sectionDivider, { backgroundColor: borderColor }]} />
+        <ThemedText style={styles.sectionHeading}>Datos AFIP</ThemedText>
+
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>CAE</ThemedText>
+          <ThemedText style={styles.metaValue}>{caeValue}</ThemedText>
+        </View>
+
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>Vencimiento CAE</ThemedText>
+          <ThemedText style={styles.metaValue}>{caeDue}</ThemedText>
+        </View>
+
+        <View style={[styles.metaRow, styles.metaRowMultiline]}>
+          <ThemedText style={styles.metaLabel}>Punto de venta AFIP</ThemedText>
+          <View style={styles.metaValueGroup}>
+            <ThemedText style={styles.metaValue}>{afipPointLabel}</ThemedText>
+            {afipPoint?.description ? (
+              <ThemedText style={[styles.metaSubValue, { color: mutedText }]}>{afipPoint.description}</ThemedText>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>Tipo de comprobante</ThemedText>
+          <ThemedText style={styles.metaValue}>{voucherLabel}</ThemedText>
+        </View>
+
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>Concepto</ThemedText>
+          <ThemedText style={styles.metaValue}>{conceptText}</ThemedText>
+        </View>
+
+        <View style={[styles.metaRow, styles.metaRowMultiline]}>
+          <ThemedText style={styles.metaLabel}>Documento receptor</ThemedText>
+          <View style={styles.metaValueGroup}>
+            <ThemedText style={styles.metaValue}>{documentTypeLabel}</ThemedText>
+            {documentNumber ? (
+              <ThemedText style={[styles.metaSubValue, { color: mutedText }]}>{documentNumber}</ThemedText>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>Moneda</ThemedText>
+          <ThemedText style={styles.metaValue}>{resolvedCurrency}</ThemedText>
+        </View>
+
+        <View style={styles.metaRow}>
+          <ThemedText style={styles.metaLabel}>Cotización</ThemedText>
+          <ThemedText style={styles.metaValue}>{exchangeRateLabel}</ThemedText>
+        </View>
+
+        {vatBreakdown.length > 0 ? (
+          <View style={styles.breakdownSection}>
+            <ThemedText style={styles.sectionSubheading}>IVA discriminado</ThemedText>
+            {vatBreakdown.map((entry, index) => (
+              <View key={`vat-${index}`} style={styles.breakdownRow}>
+                <ThemedText style={[styles.breakdownLabel, { color: mutedText }]}>
+                  {entry.vat_rate}% sobre {formatCurrency(entry.taxable_amount, resolvedCurrency)}
+                </ThemedText>
+                <ThemedText style={styles.breakdownValue}>
+                  {formatCurrency(entry.vat_amount, resolvedCurrency)}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {tributes.length > 0 ? (
+          <View style={styles.breakdownSection}>
+            <ThemedText style={styles.sectionSubheading}>Percepciones / Tributos</ThemedText>
+            {tributes.map((entry, index) => (
+              <View key={`tribute-${index}`} style={styles.breakdownRow}>
+                <View style={styles.breakdownInfo}>
+                  <ThemedText style={styles.breakdownLabel}>
+                    {entry.description ?? 'Tributo informado'}
+                  </ThemedText>
+                  <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}>
+                    {entry.type ? `Código ${entry.type}` : 'Sin código asignado'}
+                  </ThemedText>
+                  {entry.base_amount !== undefined && entry.base_amount !== null ? (
+                    <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}>
+                      Base {formatCurrency(entry.base_amount, resolvedCurrency)}
+                    </ThemedText>
+                  ) : null}
+                </View>
+                <ThemedText style={styles.breakdownValue}>
+                  {formatCurrency(entry.amount, resolvedCurrency)}
+                </ThemedText>
+              </View>
+            ))}
           </View>
         ) : null}
 
@@ -352,8 +563,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
   },
+  metaRowMultiline: {
+    alignItems: 'flex-start',
+    marginTop: 12,
+  },
   metaLabel: { fontSize: 14, fontWeight: '600' },
   metaValue: { fontSize: 14 },
+  metaValueGroup: { alignItems: 'flex-end' },
+  metaSubValue: { fontSize: 12, marginTop: 2 },
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  sectionHeading: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
+  sectionSubheading: { fontSize: 15, fontWeight: '600', marginTop: 12, marginBottom: 6 },
+  breakdownSection: { marginTop: 12 },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  breakdownInfo: { flex: 1, marginRight: 12 },
+  breakdownLabel: { fontSize: 14, fontWeight: '500' },
+  breakdownSubLabel: { fontSize: 12, marginTop: 2 },
+  breakdownValue: { fontSize: 14, fontWeight: '600' },
   primaryButton: {
     marginTop: 24,
     paddingVertical: 12,
