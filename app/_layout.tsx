@@ -11,6 +11,7 @@ import { JobsProvider } from '@/contexts/JobsContext';
 import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
 import { PaymentsProvider } from '@/contexts/PaymentsContext';
 import { InvoicesProvider } from '@/contexts/InvoicesContext';
+import { AfipEventsProvider } from '@/contexts/AfipEventsContext';
 import { AfipPointsOfSaleProvider } from '@/contexts/AfipPointsOfSaleContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
@@ -95,20 +96,22 @@ export default function RootLayout() {
                                         <AppointmentsProvider>
                                           <PaymentsProvider>
                                             <InvoicesProvider>
-                                              <AfipPointsOfSaleProvider>
-                                                <ReceiptsProvider>
-                                                  <FoldersProvider>
-                                                    <CommentsProvider>
-                                                      <PendingSelectionProvider>
-                                                        <>
-                                                          <RootLayoutContent />
-                                                          <LogOverlay />
-                                                        </>
-                                                      </PendingSelectionProvider>
-                                                    </CommentsProvider>
-                                                  </FoldersProvider>
-                                                </ReceiptsProvider>
-                                              </AfipPointsOfSaleProvider>
+                                              <AfipEventsProvider>
+                                                <AfipPointsOfSaleProvider>
+                                                  <ReceiptsProvider>
+                                                    <FoldersProvider>
+                                                      <CommentsProvider>
+                                                        <PendingSelectionProvider>
+                                                          <>
+                                                            <RootLayoutContent />
+                                                            <LogOverlay />
+                                                          </>
+                                                        </PendingSelectionProvider>
+                                                      </CommentsProvider>
+                                                    </FoldersProvider>
+                                                  </ReceiptsProvider>
+                                                </AfipPointsOfSaleProvider>
+                                              </AfipEventsProvider>
                                             </InvoicesProvider>
                                           </PaymentsProvider>
                                         </AppointmentsProvider>

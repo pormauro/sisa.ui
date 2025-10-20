@@ -14,6 +14,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import { AfipEvent, parseAfipEventsCollection, parseAfipResponsePayload } from '@/types/afip';
 
 export type InvoiceStatus = 'pending' | 'paid' | 'cancelled' | string;
 
@@ -82,6 +83,8 @@ export interface Invoice {
   exchange_rate?: number | null;
   cae?: string | null;
   cae_due_date?: string | null;
+  afip_response_payload?: unknown;
+  afip_events?: AfipEvent[] | null;
   items?: AfipInvoiceItem[] | null;
   [key: string]: unknown;
 }
@@ -120,6 +123,7 @@ interface InvoicesContextValue {
   createInvoice: (payload: CreateAfipInvoicePayload) => Promise<Invoice | null>;
   submitAfipInvoice: (id: number, payload: SubmitAfipInvoicePayload) => Promise<Invoice | null>;
   annulInvoice: (id: number, payload?: AnnulInvoicePayload) => Promise<boolean>;
+  reprintInvoice: (id: number) => Promise<boolean>;
 }
 
 const noop = async () => {};
@@ -134,6 +138,7 @@ export const InvoicesContext = createContext<InvoicesContextValue>({
   createInvoice: async () => null,
   submitAfipInvoice: async () => null,
   annulInvoice: async () => false,
+  reprintInvoice: async () => false,
 });
 
 const extractInvoiceList = (payload: unknown): unknown[] => {
@@ -405,6 +410,40 @@ const toInvoice = (raw: unknown): Invoice | null => {
     normalised.items = items;
   }
 
+  const caeRaw = record['cae'] ?? record['CAE'] ?? record['cae_number'];
+  if (typeof caeRaw === 'string') {
+    const trimmed = caeRaw.trim();
+    if (trimmed) {
+      normalised.cae = trimmed;
+    }
+  } else if (typeof caeRaw === 'number') {
+    normalised.cae = caeRaw.toString();
+  }
+
+  const caeDueRaw = record['cae_due_date'] ?? record['caeDueDate'] ?? record['cae_expiration'];
+  if (typeof caeDueRaw === 'string' || typeof caeDueRaw === 'number') {
+    const value = caeDueRaw === null ? null : String(caeDueRaw);
+    if (value) {
+      normalised.cae_due_date = value;
+    }
+  }
+
+  const responsePayload = parseAfipResponsePayload(
+    record['afip_response_payload'] ?? record['afip_response'] ?? record['response_payload']
+  );
+  if (responsePayload !== undefined) {
+    normalised.afip_response_payload = responsePayload;
+  }
+
+  const events = parseAfipEventsCollection(
+    record['afip_events'] ?? record['events'] ?? record['afip_event_logs'] ?? record['event_history']
+  );
+  if (events.length > 0) {
+    normalised.afip_events = events;
+  } else if ('afip_events' in record || 'events' in record) {
+    normalised.afip_events = [];
+  }
+
   const exchangeRate = parseNumeric(record['exchange_rate'] ?? record['exchangeRate']);
   if (typeof exchangeRate === 'number') {
     normalised.exchange_rate = exchangeRate;
@@ -631,6 +670,18 @@ const extractInvoiceFromPayload = (payload: unknown): Invoice | null => {
   }
   if (typeof payload === 'object') {
     const record = payload as Record<string, unknown>;
+    if (record['afip_invoice']) {
+      const parsed = toInvoice(record['afip_invoice']);
+      if (parsed) {
+        return parsed;
+      }
+    }
+    if (record['afipInvoice']) {
+      const parsed = toInvoice(record['afipInvoice']);
+      if (parsed) {
+        return parsed;
+      }
+    }
     if (record['invoice']) {
       const parsed = toInvoice(record['invoice']);
       if (parsed) {
@@ -982,6 +1033,47 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [performInvoiceRequest, setInvoices, token]
   );
 
+  const reprintInvoice = useCallback(
+    async (id: number): Promise<boolean> => {
+      if (!token) {
+        throw new Error('Token no disponible para reimprimir factura AFIP');
+      }
+
+      try {
+        const response = await performInvoiceRequest(
+          () => `/afip/invoices/${id}/reprint`,
+          { method: 'POST' }
+        );
+
+        const contentType = response.headers.get('content-type') ?? '';
+        if (contentType.includes('application/json')) {
+          const data = await response.json().catch(() => ({}));
+          const errorMessage = parseAfipErrorMessage(data);
+          if (errorMessage) {
+            throw new Error(errorMessage);
+          }
+
+          const invoice = extractInvoiceFromPayload(data);
+          if (invoice) {
+            setInvoices(prev =>
+              ensureSortedByNewest(
+                prev.map(item => (item.id === invoice.id ? { ...item, ...invoice } : item)),
+                getDefaultSortValue
+              )
+            );
+          }
+        }
+
+        return true;
+      } catch (error) {
+        const mapped = mapAfipError(error);
+        console.error('Error requesting invoice reprint:', mapped);
+        throw mapped;
+      }
+    },
+    [performInvoiceRequest, setInvoices, token]
+  );
+
   const annulInvoice = useCallback(
     async (id: number, payload?: AnnulInvoicePayload): Promise<boolean> => {
       if (!token) {
@@ -1057,8 +1149,18 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
       createInvoice,
       submitAfipInvoice,
       annulInvoice,
+      reprintInvoice,
     }),
-    [annulInvoice, createInvoice, invoices, loadInvoices, refreshInvoice, submitAfipInvoice, updateInvoiceStatus]
+    [
+      annulInvoice,
+      createInvoice,
+      invoices,
+      loadInvoices,
+      refreshInvoice,
+      reprintInvoice,
+      submitAfipInvoice,
+      updateInvoiceStatus,
+    ]
   );
 
   return <InvoicesContext.Provider value={contextValue}>{children}</InvoicesContext.Provider>;

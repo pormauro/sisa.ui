@@ -54,6 +54,12 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'print-outline',
         requiredPermissions: ['listAfipPointsOfSale'],
       },
+      {
+        title: 'Auditoría AFIP',
+        route: '/afip/audit',
+        icon: 'search-outline',
+        requiredPermissions: ['listAfipEvents'],
+      },
     ],
   },
   {
