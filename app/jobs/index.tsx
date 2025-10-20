@@ -14,6 +14,10 @@ import { StatusesContext, Status } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { formatTimeInterval } from '@/utils/time';
+import { sortByNewest } from '@/utils/sort';
+
+type SortField = 'updatedAt' | 'jobDate';
+type SortDirection = 'asc' | 'desc';
 
 export default function JobsScreen() {
   const { jobs, loadJobs, deleteJob } = useContext(JobsContext);
@@ -25,6 +29,8 @@ export default function JobsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -54,12 +60,40 @@ export default function JobsScreen() {
     }, [permissions, loadJobs])
   );
 
-  const fuse = new Fuse(jobs, { keys: ['description', 'type_of_work'] });
+  const fuse = useMemo(() => new Fuse(jobs, { keys: ['description', 'type_of_work'] }), [jobs]);
   const filteredJobs = useMemo(() => {
     if (!search) return jobs;
     const result = fuse.search(search);
     return result.map(r => r.item);
-  }, [search, jobs]);
+  }, [search, jobs, fuse]);
+
+  const getJobUpdatedValue = useCallback((job: Job) => {
+    if (job.updated_at) return job.updated_at;
+    if (job.created_at) return job.created_at;
+    return job.job_date ?? job.id;
+  }, []);
+
+  const getJobDateValue = useCallback((job: Job) => {
+    if (!job.job_date) return job.id;
+    const time = job.start_time
+      ? job.start_time.length === 5
+        ? `${job.start_time}:00`
+        : job.start_time
+      : '00:00:00';
+    return `${job.job_date}T${time}`;
+  }, []);
+
+  const sortedJobs = useMemo(() => {
+    const list =
+      sortField === 'updatedAt'
+        ? sortByNewest(filteredJobs, getJobUpdatedValue)
+        : sortByNewest(filteredJobs, getJobDateValue);
+    return sortDirection === 'asc' ? [...list].reverse() : list;
+  }, [filteredJobs, sortField, sortDirection, getJobUpdatedValue, getJobDateValue]);
+
+  const toggleDirection = () => {
+    setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+  };
 
   // Función para buscar el objeto status que corresponda al trabajo
   const getJobStatus = (job: Job): Status | undefined => {
@@ -159,7 +193,7 @@ export default function JobsScreen() {
           </ThemedText>
           <TouchableOpacity onPress={() => handleDelete(item.id)}>
             {loadingId === item.id ? (
-              <ActivityIndicator color={itemTextColor} />
+              <ActivityIndicator color={spinnerColor} />
             ) : (
               <ThemedText style={[styles.trash, itemTextStyle]}>🗑️</ThemedText>
             )}
@@ -181,8 +215,40 @@ export default function JobsScreen() {
         placeholder="Buscar trabajo..."
         placeholderTextColor={placeholderColor}
       />
+      <View style={styles.sortRow}>
+        <View style={styles.sortButtons}>
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              { borderColor },
+              sortField === 'updatedAt' && { borderColor: addButtonColor }
+            ]}
+            onPress={() => setSortField('updatedAt')}
+          >
+            <ThemedText style={styles.sortButtonText}>Actualización</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.sortButton,
+              { borderColor },
+              sortField === 'jobDate' && { borderColor: addButtonColor }
+            ]}
+            onPress={() => setSortField('jobDate')}
+          >
+            <ThemedText style={styles.sortButtonText}>Fecha del trabajo</ThemedText>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={[styles.sortDirection, { borderColor }]}
+          onPress={toggleDirection}
+        >
+          <ThemedText style={styles.sortDirectionText}>
+            {sortDirection === 'asc' ? 'Ascendente ⬆️' : 'Descendente ⬇️'}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
       <FlatList
-        data={filteredJobs}
+        data={sortedJobs}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -206,6 +272,28 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12
+  },
+  sortButtons: { flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap' as const },
+  sortButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8
+  },
+  sortButtonText: { fontSize: 12, fontWeight: '500' },
+  sortDirection: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12
+  },
+  sortDirectionText: { fontSize: 12, fontWeight: '600' },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
