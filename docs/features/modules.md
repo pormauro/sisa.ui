@@ -6,6 +6,25 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Todas las peticiones realizadas tras el inicio de sesión deben enviar el encabezado `Authorization: Bearer <token>`; el flujo de login es la única excepción. La API tiene que emitir el token en el login y validar su presencia en el resto de rutas protegidas.【F:docs/setup-and-configuration.md†L16-L24】
 - La base de datos de `sisa.api` se mantiene sin claves foráneas: las relaciones se resuelven en la capa de aplicación. Mantén esta restricción al definir nuevas tablas o integraciones.【F:docs/setup-and-configuration.md†L21-L26】
 
+## Configuración AFIP (`AfipConfigContext`)
+### Modelo
+- `AfipConfig`: encapsula CUIT, certificado digital, clave privada, ambiente objetivo y marcas de sincronización.【F:contexts/AfipConfigContext.tsx†L16-L43】
+
+### Métodos del contexto
+- `loadAfipConfig()`: descubre el endpoint disponible, hidrata el estado cacheado y actualiza la marca de última sincronización.【F:contexts/AfipConfigContext.tsx†L127-L165】
+- `updateAfipConfig(form)`: serializa CUIT/certificado/clave, ejecuta `PUT` autenticado y refresca el estado compartido junto con la marca temporal.【F:contexts/AfipConfigContext.tsx†L88-L124】【F:contexts/AfipConfigContext.tsx†L167-L205】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/afip/settings` — lectura de la configuración vigente; el proveedor prueba candidatos y mantiene caché local.【F:contexts/AfipConfigContext.tsx†L71-L123】
+- `PUT ${BASE_URL}/afip/settings` — actualización de certificado, clave y modo de operación, siempre con token Bearer.【F:contexts/AfipConfigContext.tsx†L88-L124】【F:contexts/AfipConfigContext.tsx†L167-L205】
+
+### Consideraciones
+- La API debe persistir la configuración sin definir FOREIGN KEY, siguiendo el lineamiento general del proyecto backend.【F:docs/setup-and-configuration.md†L21-L26】
+- Todas las llamadas del contexto incluyen el encabezado `Authorization: Bearer <token>` resuelto desde `AuthContext`. No expongas estos datos en endpoints sin autenticación.【F:contexts/AfipConfigContext.tsx†L105-L123】
+
+### Pantallas relacionadas
+- `app/settings/afip/index.tsx` — formulario validado para CUIT, certificado, clave privada y modo homologación/producción, con indicadores de sincronización.【F:app/settings/afip/index.tsx†L1-L212】
+
 ## Clientes (`ClientsContext`)
 ### Modelo
 - `Client`: identifica razón social, CUIT, contacto, tarifa asociada y metadatos de versión/fechas.【F:contexts/ClientsContext.tsx†L12-L23】

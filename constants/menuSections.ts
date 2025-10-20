@@ -85,6 +85,12 @@ export const MENU_SECTIONS: MenuSection[] = [
     items: [
       { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
       { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
+      {
+        title: 'Configuración AFIP',
+        route: '/settings/afip',
+        icon: 'cloud-upload-outline',
+        requiredPermissions: ['updateConfig'],
+      },
       { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
       {
         title: 'Comentarios',
