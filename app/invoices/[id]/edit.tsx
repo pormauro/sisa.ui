@@ -169,6 +169,7 @@ export default function EditAfipInvoiceScreen() {
       onSubmit={handleSubmit}
       submitting={submitting}
       submitLabel="Enviar a AFIP"
+      onManagePointsOfSale={() => router.push('/afip/points-of-sale')}
       onCancel={() => router.back()}
     />
   );

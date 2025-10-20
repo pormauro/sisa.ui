@@ -104,6 +104,7 @@ export interface CreateAfipInvoicePayload {
   issue_date?: string | null;
   due_date?: string | null;
   observations?: string | null;
+  status?: InvoiceStatus | null;
 }
 
 export interface SubmitAfipInvoicePayload extends CreateAfipInvoicePayload {
@@ -661,6 +662,7 @@ const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitA
     ...(payload.issue_date ? { issue_date: payload.issue_date } : {}),
     ...(payload.due_date ? { due_date: payload.due_date } : {}),
     ...(payload.observations ? { observations: payload.observations } : {}),
+    ...(payload.status ? { status: payload.status } : {}),
   };
 };
 
@@ -707,7 +709,10 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
   const canListInvoices = permissions.includes('listInvoices');
   const canViewInvoices = permissions.includes('viewInvoice');
-  const canUpdateInvoiceStatus = permissions.includes('updateInvoice');
+  const canUpdateInvoiceStatus =
+    permissions.includes('updateInvoice') ||
+    permissions.includes('createInvoice') ||
+    permissions.includes('submitAfipInvoice');
   const canAccessInvoices = canListInvoices || canViewInvoices || canUpdateInvoiceStatus;
 
   useEffect(() => {

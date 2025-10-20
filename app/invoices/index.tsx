@@ -55,7 +55,10 @@ export default function InvoicesScreen() {
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canList = permissions.includes('listInvoices');
-  const canUpdateStatus = permissions.includes('updateInvoice');
+  const canUpdateStatus =
+    permissions.includes('updateInvoice') ||
+    permissions.includes('createInvoice') ||
+    permissions.includes('submitAfipInvoice');
   const canCreateInvoice =
     permissions.includes('createInvoice') ||
     permissions.includes('submitAfipInvoice') ||

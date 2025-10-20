@@ -65,7 +65,10 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   const bannerBackground = useThemeColor({ light: 'rgba(37,99,235,0.08)', dark: 'rgba(96,165,250,0.18)' }, 'background');
 
   const invoice = useMemo(() => invoices.find(item => item.id === invoiceId), [invoiceId, invoices]);
-  const canUpdateStatus = permissions.includes('updateInvoice');
+  const canUpdateStatus =
+    permissions.includes('updateInvoice') ||
+    permissions.includes('createInvoice') ||
+    permissions.includes('submitAfipInvoice');
   const canListInvoices = permissions.includes('listInvoices');
   const canViewInvoice = permissions.includes('viewInvoice');
   const canView = canListInvoices || canViewInvoice || canUpdateStatus;
