@@ -28,6 +28,7 @@ export interface Client {
 }
 
 type ClientApiResponse = Omit<Client, 'unbilled_total' | 'unpaid_invoices_total'> & {
+  finalized_jobs_total?: number | string | null;
   unbilled_total?: number | string | null;
   unpaid_invoices_total?: number | string | null;
 };
@@ -68,7 +69,9 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       if (Array.isArray(data.clients)) {
         const fetchedClients = (data.clients as ClientApiResponse[]).map(client => ({
           ...client,
-          unbilled_total: toNumericValue(client.unbilled_total),
+          unbilled_total: toNumericValue(
+            client.finalized_jobs_total ?? client.unbilled_total
+          ),
           unpaid_invoices_total: toNumericValue(client.unpaid_invoices_total),
         }));
         setClients(sortByNewest(fetchedClients, getDefaultSortValue));
