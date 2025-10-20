@@ -5,6 +5,7 @@ export default function InvoicesLayout() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ title: 'Facturación' }} />
+      <Stack.Screen name="create" options={{ title: 'Nueva factura' }} />
       <Stack.Screen
         name="[id]"
         options={{ title: 'Detalle de factura', presentation: 'modal' }}
