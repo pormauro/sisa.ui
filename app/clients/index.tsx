@@ -17,6 +17,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { formatCurrency } from '@/utils/currency';
 
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
@@ -105,6 +106,20 @@ export default function ClientsListPage() {
           {item.email ? (
             <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
           ) : null}
+          <View style={styles.amountContainer}>
+            <View style={styles.amountRow}>
+              <ThemedText style={styles.amountLabel}>Total no facturado</ThemedText>
+              <ThemedText style={styles.amountValue}>
+                {formatCurrency(item.unbilled_total)}
+              </ThemedText>
+            </View>
+            <View style={styles.amountRow}>
+              <ThemedText style={styles.amountLabel}>Facturas impagas</ThemedText>
+              <ThemedText style={styles.amountValue}>
+                {formatCurrency(item.unpaid_invoices_total)}
+              </ThemedText>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -184,6 +199,15 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, marginLeft: 12 },
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   itemSubtitle: { fontSize: 14, marginTop: 2 },
+  amountContainer: { marginTop: 8 },
+  amountRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  amountLabel: { fontSize: 13 },
+  amountValue: { fontSize: 13, fontWeight: '600' },
   actionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',

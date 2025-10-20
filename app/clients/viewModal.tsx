@@ -7,6 +7,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { formatCurrency } from '@/utils/currency';
 
 export default function ViewClientModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -63,6 +64,22 @@ export default function ViewClientModal() {
         </>
       ) : null}
 
+      <View style={styles.section}>
+        <ThemedText style={styles.sectionTitle}>Montos pendientes</ThemedText>
+        <View style={styles.sectionRow}>
+          <ThemedText style={styles.sectionLabel}>Total no facturado</ThemedText>
+          <ThemedText style={styles.sectionValue}>
+            {formatCurrency(client.unbilled_total)}
+          </ThemedText>
+        </View>
+        <View style={styles.sectionRow}>
+          <ThemedText style={styles.sectionLabel}>Facturas impagas</ThemedText>
+          <ThemedText style={styles.sectionValue}>
+            {formatCurrency(client.unpaid_invoices_total)}
+          </ThemedText>
+        </View>
+      </View>
+
       {tariff ? (
         <>
           <ThemedText style={styles.label}>Tarifa</ThemedText>
@@ -103,5 +120,15 @@ const styles = StyleSheet.create({
   container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
+  section: { marginTop: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold' },
+  sectionRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionLabel: { fontSize: 15 },
+  sectionValue: { fontSize: 15, fontWeight: '600' },
   editButton: { marginTop: 16 },
 });

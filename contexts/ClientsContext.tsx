@@ -9,6 +9,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import { toNumericValue } from '@/utils/currency';
 
 export interface Client {
   id: number;
@@ -20,9 +21,16 @@ export interface Client {
   address: string;
   tariff_id: number | null;
   version: number;
+  unbilled_total?: number;
+  unpaid_invoices_total?: number;
   created_at?: string;
   updated_at?: string;
 }
+
+type ClientApiResponse = Omit<Client, 'unbilled_total' | 'unpaid_invoices_total'> & {
+  unbilled_total?: number | string | null;
+  unpaid_invoices_total?: number | string | null;
+};
 
 interface ClientsContextValue {
   clients: Client[];
@@ -57,8 +65,12 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (data.clients) {
-        const fetchedClients = data.clients as Client[];
+      if (Array.isArray(data.clients)) {
+        const fetchedClients = (data.clients as ClientApiResponse[]).map(client => ({
+          ...client,
+          unbilled_total: toNumericValue(client.unbilled_total),
+          unpaid_invoices_total: toNumericValue(client.unpaid_invoices_total),
+        }));
         setClients(sortByNewest(fetchedClients, getDefaultSortValue));
       }
     } catch (err) {
