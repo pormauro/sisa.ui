@@ -8,6 +8,8 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import FileGallery from '@/components/FileGallery';
 import { formatTimeInterval } from '@/utils/time';
+import { formatCurrency } from '@/utils/currency';
+import { calculateJobTotal } from '@/utils/jobCost';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -79,6 +81,19 @@ export default function ViewJobModal() {
   const startStr = job?.start_time?.slice(0, 5) || '';
   const endStr = job?.end_time?.slice(0, 5) || '';
   const interval = formatTimeInterval(startStr, endStr);
+
+  const manualRate =
+    typeof job?.manual_amount === 'number' && Number.isFinite(job.manual_amount)
+      ? job.manual_amount
+      : null;
+  const tariffRate =
+    tariff && typeof tariff.amount === 'number' && Number.isFinite(tariff.amount)
+      ? tariff.amount
+      : null;
+  const appliedHourlyRate = manualRate ?? tariffRate ?? null;
+  const appliedTariffName = tariff?.name ?? (manualRate !== null ? 'Tarifa manual' : null);
+  const totalCost =
+    appliedHourlyRate !== null ? calculateJobTotal(appliedHourlyRate, job.start_time, job.end_time) : null;
 
   const filesJson = job?.attached_files
     ? typeof job.attached_files === 'string'
@@ -168,6 +183,24 @@ export default function ViewJobModal() {
         {interval ? (
           <ThemedText style={[styles.intervalText, { color: subtleTextColor }]}>Tiempo trabajado: {interval}</ThemedText>
         ) : null}
+
+        {appliedHourlyRate !== null ? (
+          <View style={styles.costBreakdown}>
+            <ThemedText style={[styles.cardLabel, { color: accentColor }]}>Tarifa aplicada</ThemedText>
+            <ThemedText style={[styles.cardValue, { color: textColor }]}> 
+              {appliedTariffName ?? '—'}
+            </ThemedText>
+            <ThemedText style={[styles.intervalText, { color: subtleTextColor }]}> 
+              Costo por hora: {formatCurrency(appliedHourlyRate)}
+            </ThemedText>
+            {totalCost !== null ? (
+              <ThemedText style={[styles.intervalText, { color: subtleTextColor }]}> 
+                Total estimado: {formatCurrency(totalCost)}
+                {interval ? ` (${interval})` : ''}
+              </ThemedText>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <ThemedText style={[styles.label, { color: textColor }]}>Participantes</ThemedText>
@@ -184,13 +217,19 @@ export default function ViewJobModal() {
         </>
       ) : null}
 
-      <ThemedText style={[styles.label, { color: textColor }]}>Nombre de la tarifa</ThemedText>
-      <ThemedText style={[styles.value, { color: textColor }]}>{tariff ? tariff.name : 'Tarifa manual'}</ThemedText>
+      {appliedHourlyRate === null ? (
+        <>
+          <ThemedText style={[styles.label, { color: textColor }]}>Nombre de la tarifa</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}> 
+            {tariff ? tariff.name : 'Tarifa manual'}
+          </ThemedText>
 
-      <ThemedText style={[styles.label, { color: textColor }]}>Monto</ThemedText>
-      <ThemedText style={[styles.value, { color: textColor }]}>
-        {job.manual_amount != null ? job.manual_amount : tariff?.amount ?? 'Sin monto'}
-      </ThemedText>
+          <ThemedText style={[styles.label, { color: textColor }]}>Monto</ThemedText>
+          <ThemedText style={[styles.value, { color: textColor }]}> 
+            {job.manual_amount != null ? job.manual_amount : tariff?.amount ?? 'Sin monto'}
+          </ThemedText>
+        </>
+      ) : null}
 
       {filesJson ? (
         <>
@@ -228,6 +267,7 @@ const styles = StyleSheet.create({
   timeBlockRight: { marginLeft: 16 },
   cardLabel: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
   cardValue: { fontSize: 20, fontWeight: '700' },
+  costBreakdown: { marginTop: 12 },
   intervalText: { marginTop: 8, fontSize: 14 },
   editButton: { marginTop: 16 },
 });
