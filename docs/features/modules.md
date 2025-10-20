@@ -222,6 +222,25 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 2. Todas las solicitudes se envían con encabezados `Authorization: Bearer <token>` reutilizando `buildHeaders`, lo que garantiza la compatibilidad con la política de autenticación del backend.【F:contexts/AfipPointsOfSaleContext.tsx†L136-L145】【F:contexts/AfipPointsOfSaleContext.tsx†L233-L296】
 3. El backend `sisa.api` debe exponer los endpoints mencionados y mantener el esquema sin claves foráneas, siguiendo la directiva general del proyecto.【F:contexts/AfipPointsOfSaleContext.tsx†L185-L317】【F:docs/setup-and-configuration.md†L21-L26】
 
+## Configuración AFIP (`AfipConfigContext`)
+### Modelo
+- `AfipConfig`: almacena CUIT normalizado, certificado, clave privada, entorno (homologación/producción) y marcas de sincronización.【F:contexts/AfipConfigContext.tsx†L18-L72】
+
+### Métodos del contexto
+- `loadAfipConfig()` resuelve el endpoint disponible, ejecuta `GET /afip/settings` (o alias compatibles) y cachea los datos junto con el timestamp de sincronización.【F:contexts/AfipConfigContext.tsx†L84-L194】
+- `updateAfipConfig(input)` serializa CUIT, certificado y clave privada, ejecuta `PUT /afip/settings` con encabezado Bearer y refresca la caché y el estado de sincronización.【F:contexts/AfipConfigContext.tsx†L74-L138】【F:contexts/AfipConfigContext.tsx†L196-L236】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/afip/settings` — intenta la ruta principal y alternativas definidas para compatibilidad retroactiva.【F:contexts/AfipConfigContext.tsx†L84-L136】【F:contexts/AfipConfigContext.tsx†L148-L194】
+- `PUT ${BASE_URL}/afip/settings` — actualiza certificado, clave y modo de entorno reutilizando la misma resolución de endpoint.【F:contexts/AfipConfigContext.tsx†L96-L138】【F:contexts/AfipConfigContext.tsx†L196-L236】
+
+### Pantallas relacionadas
+- `app/settings/afip/index.tsx` — formulario validado que emplea `ThemedTextInput`, `SecureTextInput` y radio buttons para alternar entre homologación y producción, mostrando además el estado de sincronización y controles de recarga/restablecer.【F:app/settings/afip/index.tsx†L1-L235】
+
+### Consideraciones de backend y seguridad
+- Todos los requests reutilizan el token Bearer obtenido tras el login; es obligatorio incluir `Authorization: Bearer <token>` salvo en el flujo de autenticación.【F:contexts/AfipConfigContext.tsx†L110-L136】【F:docs/setup-and-configuration.md†L14-L24】
+- La serialización se centraliza para evitar fugas de CUIT, certificado y clave privada, manteniendo la restricción de no usar claves foráneas en `sisa.api` y delegando las relaciones en la aplicación.【F:contexts/AfipConfigContext.tsx†L74-L113】【F:docs/setup-and-configuration.md†L21-L26】
+
 ## Tarifas (`TariffsContext`)
 ### Modelo
 - `Tariff`: nombre, monto y fecha de última actualización.【F:contexts/TariffsContext.tsx†L13-L17】

@@ -4,6 +4,7 @@ import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
 import { CompaniesProvider } from '@/contexts/CompaniesContext';
 import { ConfigProvider } from '@/contexts/ConfigContext';
+import { AfipConfigProvider } from '@/contexts/AfipConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
 import { JobsProvider } from '@/contexts/JobsContext';
@@ -79,8 +80,9 @@ export default function RootLayout() {
             <ProfilesProvider>
               <ProfilesListProvider>
                 <ConfigProvider>
-                  <ThemeProvider>
-                    <LogProvider>
+                  <AfipConfigProvider>
+                    <ThemeProvider>
+                      <LogProvider>
                       <CashBoxesProvider>
                         <CompaniesProvider>
                           <ClientsProvider>
@@ -121,6 +123,7 @@ export default function RootLayout() {
                       </CashBoxesProvider>
                     </LogProvider>
                   </ThemeProvider>
+                </AfipConfigProvider>
                 </ConfigProvider>
               </ProfilesListProvider>
             </ProfilesProvider>
