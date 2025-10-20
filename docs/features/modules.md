@@ -194,6 +194,34 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/receipts/[id].tsx` — edición avanzada y gestión de adjuntos.【F:app/receipts/[id].tsx†L31-L314】
 - `app/receipts/viewModal.tsx` — vista de detalle condensada.【F:app/receipts/viewModal.tsx†L1-L99】
 
+## Puntos de venta AFIP (`AfipPointsOfSaleContext`)
+### Modelo
+- `AfipPointOfSale`: número de punto, tipo de comprobante habilitado, domicilio, descripción opcional, estado activo e información de timestamps.【F:contexts/AfipPointsOfSaleContext.tsx†L19-L108】
+
+### Métodos del contexto
+- `listPoints()` consulta la API y ordena la colección para hidratar la caché local.【F:contexts/AfipPointsOfSaleContext.tsx†L179-L205】
+- `createPoint(payload)` crea o actualiza un punto de venta según la presencia de `id`, normaliza la respuesta y fusiona el resultado con el estado compartido.【F:contexts/AfipPointsOfSaleContext.tsx†L222-L275】
+- `togglePoint(id, nextActive?)` invierte o fuerza el estado lógico del punto de venta en backend y sincroniza la caché.【F:contexts/AfipPointsOfSaleContext.tsx†L278-L327】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/afip/points_of_sale` — listado completo de puntos de venta AFIP.【F:contexts/AfipPointsOfSaleContext.tsx†L185-L205】
+- `POST ${BASE_URL}/afip/points_of_sale` y `PUT ${BASE_URL}/afip/points_of_sale/{id}` — altas y ediciones, reutilizando el mismo helper autenticado.【F:contexts/AfipPointsOfSaleContext.tsx†L233-L275】
+- `POST ${BASE_URL}/afip/points_of_sale/{id}/toggle` — habilita o deshabilita un punto según el flag enviado.【F:contexts/AfipPointsOfSaleContext.tsx†L292-L317】
+
+### Permisos requeridos
+- `listAfipPointsOfSale` habilita el acceso al módulo desde el menú financiero.【F:constants/menuSections.ts†L31-L56】
+- `createAfipPointOfSale` y `updateAfipPointOfSale` controlan los botones de alta/edición tanto en el listado como en el modal.【F:app/afip/points-of-sale/index.tsx†L59-L214】【F:app/afip/points-of-sale/new.tsx†L55-L212】
+- `toggleAfipPointOfSale` determina si se muestran las acciones de habilitar/deshabilitar en la lista y se valida adicionalmente en el contexto antes de llamar al endpoint.【F:app/afip/points-of-sale/index.tsx†L59-L188】【F:contexts/AfipPointsOfSaleContext.tsx†L117-L327】
+
+### Pantallas relacionadas
+- `app/afip/points-of-sale/index.tsx` — listado con búsqueda difusa, refresco manual y acciones de alta/baja lógica.【F:app/afip/points-of-sale/index.tsx†L38-L238】
+- `app/afip/points-of-sale/new.tsx` — modal reutilizable para alta y edición con validaciones de número, comprobante y domicilio.【F:app/afip/points-of-sale/new.tsx†L30-L218】
+
+### Procedimiento de sincronización con `sisa.api`
+1. `AfipPointsOfSaleProvider` utiliza `useCachedState('afipPointsOfSale', …)` para mantener la colección disponible offline y limpiar el store si el usuario pierde el permiso de listado.【F:contexts/AfipPointsOfSaleContext.tsx†L111-L218】
+2. Todas las solicitudes se envían con encabezados `Authorization: Bearer <token>` reutilizando `buildHeaders`, lo que garantiza la compatibilidad con la política de autenticación del backend.【F:contexts/AfipPointsOfSaleContext.tsx†L136-L145】【F:contexts/AfipPointsOfSaleContext.tsx†L233-L296】
+3. El backend `sisa.api` debe exponer los endpoints mencionados y mantener el esquema sin claves foráneas, siguiendo la directiva general del proyecto.【F:contexts/AfipPointsOfSaleContext.tsx†L185-L317】【F:docs/setup-and-configuration.md†L21-L26】
+
 ## Tarifas (`TariffsContext`)
 ### Modelo
 - `Tariff`: nombre, monto y fecha de última actualización.【F:contexts/TariffsContext.tsx†L13-L17】
