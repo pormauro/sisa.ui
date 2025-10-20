@@ -1,6 +1,6 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
 import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
-import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -31,6 +31,7 @@ export default function JobsScreen() {
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [sortField, setSortField] = useState<SortField>('updatedAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [filtersVisible, setFiltersVisible] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -212,48 +213,17 @@ export default function JobsScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <TextInput
+      <TouchableOpacity
         style={[
-          styles.search,
-          { backgroundColor: inputBackground, color: inputTextColor, borderColor }
+          styles.filterButton,
+          { backgroundColor: inputBackground, borderColor }
         ]}
-        value={search}
-        onChangeText={setSearch}
-        placeholder="Buscar trabajo..."
-        placeholderTextColor={placeholderColor}
-      />
-      <View style={styles.sortRow}>
-        <View style={styles.sortButtons}>
-          <TouchableOpacity
-            style={[
-              styles.sortButton,
-              { borderColor },
-              sortField === 'updatedAt' && { borderColor: addButtonColor }
-            ]}
-            onPress={() => setSortField('updatedAt')}
-          >
-            <ThemedText style={styles.sortButtonText}>Actualización</ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.sortButton,
-              { borderColor },
-              sortField === 'jobDate' && { borderColor: addButtonColor }
-            ]}
-            onPress={() => setSortField('jobDate')}
-          >
-            <ThemedText style={styles.sortButtonText}>Fecha del trabajo</ThemedText>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity
-          style={[styles.sortDirection, { borderColor }]}
-          onPress={toggleDirection}
-        >
-          <ThemedText style={styles.sortDirectionText}>
-            {sortDirection === 'asc' ? 'Ascendente ⬆️' : 'Descendente ⬇️'}
-          </ThemedText>
-        </TouchableOpacity>
-      </View>
+        onPress={() => setFiltersVisible(true)}
+      >
+        <ThemedText style={[styles.filterButtonText, { color: inputTextColor }]}>
+          Filtros y orden
+        </ThemedText>
+      </TouchableOpacity>
       <FlatList
         data={sortedJobs}
         keyExtractor={(item) => item.id.toString()}
@@ -272,6 +242,69 @@ export default function JobsScreen() {
           ➕ Nuevo Trabajo
         </ThemedText>
       </TouchableOpacity>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={filtersVisible}
+        onRequestClose={() => setFiltersVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: inputBackground }]}>
+            <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
+            <TextInput
+              style={[
+                styles.search,
+                { backgroundColor: inputBackground, color: inputTextColor, borderColor }
+              ]}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Buscar trabajo..."
+              placeholderTextColor={placeholderColor}
+            />
+            <View style={styles.modalSection}>
+              <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
+              <View style={styles.sortButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.sortButton,
+                    { borderColor },
+                    sortField === 'updatedAt' && { borderColor: addButtonColor }
+                  ]}
+                  onPress={() => setSortField('updatedAt')}
+                >
+                  <ThemedText style={styles.sortButtonText}>Actualización</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.sortButton,
+                    { borderColor },
+                    sortField === 'jobDate' && { borderColor: addButtonColor }
+                  ]}
+                  onPress={() => setSortField('jobDate')}
+                >
+                  <ThemedText style={styles.sortButtonText}>Fecha del trabajo</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={[styles.sortDirection, { borderColor }]}
+              onPress={toggleDirection}
+            >
+              <ThemedText style={styles.sortDirectionText}>
+                {sortDirection === 'asc' ? 'Ascendente ⬆️' : 'Descendente ⬇️'}
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+              onPress={() => setFiltersVisible(false)}
+            >
+              <ThemedText style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}>
+                Aplicar filtros
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -279,26 +312,32 @@ export default function JobsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
-  sortRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12
+  filterButton: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    alignItems: 'center'
   },
+  filterButtonText: { fontWeight: '600' },
   sortButtons: { flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap' as const },
   sortButton: {
     borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    marginRight: 8
+    marginRight: 8,
+    marginBottom: 8
   },
   sortButtonText: { fontSize: 12, fontWeight: '500' },
   sortDirection: {
     borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 8,
-    paddingHorizontal: 12
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    alignItems: 'center'
   },
   sortDirectionText: { fontSize: 12, fontWeight: '600' },
   itemContainer: {
@@ -332,4 +371,23 @@ const styles = StyleSheet.create({
   addText: { fontWeight: 'bold', fontSize: 16 },
   empty: { marginTop: 20, textAlign: 'center', fontSize: 16 },
   listContent: { paddingBottom: 16 },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  modalContent: {
+    borderRadius: 12,
+    padding: 16
+  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  modalSection: { marginBottom: 12 },
+  modalSectionTitle: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  modalCloseButton: {
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center'
+  },
+  modalCloseButtonText: { fontWeight: 'bold', fontSize: 14 }
 });
