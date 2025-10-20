@@ -91,7 +91,7 @@ export interface Invoice {
 
 export interface CreateAfipInvoicePayload {
   client_id: number;
-  afip_point_of_sale_id: number;
+  afip_point_of_sale_id: number | null;
   afip_voucher_type: string | number;
   concept: number;
   items: (AfipInvoiceItem | (AfipInvoiceItem & { [key: string]: unknown }))[];
@@ -643,9 +643,13 @@ const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitA
     ? toNumber(payload.exchange_rate)
     : null;
 
+  const rawPointOfSaleId = payload.afip_point_of_sale_id;
+  const normalisedPointOfSaleId =
+    rawPointOfSaleId === null ? null : toNumber(rawPointOfSaleId);
+
   return {
     client_id: payload.client_id,
-    afip_point_of_sale_id: payload.afip_point_of_sale_id,
+    afip_point_of_sale_id: normalisedPointOfSaleId === null ? null : normalisedPointOfSaleId,
     afip_voucher_type: payload.afip_voucher_type,
     concept: payload.concept,
     items: normalisedItems,

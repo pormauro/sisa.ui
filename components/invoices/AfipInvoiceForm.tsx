@@ -77,6 +77,8 @@ interface VoucherDefinition {
   keywords: string[];
 }
 
+const FACTURA_X_VOUCHER_TYPE = '201';
+
 const VOUCHER_DEFINITIONS: VoucherDefinition[] = [
   { value: '1', label: 'Factura A (01)', keywords: ['factura a'] },
   { value: '6', label: 'Factura B (06)', keywords: ['factura b'] },
@@ -84,7 +86,7 @@ const VOUCHER_DEFINITIONS: VoucherDefinition[] = [
   { value: '3', label: 'Nota de Crédito A (03)', keywords: ['nota de credito a'] },
   { value: '8', label: 'Nota de Crédito B (08)', keywords: ['nota de credito b'] },
   { value: '13', label: 'Nota de Crédito C (13)', keywords: ['nota de credito c'] },
-  { value: '201', label: 'Factura X (201)', keywords: ['factura x'] },
+  { value: FACTURA_X_VOUCHER_TYPE, label: 'Factura X (201)', keywords: ['factura x'] },
 ];
 
 const VOUCHER_KEYWORDS = new Map<string, string[]>(
@@ -305,8 +307,10 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     []
   );
 
+  const isFacturaXVoucher = voucherType === FACTURA_X_VOUCHER_TYPE;
+
   useEffect(() => {
-    if (!voucherType) {
+    if (!voucherType || isFacturaXVoucher) {
       return;
     }
     const activePoints = points.filter(point => point.active);
@@ -326,7 +330,15 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       setPointOfSaleId(fallbackId);
     }
     setFieldError('pointOfSale', false);
-  }, [voucherType, points, pointOfSaleId, isPointCompatible, setFieldError]);
+  }, [
+    voucherType,
+    isFacturaXVoucher,
+    points,
+    pointOfSaleId,
+    isPointCompatible,
+    setFieldError,
+    setPointOfSaleId,
+  ]);
 
   useEffect(() => {
     if (clientId) {
@@ -335,10 +347,20 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   }, [clientId, setFieldError]);
 
   useEffect(() => {
+    if (isFacturaXVoucher) {
+      setFieldError('pointOfSale', false);
+      return;
+    }
     if (pointOfSaleId) {
       setFieldError('pointOfSale', false);
     }
-  }, [pointOfSaleId, setFieldError]);
+  }, [isFacturaXVoucher, pointOfSaleId, setFieldError]);
+
+  useEffect(() => {
+    if (isFacturaXVoucher && pointOfSaleId) {
+      setPointOfSaleId('');
+    }
+  }, [isFacturaXVoucher, pointOfSaleId, setPointOfSaleId]);
 
   useEffect(() => {
     if (voucherType) {
@@ -470,9 +492,22 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     setTributes(prev => prev.map((tribute, idx) => (idx === index ? { ...tribute, ...next } : tribute)));
   }, []);
 
+  const handleVoucherTypeChange = useCallback(
+    (value: string | null) => {
+      const nextValue = value ? String(value) : '';
+      setVoucherType(nextValue);
+      if (nextValue === FACTURA_X_VOUCHER_TYPE) {
+        setPointOfSaleId('');
+        setFieldError('pointOfSale', false);
+      }
+    },
+    [setFieldError, setPointOfSaleId]
+  );
+
   const buildPayload = useCallback((): CreateAfipInvoicePayload | null => {
     const missingClient = !clientId;
-    const missingPoint = !pointOfSaleId;
+    const requiresPointOfSale = voucherType !== FACTURA_X_VOUCHER_TYPE;
+    const missingPoint = requiresPointOfSale && !pointOfSaleId;
     const missingVoucher = !voucherType;
     const missingConcept = !concept;
 
@@ -480,7 +515,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       setFieldErrors(prev => ({
         ...prev,
         client: prev.client || missingClient,
-        pointOfSale: prev.pointOfSale || missingPoint,
+        pointOfSale: requiresPointOfSale ? prev.pointOfSale || missingPoint : false,
         voucherType: prev.voucherType || missingVoucher,
         concept: prev.concept || missingConcept,
       }));
@@ -494,9 +529,11 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       return null;
     }
 
+    const pointOfSalePayload = requiresPointOfSale && pointOfSaleId ? Number(pointOfSaleId) : null;
+
     return {
       client_id: Number(clientId),
-      afip_point_of_sale_id: Number(pointOfSaleId),
+      afip_point_of_sale_id: pointOfSalePayload,
       afip_voucher_type: voucherType,
       concept: Number(concept),
       items: parsedItems,
@@ -581,32 +618,6 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
             <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona un cliente.</ThemedText>
           ) : null}
 
-          <View style={[styles.pointOfSaleHeader, styles.spacingTop]}>
-            <ThemedText
-              style={[styles.label, fieldErrors.pointOfSale ? { color: destructiveColor } : null]}
-            >
-              Punto de venta AFIP
-            </ThemedText>
-            {onManagePointsOfSale ? (
-              <TouchableOpacity onPress={onManagePointsOfSale} style={styles.manageLink}>
-                <ThemedText style={[styles.manageLinkText, { color: accentColor }]}>
-                  {managePointsOfSaleLabel}
-                </ThemedText>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          <SearchableSelect
-            items={pointOptions}
-            selectedValue={pointOfSaleId || null}
-            onValueChange={value => setPointOfSaleId(value ? String(value) : '')}
-            placeholder="Selecciona punto de venta"
-            hasError={fieldErrors.pointOfSale}
-            errorColor={destructiveColor}
-          />
-          {fieldErrors.pointOfSale ? (
-            <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona un punto de venta válido.</ThemedText>
-          ) : null}
-
           <ThemedText
             style={[
               styles.label,
@@ -619,13 +630,43 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           <SearchableSelect
             items={voucherOptions}
             selectedValue={voucherType || null}
-            onValueChange={value => setVoucherType(value ? String(value) : '')}
+            onValueChange={handleVoucherTypeChange}
             placeholder="Selecciona tipo de comprobante"
             hasError={fieldErrors.voucherType}
             errorColor={destructiveColor}
           />
           {fieldErrors.voucherType ? (
             <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona el tipo de comprobante.</ThemedText>
+          ) : null}
+
+          {!isFacturaXVoucher ? (
+            <>
+              <View style={[styles.pointOfSaleHeader, styles.spacingTop]}>
+                <ThemedText
+                  style={[styles.label, fieldErrors.pointOfSale ? { color: destructiveColor } : null]}
+                >
+                  Punto de venta AFIP
+                </ThemedText>
+                {onManagePointsOfSale ? (
+                  <TouchableOpacity onPress={onManagePointsOfSale} style={styles.manageLink}>
+                    <ThemedText style={[styles.manageLinkText, { color: accentColor }]}>
+                      {managePointsOfSaleLabel}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <SearchableSelect
+                items={pointOptions}
+                selectedValue={pointOfSaleId || null}
+                onValueChange={value => setPointOfSaleId(value ? String(value) : '')}
+                placeholder="Selecciona punto de venta"
+                hasError={fieldErrors.pointOfSale}
+                errorColor={destructiveColor}
+              />
+              {fieldErrors.pointOfSale ? (
+                <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Selecciona un punto de venta válido.</ThemedText>
+              ) : null}
+            </>
           ) : null}
 
           <ThemedText
