@@ -16,6 +16,8 @@ export interface Job {
   user_id: number;
   client_id: number;
   description: string;
+  created_at?: string | null;
+  updated_at?: string | null;
   /** Fecha del trabajo en formato YYYY-MM-DD */
   job_date?: string | null;
   /** Hora de inicio en formato HH:mm */
@@ -37,12 +39,11 @@ export interface Job {
 }
 
 const getJobSortValue = (job: Job): SortableDate => {
-  const meta = job as unknown as { created_at?: string | null; updated_at?: string | null };
-  if (meta.created_at) {
-    return meta.created_at;
+  if (job.created_at) {
+    return job.created_at;
   }
-  if (meta.updated_at) {
-    return meta.updated_at;
+  if (job.updated_at) {
+    return job.updated_at;
   }
   if (job.job_date) {
     const time = job.start_time?.length === 5 ? `${job.start_time}:00` : job.start_time ?? '00:00:00';
