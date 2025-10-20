@@ -28,6 +28,12 @@ export const MENU_SECTIONS: MenuSection[] = [
     title: 'Gestión financiera',
     icon: 'cash-outline',
     items: [
+      {
+        title: 'Facturación',
+        route: '/invoices',
+        icon: 'document-text-outline',
+        requiredPermissions: ['listInvoices'],
+      },
       { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
       { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
       {
