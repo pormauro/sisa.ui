@@ -750,8 +750,11 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           ) : null}
           <TouchableOpacity
             onPress={handleSubmit}
-            style={[styles.primaryButton, { backgroundColor: buttonColor, opacity: submitting ? 0.7 : 1 }]}
-            disabled={submitting}
+            style={[
+              styles.primaryButton,
+              { backgroundColor: buttonColor, opacity: submitting || savingPending ? 0.7 : 1 },
+            ]}
+            disabled={submitting || savingPending}
           >
             <ThemedText style={[styles.primaryButtonText, { color: buttonTextColor }]}>
               {submitting ? 'Procesando…' : submitLabel}
