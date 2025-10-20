@@ -24,7 +24,7 @@ import { formatCurrency } from '@/utils/currency';
 
 type ClientFilter =
   | 'all'
-  | 'finalizedJobs'
+  | 'unbilledJobs'
   | 'unpaidInvoices'
   | 'name'
   | 'created'
@@ -32,7 +32,7 @@ type ClientFilter =
 
 const FILTER_OPTIONS: { label: string; value: ClientFilter }[] = [
   { label: 'Todos', value: 'all' },
-  { label: 'Trabajos finalizados', value: 'finalizedJobs' },
+  { label: 'Trabajos no facturados', value: 'unbilledJobs' },
   { label: 'Facturas impagas', value: 'unpaidInvoices' },
   { label: 'Nombre', value: 'name' },
   { label: 'Creado', value: 'created' },
@@ -98,7 +98,11 @@ export default function ClientsListPage() {
     let comparator: ((a: Client, b: Client) => number) | null = null;
 
     switch (selectedFilter) {
-      case 'finalizedJobs':
+      case 'unbilledJobs':
+        result = result.filter(client => getSafeTotal(client.unbilled_total) > 0);
+        comparator = (a, b) =>
+          getSafeTotal(a.unbilled_total) - getSafeTotal(b.unbilled_total);
+        break;
       case 'unpaidInvoices':
         result = result.filter(client => getSafeTotal(client.unpaid_invoices_total) > 0);
         comparator = (a, b) =>
@@ -214,12 +218,6 @@ export default function ClientsListPage() {
             </View>
             <View style={styles.amountRow}>
               <ThemedText style={styles.amountLabel}>Facturas impagas</ThemedText>
-              <ThemedText style={styles.amountValue}>
-                {formatCurrency(item.unpaid_invoices_total)}
-              </ThemedText>
-            </View>
-            <View style={styles.amountRow}>
-              <ThemedText style={styles.amountLabel}>Trabajos finalizados</ThemedText>
               <ThemedText style={styles.amountValue}>
                 {formatCurrency(item.unpaid_invoices_total)}
               </ThemedText>
