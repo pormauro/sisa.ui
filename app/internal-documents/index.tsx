@@ -1,18 +1,25 @@
 import React, { useCallback } from 'react';
 import { Alert } from 'react-native';
+// eslint-disable-next-line import/no-unresolved
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 
+import { FACTURA_X_VOUCHER_TYPE } from '@/constants/invoiceOptions';
 import {
-  AfipInvoiceForm,
-  FACTURA_X_VOUCHER_TYPE,
-} from '@/components/invoices/AfipInvoiceForm';
-import { CreateAfipInvoicePayload } from '@/contexts/InvoicesContext';
+  InternalDocumentForm,
+  InternalDocumentValues,
+} from '@/components/internal-documents/InternalDocumentForm';
 
 const InternalDocumentsScreen: React.FC = () => {
   const router = useRouter();
 
   const handleSubmit = useCallback(
-    async (_payload: CreateAfipInvoicePayload) => {
+    async (values: InternalDocumentValues) => {
+      try {
+        await Clipboard.setStringAsync(JSON.stringify(values, null, 2));
+      } catch (error) {
+        console.error('Unable to copy internal document payload:', error);
+      }
       Alert.alert(
         'Comprobante interno preparado',
         'Los datos del comprobante interno fueron copiados al portapapeles. Utilízalos en la API para registrarlo.',
@@ -28,14 +35,11 @@ const InternalDocumentsScreen: React.FC = () => {
   );
 
   return (
-    <AfipInvoiceForm
+    <InternalDocumentForm
       onSubmit={handleSubmit}
       submitLabel="Generar comprobante interno"
-      onCancel={() => router.back()}
       allowedVoucherTypes={[FACTURA_X_VOUCHER_TYPE]}
-      defaultVoucherType={FACTURA_X_VOUCHER_TYPE}
-      currencyInitiallyCollapsed
-      itemsLayout="table"
+      onCancel={() => router.back()}
     />
   );
 };
