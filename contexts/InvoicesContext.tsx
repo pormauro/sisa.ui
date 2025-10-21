@@ -1329,6 +1329,8 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
       };
 
       if (serialised.supportsNewApi) {
+        let isFallbackEligible = true;
+
         try {
           const response = await performInvoiceRequest(
             basePath => `${basePath}`,
@@ -1343,6 +1345,8 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           if (errorMessage) {
             throw new Error(errorMessage);
           }
+
+          isFallbackEligible = false;
 
           const invoice = extractInvoiceFromPayload(data);
           const invoiceId = invoice?.id ?? extractInvoiceIdentifier(data);
@@ -1370,7 +1374,7 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
           return null;
         } catch (error) {
-          if (!shouldFallbackToLegacyEndpoint(error)) {
+          if (!shouldFallbackToLegacyEndpoint(error) || !isFallbackEligible) {
             const mapped = mapAfipError(error);
             console.error('Error creating AFIP invoice:', mapped);
             throw mapped;
