@@ -14,6 +14,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { AfipPointsOfSaleContext } from '@/contexts/AfipPointsOfSaleContext';
 import { ThemedText } from '@/components/ThemedText';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import {
   formatConceptLabel,
@@ -31,7 +32,7 @@ interface InvoiceDetailViewProps {
 }
 
 const normaliseStatus = (status: string | null | undefined) =>
-  (status ?? 'pending').toString().toLowerCase();
+  (status ?? 'issued').toString().toLowerCase();
 
 const statusLabel = (status: string | null | undefined) => {
   const normalised = normaliseStatus(status);
@@ -41,21 +42,32 @@ const statusLabel = (status: string | null | undefined) => {
   if (normalised === 'cancelled' || normalised === 'canceled') {
     return 'Anulada';
   }
-  return 'Pendiente';
+  return 'Emitida';
+};
+
+const resolveNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 };
 
 export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId, onClose }) => {
-  const { invoices, refreshInvoice, updateInvoiceStatus, reprintInvoice } = useContext(InvoicesContext);
+  const { invoices, refreshInvoice, reprintInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const { points } = useContext(AfipPointsOfSaleContext);
 
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [showExpiryBanner, setShowExpiryBanner] = useState(false);
   const [expiryDismissed, setExpiryDismissed] = useState(false);
   const [isReprinting, setIsReprinting] = useState(false);
+  const [afipExpanded, setAfipExpanded] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const sectionBackground = useThemeColor({ light: '#f9fafb', dark: 'rgba(255,255,255,0.05)' }, 'background');
@@ -63,15 +75,22 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   const highlightColor = useThemeColor({ light: '#2563eb', dark: '#60a5fa' }, 'tint');
   const mutedText = useThemeColor({ light: '#6b7280', dark: '#d1d5db' }, 'text');
   const bannerBackground = useThemeColor({ light: 'rgba(37,99,235,0.08)', dark: 'rgba(96,165,250,0.18)' }, 'background');
+  const quantityFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat('es-AR', {
+        maximumFractionDigits: 4,
+      }),
+    []
+  );
 
   const invoice = useMemo(() => invoices.find(item => item.id === invoiceId), [invoiceId, invoices]);
-  const canUpdateStatus =
+  const canManageInvoices =
     permissions.includes('updateInvoice') ||
     permissions.includes('createInvoice') ||
     permissions.includes('submitAfipInvoice');
   const canListInvoices = permissions.includes('listInvoices');
   const canViewInvoice = permissions.includes('viewInvoice');
-  const canView = canListInvoices || canViewInvoice || canUpdateStatus;
+  const canView = canListInvoices || canViewInvoice || canManageInvoices;
   const statusStyles = useMemo(() => {
     const statusKey = normaliseStatus(invoice?.status ?? invoice?.state);
     if (statusKey === 'paid') {
@@ -80,7 +99,7 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
     if (statusKey === 'cancelled' || statusKey === 'canceled') {
       return { backgroundColor: 'rgba(248,113,113,0.18)', borderColor: 'rgba(220,38,38,0.4)' };
     }
-    return { backgroundColor: 'rgba(250,204,21,0.18)', borderColor: 'rgba(217,119,6,0.4)' };
+    return { backgroundColor: 'rgba(37,99,235,0.15)', borderColor: 'rgba(37,99,235,0.35)' };
   }, [invoice?.state, invoice?.status]);
 
   const afipPoint = useMemo(() => {
@@ -224,41 +243,6 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
     }
   };
 
-  const handleMarkPending = () => {
-    if (!invoice || !canUpdateStatus) {
-      return;
-    }
-
-    const statusKey = normaliseStatus(invoice.status ?? invoice.state);
-    if (statusKey === 'pending') {
-      Alert.alert('Factura pendiente', 'Esta factura ya se encuentra marcada como pendiente.');
-      return;
-    }
-
-    Alert.alert(
-      'Marcar como pendiente',
-      '¿Deseas marcar esta factura como pendiente?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Marcar',
-          style: 'default',
-          onPress: async () => {
-            setIsUpdating(true);
-            const success = await updateInvoiceStatus(invoice.id, 'pending');
-            setIsUpdating(false);
-            if (!success) {
-              return;
-            }
-            if (onClose) {
-              onClose();
-            }
-          },
-        },
-      ]
-    );
-  };
-
   if (!canView) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: background }]}>
@@ -279,8 +263,6 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
   const description = invoice.description ?? invoice.notes ?? 'Sin descripción';
   const issuedAt = invoice.issued_at ?? invoice.issue_date ?? invoice.date;
   const dueAt = invoice.due_at ?? invoice.due_date;
-  const total = invoice.total ?? invoice.total_amount ?? invoice.amount ?? invoice.subtotal;
-  const isPending = normaliseStatus(invoice.status ?? invoice.state) === 'pending';
   const resolvedCurrency =
     typeof invoice.currency === 'string' && invoice.currency.trim()
       ? invoice.currency.trim().toUpperCase()
@@ -300,6 +282,33 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
     : invoice.afip_point_of_sale_id
       ? `ID ${invoice.afip_point_of_sale_id}`
       : '—';
+  const invoiceItems = Array.isArray(invoice.items) ? invoice.items : [];
+  const itemsSubtotal = invoiceItems.reduce((sum, item) => {
+    const quantity = resolveNumber((item as Record<string, unknown>)?.['quantity'] ?? item.quantity);
+    const unitPrice = resolveNumber((item as Record<string, unknown>)?.['unit_price'] ?? item.unit_price);
+    if (quantity === null || unitPrice === null) {
+      return sum;
+    }
+    return sum + quantity * unitPrice;
+  }, 0);
+  const vatTotal = vatBreakdown.reduce((sum, entry) => {
+    const amount = resolveNumber(entry.vat_amount);
+    return amount === null ? sum : sum + amount;
+  }, 0);
+  const tributesTotal = tributes.reduce((sum, entry) => {
+    const amount = resolveNumber(entry.amount);
+    return amount === null ? sum : sum + amount;
+  }, 0);
+  const subtotalCandidate = resolveNumber(invoice.subtotal) ?? resolveNumber(invoice.amount);
+  const resolvedSubtotal = subtotalCandidate ?? itemsSubtotal;
+  const vatCandidate = resolveNumber(invoice.vat_amount);
+  const resolvedVat = vatCandidate ?? vatTotal;
+  const resolvedTributes = tributesTotal;
+  const totalCandidate =
+    resolveNumber(invoice.total) ??
+    resolveNumber(invoice.total_amount) ??
+    resolveNumber((invoice as Record<string, unknown>)?.['grand_total']);
+  const resolvedTotal = totalCandidate ?? resolvedSubtotal + resolvedVat + resolvedTributes;
 
   return (
     <ScrollView
@@ -346,13 +355,6 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
         <ThemedText style={[styles.subtitle, { color: mutedText }]}>{description}</ThemedText>
 
         <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Total</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>
-            {formatInvoiceCurrency(total, resolvedCurrency)}
-          </ThemedText>
-        </View>
-
-        <View style={invoiceSharedStyles.metaRow}>
           <ThemedText style={invoiceSharedStyles.metaLabel}>Fecha de emisión</ThemedText>
           <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(issuedAt)}</ThemedText>
         </View>
@@ -381,136 +383,184 @@ export const InvoiceDetailView: React.FC<InvoiceDetailViewProps> = ({ invoiceId,
           <ThemedText style={invoiceSharedStyles.metaValue}>{invoice.id}</ThemedText>
         </View>
 
-        {invoice.created_at ? (
-          <View style={invoiceSharedStyles.metaRow}>
-            <ThemedText style={invoiceSharedStyles.metaLabel}>Creada</ThemedText>
-            <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(invoice.created_at)}</ThemedText>
+        <View style={[invoiceSharedStyles.sectionDivider, { backgroundColor: borderColor }]} />
+        <ThemedText style={invoiceSharedStyles.sectionHeading}>Detalle de ítems</ThemedText>
+        {invoiceItems.length > 0 ? (
+          <View style={styles.itemsSection}>
+            {invoiceItems.map((item, index) => {
+              const quantity = resolveNumber((item as Record<string, unknown>)?.['quantity'] ?? item.quantity);
+              const unitPrice = resolveNumber((item as Record<string, unknown>)?.['unit_price'] ?? item.unit_price);
+              const lineSubtotal =
+                quantity !== null && unitPrice !== null ? Number((quantity * unitPrice).toFixed(2)) : null;
+              const quantityLabel = quantity !== null ? quantityFormatter.format(quantity) : null;
+              const unitLabel = quantity !== null && item.measure_unit ? ` ${item.measure_unit}` : '';
+              const unitPriceLabel = unitPrice !== null ? formatInvoiceCurrency(unitPrice, resolvedCurrency) : null;
+              const metaLabel =
+                quantityLabel === null && unitPriceLabel === null
+                  ? 'Sin datos de unidades y precio'
+                  : `${quantityLabel ?? '—'}${quantityLabel !== null ? unitLabel : ''} × ${unitPriceLabel ?? '—'}`;
+              const subtotalLabel =
+                lineSubtotal !== null ? formatInvoiceCurrency(lineSubtotal, resolvedCurrency) : '—';
+              return (
+                <View key={`item-${index}`} style={[styles.itemRow, { borderColor }]}> 
+                  <View style={styles.itemInfo}>
+                    <ThemedText style={styles.itemDescription}>
+                      {item.description && item.description.trim() ? item.description : `Ítem ${index + 1}`}
+                    </ThemedText>
+                    <ThemedText style={[styles.itemMeta, { color: mutedText }]}>{metaLabel}</ThemedText>
+                  </View>
+                  <ThemedText style={styles.itemSubtotal}>{subtotalLabel}</ThemedText>
+                </View>
+              );
+            })}
           </View>
-        ) : null}
+        ) : (
+          <ThemedText style={[styles.emptyItemsText, { color: mutedText }]}>No se registraron ítems en esta factura.</ThemedText>
+        )}
 
-        {invoice.updated_at ? (
-          <View style={invoiceSharedStyles.metaRow}>
-            <ThemedText style={invoiceSharedStyles.metaLabel}>Actualizada</ThemedText>
-            <ThemedText style={invoiceSharedStyles.metaValue}>{formatInvoiceDate(invoice.updated_at)}</ThemedText>
+        <ThemedText style={[invoiceSharedStyles.sectionHeading, styles.summaryHeading]}>Resumen</ThemedText>
+        <View style={[styles.summaryContainer, { borderColor }]}> 
+          <View style={styles.summaryRow}>
+            <ThemedText style={styles.summaryLabel}>Subtotal</ThemedText>
+            <ThemedText style={styles.summaryValue}>
+              {formatInvoiceCurrency(resolvedSubtotal, resolvedCurrency)}
+            </ThemedText>
           </View>
-        ) : null}
+          <View style={styles.summaryRow}>
+            <ThemedText style={styles.summaryLabel}>IVA</ThemedText>
+            <ThemedText style={styles.summaryValue}>
+              {formatInvoiceCurrency(resolvedVat, resolvedCurrency)}
+            </ThemedText>
+          </View>
+          {resolvedTributes > 0 ? (
+            <View style={styles.summaryRow}>
+              <ThemedText style={styles.summaryLabel}>Percepciones</ThemedText>
+              <ThemedText style={styles.summaryValue}>
+                {formatInvoiceCurrency(resolvedTributes, resolvedCurrency)}
+              </ThemedText>
+            </View>
+          ) : null}
+          <View style={[styles.summaryRow, styles.summaryRowTotal]}>
+            <ThemedText style={[styles.summaryLabel, styles.summaryTotalLabel]}>Total</ThemedText>
+            <ThemedText style={[styles.summaryValue, styles.summaryTotalValue]}>
+              {formatInvoiceCurrency(resolvedTotal, resolvedCurrency)}
+            </ThemedText>
+          </View>
+        </View>
 
         <View style={[invoiceSharedStyles.sectionDivider, { backgroundColor: borderColor }]} />
-        <ThemedText style={invoiceSharedStyles.sectionHeading}>Datos AFIP</ThemedText>
+        <TouchableOpacity
+          style={styles.sectionToggle}
+          onPress={() => setAfipExpanded(value => !value)}
+          activeOpacity={0.8}
+        >
+          <IconSymbol
+            name="chevron.right"
+            size={18}
+            color={highlightColor}
+            style={[styles.sectionToggleIcon, { transform: [{ rotate: afipExpanded ? '-90deg' : '90deg' }] }]}
+          />
+          <ThemedText style={invoiceSharedStyles.sectionHeading}>Datos AFIP</ThemedText>
+        </TouchableOpacity>
 
-        <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>CAE</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>{caeValue}</ThemedText>
-        </View>
+        {afipExpanded ? (
+          <View style={styles.afipContent}>
+            <View style={invoiceSharedStyles.metaRow}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>CAE</ThemedText>
+              <ThemedText style={invoiceSharedStyles.metaValue}>{caeValue}</ThemedText>
+            </View>
 
-        <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Vencimiento CAE</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>{caeDue}</ThemedText>
-        </View>
+            <View style={invoiceSharedStyles.metaRow}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Vencimiento CAE</ThemedText>
+              <ThemedText style={invoiceSharedStyles.metaValue}>{caeDue}</ThemedText>
+            </View>
 
-        <View style={[invoiceSharedStyles.metaRow, invoiceSharedStyles.metaRowMultiline]}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Punto de venta AFIP</ThemedText>
-          <View style={invoiceSharedStyles.metaValueGroup}>
-            <ThemedText style={invoiceSharedStyles.metaValue}>{afipPointLabel}</ThemedText>
-            {afipPoint?.description ? (
-              <ThemedText style={[invoiceSharedStyles.metaSubValue, { color: mutedText }]}>
-                {afipPoint.description}
-              </ThemedText>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Tipo de comprobante</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>{voucherLabel}</ThemedText>
-        </View>
-
-        <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Concepto</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>{conceptText}</ThemedText>
-        </View>
-
-        <View style={[invoiceSharedStyles.metaRow, invoiceSharedStyles.metaRowMultiline]}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Documento receptor</ThemedText>
-          <View style={invoiceSharedStyles.metaValueGroup}>
-            <ThemedText style={invoiceSharedStyles.metaValue}>{documentTypeLabel}</ThemedText>
-            {documentNumber ? (
-              <ThemedText style={[invoiceSharedStyles.metaSubValue, { color: mutedText }]}>
-                {documentNumber}
-              </ThemedText>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Moneda</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>{resolvedCurrency}</ThemedText>
-        </View>
-
-        <View style={invoiceSharedStyles.metaRow}>
-          <ThemedText style={invoiceSharedStyles.metaLabel}>Cotización</ThemedText>
-          <ThemedText style={invoiceSharedStyles.metaValue}>{exchangeRateLabel}</ThemedText>
-        </View>
-
-        {vatBreakdown.length > 0 ? (
-          <View style={styles.breakdownSection}>
-            <ThemedText style={styles.sectionSubheading}>IVA discriminado</ThemedText>
-            {vatBreakdown.map((entry, index) => (
-              <View key={`vat-${index}`} style={styles.breakdownRow}>
-                <ThemedText style={[styles.breakdownLabel, { color: mutedText }]}>
-                  {entry.vat_rate}% sobre {formatInvoiceCurrency(entry.taxable_amount, resolvedCurrency)}
-                </ThemedText>
-                <ThemedText style={styles.breakdownValue}>
-                  {formatInvoiceCurrency(entry.vat_amount, resolvedCurrency)}
-                </ThemedText>
+            <View style={[invoiceSharedStyles.metaRow, invoiceSharedStyles.metaRowMultiline]}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Punto de venta AFIP</ThemedText>
+              <View style={invoiceSharedStyles.metaValueGroup}>
+                <ThemedText style={invoiceSharedStyles.metaValue}>{afipPointLabel}</ThemedText>
+                {afipPoint?.description ? (
+                  <ThemedText style={[invoiceSharedStyles.metaSubValue, { color: mutedText }]}> 
+                    {afipPoint.description}
+                  </ThemedText>
+                ) : null}
               </View>
-            ))}
-          </View>
-        ) : null}
+            </View>
 
-        {tributes.length > 0 ? (
-          <View style={styles.breakdownSection}>
-            <ThemedText style={styles.sectionSubheading}>Percepciones / Tributos</ThemedText>
-            {tributes.map((entry, index) => (
-              <View key={`tribute-${index}`} style={styles.breakdownRow}>
-                <View style={styles.breakdownInfo}>
-                  <ThemedText style={styles.breakdownLabel}>
-                    {entry.description ?? 'Tributo informado'}
+            <View style={invoiceSharedStyles.metaRow}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Tipo de comprobante</ThemedText>
+              <ThemedText style={invoiceSharedStyles.metaValue}>{voucherLabel}</ThemedText>
+            </View>
+
+            <View style={invoiceSharedStyles.metaRow}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Concepto</ThemedText>
+              <ThemedText style={invoiceSharedStyles.metaValue}>{conceptText}</ThemedText>
+            </View>
+
+            <View style={[invoiceSharedStyles.metaRow, invoiceSharedStyles.metaRowMultiline]}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Documento receptor</ThemedText>
+              <View style={invoiceSharedStyles.metaValueGroup}>
+                <ThemedText style={invoiceSharedStyles.metaValue}>{documentTypeLabel}</ThemedText>
+                {documentNumber ? (
+                  <ThemedText style={[invoiceSharedStyles.metaSubValue, { color: mutedText }]}>
+                    {documentNumber}
                   </ThemedText>
-                  <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}>
-                    {entry.type ? `Código ${entry.type}` : 'Sin código asignado'}
-                  </ThemedText>
-                  {entry.base_amount !== undefined && entry.base_amount !== null ? (
-                    <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}>
-                      Base {formatInvoiceCurrency(entry.base_amount, resolvedCurrency)}
+                ) : null}
+              </View>
+            </View>
+
+            <View style={invoiceSharedStyles.metaRow}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Moneda</ThemedText>
+              <ThemedText style={invoiceSharedStyles.metaValue}>{resolvedCurrency}</ThemedText>
+            </View>
+
+            <View style={invoiceSharedStyles.metaRow}>
+              <ThemedText style={invoiceSharedStyles.metaLabel}>Cotización</ThemedText>
+              <ThemedText style={invoiceSharedStyles.metaValue}>{exchangeRateLabel}</ThemedText>
+            </View>
+
+            {vatBreakdown.length > 0 ? (
+              <View style={styles.breakdownSection}>
+                <ThemedText style={styles.sectionSubheading}>IVA discriminado</ThemedText>
+                {vatBreakdown.map((entry, index) => (
+                  <View key={`vat-${index}`} style={styles.breakdownRow}>
+                    <ThemedText style={[styles.breakdownLabel, { color: mutedText }]}> 
+                      {entry.vat_rate}% sobre {formatInvoiceCurrency(entry.taxable_amount, resolvedCurrency)}
                     </ThemedText>
-                  ) : null}
-                </View>
-                <ThemedText style={styles.breakdownValue}>
-                  {formatInvoiceCurrency(entry.amount, resolvedCurrency)}
-                </ThemedText>
+                    <ThemedText style={styles.breakdownValue}>
+                      {formatInvoiceCurrency(entry.vat_amount, resolvedCurrency)}
+                    </ThemedText>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        ) : null}
+            ) : null}
 
-        {canUpdateStatus ? (
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              { borderColor: highlightColor, opacity: isPending ? 0.6 : 1 },
-            ]}
-            onPress={handleMarkPending}
-            disabled={isUpdating || isPending}
-          >
-            {isUpdating ? (
-              <ActivityIndicator color={highlightColor} />
-            ) : (
-              <ThemedText style={[styles.primaryButtonText, { color: highlightColor }]}> 
-                {isPending ? 'Factura pendiente' : 'Marcar como pendiente'}
-              </ThemedText>
-            )}
-          </TouchableOpacity>
+            {tributes.length > 0 ? (
+              <View style={styles.breakdownSection}>
+                <ThemedText style={styles.sectionSubheading}>Percepciones / Tributos</ThemedText>
+                {tributes.map((entry, index) => (
+                  <View key={`tribute-${index}`} style={styles.breakdownRow}>
+                    <View style={styles.breakdownInfo}>
+                      <ThemedText style={styles.breakdownLabel}>
+                        {entry.description ?? 'Tributo informado'}
+                      </ThemedText>
+                      <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}> 
+                        {entry.type ? `Código ${entry.type}` : 'Sin código asignado'}
+                      </ThemedText>
+                      {entry.base_amount !== undefined && entry.base_amount !== null ? (
+                        <ThemedText style={[styles.breakdownSubLabel, { color: mutedText }]}>
+                          Base {formatInvoiceCurrency(entry.base_amount, resolvedCurrency)}
+                        </ThemedText>
+                      ) : null}
+                    </View>
+                    <ThemedText style={styles.breakdownValue}>
+                      {formatInvoiceCurrency(entry.amount, resolvedCurrency)}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         <TouchableOpacity
@@ -573,6 +623,49 @@ const styles = StyleSheet.create({
   },
   sectionHeading: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
   sectionSubheading: { fontSize: 15, fontWeight: '600', marginTop: 12, marginBottom: 6 },
+  itemsSection: { marginTop: 4, gap: 10 },
+  itemRow: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  itemInfo: { flex: 1 },
+  itemDescription: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  itemMeta: { fontSize: 13 },
+  itemSubtotal: { fontSize: 14, fontWeight: '600' },
+  emptyItemsText: { fontSize: 13, fontStyle: 'italic', marginTop: 4 },
+  summaryHeading: { marginTop: 16 },
+  summaryContainer: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  summaryLabel: { fontSize: 14, fontWeight: '500' },
+  summaryValue: { fontSize: 14, fontWeight: '600' },
+  summaryRowTotal: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 8, paddingTop: 8 },
+  summaryTotalLabel: { fontSize: 15, fontWeight: '700' },
+  summaryTotalValue: { fontSize: 16, fontWeight: '700' },
+  sectionToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  sectionToggleIcon: { marginRight: 2 },
+  afipContent: { gap: 8 },
   breakdownSection: { marginTop: 12 },
   breakdownRow: {
     flexDirection: 'row',
@@ -608,14 +701,6 @@ const styles = StyleSheet.create({
   },
   expiryButtonText: { fontSize: 14, fontWeight: '600' },
   dismissText: { fontSize: 12, textDecorationLine: 'underline' },
-  primaryButton: {
-    marginTop: 24,
-    paddingVertical: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  primaryButtonText: { fontSize: 16, fontWeight: '600' },
   secondaryButton: {
     marginTop: 12,
     paddingVertical: 10,
