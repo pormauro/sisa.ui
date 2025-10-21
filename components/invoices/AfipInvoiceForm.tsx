@@ -174,7 +174,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
 
   const [clientId, setClientId] = useState('');
   const [pointOfSaleId, setPointOfSaleId] = useState('');
-  const [voucherType, setVoucherType] = useState('');
+  const [voucherType, setVoucherType] = useState(FACTURA_X_VOUCHER_TYPE);
   const [concept, setConcept] = useState('2');
   const [issueDate, setIssueDate] = useState(() => formatDateString(new Date()));
   const [dueDate, setDueDate] = useState(() => computeDueDateFromIssueDate(formatDateString(new Date())));
