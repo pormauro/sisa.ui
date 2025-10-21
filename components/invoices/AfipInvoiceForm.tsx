@@ -460,6 +460,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           vat_amount: vatAmount,
           total_amount: total,
           measure_unit: item.measureUnit,
+          afip_iva_id: vatRate,
           net,
         };
       })
@@ -485,6 +486,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       taxable_amount: Number(totals.taxable.toFixed(2)),
       vat_amount: Number(totals.vat.toFixed(2)),
       total_amount: Number((totals.taxable + totals.vat).toFixed(2)),
+      afip_iva_id: rate,
     }));
   }, [parsedItems]);
 
@@ -609,11 +611,16 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     }
 
     const pointOfSalePayload = requiresPointOfSale && pointOfSaleId ? Number(pointOfSaleId) : null;
+    const selectedPoint = requiresPointOfSale && pointOfSaleId
+      ? points.find(point => String(point.id) === String(pointOfSaleId))
+      : null;
+    const pointOfSaleNumber = selectedPoint?.point_number ?? null;
 
     return {
       client_id: Number(clientId),
       afip_point_of_sale_id: pointOfSalePayload,
       afip_voucher_type: voucherType,
+      afip_tipo_comprobante_id: Number.isFinite(Number(voucherType)) ? Number(voucherType) : undefined,
       concept: Number(concept),
       items: parsedItems,
       vat_breakdown: vatBreakdown,
@@ -625,6 +632,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       issue_date: issueDate.trim() || undefined,
       due_date: dueDate.trim() || undefined,
       observations: observations.trim() || undefined,
+      pto_vta: pointOfSaleNumber ?? undefined,
     };
 
   }, [
@@ -644,6 +652,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     observations,
     setFieldError,
     setFieldErrors,
+    points,
   ]);
 
   const handleSubmit = useCallback(() => {
