@@ -34,6 +34,12 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'document-text-outline',
         requiredPermissions: ['listInvoices'],
       },
+      {
+        title: 'Comprobantes internos',
+        route: '/internal-documents',
+        icon: 'document-outline',
+        requiredPermissions: ['createInvoice'],
+      },
       { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
       { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
       {
