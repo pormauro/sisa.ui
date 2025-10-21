@@ -48,14 +48,7 @@ interface AfipInvoiceFormProps {
   initialInvoice?: Partial<Invoice> | null;
   submitting?: boolean;
   submitLabel?: string;
-  savingPending?: boolean;
-  savePendingLabel?: string;
   onSubmit: (payload: CreateAfipInvoicePayload, helpers: {
-    items: AfipInvoiceItem[];
-    vat_breakdown: AfipVatBreakdownEntry[];
-    tributes: AfipTributeEntry[];
-  }) => void | Promise<void>;
-  onSavePending?: (payload: CreateAfipInvoicePayload, helpers: {
     items: AfipInvoiceItem[];
     vat_breakdown: AfipVatBreakdownEntry[];
     tributes: AfipTributeEntry[];
@@ -171,10 +164,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   initialInvoice,
   submitting = false,
   submitLabel = 'Guardar factura',
-  savingPending = false,
-  savePendingLabel = 'Guardar pendiente',
   onSubmit,
-  onSavePending,
   onCancel,
   onManagePointsOfSale,
   managePointsOfSaleLabel = 'Gestionar puntos de venta',
@@ -185,7 +175,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   const [clientId, setClientId] = useState('');
   const [pointOfSaleId, setPointOfSaleId] = useState('');
   const [voucherType, setVoucherType] = useState('');
-  const [concept, setConcept] = useState('1');
+  const [concept, setConcept] = useState('2');
   const [issueDate, setIssueDate] = useState(() => formatDateString(new Date()));
   const [dueDate, setDueDate] = useState(() => computeDueDateFromIssueDate(formatDateString(new Date())));
   const [currency, setCurrency] = useState('ARS');
@@ -653,22 +643,6 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     });
   }, [buildPayload, onSubmit, parsedItems, parsedTributes, vatBreakdown]);
 
-  const handleSavePending = useCallback(() => {
-    if (!onSavePending) {
-      return;
-    }
-    const payload = buildPayload();
-    if (!payload) {
-      return;
-    }
-
-    onSavePending(payload, {
-      items: parsedItems,
-      vat_breakdown: vatBreakdown,
-      tributes: parsedTributes,
-    });
-  }, [buildPayload, onSavePending, parsedItems, parsedTributes, vatBreakdown]);
-
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <ScrollView
@@ -1010,17 +984,6 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
               <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>Cancelar</ThemedText>
             </TouchableOpacity>
           ) : null}
-          {onSavePending ? (
-            <TouchableOpacity
-              onPress={handleSavePending}
-              style={[styles.pendingButton, { borderColor: accentColor, opacity: savingPending ? 0.7 : 1 }]}
-              disabled={savingPending || submitting}
-            >
-              <ThemedText style={[styles.pendingButtonText, { color: accentColor }]}>
-                {savingPending ? 'Guardando…' : savePendingLabel}
-              </ThemedText>
-            </TouchableOpacity>
-          ) : null}
           <TouchableOpacity
             onPress={handleSubmit}
             style={[styles.primaryButton, { backgroundColor: buttonColor, opacity: submitting ? 0.7 : 1 }]}
@@ -1178,17 +1141,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 18,
     paddingVertical: 12,
-  },
-  pendingButton: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  pendingButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   secondaryButtonText: {
     fontSize: 16,

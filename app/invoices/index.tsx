@@ -5,15 +5,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, FlatList, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Fuse from 'fuse.js';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -26,7 +18,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 const normaliseStatus = (status: string | null | undefined) =>
-  (status ?? 'pending').toString().toLowerCase();
+  (status ?? 'issued').toString().toLowerCase();
 
 const getInvoiceNumber = (invoice: Invoice) =>
   invoice.number ?? invoice.invoice_number ?? invoice.code ?? `#${invoice.id}`;
@@ -34,31 +26,24 @@ const getInvoiceNumber = (invoice: Invoice) =>
 const getDescription = (invoice: Invoice) => invoice.description ?? invoice.notes ?? '';
 
 export default function InvoicesScreen() {
-  const { invoices, loadInvoices, updateInvoiceStatus } = useContext(InvoicesContext);
+  const { invoices, loadInvoices } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const router = useRouter();
 
   const [search, setSearch] = useState('');
-  const [updatingId, setUpdatingId] = useState<number | null>(null);
-
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
-  const highlightColor = useThemeColor({ light: '#2563eb', dark: '#60a5fa' }, 'tint');
   const secondaryText = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canList = permissions.includes('listInvoices');
-  const canUpdateStatus =
-    permissions.includes('updateInvoice') ||
-    permissions.includes('createInvoice') ||
-    permissions.includes('submitAfipInvoice');
   const canCreateInvoice =
     permissions.includes('createInvoice') ||
     permissions.includes('submitAfipInvoice') ||
@@ -138,7 +123,7 @@ export default function InvoicesScreen() {
     if (normalised === 'cancelled' || normalised === 'canceled') {
       return 'Anulada';
     }
-    return 'Pendiente';
+    return 'Emitida';
   };
 
   const getStatusStyle = (status: string | null | undefined) => {
@@ -149,39 +134,7 @@ export default function InvoicesScreen() {
     if (normalised === 'cancelled' || normalised === 'canceled') {
       return [styles.statusBadge, { backgroundColor: 'rgba(248,113,113,0.18)', borderColor: 'rgba(220,38,38,0.4)' }];
     }
-    return [styles.statusBadge, { backgroundColor: 'rgba(250,204,21,0.18)', borderColor: 'rgba(217,119,6,0.4)' }];
-  };
-
-  const handleMarkPending = (invoice: Invoice) => {
-    if (!canUpdateStatus) {
-      return;
-    }
-
-    const statusKey = normaliseStatus(invoice.status ?? invoice.state);
-    if (statusKey === 'pending') {
-      Alert.alert('Factura pendiente', 'Esta factura ya está marcada como pendiente.');
-      return;
-    }
-
-    Alert.alert(
-      'Marcar como pendiente',
-      '¿Deseas marcar esta factura como pendiente? Podrás actualizarla más tarde.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Marcar',
-          style: 'default',
-          onPress: async () => {
-            setUpdatingId(invoice.id);
-            const success = await updateInvoiceStatus(invoice.id, 'pending');
-            setUpdatingId(null);
-            if (!success) {
-              Alert.alert('Error', 'No se pudo actualizar la factura. Intenta nuevamente.');
-            }
-          },
-        },
-      ]
-    );
+    return [styles.statusBadge, { backgroundColor: 'rgba(37,99,235,0.15)', borderColor: 'rgba(37,99,235,0.35)' }];
   };
 
   const renderItem = ({ item }: { item: Invoice }) => {
@@ -189,10 +142,6 @@ export default function InvoicesScreen() {
     const providerName = resolveProviderName(item);
     const total = formatCurrency(item.total ?? item.amount ?? item.total_amount ?? item.subtotal);
     const statusLabel = getStatusLabel(item.status ?? item.state);
-    const isPending = normaliseStatus(item.status ?? item.state) === 'pending';
-    const buttonBorderColor = isPending ? borderColor : highlightColor;
-    const buttonTextColor = isPending ? secondaryText : highlightColor;
-    const buttonLabel = isPending ? 'Pendiente' : 'Marcar pendiente';
 
     return (
       <TouchableOpacity
@@ -217,21 +166,6 @@ export default function InvoicesScreen() {
           ) : null}
           <ThemedText style={styles.totalLine}>Total: {total}</ThemedText>
         </View>
-        {canUpdateStatus && (
-          <TouchableOpacity
-            style={[styles.pendingButton, { borderColor: buttonBorderColor, opacity: isPending ? 0.6 : 1 }]}
-            disabled={updatingId === item.id || isPending}
-            onPress={() => handleMarkPending(item)}
-          >
-            {updatingId === item.id ? (
-              <ActivityIndicator color={highlightColor} />
-            ) : (
-              <ThemedText style={[styles.pendingButtonText, { color: buttonTextColor }]}>
-                {buttonLabel}
-              </ThemedText>
-            )}
-          </TouchableOpacity>
-        )}
       </TouchableOpacity>
     );
   };
@@ -299,12 +233,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusText: { fontSize: 12, fontWeight: '600' },
-  pendingButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  pendingButtonText: { fontSize: 13, fontWeight: '600' },
   empty: { textAlign: 'center', marginTop: 40, fontSize: 16 },
 });

@@ -12,7 +12,6 @@ export default function CreateAfipInvoiceScreen() {
   const { permissions } = useContext(PermissionsContext);
 
   const [submitting, setSubmitting] = useState(false);
-  const [savingPending, setSavingPending] = useState(false);
 
   const canCreate =
     permissions.includes('createInvoice') ||
@@ -70,47 +69,11 @@ export default function CreateAfipInvoiceScreen() {
     [canCreate, createInvoice, router]
   );
 
-  const handleSavePending = useCallback(
-    async (payload: CreateAfipInvoicePayload) => {
-      if (!canCreate) {
-        Alert.alert('Permiso insuficiente', 'No puedes emitir facturas AFIP.');
-        return;
-      }
-
-      setSavingPending(true);
-      try {
-        const invoice = await createInvoice({ ...payload, status: 'pending' });
-        if (invoice) {
-          Alert.alert('Factura pendiente', 'La factura se guardó como pendiente.', [
-            {
-              text: 'Ver detalle',
-              onPress: () =>
-                router.replace({ pathname: '/invoices/[id]', params: { id: invoice.id.toString() } }),
-            },
-            { text: 'Cerrar', style: 'cancel', onPress: () => router.back() },
-          ]);
-        } else {
-          Alert.alert('Factura guardada', 'La factura quedó pendiente y podrás completarla más tarde.');
-          router.back();
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'No se pudo guardar la factura pendiente.';
-        Alert.alert('Error', message);
-      } finally {
-        setSavingPending(false);
-      }
-    },
-    [canCreate, createInvoice, router]
-  );
-
   return (
     <AfipInvoiceForm
       onSubmit={handleSubmit}
       submitting={submitting}
       submitLabel="Emitir factura AFIP"
-      onSavePending={handleSavePending}
-      savingPending={savingPending}
-      savePendingLabel="Guardar como pendiente"
       onManagePointsOfSale={() => router.push('/afip/points-of-sale')}
       onCancel={() => router.back()}
     />

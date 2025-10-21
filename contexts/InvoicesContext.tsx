@@ -16,7 +16,7 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { AfipEvent, parseAfipEventsCollection, parseAfipResponsePayload } from '@/types/afip';
 
-export type InvoiceStatus = 'pending' | 'paid' | 'cancelled' | string;
+export type InvoiceStatus = 'issued' | 'paid' | 'cancelled' | string;
 
 export interface AfipInvoiceItem {
   id?: number;
@@ -423,7 +423,7 @@ const toInvoice = (raw: unknown): Invoice | null => {
   }
 
   if (!normalised.status) {
-    normalised.status = 'pending';
+    normalised.status = 'issued';
   }
 
   const currency = parseString(record['currency'] ?? record['afip_moneda_id']);
