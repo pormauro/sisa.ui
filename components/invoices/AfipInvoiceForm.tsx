@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -28,6 +29,7 @@ import {
   CreateAfipInvoicePayload,
   Invoice,
 } from '@/contexts/InvoicesContext';
+import { useToast } from '@/contexts/ToastContext';
 
 interface ItemRow {
   description: string;
@@ -171,6 +173,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
 }) => {
   const { clients } = useContext(ClientsContext);
   const { points, listPoints } = useContext(AfipPointsOfSaleContext);
+  const { showToast } = useToast();
 
   const [clientId, setClientId] = useState('');
   const [pointOfSaleId, setPointOfSaleId] = useState('');
@@ -555,6 +558,19 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     setTributes(prev => prev.map((tribute, idx) => (idx === index ? { ...tribute, ...next } : tribute)));
   }, []);
 
+  const copyPayloadToClipboard = useCallback(
+    async (payload: CreateAfipInvoicePayload) => {
+      try {
+        await Clipboard.setStringAsync(JSON.stringify(payload, null, 2));
+        showToast('Datos del comprobante copiados al portapapeles');
+      } catch (error) {
+        console.warn('No se pudo copiar el payload de la factura', error);
+        showToast('No se pudo copiar los datos al portapapeles');
+      }
+    },
+    [showToast]
+  );
+
   const handleVoucherTypeChange = useCallback(
     (value: string | null) => {
       const nextValue = value ? String(value) : '';
@@ -636,12 +652,14 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       return;
     }
 
+    void copyPayloadToClipboard(payload);
+
     onSubmit(payload, {
       items: parsedItems,
       vat_breakdown: vatBreakdown,
       tributes: parsedTributes,
     });
-  }, [buildPayload, onSubmit, parsedItems, parsedTributes, vatBreakdown]);
+  }, [buildPayload, copyPayloadToClipboard, onSubmit, parsedItems, parsedTributes, vatBreakdown]);
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
