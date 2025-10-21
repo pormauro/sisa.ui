@@ -97,7 +97,7 @@ const getJobHourlyRate = (job: Job, tariffAmountById: Map<number, number>): numb
   return 0;
 };
 
-const isStatusFinalized = (status?: Status): boolean => {
+export const isStatusFinalized = (status?: Status): boolean => {
   if (!status) {
     return false;
   }

@@ -9,6 +9,7 @@ import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 
 export default function ViewClientModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,10 +18,12 @@ export default function ViewClientModal() {
   const { clients } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const { getTotalForClient } = useClientFinalizedJobTotals();
+  const { permissions } = useContext(PermissionsContext);
 
   const client = clients.find(c => c.id === clientId);
   const tariff = tariffs.find(t => t.id === client?.tariff_id);
   const finalizedJobsTotal = getTotalForClient(client?.id);
+  const canViewJobs = permissions.includes('listJobs');
 
   const background = useThemeColor({}, 'background');
 
@@ -112,8 +115,18 @@ export default function ViewClientModal() {
         </>
       ) : null}
 
-      <View style={styles.editButton}>
-        <Button title="Editar" onPress={() => router.push(`/clients/${client.id}`)} />
+      <View style={styles.actionsContainer}>
+        <View style={styles.actionButton}>
+          <Button title="Editar" onPress={() => router.push(`/clients/${client.id}`)} />
+        </View>
+        {canViewJobs ? (
+          <View style={styles.actionButton}>
+            <Button
+              title="Trabajos finalizados"
+              onPress={() => router.push(`/clients/finalizedJobs?id=${client.id}`)}
+            />
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -133,5 +146,10 @@ const styles = StyleSheet.create({
   },
   sectionLabel: { fontSize: 15 },
   sectionValue: { fontSize: 15, fontWeight: '600' },
-  editButton: { marginTop: 16 },
+  actionsContainer: {
+    marginTop: 16,
+  },
+  actionButton: {
+    marginBottom: 12,
+  },
 });
