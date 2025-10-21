@@ -45,9 +45,7 @@ export default function InvoicesScreen() {
 
   const canList = permissions.includes('listInvoices');
   const canCreateInvoice =
-    permissions.includes('createInvoice') ||
-    permissions.includes('submitAfipInvoice') ||
-    permissions.includes('updateInvoice');
+    permissions.includes('createInvoice') || permissions.includes('updateInvoice');
 
   useEffect(() => {
     if (!canList) {
@@ -184,7 +182,7 @@ export default function InvoicesScreen() {
           style={[styles.createButton, { backgroundColor: buttonColor }]}
           onPress={() => router.push('/invoices/create')}
         >
-          <ThemedText style={[styles.createButtonText, { color: buttonTextColor }]}>Nueva factura AFIP</ThemedText>
+          <ThemedText style={[styles.createButtonText, { color: buttonTextColor }]}>Nueva factura</ThemedText>
         </TouchableOpacity>
       ) : null}
       <FlatList
