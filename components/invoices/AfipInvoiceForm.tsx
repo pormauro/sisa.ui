@@ -14,7 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+// eslint-disable-next-line import/no-unresolved
 import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -58,6 +60,10 @@ interface AfipInvoiceFormProps {
   onCancel?: () => void;
   onManagePointsOfSale?: () => void;
   managePointsOfSaleLabel?: string;
+  defaultVoucherType?: string;
+  allowedVoucherTypes?: string[];
+  currencyInitiallyCollapsed?: boolean;
+  itemsLayout?: 'default' | 'table';
 }
 
 const CONCEPT_OPTIONS = [
@@ -72,7 +78,7 @@ interface VoucherDefinition {
   keywords: string[];
 }
 
-const FACTURA_X_VOUCHER_TYPE = '201';
+export const FACTURA_X_VOUCHER_TYPE = '201';
 
 const VOUCHER_DEFINITIONS: VoucherDefinition[] = [
   { value: '1', label: 'Factura A (01)', keywords: ['factura a'] },
@@ -96,11 +102,14 @@ const DOCUMENT_TYPES = [
   { label: 'Pasaporte (94)', value: '94' },
 ];
 
-const createEmptyItem = (): ItemRow => ({
+const DEFAULT_VAT_RATE = '21';
+const FACTURA_X_VAT_RATE = '0';
+
+const createEmptyItem = (vatRate: string = DEFAULT_VAT_RATE): ItemRow => ({
   description: '',
   quantity: '1',
   unitPrice: '0',
-  vatRate: '21',
+  vatRate,
 });
 
 const createEmptyTribute = (): TributeRow => ({
@@ -170,6 +179,10 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   onCancel,
   onManagePointsOfSale,
   managePointsOfSaleLabel = 'Gestionar puntos de venta',
+  defaultVoucherType = FACTURA_X_VOUCHER_TYPE,
+  allowedVoucherTypes,
+  currencyInitiallyCollapsed = false,
+  itemsLayout = 'default',
 }) => {
   const { clients } = useContext(ClientsContext);
   const { points, listPoints } = useContext(AfipPointsOfSaleContext);
@@ -177,7 +190,11 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
 
   const [clientId, setClientId] = useState('');
   const [pointOfSaleId, setPointOfSaleId] = useState('');
-  const [voucherType, setVoucherType] = useState(FACTURA_X_VOUCHER_TYPE);
+  const [voucherType, setVoucherType] = useState(
+    initialInvoice?.afip_voucher_type
+      ? String(initialInvoice.afip_voucher_type)
+      : defaultVoucherType
+  );
   const [concept, setConcept] = useState('2');
   const [issueDate, setIssueDate] = useState(() => formatDateString(new Date()));
   const [dueDate, setDueDate] = useState(() => computeDueDateFromIssueDate(formatDateString(new Date())));
@@ -186,7 +203,9 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   const [customerDocumentType, setCustomerDocumentType] = useState('80');
   const [customerDocumentNumber, setCustomerDocumentNumber] = useState('');
   const [observations, setObservations] = useState('');
-  const [items, setItems] = useState<ItemRow[]>([createEmptyItem()]);
+  const [items, setItems] = useState<ItemRow[]>([
+    createEmptyItem(defaultVoucherType === FACTURA_X_VOUCHER_TYPE ? FACTURA_X_VAT_RATE : DEFAULT_VAT_RATE),
+  ]);
   const [tributes, setTributes] = useState<TributeRow[]>([]);
   const [dueDateManuallySet, setDueDateManuallySet] = useState(false);
   const [customerDocumentManuallySet, setCustomerDocumentManuallySet] = useState(false);
@@ -257,7 +276,9 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
             description: item.description ?? '',
             quantity: formatNumber(item.quantity ?? 1),
             unitPrice: formatNumber(item.unit_price ?? 0),
-            vatRate: formatNumber(item.vat_rate ?? 21),
+            vatRate: formatNumber(
+              item.vat_rate ?? (initialInvoice.afip_voucher_type === FACTURA_X_VOUCHER_TYPE ? 0 : Number(DEFAULT_VAT_RATE))
+            ),
             measureUnit: item.measure_unit ?? undefined,
           }))
         );
@@ -324,12 +345,16 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
 
   const conceptOptions = useMemo(() => CONCEPT_OPTIONS, []);
 
-  const voucherOptions = useMemo(
-    () => VOUCHER_DEFINITIONS.map(definition => ({ label: definition.label, value: definition.value })),
-    []
-  );
+  const voucherOptions = useMemo(() => {
+    const definitions = allowedVoucherTypes
+      ? VOUCHER_DEFINITIONS.filter(definition => allowedVoucherTypes.includes(definition.value))
+      : VOUCHER_DEFINITIONS;
+    return definitions.map(definition => ({ label: definition.label, value: definition.value }));
+  }, [allowedVoucherTypes]);
 
   const isFacturaXVoucher = voucherType === FACTURA_X_VOUCHER_TYPE;
+  const currencyToggleEnabled = currencyInitiallyCollapsed;
+  const [currencyExpanded, setCurrencyExpanded] = useState(!currencyInitiallyCollapsed);
 
   useEffect(() => {
     if (!voucherType || isFacturaXVoucher) {
@@ -380,18 +405,36 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
   useEffect(() => {
     if (isFacturaXVoucher) {
       setFieldError('pointOfSale', false);
+      setItems(prev =>
+        prev.map(item => (item.vatRate === FACTURA_X_VAT_RATE ? item : { ...item, vatRate: FACTURA_X_VAT_RATE }))
+      );
+      if (tributes.length > 0) {
+        setTributes([]);
+      }
       return;
     }
     if (pointOfSaleId) {
       setFieldError('pointOfSale', false);
     }
-  }, [isFacturaXVoucher, pointOfSaleId, setFieldError]);
+    setItems(prev =>
+      prev.map(item => (item.vatRate === FACTURA_X_VAT_RATE ? { ...item, vatRate: DEFAULT_VAT_RATE } : item))
+    );
+  }, [isFacturaXVoucher, pointOfSaleId, setFieldError, tributes.length]);
 
   useEffect(() => {
     if (isFacturaXVoucher && pointOfSaleId) {
       setPointOfSaleId('');
     }
   }, [isFacturaXVoucher, pointOfSaleId, setPointOfSaleId]);
+
+  useEffect(() => {
+    if (!allowedVoucherTypes || allowedVoucherTypes.length === 0) {
+      return;
+    }
+    if (!allowedVoucherTypes.includes(voucherType)) {
+      setVoucherType(allowedVoucherTypes[0]);
+    }
+  }, [allowedVoucherTypes, voucherType]);
 
   useEffect(() => {
     if (voucherType) {
@@ -445,12 +488,17 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
       .map(item => {
         const quantity = normaliseNumber(item.quantity);
         const unitPrice = normaliseNumber(item.unitPrice);
-        const vatRate = normaliseNumber(item.vatRate);
-        if (quantity === null || unitPrice === null || vatRate === null) {
+        const rawVatRate = normaliseNumber(item.vatRate);
+        if (quantity === null || unitPrice === null) {
+          return null;
+        }
+        const vatRate = isFacturaXVoucher ? 0 : rawVatRate;
+        if (vatRate === null || Number.isNaN(vatRate)) {
           return null;
         }
         const net = quantity * unitPrice;
-        const vatAmount = Number((net * (vatRate / 100)).toFixed(2));
+        const percentageMultiplier = vatRate / 100;
+        const vatAmount = Number((net * percentageMultiplier).toFixed(2));
         const total = Number((net + vatAmount).toFixed(2));
         return {
           description: item.description.trim(),
@@ -465,7 +513,7 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
         };
       })
       .filter((item): item is (AfipInvoiceItem & { net: number }) => Boolean(item) && item.description.length > 0);
-  }, [items]);
+  }, [isFacturaXVoucher, items]);
 
   useEffect(() => {
     if (parsedItems.length > 0) {
@@ -534,9 +582,28 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
     }
   };
 
+  const itemSummaries = useMemo(() => {
+    return items.map(item => {
+      const quantity = normaliseNumber(item.quantity) ?? 0;
+      const unitPrice = normaliseNumber(item.unitPrice) ?? 0;
+      const enforcedVatRate = isFacturaXVoucher ? 0 : normaliseNumber(item.vatRate) ?? 0;
+      const vatMultiplier = enforcedVatRate / 100;
+      const net = quantity * unitPrice;
+      const vatAmount = net * vatMultiplier;
+      const total = net + vatAmount;
+      return {
+        net: Number(Number.isFinite(net) ? net.toFixed(2) : '0'),
+        total: Number(Number.isFinite(total) ? total.toFixed(2) : '0'),
+      };
+    });
+  }, [isFacturaXVoucher, items]);
+
   const handleAddItem = useCallback(() => {
-    setItems(prev => [...prev, createEmptyItem()]);
-  }, []);
+    setItems(prev => [
+      ...prev,
+      createEmptyItem(isFacturaXVoucher ? FACTURA_X_VAT_RATE : DEFAULT_VAT_RATE),
+    ]);
+  }, [isFacturaXVoucher]);
 
   const handleRemoveItem = useCallback((index: number) => {
     setItems(prev => (prev.length > 1 ? prev.filter((_, idx) => idx !== index) : prev));
@@ -544,9 +611,18 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
 
   const handleItemChange = useCallback((index: number, next: Partial<ItemRow>) => {
     setItems(prev =>
-      prev.map((item, idx) => (idx === index ? { ...item, ...next } : item))
+      prev.map((item, idx) => {
+        if (idx !== index) {
+          return item;
+        }
+        const updated = { ...item, ...next };
+        if (isFacturaXVoucher && updated.vatRate !== FACTURA_X_VAT_RATE) {
+          updated.vatRate = FACTURA_X_VAT_RATE;
+        }
+        return updated;
+      })
     );
-  }, []);
+  }, [isFacturaXVoucher]);
 
   const handleAddTribute = useCallback(() => {
     setTributes(prev => [...prev, createEmptyTribute()]);
@@ -788,28 +864,45 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
             </View>
           </View>
 
-          <View style={styles.row}>
-            <View style={styles.halfInput}>
-              <ThemedText style={styles.label}>Moneda</ThemedText>
-              <TextInput
-                value={currency}
-                onChangeText={text => setCurrency(text.toUpperCase())}
-                placeholder="ARS"
-                placeholderTextColor={placeholderColor}
-                style={[styles.input, { borderColor, color: textColor }]}
-              />
-            </View>
-            <View style={styles.halfInput}>
-              <ThemedText style={styles.label}>Cotización</ThemedText>
-              <TextInput
-                value={exchangeRate}
-                onChangeText={setExchangeRate}
-                placeholder="1.00"
-                keyboardType="decimal-pad"
-                placeholderTextColor={placeholderColor}
-                style={[styles.input, { borderColor, color: textColor }]}
-              />
-            </View>
+          <View style={styles.currencySection}>
+            {currencyToggleEnabled ? (
+              <TouchableOpacity
+                style={[styles.collapsibleHeader, { borderColor }]}
+                onPress={() => setCurrencyExpanded(prev => !prev)}
+              >
+                <ThemedText style={styles.label}>Moneda y cotización</ThemedText>
+                <Ionicons
+                  name={currencyExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={textColor}
+                />
+              </TouchableOpacity>
+            ) : null}
+            {(!currencyToggleEnabled || currencyExpanded) && (
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <ThemedText style={styles.label}>Moneda</ThemedText>
+                  <TextInput
+                    value={currency}
+                    onChangeText={text => setCurrency(text.toUpperCase())}
+                    placeholder="ARS"
+                    placeholderTextColor={placeholderColor}
+                    style={[styles.input, { borderColor, color: textColor }]}
+                  />
+                </View>
+                <View style={styles.halfInput}>
+                  <ThemedText style={styles.label}>Cotización</ThemedText>
+                  <TextInput
+                    value={exchangeRate}
+                    onChangeText={setExchangeRate}
+                    placeholder="1.00"
+                    keyboardType="decimal-pad"
+                    placeholderTextColor={placeholderColor}
+                    style={[styles.input, { borderColor, color: textColor }]}
+                  />
+                </View>
+              </View>
+            )}
           </View>
 
           <ThemedText style={[styles.label, styles.spacingTop]}>Documento del receptor</ThemedText>
@@ -858,128 +951,210 @@ export const AfipInvoiceForm: React.FC<AfipInvoiceFormProps> = ({
           {fieldErrors.items ? (
             <ThemedText style={[styles.errorText, { color: destructiveColor }]}>Agrega al menos un ítem válido.</ThemedText>
           ) : null}
-          {items.map((item, index) => (
-            <View key={`item-${index}`} style={[styles.itemCard, { borderColor }]}> 
-              <ThemedText style={styles.label}>Descripción</ThemedText>
-              <TextInput
-                value={item.description}
-                onChangeText={text => handleItemChange(index, { description: text })}
-                placeholder="Detalle del producto o servicio"
-                placeholderTextColor={placeholderColor}
-                style={[styles.input, styles.multiline, { borderColor, color: textColor }]}
-                multiline
-              />
-              <View style={styles.row}>
-                <View style={styles.thirdInput}>
-                  <ThemedText style={styles.label}>Cantidad</ThemedText>
-                  <TextInput
-                    value={item.quantity}
-                    onChangeText={text => handleItemChange(index, { quantity: text })}
-                    keyboardType="decimal-pad"
-                    placeholder="1"
-                    placeholderTextColor={placeholderColor}
-                    style={[styles.input, { borderColor, color: textColor }]}
-                  />
-                </View>
-                <View style={styles.thirdInput}>
-                  <ThemedText style={styles.label}>Precio unitario</ThemedText>
-                  <TextInput
-                    value={item.unitPrice}
-                    onChangeText={text => handleItemChange(index, { unitPrice: text })}
-                    keyboardType="decimal-pad"
-                    placeholder="0.00"
-                    placeholderTextColor={placeholderColor}
-                    style={[styles.input, { borderColor, color: textColor }]}
-                  />
-                </View>
-                <View style={styles.thirdInput}>
-                  <ThemedText style={styles.label}>IVA %</ThemedText>
-                  <TextInput
-                    value={item.vatRate}
-                    onChangeText={text => handleItemChange(index, { vatRate: text })}
-                    keyboardType="decimal-pad"
-                    placeholder="21"
-                    placeholderTextColor={placeholderColor}
-                    style={[styles.input, { borderColor, color: textColor }]}
-                  />
-                </View>
+          {itemsLayout === 'table' ? (
+            <View>
+              <View style={[styles.tableHeaderRow, { borderColor }]}>
+                <ThemedText style={[styles.tableHeaderCell, styles.tableDescriptionCell]}>Descripción</ThemedText>
+                <ThemedText style={styles.tableHeaderCell}>Costo</ThemedText>
+                <ThemedText style={styles.tableHeaderCell}>Unidades</ThemedText>
+                <ThemedText style={styles.tableHeaderCell}>Subtotales</ThemedText>
+                <ThemedText style={styles.tableHeaderCell}>Total</ThemedText>
+                <View style={styles.tableHeaderActions} />
               </View>
-              <TouchableOpacity
-                onPress={() => handleRemoveItem(index)}
-                style={styles.removeButton}
-              >
-                <ThemedText style={[styles.removeButtonText, { color: destructiveColor }]}>Eliminar ítem</ThemedText>
-              </TouchableOpacity>
+              {items.map((item, index) => {
+                const summary = itemSummaries[index] ?? { net: 0, total: 0 };
+                const isFirstRow = index === 0;
+                const isLastRow = index === items.length - 1;
+                const isOnlyRow = items.length === 1;
+                return (
+                  <View
+                    key={`item-${index}`}
+                    style={[
+                      styles.tableRow,
+                      { borderColor },
+                      isFirstRow ? styles.tableFirstRow : null,
+                      isLastRow ? styles.tableLastRow : null,
+                    ]}
+                  >
+                    <View style={[styles.tableCell, styles.tableDescriptionCell]}>
+                      <TextInput
+                        value={item.description}
+                        onChangeText={text => handleItemChange(index, { description: text })}
+                        placeholder="Detalle del producto o servicio"
+                        placeholderTextColor={placeholderColor}
+                        style={[styles.tableDescriptionInput, { color: textColor, borderColor }]}
+                        multiline
+                      />
+                    </View>
+                    <View style={styles.tableCell}>
+                      <TextInput
+                        value={item.unitPrice}
+                        onChangeText={text => handleItemChange(index, { unitPrice: text })}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor={placeholderColor}
+                        style={[styles.tableNumericInput, { color: textColor, borderColor }]}
+                      />
+                    </View>
+                    <View style={styles.tableCell}>
+                      <TextInput
+                        value={item.quantity}
+                        onChangeText={text => handleItemChange(index, { quantity: text })}
+                        keyboardType="decimal-pad"
+                        placeholder="1"
+                        placeholderTextColor={placeholderColor}
+                        style={[styles.tableNumericInput, { color: textColor, borderColor }]}
+                      />
+                    </View>
+                    <View style={[styles.tableCell, styles.tableNumericCell]}>
+                      <ThemedText style={styles.tableValueText}>{formatCurrencyValue(summary.net)}</ThemedText>
+                    </View>
+                    <View style={[styles.tableCell, styles.tableNumericCell]}>
+                      <ThemedText style={styles.tableValueText}>{formatCurrencyValue(summary.total)}</ThemedText>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveItem(index)}
+                      style={[styles.tableRemoveButton, isOnlyRow ? styles.tableRemoveButtonDisabled : null]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Eliminar ítem"
+                      disabled={isOnlyRow}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={isOnlyRow ? placeholderColor : destructiveColor}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
             </View>
-          ))}
+          ) : (
+            items.map((item, index) => (
+              <View key={`item-${index}`} style={[styles.itemCard, { borderColor }]}>
+                <ThemedText style={styles.label}>Descripción</ThemedText>
+                <TextInput
+                  value={item.description}
+                  onChangeText={text => handleItemChange(index, { description: text })}
+                  placeholder="Detalle del producto o servicio"
+                  placeholderTextColor={placeholderColor}
+                  style={[styles.input, styles.multiline, { borderColor, color: textColor }]}
+                  multiline
+                />
+                <View style={styles.row}>
+                  <View style={styles.thirdInput}>
+                    <ThemedText style={styles.label}>Cantidad</ThemedText>
+                    <TextInput
+                      value={item.quantity}
+                      onChangeText={text => handleItemChange(index, { quantity: text })}
+                      keyboardType="decimal-pad"
+                      placeholder="1"
+                      placeholderTextColor={placeholderColor}
+                      style={[styles.input, { borderColor, color: textColor }]}
+                    />
+                  </View>
+                  <View style={styles.thirdInput}>
+                    <ThemedText style={styles.label}>Precio unitario</ThemedText>
+                    <TextInput
+                      value={item.unitPrice}
+                      onChangeText={text => handleItemChange(index, { unitPrice: text })}
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor={placeholderColor}
+                      style={[styles.input, { borderColor, color: textColor }]}
+                    />
+                  </View>
+                  <View style={styles.thirdInput}>
+                    <ThemedText style={styles.label}>IVA %</ThemedText>
+                    <TextInput
+                      value={item.vatRate}
+                      onChangeText={text => handleItemChange(index, { vatRate: text })}
+                      keyboardType="decimal-pad"
+                      placeholder="21"
+                      placeholderTextColor={placeholderColor}
+                      style={[styles.input, { borderColor, color: textColor }]}
+                    />
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleRemoveItem(index)}
+                  style={styles.removeButton}
+                >
+                  <ThemedText style={[styles.removeButtonText, { color: destructiveColor }]}>Eliminar ítem</ThemedText>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
         </View>
 
-        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
-          <View style={styles.sectionHeader}>
-            <ThemedText style={styles.sectionTitle}>Percepciones / Tributos</ThemedText>
-            <TouchableOpacity style={[styles.addButton, { borderColor: accentColor }]} onPress={handleAddTribute}>
-              <ThemedText style={[styles.addButtonText, { color: accentColor }]}>Agregar tributo</ThemedText>
-            </TouchableOpacity>
-          </View>
-          {tributes.length === 0 ? (
-            <ThemedText style={styles.emptyHelper}>
-              Añade percepciones o impuestos adicionales solo si aplica al comprobante.
-            </ThemedText>
-          ) : null}
-          {tributes.map((tribute, index) => (
-            <View key={`tribute-${index}`} style={[styles.itemCard, { borderColor }]}> 
-              <ThemedText style={styles.label}>Descripción</ThemedText>
-              <TextInput
-                value={tribute.description}
-                onChangeText={text => handleTributeChange(index, { description: text })}
-                placeholder="Percepción IIBB, Impuesto Municipal, etc."
-                placeholderTextColor={placeholderColor}
-                style={[styles.input, styles.multiline, { borderColor, color: textColor }]}
-                multiline
-              />
-              <View style={styles.row}>
-                <View style={styles.thirdInput}>
-                  <ThemedText style={styles.label}>Tipo</ThemedText>
-                  <TextInput
-                    value={tribute.type}
-                    onChangeText={text => handleTributeChange(index, { type: text })}
-                    placeholder="Código"
-                    placeholderTextColor={placeholderColor}
-                    style={[styles.input, { borderColor, color: textColor }]}
-                  />
-                </View>
-                <View style={styles.thirdInput}>
-                  <ThemedText style={styles.label}>Importe</ThemedText>
-                  <TextInput
-                    value={tribute.amount}
-                    onChangeText={text => handleTributeChange(index, { amount: text })}
-                    placeholder="0.00"
-                    placeholderTextColor={placeholderColor}
-                    keyboardType="decimal-pad"
-                    style={[styles.input, { borderColor, color: textColor }]}
-                  />
-                </View>
-                <View style={styles.thirdInput}>
-                  <ThemedText style={styles.label}>Base imponible</ThemedText>
-                  <TextInput
-                    value={tribute.baseAmount}
-                    onChangeText={text => handleTributeChange(index, { baseAmount: text })}
-                    placeholder="0.00"
-                    placeholderTextColor={placeholderColor}
-                    keyboardType="decimal-pad"
-                    style={[styles.input, { borderColor, color: textColor }]}
-                  />
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => handleRemoveTribute(index)}
-                style={styles.removeButton}
-              >
-                <ThemedText style={[styles.removeButtonText, { color: destructiveColor }]}>Eliminar tributo</ThemedText>
+        {!isFacturaXVoucher ? (
+          <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle}>Percepciones / Tributos</ThemedText>
+              <TouchableOpacity style={[styles.addButton, { borderColor: accentColor }]} onPress={handleAddTribute}>
+                <ThemedText style={[styles.addButtonText, { color: accentColor }]}>Agregar tributo</ThemedText>
               </TouchableOpacity>
             </View>
-          ))}
-        </View>
+            {tributes.length === 0 ? (
+              <ThemedText style={styles.emptyHelper}>
+                Añade percepciones o impuestos adicionales solo si aplica al comprobante.
+              </ThemedText>
+            ) : null}
+            {tributes.map((tribute, index) => (
+              <View key={`tribute-${index}`} style={[styles.itemCard, { borderColor }]}>
+                <ThemedText style={styles.label}>Descripción</ThemedText>
+                <TextInput
+                  value={tribute.description}
+                  onChangeText={text => handleTributeChange(index, { description: text })}
+                  placeholder="Percepción IIBB, Impuesto Municipal, etc."
+                  placeholderTextColor={placeholderColor}
+                  style={[styles.input, styles.multiline, { borderColor, color: textColor }]}
+                  multiline
+                />
+                <View style={styles.row}>
+                  <View style={styles.thirdInput}>
+                    <ThemedText style={styles.label}>Tipo</ThemedText>
+                    <TextInput
+                      value={tribute.type}
+                      onChangeText={text => handleTributeChange(index, { type: text })}
+                      placeholder="Código"
+                      placeholderTextColor={placeholderColor}
+                      style={[styles.input, { borderColor, color: textColor }]}
+                    />
+                  </View>
+                  <View style={styles.thirdInput}>
+                    <ThemedText style={styles.label}>Importe</ThemedText>
+                    <TextInput
+                      value={tribute.amount}
+                      onChangeText={text => handleTributeChange(index, { amount: text })}
+                      placeholder="0.00"
+                      placeholderTextColor={placeholderColor}
+                      keyboardType="decimal-pad"
+                      style={[styles.input, { borderColor, color: textColor }]}
+                    />
+                  </View>
+                  <View style={styles.thirdInput}>
+                    <ThemedText style={styles.label}>Base imponible</ThemedText>
+                    <TextInput
+                      value={tribute.baseAmount}
+                      onChangeText={text => handleTributeChange(index, { baseAmount: text })}
+                      placeholder="0.00"
+                      placeholderTextColor={placeholderColor}
+                      keyboardType="decimal-pad"
+                      style={[styles.input, { borderColor, color: textColor }]}
+                    />
+                  </View>
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleRemoveTribute(index)}
+                  style={styles.removeButton}
+                >
+                  <ThemedText style={[styles.removeButtonText, { color: destructiveColor }]}>Eliminar tributo</ThemedText>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
           <ThemedText style={styles.sectionTitle}>Resumen</ThemedText>
@@ -1080,6 +1255,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
+  currencySection: {
+    marginTop: 12,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1103,6 +1291,84 @@ const styles = StyleSheet.create({
   manageLinkText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    marginBottom: 0,
+    borderBottomWidth: 0,
+  },
+  tableHeaderCell: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tableHeaderActions: {
+    width: 32,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderWidth: 1,
+    borderTopWidth: 0,
+  },
+  tableFirstRow: {
+    borderTopWidth: 1,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+  },
+  tableLastRow: {
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    marginBottom: 8,
+  },
+  tableCell: {
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    justifyContent: 'center',
+  },
+  tableDescriptionCell: {
+    flex: 2,
+  },
+  tableDescriptionInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  tableNumericInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  tableNumericCell: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  tableValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tableRemoveButton: {
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  tableRemoveButtonDisabled: {
+    opacity: 0.4,
   },
   itemCard: {
     borderWidth: 1,
