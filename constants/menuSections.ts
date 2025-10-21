@@ -54,18 +54,6 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'list',
         requiredPermissions: ['listCategories'],
       },
-      {
-        title: 'Puntos de venta AFIP',
-        route: '/afip/points-of-sale',
-        icon: 'print-outline',
-        requiredPermissions: ['listAfipPointsOfSale'],
-      },
-      {
-        title: 'Auditoría AFIP',
-        route: '/afip/audit',
-        icon: 'search-outline',
-        requiredPermissions: ['listAfipEvents'],
-      },
     ],
   },
   {
