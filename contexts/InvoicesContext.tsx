@@ -27,6 +27,7 @@ export interface AfipInvoiceItem {
   vat_amount?: number;
   total_amount?: number;
   measure_unit?: string | null;
+  afip_iva_id?: number | null;
 }
 
 export interface AfipVatBreakdownEntry {
@@ -35,6 +36,7 @@ export interface AfipVatBreakdownEntry {
   taxable_amount: number;
   vat_amount: number;
   total_amount?: number;
+  afip_iva_id?: number | null;
 }
 
 export interface AfipTributeEntry {
@@ -106,6 +108,11 @@ export interface CreateAfipInvoicePayload {
   due_date?: string | null;
   observations?: string | null;
   status?: InvoiceStatus | null;
+  afip_account_id?: number | null;
+  emisor_empresa_id?: number | null;
+  afip_tipo_comprobante_id?: number | string | null;
+  afip_moneda_id?: number | string | null;
+  pto_vta?: number | string | null;
 }
 
 export interface SubmitAfipInvoicePayload extends CreateAfipInvoicePayload {
@@ -649,7 +656,18 @@ const toNumber = (value: unknown): number | null => {
   return null;
 };
 
-const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitAfipInvoicePayload) => {
+type SerialisedAfipInvoicePayload = {
+  supportsNewApi: boolean;
+  comprobante: Record<string, unknown>;
+  comprobanteItems: Record<string, unknown>[];
+  comprobanteVatSummary: Record<string, unknown>[];
+  tributes: AfipTributeEntry[];
+  legacy: Record<string, unknown>;
+};
+
+const normaliseAfipInvoicePayload = (
+  payload: CreateAfipInvoicePayload | SubmitAfipInvoicePayload
+): SerialisedAfipInvoicePayload => {
   const normalisedItems = (payload.items ?? [])
     .map(item => {
       const quantity = toNumber(item.quantity);
@@ -659,22 +677,29 @@ const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitA
         return null;
       }
       const net = quantity * unitPrice;
-      const vatAmount =
+      const vatAmountRaw =
         item.vat_amount !== undefined && item.vat_amount !== null
           ? toNumber(item.vat_amount) ?? Number((net * (vatRate / 100)).toFixed(2))
           : Number((net * (vatRate / 100)).toFixed(2));
-      const totalAmount =
+      const vatAmount = typeof vatAmountRaw === 'number' ? Number(vatAmountRaw.toFixed(2)) : Number((net * (vatRate / 100)).toFixed(2));
+      const totalAmountRaw =
         item.total_amount !== undefined && item.total_amount !== null
-          ? toNumber(item.total_amount) ?? Number(((vatAmount ?? 0) + net).toFixed(2))
-          : Number(((vatAmount ?? 0) + net).toFixed(2));
+          ? toNumber(item.total_amount) ?? Number((vatAmount + net).toFixed(2))
+          : Number((vatAmount + net).toFixed(2));
+      const totalAmount = typeof totalAmountRaw === 'number' ? Number(totalAmountRaw.toFixed(2)) : Number((vatAmount + net).toFixed(2));
+      const vatId =
+        item.afip_iva_id !== undefined && item.afip_iva_id !== null
+          ? toNumber(item.afip_iva_id)
+          : vatRate;
       return {
         ...(item.id ? { id: item.id } : {}),
         description: item.description,
         quantity,
         unit_price: unitPrice,
         vat_rate: vatRate,
-        ...(typeof vatAmount === 'number' ? { vat_amount: Number(vatAmount.toFixed(2)) } : {}),
-        ...(typeof totalAmount === 'number' ? { total_amount: Number(totalAmount.toFixed(2)) } : {}),
+        ...(typeof vatId === 'number' && Number.isFinite(vatId) ? { afip_iva_id: vatId } : {}),
+        vat_amount: vatAmount,
+        total_amount: totalAmount,
         ...(item.measure_unit ? { measure_unit: item.measure_unit } : {}),
       };
     })
@@ -692,12 +717,17 @@ const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitA
         entry.total_amount !== undefined && entry.total_amount !== null
           ? toNumber(entry.total_amount)
           : Number((taxable + vatAmount).toFixed(2));
+      const vatId =
+        entry.afip_iva_id !== undefined && entry.afip_iva_id !== null
+          ? toNumber(entry.afip_iva_id)
+          : vatRate;
       return {
         ...(entry.id ? { id: entry.id } : {}),
         vat_rate: vatRate,
         taxable_amount: Number(taxable.toFixed(2)),
         vat_amount: Number(vatAmount.toFixed(2)),
         ...(typeof total === 'number' ? { total_amount: Number(total.toFixed(2)) } : {}),
+        ...(typeof vatId === 'number' && Number.isFinite(vatId) ? { afip_iva_id: vatId } : {}),
       };
     })
     .filter((entry): entry is AfipVatBreakdownEntry => Boolean(entry));
@@ -721,15 +751,93 @@ const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitA
     .filter((entry): entry is AfipTributeEntry => Boolean(entry));
 
   const currency = payload.currency ? String(payload.currency).toUpperCase().trim() : undefined;
-  const exchangeRate = payload.exchange_rate !== undefined && payload.exchange_rate !== null
-    ? toNumber(payload.exchange_rate)
-    : null;
+  const exchangeRateValue =
+    payload.exchange_rate !== undefined && payload.exchange_rate !== null ? toNumber(payload.exchange_rate) : null;
+  const exchangeRate =
+    exchangeRateValue !== null && Number.isFinite(exchangeRateValue) ? Number(exchangeRateValue.toFixed(6)) : 1;
 
   const rawPointOfSaleId = payload.afip_point_of_sale_id;
-  const normalisedPointOfSaleId =
-    rawPointOfSaleId === null ? null : toNumber(rawPointOfSaleId);
+  const normalisedPointOfSaleId = rawPointOfSaleId === null ? null : toNumber(rawPointOfSaleId);
 
-  return {
+  const voucherTypeIdRaw =
+    payload.afip_tipo_comprobante_id !== undefined && payload.afip_tipo_comprobante_id !== null
+      ? toNumber(payload.afip_tipo_comprobante_id)
+      : toNumber(payload.afip_voucher_type);
+  const voucherTypeId = voucherTypeIdRaw !== null && Number.isFinite(voucherTypeIdRaw) ? voucherTypeIdRaw : null;
+
+  const currencyIdRaw =
+    payload.afip_moneda_id !== undefined && payload.afip_moneda_id !== null ? toNumber(payload.afip_moneda_id) : null;
+  const currencyId = currencyIdRaw !== null && Number.isFinite(currencyIdRaw) ? currencyIdRaw : null;
+
+  const pointOfSaleNumberRaw =
+    payload.pto_vta !== undefined && payload.pto_vta !== null ? toNumber(payload.pto_vta) : null;
+  const pointOfSaleNumber =
+    pointOfSaleNumberRaw !== null && Number.isFinite(pointOfSaleNumberRaw) ? pointOfSaleNumberRaw : null;
+
+  const netAmount = normalisedItems.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+  const vatAmountTotal = normalisedItems.reduce((sum, item) => sum + (item.vat_amount ?? 0), 0);
+  const tributesTotal = normalisedTributes.reduce((sum, entry) => sum + entry.amount, 0);
+  const grandTotal = Number((netAmount + vatAmountTotal + tributesTotal).toFixed(2));
+
+  const emissionDate = payload.issue_date && payload.issue_date.trim() ? payload.issue_date.trim() : new Date().toISOString().slice(0, 10);
+
+  const comprobantePayload: Record<string, unknown> = {
+    receptor_empresa_id: payload.client_id,
+    concepto: payload.concept,
+    fecha_emision: emissionDate,
+    cotizacion: exchangeRate,
+    imp_total: grandTotal,
+    imp_neto: Number(netAmount.toFixed(2)),
+    imp_iva: Number(vatAmountTotal.toFixed(2)),
+    ...(tributesTotal > 0 ? { imp_trib: Number(tributesTotal.toFixed(2)) } : {}),
+    ...(voucherTypeId !== null ? { afip_tipo_comprobante_id: voucherTypeId } : {}),
+    ...(payload.due_date ? { fecha_vencimiento: payload.due_date } : {}),
+    ...(currencyId !== null ? { afip_moneda_id: currencyId } : {}),
+    ...(currency && currencyId === null ? { afip_moneda: currency } : {}),
+    ...(payload.afip_account_id !== undefined && payload.afip_account_id !== null
+      ? { afip_account_id: payload.afip_account_id }
+      : {}),
+    ...(payload.emisor_empresa_id !== undefined && payload.emisor_empresa_id !== null
+      ? { emisor_empresa_id: payload.emisor_empresa_id }
+      : {}),
+    ...(normalisedPointOfSaleId !== null ? { afip_punto_de_venta_id: normalisedPointOfSaleId } : {}),
+    ...(pointOfSaleNumber !== null ? { pto_vta: pointOfSaleNumber } : {}),
+    ...(payload.customer_document_type ? { receptor_doc_tipo: payload.customer_document_type } : {}),
+    ...(payload.customer_document_number ? { receptor_doc_nro: payload.customer_document_number } : {}),
+    ...(payload.observations ? { observaciones: payload.observations } : {}),
+    ...(payload.status ? { estado: payload.status } : {}),
+    ...(currency ? { moneda: currency } : {}),
+  };
+
+  const comprobanteItems = normalisedItems.map(item => {
+    const vatId = item.afip_iva_id ?? item.vat_rate;
+    const resolvedVatId = vatId !== null && vatId !== undefined ? toNumber(vatId) : null;
+    const baseAmount = Number((item.quantity * item.unit_price).toFixed(2));
+    const vatAmount = Number((item.vat_amount ?? 0).toFixed(2));
+    const subtotal = Number((item.total_amount ?? baseAmount + vatAmount).toFixed(2));
+    return {
+      descripcion: item.description,
+      cantidad: item.quantity,
+      precio_unitario: Number(item.unit_price.toFixed(2)),
+      base_imponible: baseAmount,
+      importe_iva: vatAmount,
+      subtotal,
+      ...(resolvedVatId !== null && Number.isFinite(resolvedVatId) ? { afip_iva_id: resolvedVatId } : {}),
+    };
+  });
+
+  const comprobanteVatSummary = normalisedVat.map(entry => {
+    const vatId = entry.afip_iva_id ?? entry.vat_rate;
+    const resolvedVatId = vatId !== null && vatId !== undefined ? toNumber(vatId) : null;
+    return {
+      base_imponible: Number(entry.taxable_amount.toFixed(2)),
+      importe: Number(entry.vat_amount.toFixed(2)),
+      ...(entry.total_amount !== undefined ? { total: Number(entry.total_amount.toFixed(2)) } : {}),
+      ...(resolvedVatId !== null && Number.isFinite(resolvedVatId) ? { afip_iva_id: resolvedVatId } : {}),
+    };
+  });
+
+  const legacyPayload: Record<string, unknown> = {
     client_id: payload.client_id,
     afip_point_of_sale_id: normalisedPointOfSaleId === null ? null : normalisedPointOfSaleId,
     afip_voucher_type: payload.afip_voucher_type,
@@ -737,19 +845,62 @@ const normaliseAfipInvoicePayload = (payload: CreateAfipInvoicePayload | SubmitA
     items: normalisedItems,
     ...(normalisedVat.length > 0 ? { vat_breakdown: normalisedVat } : {}),
     ...(normalisedTributes.length > 0 ? { tributes: normalisedTributes } : {}),
-    ...(payload.customer_document_type
-      ? { customer_document_type: payload.customer_document_type }
-      : {}),
-    ...(payload.customer_document_number
-      ? { customer_document_number: payload.customer_document_number }
-      : {}),
+    ...(payload.customer_document_type ? { customer_document_type: payload.customer_document_type } : {}),
+    ...(payload.customer_document_number ? { customer_document_number: payload.customer_document_number } : {}),
     ...(currency ? { currency } : {}),
-    ...(exchangeRate !== null ? { exchange_rate: Number(exchangeRate.toFixed(6)) } : {}),
+    ...(exchangeRateValue !== null && Number.isFinite(exchangeRateValue)
+      ? { exchange_rate: Number(exchangeRateValue.toFixed(6)) }
+      : {}),
     ...(payload.issue_date ? { issue_date: payload.issue_date } : {}),
     ...(payload.due_date ? { due_date: payload.due_date } : {}),
     ...(payload.observations ? { observations: payload.observations } : {}),
     ...(payload.status ? { status: payload.status } : {}),
   };
+
+  const supportsNewApi =
+    typeof payload.afip_account_id === 'number' &&
+    Number.isFinite(payload.afip_account_id) &&
+    voucherTypeId !== null &&
+    typeof payload.concept === 'number' &&
+    Number.isFinite(payload.concept) &&
+    typeof comprobantePayload.fecha_emision === 'string' &&
+    comprobantePayload.fecha_emision.length > 0 &&
+    currencyId !== null &&
+    typeof comprobantePayload.cotizacion === 'number' &&
+    Number.isFinite(comprobantePayload.cotizacion as number) &&
+    typeof payload.emisor_empresa_id === 'number' &&
+    Number.isFinite(payload.emisor_empresa_id) &&
+    Number.isFinite(grandTotal) &&
+    ((typeof normalisedPointOfSaleId === 'number' && Number.isFinite(normalisedPointOfSaleId)) ||
+      (typeof pointOfSaleNumber === 'number' && Number.isFinite(pointOfSaleNumber)));
+
+  return {
+    supportsNewApi,
+    comprobante: comprobantePayload,
+    comprobanteItems,
+    comprobanteVatSummary,
+    tributes: normalisedTributes,
+    legacy: legacyPayload,
+  };
+};
+
+const shouldFallbackToLegacyEndpoint = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const status = (error as ExtendedHttpError).status;
+  return typeof status === 'number' && [404, 405, 415, 501].includes(status);
+};
+
+const extractNumericId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 };
 
 const extractInvoiceFromPayload = (payload: unknown): Invoice | null => {
@@ -784,6 +935,50 @@ const extractInvoiceFromPayload = (payload: unknown): Invoice | null => {
     }
   }
   return toInvoice(payload);
+};
+
+const extractInvoiceIdentifier = (payload: unknown): number | null => {
+  const parsed = extractInvoiceFromPayload(payload);
+  if (parsed && typeof parsed.id === 'number' && Number.isFinite(parsed.id)) {
+    return parsed.id;
+  }
+
+  if (Array.isArray(payload)) {
+    for (const entry of payload) {
+      const nested = extractInvoiceIdentifier(entry);
+      if (nested !== null) {
+        return nested;
+      }
+    }
+    return null;
+  }
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>;
+    const keys = [
+      'id',
+      'invoice_id',
+      'invoiceId',
+      'comprobante_id',
+      'comprobanteId',
+      'afip_invoice_id',
+    ];
+    for (const key of keys) {
+      const candidate = extractNumericId(record[key]);
+      if (candidate !== null) {
+        return candidate;
+      }
+    }
+
+    if ('data' in record) {
+      const nested = extractInvoiceIdentifier(record['data']);
+      if (nested !== null) {
+        return nested;
+      }
+    }
+  }
+
+  return null;
 };
 
 export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
@@ -1037,46 +1232,167 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [canUpdateInvoiceStatus, performInvoiceRequest, setInvoices, token]
   );
 
+  const submitComprobanteChildren = useCallback(
+    async (
+      comprobanteId: number,
+      items: Record<string, unknown>[],
+      vatSummary: Record<string, unknown>[]
+    ) => {
+      if (!token) {
+        throw new Error('Token no disponible para detallar comprobantes');
+      }
+
+      const headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      };
+
+      const postEntry = async (path: string, body: Record<string, unknown>) => {
+        const response = await fetch(`${BASE_URL}${path}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          let payload: unknown = null;
+          try {
+            const clone = response.clone();
+            payload = await clone.json();
+          } catch {
+            payload = null;
+          }
+
+          let responseText = '';
+          try {
+            responseText = await response.text();
+          } catch {
+            responseText = '';
+          }
+
+          const error = new Error(`HTTP ${response.status} ${path}`) as ExtendedHttpError;
+          error.status = response.status;
+          error.payload = payload;
+          error.responseText = responseText;
+          error.path = path;
+          throw error;
+        }
+      };
+
+      for (const item of items) {
+        await postEntry('/comprobantes-items', { ...item, comprobante_id: comprobanteId });
+      }
+
+      for (const entry of vatSummary) {
+        await postEntry('/comprobantes-iva-resumen', { ...entry, comprobante_id: comprobanteId });
+      }
+    },
+    [token]
+  );
+
   const createInvoice = useCallback(
     async (payload: CreateAfipInvoicePayload): Promise<Invoice | null> => {
       if (!token) {
         throw new Error('Token no disponible para crear facturas AFIP');
       }
 
-      try {
-        const response = await performInvoiceRequest(
+      const serialised = normaliseAfipInvoicePayload(payload);
+
+      const executeLegacyRequest = async (): Promise<Invoice | null> => {
+        const legacyResponse = await performInvoiceRequest(
           () => '/afip/invoices',
           {
             method: 'POST',
-            body: JSON.stringify(normaliseAfipInvoicePayload(payload)),
+            body: JSON.stringify(serialised.legacy),
           }
         );
 
-        const data = await response.json().catch(() => ({}));
-        const errorMessage = parseAfipErrorMessage(data);
-        if (errorMessage) {
-          throw new Error(errorMessage);
+        const legacyData = await legacyResponse.json().catch(() => ({}));
+        const legacyError = parseAfipErrorMessage(legacyData);
+        if (legacyError) {
+          throw new Error(legacyError);
         }
 
-        const invoice = extractInvoiceFromPayload(data);
-        if (invoice) {
+        const legacyInvoice = extractInvoiceFromPayload(legacyData);
+        if (legacyInvoice) {
           setInvoices(prev =>
             ensureSortedByNewest(
-              [invoice, ...prev.filter(item => item.id !== invoice.id)],
+              [legacyInvoice, ...prev.filter(item => item.id !== legacyInvoice.id)],
               getDefaultSortValue
             )
           );
-          return invoice;
+          return legacyInvoice;
         }
 
         return null;
+      };
+
+      if (serialised.supportsNewApi) {
+        try {
+          const response = await performInvoiceRequest(
+            basePath => `${basePath}`,
+            {
+              method: 'POST',
+              body: JSON.stringify(serialised.comprobante),
+            }
+          );
+
+          const data = await response.json().catch(() => ({}));
+          const errorMessage = parseAfipErrorMessage(data);
+          if (errorMessage) {
+            throw new Error(errorMessage);
+          }
+
+          const invoice = extractInvoiceFromPayload(data);
+          const invoiceId = invoice?.id ?? extractInvoiceIdentifier(data);
+
+          if (invoiceId && (serialised.comprobanteItems.length > 0 || serialised.comprobanteVatSummary.length > 0)) {
+            await submitComprobanteChildren(invoiceId, serialised.comprobanteItems, serialised.comprobanteVatSummary);
+          }
+
+          if (invoice) {
+            setInvoices(prev =>
+              ensureSortedByNewest(
+                [invoice, ...prev.filter(item => item.id !== invoice.id)],
+                getDefaultSortValue
+              )
+            );
+            return invoice;
+          }
+
+          if (invoiceId) {
+            const refreshed = await refreshInvoice(invoiceId);
+            if (refreshed) {
+              return refreshed;
+            }
+          }
+
+          return null;
+        } catch (error) {
+          if (!shouldFallbackToLegacyEndpoint(error)) {
+            const mapped = mapAfipError(error);
+            console.error('Error creating AFIP invoice:', mapped);
+            throw mapped;
+          }
+        }
+      }
+
+      try {
+        return await executeLegacyRequest();
       } catch (error) {
         const mapped = mapAfipError(error);
         console.error('Error creating AFIP invoice:', mapped);
         throw mapped;
       }
     },
-    [performInvoiceRequest, setInvoices, token]
+    [
+      performInvoiceRequest,
+      refreshInvoice,
+      setInvoices,
+      submitComprobanteChildren,
+      token,
+    ]
   );
 
   const submitAfipInvoice = useCallback(
@@ -1088,12 +1404,14 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Token no disponible para enviar factura AFIP');
       }
 
-      try {
+      const serialised = normaliseAfipInvoicePayload({ ...payload, id });
+
+      const executeLegacyRequest = async (): Promise<Invoice | null> => {
         const response = await performInvoiceRequest(
           () => `/afip/invoices/${id}`,
           {
             method: 'PUT',
-            body: JSON.stringify(normaliseAfipInvoicePayload({ ...payload, id })),
+            body: JSON.stringify(serialised.legacy),
           }
         );
 
@@ -1115,13 +1433,62 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
         }
 
         return null;
+      };
+
+      if (serialised.supportsNewApi) {
+        try {
+          const response = await performInvoiceRequest(
+            basePath => `${basePath}/${id}`,
+            {
+              method: 'PUT',
+              body: JSON.stringify(serialised.comprobante),
+            }
+          );
+
+          const data = await response.json().catch(() => ({}));
+          const errorMessage = parseAfipErrorMessage(data);
+          if (errorMessage) {
+            throw new Error(errorMessage);
+          }
+
+          if (serialised.comprobanteItems.length > 0 || serialised.comprobanteVatSummary.length > 0) {
+            try {
+              await submitComprobanteChildren(id, serialised.comprobanteItems, serialised.comprobanteVatSummary);
+            } catch (childError) {
+              console.warn('No se pudo actualizar el detalle del comprobante AFIP.', childError);
+            }
+          }
+
+          const invoice = extractInvoiceFromPayload(data);
+          if (invoice) {
+            setInvoices(prev =>
+              ensureSortedByNewest(
+                prev.map(item => (item.id === invoice.id ? { ...item, ...invoice } : item)),
+                getDefaultSortValue
+              )
+            );
+            return invoice;
+          }
+
+          return null;
+        } catch (error) {
+          if (!shouldFallbackToLegacyEndpoint(error)) {
+            const mapped = mapAfipError(error);
+            console.error('Error submitting AFIP invoice:', mapped);
+            throw mapped;
+          }
+        }
+      }
+
+      try {
+        return await executeLegacyRequest();
       } catch (error) {
         const mapped = mapAfipError(error);
         console.error('Error submitting AFIP invoice:', mapped);
         throw mapped;
       }
     },
-    [performInvoiceRequest, setInvoices, token]
+    [performInvoiceRequest, setInvoices, submitComprobanteChildren, token]
   );
 
   const reprintInvoice = useCallback(
