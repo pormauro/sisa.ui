@@ -102,7 +102,7 @@ export const isStatusFinalized = (status?: Status): boolean => {
     return false;
   }
 
-  const candidates = [status.value, status.label]
+  const candidates = [status.label]
     .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
     .filter(Boolean);
 

@@ -15,7 +15,6 @@ export default function CreateStatus() {
   const { completeSelection, cancelSelection } = usePendingSelection();
 
   const [label, setLabel] = useState('');
-  const [value, setValue] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [orderIndex, setOrderIndex] = useState('0');
   const [loading, setLoading] = useState(false);
@@ -33,21 +32,20 @@ export default function CreateStatus() {
       Alert.alert('Acceso denegado', 'No tienes permiso para agregar estados.');
       router.back();
     }
-  }, [permissions]);
+  }, [permissions, router]);
 
   useEffect(() => () => {
     cancelSelection();
   }, [cancelSelection]);
 
   const handleSubmit = async () => {
-    if (!label || !value || !backgroundColor || orderIndex === '') {
+    if (!label || !backgroundColor || orderIndex === '') {
       Alert.alert('Error', 'Completa todos los campos requeridos.');
       return;
     }
     setLoading(true);
     const newStatus = await addStatus({
       label,
-      value,
       background_color: backgroundColor,
       order_index: parseInt(orderIndex, 10),
     });
@@ -73,15 +71,6 @@ export default function CreateStatus() {
         placeholder="Etiqueta del estado"
         value={label}
         onChangeText={setLabel}
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Valor</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Valor del estado"
-        value={value}
-        onChangeText={setValue}
         placeholderTextColor={placeholderColor}
       />
 
