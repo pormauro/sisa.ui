@@ -31,9 +31,6 @@ export default function ViewStatusModal() {
       <ThemedText style={styles.label}>Etiqueta</ThemedText>
       <ThemedText style={styles.value}>{status.label}</ThemedText>
 
-      <ThemedText style={styles.label}>Valor</ThemedText>
-      <ThemedText style={styles.value}>{status.value}</ThemedText>
-
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{status.id}</ThemedText>
 

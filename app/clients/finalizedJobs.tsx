@@ -142,7 +142,7 @@ export default function ClientFinalizedJobsScreen() {
           {status ? (
             <View style={[styles.statusTag, { borderColor: accentColor }]}> 
               <ThemedText style={[styles.statusTagText, { color: accentColor }]}>
-                {status.label || status.value}
+                {status.label || 'Estado sin nombre'}
               </ThemedText>
             </View>
           ) : null}

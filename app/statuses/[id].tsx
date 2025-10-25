@@ -19,7 +19,6 @@ export default function EditStatus() {
   const statusItem = statuses.find(s => s.id === statusId);
 
   const [label, setLabel] = useState('');
-  const [value, setValue] = useState('');
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [orderIndex, setOrderIndex] = useState('0');
   const [loading, setLoading] = useState(false);
@@ -42,7 +41,7 @@ export default function EditStatus() {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este estado.');
       router.back();
     }
-  }, [permissions]);
+  }, [canDelete, canEdit, router]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -57,7 +56,6 @@ export default function EditStatus() {
         setIsFetchingItem(false);
       }
       setLabel(statusItem.label);
-      setValue(statusItem.value);
       setBackgroundColor(statusItem.background_color);
       setOrderIndex(statusItem.order_index.toString());
       return;
@@ -91,7 +89,7 @@ export default function EditStatus() {
   }
 
   const handleUpdate = () => {
-    if (!label || !value || !backgroundColor || orderIndex === '') {
+    if (!label || !backgroundColor || orderIndex === '') {
       Alert.alert('Error', 'Completa todos los campos requeridos.');
       return;
     }
@@ -103,7 +101,6 @@ export default function EditStatus() {
           setLoading(true);
           const success = await updateStatus(statusId, {
             label,
-            value,
             background_color: backgroundColor,
             order_index: parseInt(orderIndex, 10),
           });
@@ -154,15 +151,6 @@ export default function EditStatus() {
         value={label}
         onChangeText={setLabel}
         placeholder="Etiqueta"
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Valor</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={value}
-        onChangeText={setValue}
-        placeholder="Valor"
         placeholderTextColor={placeholderColor}
       />
 

@@ -12,7 +12,6 @@ import { useCachedState } from '@/hooks/useCachedState';
 export interface Status {
   id: number;
   label: string;
-  value: string;
   background_color: string;
   order_index: number;
   version: number;
@@ -80,7 +79,6 @@ const normalizeStatus = (
   return {
     id: toNumber(raw.id, 0),
     label: typeof raw.label === 'string' ? raw.label : '',
-    value: typeof raw.value === 'string' ? raw.value : '',
     background_color:
       typeof raw.background_color === 'string' ? raw.background_color : '#ffffff',
     order_index: toNumber(raw.order_index, 0),

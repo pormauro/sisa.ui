@@ -2,7 +2,7 @@
 import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { StatusesContext } from '@/contexts/StatusesContext';
+import { StatusesContext, type Status } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import Fuse from 'fuse.js';
 import { ThemedText } from '@/components/ThemedText';
@@ -40,12 +40,12 @@ export default function StatusesScreen() {
     }, [permissions, loadStatuses])
   );
 
-  const fuse = new Fuse(statuses, { keys: ['label', 'value'] });
+  const fuse = useMemo(() => new Fuse(statuses, { keys: ['label'] }), [statuses]);
   const filteredStatuses = useMemo(() => {
     if (!search) return statuses;
     const result = fuse.search(search);
     return result.map(r => r.item);
-  }, [search, statuses]);
+  }, [fuse, search, statuses]);
 
   const canDelete = permissions.includes('deleteStatus');
 
@@ -73,7 +73,7 @@ export default function StatusesScreen() {
 
   const secondaryTextColor = useThemeColor({ light: '#555', dark: '#ccc' }, 'text');
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: Status }) => (
     <TouchableOpacity
       style={[styles.itemContainer, { borderColor: itemBorderColor }]}
       onPress={() => router.push(`/statuses/viewModal?id=${item.id}`)}
@@ -82,7 +82,9 @@ export default function StatusesScreen() {
       <View style={[styles.colorBox, { backgroundColor: item.background_color }]} />
       <View style={styles.itemContent}>
         <ThemedText style={styles.itemLabel}>{item.label}</ThemedText>
-        <ThemedText style={[styles.itemValue, { color: secondaryTextColor }]}>{item.value}</ThemedText>
+        <ThemedText style={[styles.itemValue, { color: secondaryTextColor }]}>
+          Orden: {item.order_index}
+        </ThemedText>
       </View>
       {canDelete && (
         <TouchableOpacity
