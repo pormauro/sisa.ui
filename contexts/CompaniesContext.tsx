@@ -65,12 +65,12 @@ export interface Company {
   updated_at?: string | null;
 }
 
-export type CompanyPayload = Omit<
-  Company,
-  'id' | 'version' | 'created_at' | 'updated_at'
-> & {
+type MutableCompanyFields = Omit<Company, 'id' | 'name' | 'version' | 'created_at' | 'updated_at'>;
+
+export type CompanyPayload = {
+  name: string;
   version?: number;
-};
+} & Partial<MutableCompanyFields>;
 
 interface CompaniesContextValue {
   companies: Company[];
@@ -375,6 +375,12 @@ const serializeNestedArray = (value: unknown) => {
 };
 
 const serializeCompanyPayload = (payload: CompanyPayload) => {
+  const hasTaxIdentities = Object.prototype.hasOwnProperty.call(payload, 'tax_identities');
+  const hasAddresses = Object.prototype.hasOwnProperty.call(payload, 'addresses');
+  const hasContacts = Object.prototype.hasOwnProperty.call(payload, 'contacts');
+  const hasAttachments = Object.prototype.hasOwnProperty.call(payload, 'attached_files');
+  const hasBrandFile = Object.prototype.hasOwnProperty.call(payload, 'brand_file_id');
+
   const {
     tax_identities,
     addresses,
@@ -385,42 +391,69 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     ...rest
   } = payload;
 
-  const normalizedBrandFileId = (() => {
-    if (!Object.prototype.hasOwnProperty.call(payload, 'brand_file_id')) {
-      return undefined;
+  const base = Object.entries(rest).reduce((acc, [key, value]) => {
+    if (value === undefined) {
+      return acc;
     }
-    if (brand_file_id === null || brand_file_id === '') {
-      return null;
+    if (key !== 'name' && typeof value === 'string' && value.trim() === '') {
+      return acc;
     }
-    const numeric = Number(brand_file_id);
-    return Number.isFinite(numeric) ? numeric : brand_file_id;
-  })();
-
-  const base = {
-    ...rest,
-    ...(normalizedBrandFileId !== undefined ? { brand_file_id: normalizedBrandFileId } : {}),
-  } as Record<string, unknown>;
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, unknown>);
 
   if (version !== undefined) {
     base.version = version;
   }
 
-  const nested = {
-    tax_identities: serializeNestedArray(tax_identities),
-    tax_identifications: serializeNestedArray(tax_identities),
-    addresses: serializeNestedArray(addresses),
-    contacts: serializeNestedArray(contacts),
-  };
+  if (hasBrandFile) {
+    const normalizedBrandFileId = (() => {
+      if (brand_file_id === null || brand_file_id === '') {
+        return null;
+      }
+      const numeric = Number(brand_file_id);
+      return Number.isFinite(numeric) ? numeric : brand_file_id;
+    })();
+
+    if (normalizedBrandFileId !== undefined) {
+      base.brand_file_id = normalizedBrandFileId;
+    }
+  }
+
+  if (hasAttachments) {
+    const serializedAttachments =
+      typeof attached_files === 'string'
+        ? attached_files.trim() || null
+        : attached_files
+        ? JSON.stringify(attached_files)
+        : attached_files === null
+        ? null
+        : undefined;
+
+    if (serializedAttachments !== undefined) {
+      base.attached_files = serializedAttachments;
+    }
+  }
+
+  const nested: Record<string, unknown> = {};
+
+  if (hasTaxIdentities) {
+    const serialized = serializeNestedArray(tax_identities ?? []);
+    nested.tax_identities = serialized;
+    nested.tax_identifications = serialized;
+  }
+
+  if (hasAddresses) {
+    nested.addresses = serializeNestedArray(addresses ?? []);
+  }
+
+  if (hasContacts) {
+    nested.contacts = serializeNestedArray(contacts ?? []);
+  }
 
   return {
     ...base,
     ...nested,
-    attached_files:
-      typeof attached_files === 'string'
-        ? attached_files
-        : attached_files
-        ? JSON.stringify(attached_files)
-        : null,
   };
 };
 

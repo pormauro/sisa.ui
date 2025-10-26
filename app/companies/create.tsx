@@ -18,6 +18,7 @@ import {
   CompaniesContext,
   CompanyAddress,
   CompanyContact,
+  CompanyPayload,
   TaxIdentity,
 } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -226,21 +227,69 @@ export default function CreateCompanyPage() {
 
     setLoading(true);
     try {
-      const payload = {
+      const sanitizedIdentities = sanitizeIdentities();
+      const sanitizedAddresses = sanitizeAddresses(addresses);
+      const sanitizedContacts = sanitizeContacts(contacts);
+
+      const payload: CompanyPayload = {
         name: name.trim(),
-        legal_name: legalName.trim() || null,
-        tax_id: taxId.trim() || null,
-        website: website.trim() || null,
-        phone: phone.trim() || null,
-        email: email.trim() || null,
-        status: status.trim() || null,
-        notes: notes.trim() || null,
-        brand_file_id: brandFileId,
-        tax_identities: sanitizeIdentities(),
-        addresses: sanitizeAddresses(addresses),
-        contacts: sanitizeContacts(contacts),
-        attached_files: attachmentsJson || null,
       };
+
+      const trimmedLegalName = legalName.trim();
+      if (trimmedLegalName) {
+        payload.legal_name = trimmedLegalName;
+      }
+
+      const trimmedTaxId = taxId.trim();
+      if (trimmedTaxId) {
+        payload.tax_id = trimmedTaxId;
+      }
+
+      const trimmedWebsite = website.trim();
+      if (trimmedWebsite) {
+        payload.website = trimmedWebsite;
+      }
+
+      const trimmedPhone = phone.trim();
+      if (trimmedPhone) {
+        payload.phone = trimmedPhone;
+      }
+
+      const trimmedEmail = email.trim();
+      if (trimmedEmail) {
+        payload.email = trimmedEmail;
+      }
+
+      const trimmedStatus = status.trim();
+      if (trimmedStatus) {
+        payload.status = trimmedStatus;
+      }
+
+      const trimmedNotes = notes.trim();
+      if (trimmedNotes) {
+        payload.notes = trimmedNotes;
+      }
+
+      if (brandFileId) {
+        payload.brand_file_id = brandFileId;
+      }
+
+      if (sanitizedIdentities.length > 0) {
+        payload.tax_identities = sanitizedIdentities;
+      }
+
+      if (sanitizedAddresses.length > 0) {
+        payload.addresses = sanitizedAddresses;
+      }
+
+      if (sanitizedContacts.length > 0) {
+        payload.contacts = sanitizedContacts;
+      }
+
+      const trimmedAttachments = attachmentsJson.trim();
+      if (trimmedAttachments) {
+        payload.attached_files = trimmedAttachments;
+      }
 
       const created = await addCompany(payload);
       if (created) {
