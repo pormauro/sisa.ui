@@ -123,38 +123,90 @@ const parseNestedArray = (value: unknown): any[] => {
   return [];
 };
 
+const coerceToString = (value: unknown): string | null => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  return null;
+};
+
+const pickString = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    const normalized = coerceToString(value);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return null;
+};
+
+const coalesceNestedArray = (...candidates: unknown[]): any[] => {
+  for (const candidate of candidates) {
+    const parsed = parseNestedArray(candidate);
+    if (parsed.length) {
+      return parsed;
+    }
+  }
+  return [];
+};
+
 const parseTaxIdentity = (raw: any): TaxIdentity => ({
   id: raw?.id,
-  type: typeof raw?.type === 'string' ? raw.type : '',
-  value: typeof raw?.value === 'string' ? raw.value : '',
-  country: raw?.country ?? null,
-  notes: raw?.notes ?? null,
-  version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
+  type: pickString(raw?.type, raw?.tipo, raw?.name) ?? '',
+  value: pickString(raw?.value, raw?.valor, raw?.number, raw?.nro_doc) ?? '',
+  country: pickString(raw?.country, raw?.pais) ?? null,
+  notes: pickString(raw?.notes, raw?.notas) ?? null,
+  version:
+    typeof raw?.version === 'number'
+      ? raw.version
+      : raw?.version
+      ? Number(raw.version) || 1
+      : undefined,
 });
 
 const parseAddress = (raw: any): CompanyAddress => ({
   id: raw?.id,
-  street: typeof raw?.street === 'string' ? raw.street : '',
-  number: raw?.number ?? null,
-  floor: raw?.floor ?? null,
-  apartment: raw?.apartment ?? null,
-  city: raw?.city ?? null,
-  state: raw?.state ?? null,
-  country: raw?.country ?? null,
-  postal_code: raw?.postal_code ?? null,
-  notes: raw?.notes ?? null,
-  version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
+  street: pickString(raw?.street, raw?.calle, raw?.address_line) ?? '',
+  number: pickString(raw?.number, raw?.numero) ?? null,
+  floor: pickString(raw?.floor, raw?.piso) ?? null,
+  apartment: pickString(raw?.apartment, raw?.departamento, raw?.dpto) ?? null,
+  city: pickString(raw?.city, raw?.ciudad, raw?.localidad) ?? null,
+  state: pickString(raw?.state, raw?.provincia, raw?.state_name) ?? null,
+  country: pickString(raw?.country, raw?.pais) ?? null,
+  postal_code: pickString(raw?.postal_code, raw?.zip, raw?.codigo_postal) ?? null,
+  notes: pickString(raw?.notes, raw?.notas) ?? null,
+  version:
+    typeof raw?.version === 'number'
+      ? raw.version
+      : raw?.version
+      ? Number(raw.version) || 1
+      : undefined,
 });
 
 const parseContact = (raw: any): CompanyContact => ({
   id: raw?.id,
-  name: typeof raw?.name === 'string' ? raw.name : '',
-  role: raw?.role ?? null,
-  email: raw?.email ?? null,
-  phone: raw?.phone ?? null,
-  mobile: raw?.mobile ?? null,
-  notes: raw?.notes ?? null,
-  version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
+  name: pickString(raw?.name, raw?.nombre, raw?.full_name) ?? '',
+  role: pickString(raw?.role, raw?.cargo, raw?.position) ?? null,
+  email: pickString(raw?.email, raw?.correo, raw?.mail) ?? null,
+  phone: pickString(raw?.phone, raw?.telefono) ?? null,
+  mobile: pickString(raw?.mobile, raw?.celular) ?? null,
+  notes: pickString(raw?.notes, raw?.notas) ?? null,
+  version:
+    typeof raw?.version === 'number'
+      ? raw.version
+      : raw?.version
+      ? Number(raw.version) || 1
+      : undefined,
 });
 
 const extractCompanyCollection = (payload: any): any[] => {
@@ -195,34 +247,118 @@ const extractCompanyCollection = (payload: any): any[] => {
 
 const parseCompany = (raw: any): Company => {
   const baseId = raw?.id ?? raw?.company_id;
-  const version = raw?.version ?? 1;
+  const rawVersion = raw?.version ?? raw?.version_number ?? raw?.__v ?? 1;
+
+  const legalName = pickString(raw?.legal_name, raw?.razon_social, raw?.business_name);
+  const displayName = pickString(raw?.name, raw?.nombre_fantasia, raw?.fantasy_name, legalName);
+  const taxId = pickString(raw?.tax_id, raw?.cuit, raw?.document_number, raw?.nro_doc);
+  const website = pickString(raw?.website, raw?.sitio_web, raw?.web);
+  const phone = pickString(raw?.phone, raw?.telefono, raw?.telefono_principal);
+  const email = pickString(raw?.email, raw?.correo_electronico, raw?.correo, raw?.mail);
+  let status = pickString(raw?.status, raw?.estado);
+  if (!status && raw?.activo !== undefined && raw?.activo !== null) {
+    const isActive = raw.activo === true || raw.activo === 1 || raw.activo === '1';
+    const isInactive = raw.activo === false || raw.activo === 0 || raw.activo === '0';
+    status = isActive ? 'active' : isInactive ? 'inactive' : null;
+  }
+  const notes = pickString(raw?.notes, raw?.notas, raw?.observaciones);
+
+  const brandFileSource = raw?.brand_file_id ?? raw?.brandFileId ?? raw?.logo_id;
+  const attachedFilesSource = raw?.attached_files ?? raw?.archivos_adjuntos ?? raw?.adjuntos;
+
+  const parsedTaxIdentities = coalesceNestedArray(
+    raw?.tax_identities,
+    raw?.tax_identifications,
+    raw?.identidades_fiscales,
+    raw?.identificaciones_fiscales,
+    raw?.identities
+  ).map(parseTaxIdentity);
+
+  const taxIdentities: TaxIdentity[] = [...parsedTaxIdentities];
+
+  if (taxId && !taxIdentities.some(identity => identity.value === taxId || identity.type?.toLowerCase() === 'cuit')) {
+    taxIdentities.push({
+      type: 'CUIT',
+      value: taxId,
+      country: null,
+      notes: null,
+      version: 1,
+    });
+  }
+
+  const ivaCondition = pickString(raw?.condicion_iva, raw?.iva_condition, raw?.id_condicion_iva);
+  if (
+    ivaCondition &&
+    !taxIdentities.some(identity => identity.type?.toLowerCase() === 'condición iva' && identity.value === ivaCondition)
+  ) {
+    taxIdentities.push({
+      type: 'Condición IVA',
+      value: ivaCondition,
+      country: null,
+      notes: null,
+      version: 1,
+    });
+  }
+
+  const iibb = pickString(raw?.iibb, raw?.ingresos_brutos);
+  if (iibb && !taxIdentities.some(identity => identity.type?.toLowerCase() === 'iibb' && identity.value === iibb)) {
+    taxIdentities.push({
+      type: 'IIBB',
+      value: iibb,
+      country: null,
+      notes: null,
+      version: 1,
+    });
+  }
+
+  const activityStart = pickString(raw?.inicio_actividad, raw?.activity_start_date);
+  if (
+    activityStart &&
+    !taxIdentities.some(identity => identity.type?.toLowerCase() === 'inicio de actividad' && identity.value === activityStart)
+  ) {
+    taxIdentities.push({
+      type: 'Inicio de actividad',
+      value: activityStart,
+      country: null,
+      notes: null,
+      version: 1,
+    });
+  }
+
+  const addresses = coalesceNestedArray(raw?.addresses, raw?.domicilios, raw?.address_list, raw?.direcciones).map(
+    parseAddress
+  );
+  const contacts = coalesceNestedArray(
+    raw?.contacts,
+    raw?.contactos,
+    raw?.contact_list,
+    raw?.personas_contacto
+  ).map(parseContact);
 
   return {
     id: typeof baseId === 'number' ? baseId : parseInt(baseId ?? '0', 10) || 0,
-    name: typeof raw?.name === 'string' ? raw.name : '',
-    legal_name: raw?.legal_name ?? null,
-    tax_id: raw?.tax_id ?? null,
-    website: raw?.website ?? null,
-    phone: raw?.phone ?? null,
-    email: raw?.email ?? null,
-    status: raw?.status ?? null,
-    notes: raw?.notes ?? null,
+    name: displayName ?? '',
+    legal_name: legalName ?? null,
+    tax_id: taxId ?? null,
+    website: website ?? null,
+    phone: phone ?? null,
+    email: email ?? null,
+    status: status ?? null,
+    notes: notes ?? null,
     brand_file_id:
-      typeof raw?.brand_file_id === 'number' || typeof raw?.brand_file_id === 'string'
-        ? String(raw.brand_file_id)
-        : null,
+      typeof brandFileSource === 'number' || typeof brandFileSource === 'string' ? String(brandFileSource) : null,
     attached_files:
-      typeof raw?.attached_files === 'string'
-        ? raw.attached_files
-        : raw?.attached_files
-        ? JSON.stringify(raw.attached_files)
+      typeof attachedFilesSource === 'string'
+        ? attachedFilesSource
+        : attachedFilesSource
+        ? JSON.stringify(attachedFilesSource)
         : null,
-    tax_identities: parseNestedArray(raw?.tax_identities ?? raw?.tax_identifications).map(parseTaxIdentity),
-    addresses: parseNestedArray(raw?.addresses).map(parseAddress),
-    contacts: parseNestedArray(raw?.contacts).map(parseContact),
-    version: typeof version === 'number' ? version : parseInt(version ?? '1', 10) || 1,
-    created_at: raw?.created_at ?? null,
-    updated_at: raw?.updated_at ?? null,
+    tax_identities: taxIdentities,
+    addresses,
+    contacts,
+    version: typeof rawVersion === 'number' ? rawVersion : parseInt(String(rawVersion ?? '1'), 10) || 1,
+    created_at: pickString(raw?.created_at, raw?.creado_en, raw?.createdAt) ?? null,
+    updated_at: pickString(raw?.updated_at, raw?.actualizado_en, raw?.updatedAt) ?? null,
   };
 };
 
