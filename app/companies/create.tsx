@@ -68,6 +68,7 @@ export default function CreateCompanyPage() {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const sectionBackground = useThemeColor({ light: '#f8f8f8', dark: '#1a1a1a' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
@@ -256,21 +257,46 @@ export default function CreateCompanyPage() {
     }
   };
 
+  const CollapsibleSection: React.FC<{
+    title: string;
+    children: React.ReactNode;
+    initiallyOpen?: boolean;
+    description?: string;
+  }> = ({ title, children, initiallyOpen = false, description }) => {
+    const [isOpen, setIsOpen] = useState(initiallyOpen);
+
+    return (
+      <View style={[styles.sectionContainer, { borderColor, backgroundColor: sectionBackground }]}>
+        <TouchableOpacity
+          style={styles.sectionHeader}
+          onPress={() => setIsOpen(prev => !prev)}
+          accessibilityRole="button"
+          accessibilityLabel={title}
+          accessibilityState={{ expanded: isOpen }}
+        >
+          <View style={styles.sectionHeaderTextContainer}>
+            <ThemedText style={styles.sectionHeaderTitle}>{title}</ThemedText>
+            {description ? (
+              <ThemedText style={styles.sectionHeaderDescription}>{description}</ThemedText>
+            ) : null}
+          </View>
+          <ThemedText style={styles.sectionHeaderIndicator}>{isOpen ? '▾' : '▸'}</ThemedText>
+        </TouchableOpacity>
+        {isOpen ? <View style={styles.sectionContent}>{children}</View> : null}
+      </View>
+    );
+  };
+
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={[styles.container, { backgroundColor: background }]}
     >
-      <ThemedText style={styles.sectionTitle}>Datos Generales</ThemedText>
-      <ThemedText style={styles.label}>Logo</ThemedText>
-      <CircleImagePicker
-        fileId={brandFileId}
-        editable
-        size={180}
-        onImageChange={setBrandFileId}
-      />
-
-      <ThemedText style={styles.label}>Nombre Comercial</ThemedText>
+      <ThemedText style={styles.sectionTitle}>Datos básicos</ThemedText>
+      <ThemedText style={styles.helperText}>
+        Solo el nombre comercial es obligatorio para crear una empresa.
+      </ThemedText>
+      <ThemedText style={styles.label}>Nombre Comercial *</ThemedText>
       <TextInput
         style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
         value={name}
@@ -279,367 +305,386 @@ export default function CreateCompanyPage() {
         placeholderTextColor={placeholderColor}
       />
 
-      <ThemedText style={styles.label}>Razón Social</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={legalName}
-        onChangeText={setLegalName}
-        placeholder="Razón social"
-        placeholderTextColor={placeholderColor}
-      />
+      <CollapsibleSection
+        title="Información comercial adicional"
+        description="Logo, razón social y datos de contacto"
+      >
+        <ThemedText style={styles.label}>Logo</ThemedText>
+        <CircleImagePicker
+          fileId={brandFileId}
+          editable
+          size={180}
+          onImageChange={setBrandFileId}
+        />
 
-      <ThemedText style={styles.label}>Sitio Web</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={website}
-        onChangeText={setWebsite}
-        placeholder="https://empresa.com"
-        placeholderTextColor={placeholderColor}
-        autoCapitalize="none"
-      />
+        <ThemedText style={styles.label}>Razón Social</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={legalName}
+          onChangeText={setLegalName}
+          placeholder="Razón social"
+          placeholderTextColor={placeholderColor}
+        />
 
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Teléfono principal"
-        placeholderTextColor={placeholderColor}
-        keyboardType="phone-pad"
-      />
+        <ThemedText style={styles.label}>Sitio Web</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={website}
+          onChangeText={setWebsite}
+          placeholder="https://empresa.com"
+          placeholderTextColor={placeholderColor}
+          autoCapitalize="none"
+        />
 
-      <ThemedText style={styles.label}>Email</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={email}
-        onChangeText={setEmail}
-        placeholder="contacto@empresa.com"
-        placeholderTextColor={placeholderColor}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+        <ThemedText style={styles.label}>Teléfono</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="Teléfono principal"
+          placeholderTextColor={placeholderColor}
+          keyboardType="phone-pad"
+        />
 
-      <ThemedText style={styles.label}>Estado</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={status}
-        onChangeText={setStatus}
-        placeholder="Activo, Inactivo, etc."
-        placeholderTextColor={placeholderColor}
-      />
+        <ThemedText style={styles.label}>Email</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={email}
+          onChangeText={setEmail}
+          placeholder="contacto@empresa.com"
+          placeholderTextColor={placeholderColor}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
 
-      <ThemedText style={styles.label}>Notas</ThemedText>
-      <TextInput
-        style={[
-          styles.input,
-          styles.multiline,
-          { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-        ]}
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Observaciones generales"
-        placeholderTextColor={placeholderColor}
-        multiline
-        numberOfLines={4}
-      />
+        <ThemedText style={styles.label}>Estado</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={status}
+          onChangeText={setStatus}
+          placeholder="Activo, Inactivo, etc."
+          placeholderTextColor={placeholderColor}
+        />
 
-      <ThemedText style={styles.sectionTitle}>Identidad Fiscal</ThemedText>
+        <ThemedText style={styles.label}>Notas</ThemedText>
+        <TextInput
+          style={[
+            styles.input,
+            styles.multiline,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Observaciones generales"
+          placeholderTextColor={placeholderColor}
+          multiline
+          numberOfLines={4}
+        />
+      </CollapsibleSection>
 
-      <ThemedText style={styles.label}>CUIT</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={taxId}
-        onChangeText={setTaxId}
-        placeholder="00-00000000-0"
-        placeholderTextColor={placeholderColor}
-        keyboardType="number-pad"
-      />
+      <CollapsibleSection
+        title="Datos fiscales"
+        description="CUIT, condición IVA e identificaciones extra"
+      >
+        <ThemedText style={styles.label}>CUIT</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={taxId}
+          onChangeText={setTaxId}
+          placeholder="00-00000000-0"
+          placeholderTextColor={placeholderColor}
+          keyboardType="number-pad"
+        />
 
-      <ThemedText style={styles.label}>Condición IVA</ThemedText>
-      <SearchableSelect
-        style={styles.select}
-        items={ivaItems}
-        selectedValue={ivaCondition}
-        onValueChange={(value) => setIvaCondition(String(value ?? ''))}
-        placeholder="Seleccionar"
-      />
+        <ThemedText style={styles.label}>Condición IVA</ThemedText>
+        <SearchableSelect
+          style={styles.select}
+          items={ivaItems}
+          selectedValue={ivaCondition}
+          onValueChange={(value) => setIvaCondition(String(value ?? ''))}
+          placeholder="Seleccionar"
+        />
 
-      <ThemedText style={styles.label}>Inicio de Actividades</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={startDate}
-        onChangeText={setStartDate}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={placeholderColor}
-      />
+        <ThemedText style={styles.label}>Inicio de Actividades</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={startDate}
+          onChangeText={setStartDate}
+          placeholder="YYYY-MM-DD"
+          placeholderTextColor={placeholderColor}
+        />
 
-      <ThemedText style={styles.label}>Número de Ingresos Brutos</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={grossIncomeNumber}
-        onChangeText={setGrossIncomeNumber}
-        placeholder="Número IIBB"
-        placeholderTextColor={placeholderColor}
-      />
+        <ThemedText style={styles.label}>Número de Ingresos Brutos</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={grossIncomeNumber}
+          onChangeText={setGrossIncomeNumber}
+          placeholder="Número IIBB"
+          placeholderTextColor={placeholderColor}
+        />
 
-      <ThemedText style={styles.label}>Notas fiscales</ThemedText>
-      <TextInput
-        style={[
-          styles.input,
-          styles.multiline,
-          { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-        ]}
-        value={fiscalNotes}
-        onChangeText={setFiscalNotes}
-        placeholder="Información adicional"
-        placeholderTextColor={placeholderColor}
-        multiline
-      />
+        <ThemedText style={styles.label}>Notas fiscales</ThemedText>
+        <TextInput
+          style={[
+            styles.input,
+            styles.multiline,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          value={fiscalNotes}
+          onChangeText={setFiscalNotes}
+          placeholder="Información adicional"
+          placeholderTextColor={placeholderColor}
+          multiline
+        />
 
-      <ThemedText style={styles.subSectionTitle}>Otras identificaciones</ThemedText>
-      {additionalIdentities.map((identity, index) => (
-        <View key={`identity-${index}`} style={[styles.card, { borderColor }]}
-        >
-          <ThemedText style={styles.label}>Tipo</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={identity.type}
-            onChangeText={(text) => updateIdentityField(index, 'type', text)}
-            placeholder="Tipo de identificación"
-            placeholderTextColor={placeholderColor}
-          />
+        <ThemedText style={styles.subSectionTitle}>Otras identificaciones</ThemedText>
+        {additionalIdentities.map((identity, index) => (
+          <View key={`identity-${index}`} style={[styles.card, { borderColor }]}
+          >
+            <ThemedText style={styles.label}>Tipo</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={identity.type}
+              onChangeText={(text) => updateIdentityField(index, 'type', text)}
+              placeholder="Tipo de identificación"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>Valor</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={identity.value}
-            onChangeText={(text) => updateIdentityField(index, 'value', text)}
-            placeholder="Valor"
-            placeholderTextColor={placeholderColor}
-          />
+            <ThemedText style={styles.label}>Valor</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={identity.value}
+              onChangeText={(text) => updateIdentityField(index, 'value', text)}
+              placeholder="Valor"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>País</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={identity.country ?? ''}
-            onChangeText={(text) => updateIdentityField(index, 'country', text)}
-            placeholder="País"
-            placeholderTextColor={placeholderColor}
-          />
+            <ThemedText style={styles.label}>País</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={identity.country ?? ''}
+              onChangeText={(text) => updateIdentityField(index, 'country', text)}
+              placeholder="País"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>Notas</ThemedText>
-          <TextInput
-            style={[
-              styles.input,
-              styles.multiline,
-              { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-            ]}
-            value={identity.notes ?? ''}
-            onChangeText={(text) => updateIdentityField(index, 'notes', text)}
-            placeholder="Notas"
-            placeholderTextColor={placeholderColor}
-            multiline
-          />
+            <ThemedText style={styles.label}>Notas</ThemedText>
+            <TextInput
+              style={[
+                styles.input,
+                styles.multiline,
+                { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+              ]}
+              value={identity.notes ?? ''}
+              onChangeText={(text) => updateIdentityField(index, 'notes', text)}
+              placeholder="Notas"
+              placeholderTextColor={placeholderColor}
+              multiline
+            />
 
-          <TouchableOpacity style={styles.removeButton} onPress={() => removeIdentity(index)}>
-            <ThemedText style={styles.removeButtonText}>Eliminar identificación</ThemedText>
-          </TouchableOpacity>
-        </View>
-      ))}
-
-      <TouchableOpacity style={styles.addItemButton} onPress={addIdentity}>
-        <ThemedText style={styles.addItemButtonText}>➕ Agregar identificación</ThemedText>
-      </TouchableOpacity>
-
-      <ThemedText style={styles.sectionTitle}>Direcciones</ThemedText>
-      {addresses.map((address, index) => (
-        <View key={`address-${index}`} style={[styles.card, { borderColor }]}
-        >
-          <ThemedText style={styles.label}>Calle</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.street}
-            onChangeText={(text) => updateAddressField(index, 'street', text)}
-            placeholder="Calle"
-            placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Número</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.number ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'number', text)}
-            placeholder="Número"
-            placeholderTextColor={placeholderColor}
-            keyboardType="numbers-and-punctuation"
-          />
-
-          <ThemedText style={styles.label}>Piso</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.floor ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'floor', text)}
-            placeholder="Piso"
-            placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Departamento</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.apartment ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'apartment', text)}
-            placeholder="Departamento"
-            placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Ciudad</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.city ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'city', text)}
-            placeholder="Ciudad"
-            placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Provincia / Estado</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.state ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'state', text)}
-            placeholder="Provincia"
-            placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>País</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.country ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'country', text)}
-            placeholder="País"
-            placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Código Postal</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={address.postal_code ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'postal_code', text)}
-            placeholder="CP"
-            placeholderTextColor={placeholderColor}
-            keyboardType="numbers-and-punctuation"
-          />
-
-          <ThemedText style={styles.label}>Notas</ThemedText>
-          <TextInput
-            style={[
-              styles.input,
-              styles.multiline,
-              { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-            ]}
-            value={address.notes ?? ''}
-            onChangeText={(text) => updateAddressField(index, 'notes', text)}
-            placeholder="Referencias adicionales"
-            placeholderTextColor={placeholderColor}
-            multiline
-          />
-
-          {addresses.length > 1 ? (
-            <TouchableOpacity style={styles.removeButton} onPress={() => removeAddress(index)}>
-              <ThemedText style={styles.removeButtonText}>Eliminar dirección</ThemedText>
+            <TouchableOpacity style={styles.removeButton} onPress={() => removeIdentity(index)}>
+              <ThemedText style={styles.removeButtonText}>Eliminar identificación</ThemedText>
             </TouchableOpacity>
-          ) : null}
-        </View>
-      ))}
+          </View>
+        ))}
 
-      <TouchableOpacity style={styles.addItemButton} onPress={addAddress}>
-        <ThemedText style={styles.addItemButtonText}>➕ Agregar dirección</ThemedText>
-      </TouchableOpacity>
+        <TouchableOpacity style={[styles.addItemButton, { borderColor }]} onPress={addIdentity}>
+          <ThemedText style={styles.addItemButtonText}>➕ Agregar identificación</ThemedText>
+        </TouchableOpacity>
+      </CollapsibleSection>
 
-      <ThemedText style={styles.sectionTitle}>Contactos</ThemedText>
-      {contacts.map((contact, index) => (
-        <View key={`contact-${index}`} style={[styles.card, { borderColor }]}
-        >
-          <ThemedText style={styles.label}>Nombre</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={contact.name}
-            onChangeText={(text) => updateContactField(index, 'name', text)}
-            placeholder="Nombre y apellido"
-            placeholderTextColor={placeholderColor}
-          />
+      <CollapsibleSection title="Direcciones" description="Puntos físicos de contacto">
+        {addresses.map((address, index) => (
+          <View key={`address-${index}`} style={[styles.card, { borderColor }]}
+          >
+            <ThemedText style={styles.label}>Calle</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.street}
+              onChangeText={(text) => updateAddressField(index, 'street', text)}
+              placeholder="Calle"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>Cargo / Rol</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={contact.role ?? ''}
-            onChangeText={(text) => updateContactField(index, 'role', text)}
-            placeholder="Cargo"
-            placeholderTextColor={placeholderColor}
-          />
+            <ThemedText style={styles.label}>Número</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.number ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'number', text)}
+              placeholder="Número"
+              placeholderTextColor={placeholderColor}
+              keyboardType="numbers-and-punctuation"
+            />
 
-          <ThemedText style={styles.label}>Email</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={contact.email ?? ''}
-            onChangeText={(text) => updateContactField(index, 'email', text)}
-            placeholder="correo@empresa.com"
-            placeholderTextColor={placeholderColor}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+            <ThemedText style={styles.label}>Piso</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.floor ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'floor', text)}
+              placeholder="Piso"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>Teléfono</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={contact.phone ?? ''}
-            onChangeText={(text) => updateContactField(index, 'phone', text)}
-            placeholder="Teléfono"
-            placeholderTextColor={placeholderColor}
-            keyboardType="phone-pad"
-          />
+            <ThemedText style={styles.label}>Departamento</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.apartment ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'apartment', text)}
+              placeholder="Departamento"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>Celular</ThemedText>
-          <TextInput
-            style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-            value={contact.mobile ?? ''}
-            onChangeText={(text) => updateContactField(index, 'mobile', text)}
-            placeholder="Celular"
-            placeholderTextColor={placeholderColor}
-            keyboardType="phone-pad"
-          />
+            <ThemedText style={styles.label}>Ciudad</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.city ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'city', text)}
+              placeholder="Ciudad"
+              placeholderTextColor={placeholderColor}
+            />
 
-          <ThemedText style={styles.label}>Notas</ThemedText>
-          <TextInput
-            style={[
-              styles.input,
-              styles.multiline,
-              { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-            ]}
-            value={contact.notes ?? ''}
-            onChangeText={(text) => updateContactField(index, 'notes', text)}
-            placeholder="Notas"
-            placeholderTextColor={placeholderColor}
-            multiline
-          />
+            <ThemedText style={styles.label}>Provincia / Estado</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.state ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'state', text)}
+              placeholder="Provincia"
+              placeholderTextColor={placeholderColor}
+            />
 
-          {contacts.length > 1 ? (
-            <TouchableOpacity style={styles.removeButton} onPress={() => removeContact(index)}>
-              <ThemedText style={styles.removeButtonText}>Eliminar contacto</ThemedText>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      ))}
+            <ThemedText style={styles.label}>País</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.country ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'country', text)}
+              placeholder="País"
+              placeholderTextColor={placeholderColor}
+            />
 
-      <TouchableOpacity style={styles.addItemButton} onPress={addContact}>
-        <ThemedText style={styles.addItemButtonText}>➕ Agregar contacto</ThemedText>
-      </TouchableOpacity>
+            <ThemedText style={styles.label}>Código Postal</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.postal_code ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'postal_code', text)}
+              placeholder="CP"
+              placeholderTextColor={placeholderColor}
+              keyboardType="numbers-and-punctuation"
+            />
 
-      <ThemedText style={styles.sectionTitle}>Adjuntos</ThemedText>
-      <FileGallery
-        filesJson={attachmentsJson}
-        onChangeFilesJson={setAttachmentsJson}
-        editable
-      />
+            <ThemedText style={styles.label}>Notas</ThemedText>
+            <TextInput
+              style={[
+                styles.input,
+                styles.multiline,
+                { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+              ]}
+              value={address.notes ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'notes', text)}
+              placeholder="Referencias adicionales"
+              placeholderTextColor={placeholderColor}
+              multiline
+            />
+
+            {addresses.length > 1 ? (
+              <TouchableOpacity style={styles.removeButton} onPress={() => removeAddress(index)}>
+                <ThemedText style={styles.removeButtonText}>Eliminar dirección</ThemedText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ))}
+
+        <TouchableOpacity style={[styles.addItemButton, { borderColor }]} onPress={addAddress}>
+          <ThemedText style={styles.addItemButtonText}>➕ Agregar dirección</ThemedText>
+        </TouchableOpacity>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Contactos" description="Personas de referencia y comunicación">
+        {contacts.map((contact, index) => (
+          <View key={`contact-${index}`} style={[styles.card, { borderColor }]}
+          >
+            <ThemedText style={styles.label}>Nombre</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={contact.name}
+              onChangeText={(text) => updateContactField(index, 'name', text)}
+              placeholder="Nombre y apellido"
+              placeholderTextColor={placeholderColor}
+            />
+
+            <ThemedText style={styles.label}>Cargo / Rol</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={contact.role ?? ''}
+              onChangeText={(text) => updateContactField(index, 'role', text)}
+              placeholder="Cargo"
+              placeholderTextColor={placeholderColor}
+            />
+
+            <ThemedText style={styles.label}>Email</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={contact.email ?? ''}
+              onChangeText={(text) => updateContactField(index, 'email', text)}
+              placeholder="correo@empresa.com"
+              placeholderTextColor={placeholderColor}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <ThemedText style={styles.label}>Teléfono</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={contact.phone ?? ''}
+              onChangeText={(text) => updateContactField(index, 'phone', text)}
+              placeholder="Teléfono"
+              placeholderTextColor={placeholderColor}
+              keyboardType="phone-pad"
+            />
+
+            <ThemedText style={styles.label}>Celular</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={contact.mobile ?? ''}
+              onChangeText={(text) => updateContactField(index, 'mobile', text)}
+              placeholder="Celular"
+              placeholderTextColor={placeholderColor}
+              keyboardType="phone-pad"
+            />
+
+            <ThemedText style={styles.label}>Notas</ThemedText>
+            <TextInput
+              style={[
+                styles.input,
+                styles.multiline,
+                { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+              ]}
+              value={contact.notes ?? ''}
+              onChangeText={(text) => updateContactField(index, 'notes', text)}
+              placeholder="Notas"
+              placeholderTextColor={placeholderColor}
+              multiline
+            />
+
+            {contacts.length > 1 ? (
+              <TouchableOpacity style={styles.removeButton} onPress={() => removeContact(index)}>
+                <ThemedText style={styles.removeButtonText}>Eliminar contacto</ThemedText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ))}
+
+        <TouchableOpacity style={[styles.addItemButton, { borderColor }]} onPress={addContact}>
+          <ThemedText style={styles.addItemButtonText}>➕ Agregar contacto</ThemedText>
+        </TouchableOpacity>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Adjuntos" description="Documentos, contratos y más">
+        <FileGallery
+          filesJson={attachmentsJson}
+          onChangeFilesJson={setAttachmentsJson}
+          editable
+        />
+      </CollapsibleSection>
 
       <TouchableOpacity
         style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -665,6 +710,43 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 12,
+  },
+  helperText: {
+    fontSize: 14,
+    opacity: 0.75,
+    marginBottom: 16,
+  },
+  sectionContainer: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionHeaderTextContainer: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  sectionHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  sectionHeaderDescription: {
+    fontSize: 13,
+    marginTop: 4,
+    opacity: 0.7,
+  },
+  sectionHeaderIndicator: {
+    fontSize: 20,
+    marginLeft: 12,
+  },
+  sectionContent: {
+    marginTop: 16,
   },
   subSectionTitle: {
     fontSize: 18,
@@ -696,6 +778,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   addItemButton: {
+    marginTop: 8,
     marginBottom: 16,
     paddingVertical: 12,
     borderRadius: 8,
