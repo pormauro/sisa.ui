@@ -1,7 +1,7 @@
 // /app/clients/viewModal.tsx
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext } from 'react';
-import { ScrollView, View, StyleSheet, Button } from 'react-native';
+import { ScrollView, View, StyleSheet, Button, TouchableOpacity } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
@@ -26,6 +26,7 @@ export default function ViewClientModal() {
   const canViewJobs = permissions.includes('listJobs');
 
   const background = useThemeColor({}, 'background');
+  const linkColor = useThemeColor({}, 'tint');
 
   if (!client) {
     return (
@@ -72,12 +73,25 @@ export default function ViewClientModal() {
 
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Montos pendientes</ThemedText>
-        <View style={styles.sectionRow}>
-          <ThemedText style={styles.sectionLabel}>Total no facturado</ThemedText>
+        <TouchableOpacity
+          style={[styles.sectionRow, !canViewJobs && styles.sectionRowDisabled]}
+          onPress={() => router.push(`/clients/finalizedJobs?id=${client.id}`)}
+          accessibilityRole="button"
+          activeOpacity={0.7}
+          disabled={!canViewJobs}
+        >
+          <ThemedText
+            style={[
+              styles.sectionLabel,
+              canViewJobs ? { color: linkColor, textDecorationLine: 'underline' } : null,
+            ]}
+          >
+            Total no facturado
+          </ThemedText>
           <ThemedText style={styles.sectionValue}>
             {formatCurrency(finalizedJobsTotal)}
           </ThemedText>
-        </View>
+        </TouchableOpacity>
         <View style={styles.sectionRow}>
           <ThemedText style={styles.sectionLabel}>Facturas impagas</ThemedText>
           <ThemedText style={styles.sectionValue}>
@@ -143,6 +157,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
+  },
+  sectionRowDisabled: {
+    opacity: 0.6,
   },
   sectionLabel: { fontSize: 15 },
   sectionValue: { fontSize: 15, fontWeight: '600' },
