@@ -53,123 +53,152 @@ export default function ViewCompanyModal() {
     );
   }
 
+  const generalFields = (
+    [
+      { label: 'Nombre Comercial', value: company.name },
+      { label: 'Razón Social', value: company.legal_name },
+      { label: 'Sitio Web', value: company.website },
+      { label: 'Teléfono', value: company.phone },
+      { label: 'Email', value: company.email },
+      { label: 'Estado', value: company.status },
+      { label: 'Notas', value: company.notes },
+    ] as const
+  )
+    .map(field => ({
+      label: field.label,
+      value: typeof field.value === 'string' ? field.value.trim() : field.value,
+    }))
+    .filter(field => Boolean(field.value && String(field.value).trim().length));
+
+  const taxIdentities = company.tax_identities.filter(identity =>
+    [identity.type, identity.value, identity.country, identity.notes].some(value =>
+      Boolean(value && String(value).trim().length)
+    )
+  );
+
+  const addressCards = company.addresses
+    .map((address, index) => {
+      const lines = [
+        [address.street, address.number].filter(Boolean).join(' ').trim(),
+        [address.floor, address.apartment].filter(Boolean).join(' ').trim(),
+        [address.city, address.state, address.country].filter(Boolean).join(', ').trim(),
+        address.postal_code?.trim(),
+      ].filter(line => line && line.length);
+
+      const notes = address.notes?.trim();
+
+      if (!lines.length && !notes) {
+        return null;
+      }
+
+      return (
+        <View key={`address-${index}`} style={[styles.card, { borderColor: cardBorder }]}>
+          {lines.map((line, lineIndex) => (
+            <ThemedText key={`addr-line-${lineIndex}`} style={styles.value}>{line}</ThemedText>
+          ))}
+          {notes ? (
+            <ThemedText style={styles.identityExtra}>Notas: {notes}</ThemedText>
+          ) : null}
+        </View>
+      );
+    })
+    .filter((card): card is React.ReactElement => Boolean(card));
+
+  const contactCards = company.contacts
+    .map((contact, index) => {
+      const name = contact.name?.trim();
+      const role = contact.role?.trim();
+      const email = contact.email?.trim();
+      const phone = contact.phone?.trim();
+      const mobile = contact.mobile?.trim();
+      const notes = contact.notes?.trim();
+
+      const hasContent = [name, role, email, phone, mobile, notes].some(Boolean);
+
+      if (!hasContent) {
+        return null;
+      }
+
+      return (
+        <View key={`contact-${index}`} style={[styles.card, { borderColor: cardBorder }]}>
+          {name ? <ThemedText style={styles.value}>{name}</ThemedText> : null}
+          {role ? <ThemedText style={styles.identityExtra}>Rol: {role}</ThemedText> : null}
+          {email ? <ThemedText style={styles.identityExtra}>Email: {email}</ThemedText> : null}
+          {phone ? <ThemedText style={styles.identityExtra}>Teléfono: {phone}</ThemedText> : null}
+          {mobile ? <ThemedText style={styles.identityExtra}>Celular: {mobile}</ThemedText> : null}
+          {notes ? <ThemedText style={styles.identityExtra}>Notas: {notes}</ThemedText> : null}
+        </View>
+      );
+    })
+    .filter((card): card is React.ReactElement => Boolean(card));
+
+  const hasTaxIdentities = taxIdentities.length > 0;
+  const hasAddresses = addressCards.length > 0;
+  const hasContacts = contactCards.length > 0;
+
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}
     >
       <CircleImagePicker fileId={company.brand_file_id ? String(company.brand_file_id) : null} size={180} editable={false} />
 
-      <ThemedText style={styles.sectionTitle}>Datos Generales</ThemedText>
-      <ThemedText style={styles.label}>Nombre Comercial</ThemedText>
-      <ThemedText style={styles.value}>{company.name}</ThemedText>
-
-      {company.legal_name ? (
-        <>
-          <ThemedText style={styles.label}>Razón Social</ThemedText>
-          <ThemedText style={styles.value}>{company.legal_name}</ThemedText>
-        </>
-      ) : null}
-
-      {company.website ? (
-        <>
-          <ThemedText style={styles.label}>Sitio Web</ThemedText>
-          <ThemedText style={styles.value}>{company.website}</ThemedText>
-        </>
-      ) : null}
-
-      {company.phone ? (
-        <>
-          <ThemedText style={styles.label}>Teléfono</ThemedText>
-          <ThemedText style={styles.value}>{company.phone}</ThemedText>
-        </>
-      ) : null}
-
-      {company.email ? (
-        <>
-          <ThemedText style={styles.label}>Email</ThemedText>
-          <ThemedText style={styles.value}>{company.email}</ThemedText>
-        </>
-      ) : null}
-
-      {company.status ? (
-        <>
-          <ThemedText style={styles.label}>Estado</ThemedText>
-          <ThemedText style={styles.value}>{company.status}</ThemedText>
-        </>
-      ) : null}
-
-      {company.notes ? (
-        <>
-          <ThemedText style={styles.label}>Notas</ThemedText>
-          <ThemedText style={styles.value}>{company.notes}</ThemedText>
-        </>
-      ) : null}
-
-      <ThemedText style={styles.sectionTitle}>Identidad Fiscal</ThemedText>
-      {company.tax_identities.length ? (
-        <View style={[styles.card, { borderColor: cardBorder }]}>
-          {company.tax_identities.map(identity => (
-            <View key={`${identity.type}-${identity.value}`} style={styles.identityRow}>
-              <ThemedText style={styles.identityType}>{identity.type}</ThemedText>
-              <ThemedText style={styles.identityValue}>{identity.value}</ThemedText>
-              {identity.country ? (
-                <ThemedText style={styles.identityExtra}>País: {identity.country}</ThemedText>
-              ) : null}
-              {identity.notes ? (
-                <ThemedText style={styles.identityExtra}>Notas: {identity.notes}</ThemedText>
-              ) : null}
-            </View>
+      {generalFields.length ? (
+        <View>
+          <ThemedText style={styles.sectionTitle}>Datos Generales</ThemedText>
+          {generalFields.map(field => (
+            <React.Fragment key={field.label}>
+              <ThemedText style={styles.label}>{field.label}</ThemedText>
+              <ThemedText style={styles.value}>{String(field.value)}</ThemedText>
+            </React.Fragment>
           ))}
         </View>
-      ) : (
-        <ThemedText style={styles.value}>Sin información fiscal registrada.</ThemedText>
-      )}
+      ) : null}
 
-      <ThemedText style={styles.sectionTitle}>Direcciones</ThemedText>
-      {company.addresses.length ? (
-        company.addresses.map(address => {
-          const lines = [
-            [address.street, address.number].filter(Boolean).join(' '),
-            [address.floor, address.apartment].filter(Boolean).join(' '),
-            [address.city, address.state, address.country].filter(Boolean).join(', '),
-            address.postal_code,
-          ].filter(line => line && line.trim().length);
+      {hasTaxIdentities ? (
+        <View>
+          <ThemedText style={styles.sectionTitle}>Identidad Fiscal</ThemedText>
+          <View style={[styles.card, { borderColor: cardBorder }]}>
+            {taxIdentities.map((identity, index) => {
+              const type = identity.type?.trim();
+              const value = identity.value?.trim();
+              const country = identity.country?.trim();
+              const notes = identity.notes?.trim();
 
-          return (
-            <View key={`${address.street}-${address.city}-${address.postal_code}`} style={[styles.card, { borderColor: cardBorder }]}>
-              {lines.map((line, index) => (
-                <ThemedText key={`addr-line-${index}`} style={styles.value}>{line}</ThemedText>
-              ))}
-              {address.notes ? (
-                <ThemedText style={styles.identityExtra}>Notas: {address.notes}</ThemedText>
-              ) : null}
-            </View>
-          );
-        })
-      ) : (
-        <ThemedText style={styles.value}>Sin direcciones registradas.</ThemedText>
-      )}
-
-      <ThemedText style={styles.sectionTitle}>Contactos</ThemedText>
-      {company.contacts.length ? (
-        company.contacts.map(contact => (
-          <View key={`${contact.name}-${contact.email}-${contact.phone}`} style={[styles.card, { borderColor: cardBorder }]}>
-            <ThemedText style={styles.value}>{contact.name}</ThemedText>
-            {contact.role ? <ThemedText style={styles.identityExtra}>Rol: {contact.role}</ThemedText> : null}
-            {contact.email ? <ThemedText style={styles.identityExtra}>Email: {contact.email}</ThemedText> : null}
-            {contact.phone ? <ThemedText style={styles.identityExtra}>Teléfono: {contact.phone}</ThemedText> : null}
-            {contact.mobile ? <ThemedText style={styles.identityExtra}>Celular: {contact.mobile}</ThemedText> : null}
-            {contact.notes ? <ThemedText style={styles.identityExtra}>Notas: {contact.notes}</ThemedText> : null}
+              return (
+                <View key={`identity-${index}`} style={styles.identityRow}>
+                  {type ? <ThemedText style={styles.identityType}>{type}</ThemedText> : null}
+                  {value ? <ThemedText style={styles.identityValue}>{value}</ThemedText> : null}
+                  {country ? (
+                    <ThemedText style={styles.identityExtra}>País: {country}</ThemedText>
+                  ) : null}
+                  {notes ? (
+                    <ThemedText style={styles.identityExtra}>Notas: {notes}</ThemedText>
+                  ) : null}
+                </View>
+              );
+            })}
           </View>
-        ))
-      ) : (
-        <ThemedText style={styles.value}>Sin contactos registrados.</ThemedText>
-      )}
+        </View>
+      ) : null}
+
+      {hasAddresses ? (
+        <View>
+          <ThemedText style={styles.sectionTitle}>Direcciones</ThemedText>
+          {addressCards}
+        </View>
+      ) : null}
+
+      {hasContacts ? (
+        <View>
+          <ThemedText style={styles.sectionTitle}>Contactos</ThemedText>
+          {contactCards}
+        </View>
+      ) : null}
 
       {attachments ? (
-        <>
+        <View>
           <ThemedText style={styles.sectionTitle}>Adjuntos</ThemedText>
           <FileGallery filesJson={attachments} onChangeFilesJson={() => {}} editable={false} />
-        </>
+        </View>
       ) : null}
 
       {canEdit ? (

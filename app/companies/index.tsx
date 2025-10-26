@@ -127,10 +127,11 @@ export default function CompaniesListPage() {
   );
 
   const renderItem = ({ item }: { item: Company }) => {
-    const primaryAddress = getPrimaryAddress(item);
-    const taxIdentity = getPrimaryTaxIdentity(item);
+    const displayName = (item.legal_name ?? '').trim() || (item.name ?? '').trim();
+    const primaryAddress = getPrimaryAddress(item).trim();
+    const taxIdentity = getPrimaryTaxIdentity(item).trim();
     const ivaIdentity = item.tax_identities.find(identity =>
-      identity.type?.toLowerCase().includes('iva')
+      identity.type?.toLowerCase().includes('iva') && identity.value && identity.value.trim().length
     );
 
     return (
@@ -148,12 +149,14 @@ export default function CompaniesListPage() {
             editable={false}
           />
           <View style={styles.itemInfo}>
-            <ThemedText style={styles.itemTitle}>{item.legal_name || item.name}</ThemedText>
+            {displayName ? (
+              <ThemedText style={styles.itemTitle}>{displayName}</ThemedText>
+            ) : null}
             {taxIdentity ? (
               <ThemedText style={styles.itemSubtitle}>CUIT: {taxIdentity}</ThemedText>
             ) : null}
             {ivaIdentity?.value ? (
-              <ThemedText style={styles.itemSubtitle}>IVA: {ivaIdentity.value}</ThemedText>
+              <ThemedText style={styles.itemSubtitle}>IVA: {ivaIdentity.value.trim()}</ThemedText>
             ) : null}
             {primaryAddress ? (
               <ThemedText style={styles.itemSubtitle}>{primaryAddress}</ThemedText>
