@@ -127,12 +127,9 @@ export default function CompaniesListPage() {
   );
 
   const renderItem = ({ item }: { item: Company }) => {
-    const displayName = (item.legal_name ?? '').trim() || (item.name ?? '').trim();
+    const commercialName = (item.name ?? '').trim() || (item.legal_name ?? '').trim();
     const primaryAddress = getPrimaryAddress(item).trim();
     const taxIdentity = getPrimaryTaxIdentity(item).trim();
-    const ivaIdentity = item.tax_identities.find(identity =>
-      identity.type?.toLowerCase().includes('iva') && identity.value && identity.value.trim().length
-    );
 
     return (
       <TouchableOpacity
@@ -149,14 +146,11 @@ export default function CompaniesListPage() {
             editable={false}
           />
           <View style={styles.itemInfo}>
-            {displayName ? (
-              <ThemedText style={styles.itemTitle}>{displayName}</ThemedText>
+            {commercialName ? (
+              <ThemedText style={styles.itemTitle}>{commercialName}</ThemedText>
             ) : null}
             {taxIdentity ? (
               <ThemedText style={styles.itemSubtitle}>CUIT: {taxIdentity}</ThemedText>
-            ) : null}
-            {ivaIdentity?.value ? (
-              <ThemedText style={styles.itemSubtitle}>IVA: {ivaIdentity.value.trim()}</ThemedText>
             ) : null}
             {primaryAddress ? (
               <ThemedText style={styles.itemSubtitle}>{primaryAddress}</ThemedText>
