@@ -82,9 +82,17 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ) => {
         if (!response.ok) {
           let errorDetail = '';
+          let errorPayload: any = null;
           try {
             const errorText = await response.text();
             errorDetail = errorText ? `: ${errorText}` : '';
+            if (errorText) {
+              try {
+                errorPayload = JSON.parse(errorText);
+              } catch {
+                // Si la respuesta no es JSON ignoramos el error.
+              }
+            }
           } catch {
             // Ignoramos errores al leer el cuerpo para no enmascarar la causa original.
           }
@@ -99,11 +107,22 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
               );
             }
           }
-          const error: Error & { status?: number; scope?: string } = new Error(
+          const error: Error & {
+            status?: number;
+            scope?: string;
+            tokenMismatch?: boolean;
+          } = new Error(
             `HTTP ${response.status} al cargar permisos ${scope}${errorDetail}`
           );
           error.status = response.status;
           error.scope = scope;
+          const errorMessage =
+            (typeof errorPayload?.error === 'string' && errorPayload.error) ||
+            (typeof errorPayload?.message === 'string' && errorPayload.message) ||
+            '';
+          if (errorMessage.toLowerCase().includes('el token no coincide')) {
+            error.tokenMismatch = true;
+          }
           throw error;
         }
 
@@ -140,6 +159,18 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (error: any) {
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
+      const tokenMismatch = Boolean(error?.tokenMismatch);
+      if (tokenMismatch) {
+        // El backend indica que el token no coincide con el registrado.
+        // Solicitamos la verificación de la sesión para obtener un nuevo token
+        // y evitamos mostrar una alerta para que el proceso sea transparente.
+        try {
+          await checkConnection();
+        } catch (revalidationError) {
+          console.log('No fue posible obtener un nuevo token tras la desincronización.', revalidationError);
+        }
+        return;
+      }
       if (status === 401 || status === 403) {
         Alert.alert(
           'Sesión no válida',
