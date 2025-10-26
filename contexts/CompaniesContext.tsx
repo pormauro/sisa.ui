@@ -396,10 +396,32 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     if (value === undefined) {
       return acc;
     }
-    if (typeof value === 'string' && value.trim() === '') {
+
+    const normalizedValue =
+      typeof value === 'string'
+        ? (() => {
+            const trimmed = value.trim();
+            return trimmed.length ? trimmed : undefined;
+          })()
+        : value;
+
+    if (normalizedValue === undefined) {
       return acc;
     }
-    acc[key] = value;
+
+    if (key === 'legal_name') {
+      acc.legal_name = normalizedValue;
+      acc.razon_social = normalizedValue;
+      return acc;
+    }
+
+    if (key === 'tax_id') {
+      acc.tax_id = normalizedValue;
+      acc.nro_doc = normalizedValue;
+      return acc;
+    }
+
+    acc[key] = normalizedValue;
     return acc;
   }, {} as Record<string, unknown>);
 
