@@ -157,6 +157,42 @@ const parseContact = (raw: any): CompanyContact => ({
   version: typeof raw?.version === 'number' ? raw.version : raw?.version ? Number(raw.version) || 1 : undefined,
 });
 
+const extractCompanyCollection = (payload: any): any[] => {
+  if (!payload) {
+    return [];
+  }
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  const candidates: unknown[] = [
+    payload?.companies,
+    payload?.data,
+    payload?.data?.companies,
+    payload?.companies?.data,
+    payload?.items,
+    payload?.results,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate;
+    }
+  }
+
+  if (typeof payload === 'object' && payload !== null) {
+    const firstArrayValue = Object.values(payload as Record<string, unknown>).find(
+      value => Array.isArray(value) && value.every(item => typeof item === 'object' && item !== null)
+    );
+    if (Array.isArray(firstArrayValue)) {
+      return firstArrayValue;
+    }
+  }
+
+  return [];
+};
+
 const parseCompany = (raw: any): Company => {
   const baseId = raw?.id ?? raw?.company_id;
   const version = raw?.version ?? 1;
@@ -268,14 +304,19 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     try {
       const response = await fetch(`${BASE_URL}/companies`, {
         headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await readJsonSafely<{ companies?: any[] }>(response);
-      if (Array.isArray(data?.companies)) {
-        const parsed = data.companies.map(parseCompany);
+      const data = await readJsonSafely(response);
+      if (data !== null) {
+        const collection = extractCompanyCollection(data);
+        const parsed = collection.map(parseCompany);
         setCompanies(sortByNewest(parsed, getDefaultSortValue));
+      } else if (response.ok) {
+        setCompanies([]);
       }
     } catch (error) {
       console.error('Error loading companies:', error);
