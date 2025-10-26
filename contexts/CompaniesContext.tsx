@@ -382,6 +382,7 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   const hasBrandFile = Object.prototype.hasOwnProperty.call(payload, 'brand_file_id');
 
   const {
+    name,
     tax_identities,
     addresses,
     contacts,
@@ -395,12 +396,19 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     if (value === undefined) {
       return acc;
     }
-    if (key !== 'name' && typeof value === 'string' && value.trim() === '') {
+    if (typeof value === 'string' && value.trim() === '') {
       return acc;
     }
     acc[key] = value;
     return acc;
   }, {} as Record<string, unknown>);
+
+  if (typeof name === 'string') {
+    const trimmedName = name.trim();
+    if (trimmedName) {
+      base.nombre_fantasia = trimmedName;
+    }
+  }
 
   if (version !== undefined) {
     base.version = version;
