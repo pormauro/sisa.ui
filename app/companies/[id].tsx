@@ -21,6 +21,7 @@ import {
   TaxIdentity,
 } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { AuthContext } from '@/contexts/AuthContext';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -194,6 +195,7 @@ export default function EditCompanyPage() {
 
   const { companies, loadCompanies, updateCompany, deleteCompany } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { userId } = useContext(AuthContext);
 
   const company = companies.find(item => item.id === companyId);
 
@@ -208,7 +210,27 @@ export default function EditCompanyPage() {
   const destructiveColor = useThemeColor({ light: '#d32f2f', dark: '#ff6b6b' }, 'button');
 
   const canEdit = permissions.includes('updateCompany');
-  const canDelete = permissions.includes('deleteCompany');
+  const baseCanDelete = permissions.includes('deleteCompany');
+  const normalizedUserId = useMemo(() => {
+    if (typeof userId !== 'string') {
+      return null;
+    }
+    const trimmed = userId.trim();
+    return trimmed.length ? trimmed : null;
+  }, [userId]);
+  const companyAdministratorIds = useMemo(() => {
+    if (company && Array.isArray(company.administrator_ids)) {
+      return company.administrator_ids;
+    }
+    return [] as string[];
+  }, [company]);
+  const isCompanyAdministrator = useMemo(() => {
+    if (!normalizedUserId || !companyAdministratorIds.length) {
+      return false;
+    }
+    return companyAdministratorIds.some(adminId => String(adminId).trim() === normalizedUserId);
+  }, [companyAdministratorIds, normalizedUserId]);
+  const canDelete = baseCanDelete && isCompanyAdministrator;
 
   const [name, setName] = useState('');
   const [legalName, setLegalName] = useState('');
