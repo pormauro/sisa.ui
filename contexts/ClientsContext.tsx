@@ -11,6 +11,23 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { toNumericValue } from '@/utils/currency';
 
+const normalizeTaxId = (value: unknown): string => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    // Algunas respuestas del servidor pueden exponer "1" o espacios vacíos
+    // cuando no existe número de documento. En ese caso debemos mostrar el
+    // campo vacío en la UI.
+    return trimmed && trimmed !== '1' ? trimmed : '';
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const normalized = String(value).trim();
+    return normalized && normalized !== '1' ? normalized : '';
+  }
+
+  return '';
+};
+
 export interface Client {
   id: number;
   business_name: string;
@@ -57,7 +74,12 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
 
   useEffect(() => {
-    setClients(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+    setClients(prev =>
+      ensureSortedByNewest(
+        prev.map(client => ({ ...client, tax_id: normalizeTaxId(client.tax_id) })),
+        getDefaultSortValue
+      )
+    );
   }, [setClients]);
 
   const loadClients = useCallback(async () => {
@@ -69,6 +91,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       if (Array.isArray(data.clients)) {
         const fetchedClients = (data.clients as ClientApiResponse[]).map(client => ({
           ...client,
+          tax_id: normalizeTaxId(client.tax_id),
           unbilled_total: toNumericValue(
             client.finalized_jobs_total ?? client.unbilled_total
           ),
@@ -85,6 +108,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     async (
       clientData: Omit<Client, 'id' | 'version'>
     ): Promise<Client | null> => {
+      const payload: Omit<Client, 'id' | 'version'> = {
+        ...clientData,
+        tax_id: normalizeTaxId(clientData.tax_id),
+      };
       try {
         const res = await fetch(`${BASE_URL}/clients`, {
           method: 'POST',
@@ -92,14 +119,14 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(clientData),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (data.client_id) {
           const newClient: Client = {
             id: parseInt(data.client_id, 10),
             version: 1,
-            ...clientData,
+            ...payload,
           };
           setClients(prev => ensureSortedByNewest([...prev, newClient], getDefaultSortValue));
           await loadClients();
@@ -118,6 +145,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       id: number,
       clientData: Omit<Client, 'id' | 'version'>
     ): Promise<boolean> => {
+      const payload: Omit<Client, 'id' | 'version'> = {
+        ...clientData,
+        tax_id: normalizeTaxId(clientData.tax_id),
+      };
       try {
         const res = await fetch(`${BASE_URL}/clients/${id}`, {
           method: 'PUT',
@@ -125,12 +156,12 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(clientData),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           setClients(prev =>
             ensureSortedByNewest(
-              prev.map(c => (c.id === id ? { ...c, ...clientData } : c)),
+              prev.map(c => (c.id === id ? { ...c, ...payload } : c)),
               getDefaultSortValue
             )
           );
