@@ -268,6 +268,13 @@ const parseCompany = (raw: any): Company => {
     const isInactive = raw.activo === false || raw.activo === 0 || raw.activo === '0';
     status = isActive ? 'active' : isInactive ? 'inactive' : null;
   }
+  if (status) {
+    const normalizedStatus = status.trim().toLowerCase();
+    const activeLabels = ['active', 'activo', 'activa'];
+    if (activeLabels.includes(normalizedStatus)) {
+      status = null;
+    }
+  }
   const notes = pickString(raw?.notes, raw?.notas, raw?.observaciones);
 
   const profileFileSource =
