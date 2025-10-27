@@ -222,61 +222,63 @@ export default function ClientsListPage() {
       onLongPress={() => canEditClient && router.push(`/clients/${item.id}`)}
       activeOpacity={0.85}
     >
-      <View style={styles.itemContent}>
-        <CircleImagePicker fileId={item.brand_file_id} size={50} />
-        <View style={styles.itemInfo}>
-          <ThemedText style={styles.itemTitle}>
-            {item.business_name && item.business_name.trim().length > 0
-              ? item.business_name
-              : 'Cliente sin nombre'}
-          </ThemedText>
-          {item.tax_id ? (
-            <ThemedText style={styles.itemSubtitle}>CUIT: {item.tax_id}</ThemedText>
-          ) : null}
-          {item.address ? (
-            <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
-          ) : null}
-          {item.email ? (
-            <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
-          ) : null}
-          <View style={styles.metricsRow}>
-            <View
-              style={[
-                styles.metricCard,
-                styles.metricCardSpacer,
-                { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
-              ]}
-            >
-              <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatCurrency(item.unbilled_total)}
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.metricCard,
-                { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
-              ]}
-            >
-              <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
-              <ThemedText style={styles.metricValue}>
-                {formatCurrency(item.unpaid_invoices_total)}
-              </ThemedText>
-            </View>
+      <View style={styles.itemHeader}>
+        <View style={styles.itemContent}>
+          <CircleImagePicker fileId={item.brand_file_id} size={50} />
+          <View style={styles.itemInfo}>
+            <ThemedText style={styles.itemTitle}>
+              {item.business_name && item.business_name.trim().length > 0
+                ? item.business_name
+                : 'Cliente sin nombre'}
+            </ThemedText>
+            {item.tax_id ? (
+              <ThemedText style={styles.itemSubtitle}>CUIT: {item.tax_id}</ThemedText>
+            ) : null}
+            {item.address ? (
+              <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
+            ) : null}
+            {item.email ? (
+              <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
+            ) : null}
           </View>
         </View>
+        {canDeleteClient && (
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={(event) => handleDeleteClient(event, item.id)}
+            >
+              <ThemedText style={styles.actionText}>🗑️</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {canDeleteClient && (
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(event) => handleDeleteClient(event, item.id)}
-          >
-            <ThemedText style={styles.actionText}>🗑️</ThemedText>
-          </TouchableOpacity>
+      <View style={styles.metricsRow}>
+        <View
+          style={[
+            styles.metricCard,
+            styles.metricCardSpacer,
+            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+          ]}
+        >
+          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
+          <ThemedText style={styles.metricValue}>
+            {formatCurrency(item.unbilled_total)}
+          </ThemedText>
         </View>
-      )}
+        <View
+          style={[
+            styles.metricCard,
+            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+          ]}
+        >
+          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
+          <ThemedText style={styles.metricValue}>
+            {formatCurrency(item.unpaid_invoices_total)}
+          </ThemedText>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 
@@ -428,13 +430,17 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   itemContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
     borderRadius: 10,
     marginBottom: 8,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
   },
   itemContent: {
     flexDirection: 'row',
@@ -447,6 +453,7 @@ const styles = StyleSheet.create({
   metricsRow: {
     flexDirection: 'row',
     marginTop: 12,
+    width: '100%',
   },
   metricCard: {
     flex: 1,
@@ -474,7 +481,7 @@ const styles = StyleSheet.create({
   actionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: 12,
   },
   actionButton: { padding: 6, marginLeft: 4 },
   actionText: { fontSize: 18 },
