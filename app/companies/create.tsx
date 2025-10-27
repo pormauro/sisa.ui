@@ -80,7 +80,7 @@ export default function CreateCompanyPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('');
   const [notes, setNotes] = useState('');
-  const [brandFileId, setBrandFileId] = useState<string | null>(null);
+  const [profileFileId, setProfileFileId] = useState<string | null>(null);
 
   const [taxId, setTaxId] = useState('');
   const [ivaCondition, setIvaCondition] = useState('');
@@ -270,8 +270,8 @@ export default function CreateCompanyPage() {
         payload.notes = trimmedNotes;
       }
 
-      if (brandFileId) {
-        payload.brand_file_id = brandFileId;
+      if (profileFileId) {
+        payload.profile_file_id = profileFileId;
       }
 
       if (sanitizedIdentities.length > 0) {
@@ -347,10 +347,10 @@ export default function CreateCompanyPage() {
       </ThemedText>
       <ThemedText style={styles.label}>Logo</ThemedText>
       <CircleImagePicker
-        fileId={brandFileId}
+        fileId={profileFileId}
         editable
         size={180}
-        onImageChange={setBrandFileId}
+        onImageChange={setProfileFileId}
       />
 
       <ThemedText style={styles.label}>Nombre Comercial *</ThemedText>

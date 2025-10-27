@@ -55,7 +55,7 @@ export interface Company {
   email?: string | null;
   status?: string | null;
   notes?: string | null;
-  brand_file_id?: string | null;
+  profile_file_id?: string | null;
   attached_files?: number[] | string | null;
   tax_identities: TaxIdentity[];
   addresses: CompanyAddress[];
@@ -270,7 +270,8 @@ const parseCompany = (raw: any): Company => {
   }
   const notes = pickString(raw?.notes, raw?.notas, raw?.observaciones);
 
-  const brandFileSource = raw?.brand_file_id ?? raw?.brandFileId ?? raw?.logo_id;
+  const profileFileSource =
+    raw?.profile_file_id ?? raw?.brand_file_id ?? raw?.brandFileId ?? raw?.logo_id;
   const attachedFilesSource = raw?.attached_files ?? raw?.archivos_adjuntos ?? raw?.adjuntos;
 
   const parsedTaxIdentities = coalesceNestedArray(
@@ -352,8 +353,10 @@ const parseCompany = (raw: any): Company => {
     email: email ?? null,
     status: status ?? null,
     notes: notes ?? null,
-    brand_file_id:
-      typeof brandFileSource === 'number' || typeof brandFileSource === 'string' ? String(brandFileSource) : null,
+    profile_file_id:
+      typeof profileFileSource === 'number' || typeof profileFileSource === 'string'
+        ? String(profileFileSource)
+        : null,
     attached_files:
       typeof attachedFilesSource === 'string'
         ? attachedFilesSource
@@ -386,7 +389,7 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   const hasAddresses = Object.prototype.hasOwnProperty.call(payload, 'addresses');
   const hasContacts = Object.prototype.hasOwnProperty.call(payload, 'contacts');
   const hasAttachments = Object.prototype.hasOwnProperty.call(payload, 'attached_files');
-  const hasBrandFile = Object.prototype.hasOwnProperty.call(payload, 'brand_file_id');
+  const hasProfileFile = Object.prototype.hasOwnProperty.call(payload, 'profile_file_id');
 
   const {
     name,
@@ -395,7 +398,7 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     contacts,
     attached_files,
     version,
-    brand_file_id,
+    profile_file_id,
     ...rest
   } = payload;
 
@@ -443,17 +446,18 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     base.version = version;
   }
 
-  if (hasBrandFile) {
-    const normalizedBrandFileId = (() => {
-      if (brand_file_id === null || brand_file_id === '') {
+  if (hasProfileFile) {
+    const normalizedProfileFileId = (() => {
+      if (profile_file_id === null || profile_file_id === '') {
         return null;
       }
-      const numeric = Number(brand_file_id);
-      return Number.isFinite(numeric) ? numeric : brand_file_id;
+      const numeric = Number(profile_file_id);
+      return Number.isFinite(numeric) ? numeric : profile_file_id;
     })();
 
-    if (normalizedBrandFileId !== undefined) {
-      base.brand_file_id = normalizedBrandFileId;
+    if (normalizedProfileFileId !== undefined) {
+      base.profile_file_id = normalizedProfileFileId;
+      base.brand_file_id = normalizedProfileFileId;
     }
   }
 
@@ -494,12 +498,54 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   };
 };
 
+const ensureProfileType = (company: Company): Company => {
+  if (
+    company.profile_file_id === null ||
+    company.profile_file_id === undefined ||
+    typeof company.profile_file_id === 'string'
+  ) {
+    return company;
+  }
+
+  return {
+    ...company,
+    profile_file_id: String(company.profile_file_id),
+  };
+};
+
 export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   const [companies, setCompanies] = useCachedState<Company[]>('companies', []);
   const { token } = useContext(AuthContext);
 
   useEffect(() => {
-    setCompanies(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+    setCompanies(prev => {
+      const normalized = prev.map(company => {
+        const withLegacy = company as Company & { brand_file_id?: unknown };
+        const { brand_file_id: legacyBrandFileId, ...rest } = withLegacy;
+
+        if (rest.profile_file_id !== undefined) {
+          return ensureProfileType(rest as Company);
+        }
+
+        const normalizedProfileId = (() => {
+          if (legacyBrandFileId === null || legacyBrandFileId === undefined) {
+            return null;
+          }
+          if (typeof legacyBrandFileId === 'number' || typeof legacyBrandFileId === 'string') {
+            const trimmed = String(legacyBrandFileId).trim();
+            return trimmed.length ? trimmed : null;
+          }
+          return null;
+        })();
+
+        return ensureProfileType({
+          ...(rest as Company),
+          profile_file_id: normalizedProfileId,
+        });
+      });
+
+      return ensureSortedByNewest(normalized, getDefaultSortValue);
+    });
   }, [setCompanies]);
 
   const loadCompanies = useCallback(async () => {

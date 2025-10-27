@@ -139,7 +139,11 @@ export default function ViewCompanyModal() {
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}
     >
-      <CircleImagePicker fileId={company.brand_file_id ? String(company.brand_file_id) : null} size={180} editable={false} />
+      <CircleImagePicker
+        fileId={company.profile_file_id ? String(company.profile_file_id) : null}
+        size={180}
+        editable={false}
+      />
 
       {generalFields.length ? (
         <View>
