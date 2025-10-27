@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -49,10 +49,11 @@ interface AssignedPermission {
 
 const PermissionScreen: React.FC = () => {
   const { token, userId, username } = useContext(AuthContext);
-  const { permissions: currentPermissions } = useContext(PermissionsContext);
+  const { permissions: currentPermissions, refreshPermissions } = useContext(PermissionsContext);
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const background = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
@@ -61,6 +62,41 @@ const PermissionScreen: React.FC = () => {
   const numericUserId = useMemo(() => (userId ? Number(userId) : null), [userId]);
   const fallbackUsername = username ?? 'Mi usuario';
   const isMasterUser = numericUserId === 1;
+
+  const shouldRefreshContext = useCallback(() => {
+    if (!selectedUser) {
+      return false;
+    }
+    if (selectedUser.id === 0) {
+      return true;
+    }
+    if (numericUserId === null) {
+      return false;
+    }
+    return selectedUser.id === numericUserId;
+  }, [numericUserId, selectedUser]);
+
+  const triggerPermissionsRefresh = useCallback(() => {
+    if (!shouldRefreshContext()) {
+      return;
+    }
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+    refreshTimeoutRef.current = setTimeout(() => {
+      refreshTimeoutRef.current = null;
+      void refreshPermissions();
+    }, 300);
+  }, [refreshPermissions, shouldRefreshContext]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const canListPermissions = useMemo(
     () =>
@@ -208,6 +244,7 @@ const PermissionScreen: React.FC = () => {
             [sector]: { id: data.id, sector }
           }));
         }
+        triggerPermissionsRefresh();
       })
       .catch(err => {
         console.error(`Error adding permission ${sector}:`, err);
@@ -242,6 +279,7 @@ const PermissionScreen: React.FC = () => {
           delete newPerms[sector];
           return newPerms;
         });
+        triggerPermissionsRefresh();
       })
       .catch(err => {
         console.error(`Error deleting permission ${sector}:`, err);
