@@ -5,8 +5,6 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  Alert,
-  GestureResponderEvent,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -29,41 +27,15 @@ const fuseOptions: Fuse.IFuseOptions<Company> = {
   ignoreLocation: true,
 };
 
-const getPrimaryAddress = (company: Company) => {
-  if (!company.addresses?.length) {
-    return '';
-  }
-
-  const primary = company.addresses[0];
-  const segments = [primary.street, primary.number, primary.city, primary.state];
-  return segments.filter(Boolean).join(', ');
-};
-
-const getPrimaryTaxIdentity = (company: Company) => {
-  if (company.tax_id) {
-    return company.tax_id;
-  }
-
-  const cuitIdentity = company.tax_identities.find(identity =>
-    identity.type?.toLowerCase().includes('cuit')
-  );
-  if (cuitIdentity?.value) {
-    return cuitIdentity.value;
-  }
-
-  return company.tax_identities[0]?.value ?? '';
-};
-
 export default function CompaniesListPage() {
   const router = useRouter();
-  const { companies, loadCompanies, deleteCompany } = useContext(CompaniesContext);
+  const { companies, loadCompanies } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
 
   const canList = permissions.includes('listCompanies');
   const canCreate = permissions.includes('addCompany');
   const canEdit = permissions.includes('updateCompany');
-  const canDelete = permissions.includes('deleteCompany');
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -98,38 +70,8 @@ export default function CompaniesListPage() {
     return fuse.search(searchQuery.trim()).map(result => result.item);
   }, [canList, companies, fuse, searchQuery]);
 
-  const handleDelete = useCallback(
-    (id: number) => {
-      Alert.alert(
-        'Confirmar eliminación',
-        '¿Estás seguro de que deseas eliminar esta empresa?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Eliminar',
-            style: 'destructive',
-            onPress: async () => {
-              await deleteCompany(id);
-            },
-          },
-        ]
-      );
-    },
-    [deleteCompany]
-  );
-
-  const handleDeletePress = useCallback(
-    (event: GestureResponderEvent, id: number) => {
-      event.stopPropagation();
-      handleDelete(id);
-    },
-    [handleDelete]
-  );
-
   const renderItem = ({ item }: { item: Company }) => {
     const commercialName = (item.name ?? '').trim() || (item.legal_name ?? '').trim();
-    const primaryAddress = getPrimaryAddress(item).trim();
-    const taxIdentity = getPrimaryTaxIdentity(item).trim();
 
     return (
       <TouchableOpacity
@@ -149,25 +91,8 @@ export default function CompaniesListPage() {
             {commercialName ? (
               <ThemedText style={styles.itemTitle}>{commercialName}</ThemedText>
             ) : null}
-            {taxIdentity ? (
-              <ThemedText style={styles.itemSubtitle}>CUIT: {taxIdentity}</ThemedText>
-            ) : null}
-            {primaryAddress ? (
-              <ThemedText style={styles.itemSubtitle}>{primaryAddress}</ThemedText>
-            ) : null}
           </View>
         </View>
-
-        {canDelete ? (
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(event) => handleDeletePress(event, item.id)}
-            >
-              <ThemedText style={styles.actionText}>🗑️</ThemedText>
-            </TouchableOpacity>
-          </View>
-        ) : null}
       </TouchableOpacity>
     );
   };
@@ -264,19 +189,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 2,
-  },
-  itemSubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  actionsContainer: {
-    marginLeft: 12,
-  },
-  actionButton: {
-    padding: 8,
-  },
-  actionText: {
-    fontSize: 18,
   },
   addButton: {
     position: 'absolute',
