@@ -21,7 +21,7 @@ import {
   TaxIdentity,
 } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { AuthContext } from '@/contexts/AuthContext';
+import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -195,7 +195,7 @@ export default function EditCompanyPage() {
 
   const { companies, loadCompanies, updateCompany, deleteCompany } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
-  const { userId } = useContext(AuthContext);
+  const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
 
   const company = companies.find(item => item.id === companyId);
 
@@ -211,28 +211,27 @@ export default function EditCompanyPage() {
 
   const baseCanEdit = permissions.includes('updateCompany');
   const baseCanDelete = permissions.includes('deleteCompany');
-  const normalizedUserId = useMemo(() => {
-    if (typeof userId !== 'string') {
-      return null;
-    }
-    const trimmed = userId.trim();
-    return trimmed.length ? trimmed : null;
-  }, [userId]);
   const companyAdministratorIds = useMemo(() => {
-    if (company && Array.isArray(company.administrator_ids)) {
-      return company.administrator_ids;
+    if (!company || !Array.isArray(company.administrator_ids)) {
+      return [] as string[];
     }
-    return [] as string[];
+    return company.administrator_ids
+      .map(adminId => String(adminId).trim())
+      .filter((adminId): adminId is string => Boolean(adminId.length));
   }, [company]);
-  const isCompanyAdministrator = useMemo(() => {
-    if (!normalizedUserId || !companyAdministratorIds.length) {
+  const isListedAdministrator = useMemo(() => {
+    if (!normalizedUserId) {
       return false;
     }
-    return companyAdministratorIds.some(adminId => String(adminId).trim() === normalizedUserId);
+    if (!companyAdministratorIds.length) {
+      return false;
+    }
+    return companyAdministratorIds.some(adminId => adminId === normalizedUserId);
   }, [companyAdministratorIds, normalizedUserId]);
-  const canEdit = baseCanEdit && isCompanyAdministrator;
-  const canDelete = baseCanDelete && isCompanyAdministrator;
-  const canAccess = baseCanEdit || baseCanDelete;
+  const actorIsAuthorized = isSuperAdministrator || isListedAdministrator;
+  const canEdit = actorIsAuthorized && (baseCanEdit || isSuperAdministrator);
+  const canDelete = actorIsAuthorized && (baseCanDelete || isSuperAdministrator);
+  const canAccess = actorIsAuthorized && (baseCanEdit || baseCanDelete || isSuperAdministrator);
 
   const [name, setName] = useState('');
   const [legalName, setLegalName] = useState('');
