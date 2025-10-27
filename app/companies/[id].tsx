@@ -13,7 +13,6 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import FileGallery from '@/components/FileGallery';
 import {
   CompaniesContext,
   Company,
@@ -229,7 +228,6 @@ export default function EditCompanyPage() {
 
   const [addresses, setAddresses] = useState<CompanyAddress[]>([createEmptyAddress()]);
   const [contacts, setContacts] = useState<CompanyContact[]>([createEmptyContact()]);
-  const [attachmentsJson, setAttachmentsJson] = useState('');
 
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
@@ -276,18 +274,6 @@ export default function EditCompanyPage() {
 
     setAddresses(company.addresses.length ? company.addresses.map(address => ({ ...address })) : [createEmptyAddress()]);
     setContacts(company.contacts.length ? company.contacts.map(contact => ({ ...contact })) : [createEmptyContact()]);
-
-    if (typeof company.attached_files === 'string') {
-      setAttachmentsJson(company.attached_files);
-    } else if (company.attached_files) {
-      try {
-        setAttachmentsJson(JSON.stringify(company.attached_files));
-      } catch {
-        setAttachmentsJson('');
-      }
-    } else {
-      setAttachmentsJson('');
-    }
   }, [canDelete, canEdit, company, router]);
 
   useEffect(() => {
@@ -392,7 +378,6 @@ export default function EditCompanyPage() {
       ),
       addresses: sanitizeAddresses(addresses),
       contacts: sanitizeContacts(contacts),
-      attached_files: attachmentsJson || null,
       version: company.version,
     };
 
@@ -907,14 +892,6 @@ export default function EditCompanyPage() {
             <ThemedText style={styles.addItemButtonText}>➕ Agregar contacto</ThemedText>
           </TouchableOpacity>
         ) : null}
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Adjuntos" description="Documentos, contratos y más">
-        <FileGallery
-          filesJson={attachmentsJson}
-          onChangeFilesJson={setAttachmentsJson}
-          editable={canEdit}
-        />
       </CollapsibleSection>
 
       {canEdit ? (
