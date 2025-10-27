@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
+import { subscribeToDataCacheClear } from '@/utils/cache';
 
 interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
@@ -197,6 +198,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       fetchPermissions();
     }, 5 * 60 * 1000);
     return () => clearInterval(interval);
+  }, [fetchPermissions]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToDataCacheClear(() => {
+      void fetchPermissions();
+    });
+    return unsubscribe;
   }, [fetchPermissions]);
 
   return (
