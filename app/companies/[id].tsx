@@ -367,6 +367,7 @@ export default function EditCompanyPage() {
       status: status.trim() || null,
       notes: notes.trim() || null,
       profile_file_id: profileFileId,
+      attached_files: company.attached_files ?? null,
       tax_identities: buildIdentitiesPayload(
         taxId,
         ivaCondition,
