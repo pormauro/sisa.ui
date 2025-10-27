@@ -60,6 +60,7 @@ export interface Company {
   tax_identities: TaxIdentity[];
   addresses: CompanyAddress[];
   contacts: CompanyContact[];
+  administrator_ids?: string[];
   version: number;
   created_at?: string | null;
   updated_at?: string | null;
@@ -158,6 +159,83 @@ const coalesceNestedArray = (...candidates: unknown[]): any[] => {
     }
   }
   return [];
+};
+
+const parseAdministratorIds = (raw: unknown): string[] => {
+  const collected = new Set<string>();
+
+  const visit = (value: unknown) => {
+    if (value === null || value === undefined) {
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      collected.add(String(Math.trunc(value)));
+      return;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          visit(parsed);
+          return;
+        } catch (error) {
+          // Ignore JSON parse errors and continue with fallback parsing
+        }
+      }
+      if (trimmed.includes(',')) {
+        trimmed
+          .split(',')
+          .map(segment => segment.trim())
+          .filter(Boolean)
+          .forEach(visit);
+        return;
+      }
+      collected.add(trimmed);
+      return;
+    }
+
+    if (typeof value === 'object') {
+      const directArray =
+        (value as any)?.ids ??
+        (value as any)?.values ??
+        (value as any)?.items ??
+        (value as any)?.administrators ??
+        (value as any)?.users;
+
+      if (Array.isArray(directArray)) {
+        visit(directArray);
+        return;
+      }
+
+      const candidate =
+        (value as any)?.id ??
+        (value as any)?.user_id ??
+        (value as any)?.userId ??
+        (value as any)?.value ??
+        (value as any)?.identifier ??
+        (value as any)?.uid;
+
+      if (candidate !== undefined) {
+        visit(candidate);
+        return;
+      }
+    }
+  };
+
+  visit(raw);
+
+  return Array.from(collected);
 };
 
 const parseTaxIdentity = (raw: any): TaxIdentity => {
@@ -350,6 +428,18 @@ const parseCompany = (raw: any): Company => {
     raw?.personas_contacto
   ).map(parseContact);
 
+  const administratorIds = parseAdministratorIds(
+    raw?.administrator_ids ??
+      raw?.admin_ids ??
+      raw?.administrator_id ??
+      raw?.admin_id ??
+      raw?.administradores ??
+      raw?.administrador_id ??
+      raw?.administratorIds ??
+      raw?.adminUserIds ??
+      raw?.admin_user_ids
+  );
+
   return {
     id: typeof baseId === 'number' ? baseId : parseInt(baseId ?? '0', 10) || 0,
     name: displayName ?? '',
@@ -373,6 +463,7 @@ const parseCompany = (raw: any): Company => {
     tax_identities: taxIdentities,
     addresses,
     contacts,
+    administrator_ids: administratorIds,
     version: typeof rawVersion === 'number' ? rawVersion : parseInt(String(rawVersion ?? '1'), 10) || 1,
     created_at: pickString(raw?.created_at, raw?.creado_en, raw?.createdAt) ?? null,
     updated_at: pickString(raw?.updated_at, raw?.actualizado_en, raw?.updatedAt) ?? null,
@@ -397,6 +488,7 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   const hasContacts = Object.prototype.hasOwnProperty.call(payload, 'contacts');
   const hasAttachments = Object.prototype.hasOwnProperty.call(payload, 'attached_files');
   const hasProfileFile = Object.prototype.hasOwnProperty.call(payload, 'profile_file_id');
+  const hasAdministratorIds = Object.prototype.hasOwnProperty.call(payload, 'administrator_ids');
 
   const {
     name,
@@ -404,6 +496,7 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     addresses,
     contacts,
     attached_files,
+    administrator_ids,
     version,
     profile_file_id,
     ...rest
@@ -480,6 +573,14 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
 
     if (serializedAttachments !== undefined) {
       base.attached_files = serializedAttachments;
+    }
+  }
+
+  if (hasAdministratorIds) {
+    if (administrator_ids === null) {
+      base.administrator_ids = null;
+    } else {
+      base.administrator_ids = serializeNestedArray(administrator_ids ?? []);
     }
   }
 
