@@ -218,7 +218,7 @@ export default function EditCompanyPage() {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState('');
   const [notes, setNotes] = useState('');
-  const [brandFileId, setBrandFileId] = useState<string | null>(null);
+  const [profileFileId, setProfileFileId] = useState<string | null>(null);
 
   const [taxId, setTaxId] = useState('');
   const [ivaCondition, setIvaCondition] = useState('');
@@ -259,7 +259,7 @@ export default function EditCompanyPage() {
     setEmail(company.email ?? '');
     setStatus(company.status ?? '');
     setNotes(company.notes ?? '');
-    setBrandFileId(company.brand_file_id ? String(company.brand_file_id) : null);
+    setProfileFileId(company.profile_file_id ? String(company.profile_file_id) : null);
 
     setTaxId(identityValue(company, 'CUIT'));
     setIvaCondition(identityValue(company, 'IVA_CONDITION'));
@@ -380,7 +380,7 @@ export default function EditCompanyPage() {
       email: email.trim() || null,
       status: status.trim() || null,
       notes: notes.trim() || null,
-      brand_file_id: brandFileId,
+      profile_file_id: profileFileId,
       tax_identities: buildIdentitiesPayload(
         taxId,
         ivaCondition,
@@ -490,10 +490,10 @@ export default function EditCompanyPage() {
       </ThemedText>
       <ThemedText style={styles.label}>Logo</ThemedText>
       <CircleImagePicker
-        fileId={brandFileId}
+        fileId={profileFileId}
         editable={canEdit}
         size={180}
-        onImageChange={setBrandFileId}
+        onImageChange={setProfileFileId}
       />
 
       <ThemedText style={styles.label}>Nombre Comercial *</ThemedText>

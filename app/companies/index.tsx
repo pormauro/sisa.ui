@@ -141,7 +141,7 @@ export default function CompaniesListPage() {
       >
         <View style={styles.itemContent}>
           <CircleImagePicker
-            fileId={item.brand_file_id ? String(item.brand_file_id) : null}
+            fileId={item.profile_file_id ? String(item.profile_file_id) : null}
             size={50}
             editable={false}
           />
