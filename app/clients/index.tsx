@@ -215,72 +215,86 @@ export default function ClientsListPage() {
     [handleDelete]
   );
 
-  const renderItem = ({ item }: { item: Client }) => (
-    <TouchableOpacity
-      style={[styles.itemContainer, { borderColor: itemBorderColor }]}
-      onPress={() => router.push(`/clients/viewModal?id=${item.id}`)}
-      onLongPress={() => canEditClient && router.push(`/clients/${item.id}`)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.itemHeader}>
-        <View style={styles.itemContent}>
-          <CircleImagePicker fileId={item.brand_file_id} size={50} />
-          <View style={styles.itemInfo}>
-            <ThemedText style={styles.itemTitle}>
-              {item.business_name && item.business_name.trim().length > 0
-                ? item.business_name
-                : 'Cliente sin nombre'}
-            </ThemedText>
-            {item.tax_id ? (
-              <ThemedText style={styles.itemSubtitle}>CUIT: {item.tax_id}</ThemedText>
-            ) : null}
-            {item.address ? (
-              <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
-            ) : null}
-            {item.email ? (
-              <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
-            ) : null}
-          </View>
-        </View>
-        {canDeleteClient && (
-          <View style={styles.actionsContainer}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={(event) => handleDeleteClient(event, item.id)}
-            >
-              <ThemedText style={styles.actionText}>🗑️</ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+  const renderItem = ({ item }: { item: Client }) => {
+    const getSafeTotal = (value: number | null | undefined) =>
+      typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
-      <View style={styles.metricsRow}>
-        <View
-          style={[
-            styles.metricCard,
-            styles.metricCardSpacer,
-            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
-          ]}
-        >
-          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
-          <ThemedText style={styles.metricValue}>
-            {formatCurrency(item.unbilled_total)}
-          </ThemedText>
+    const unbilledTotal = getSafeTotal(item.unbilled_total);
+    const unpaidInvoicesTotal = getSafeTotal(item.unpaid_invoices_total);
+
+    const shouldShowUnbilledCard = unbilledTotal > 0;
+    const shouldShowUnpaidInvoicesCard = unpaidInvoicesTotal > 0;
+    const shouldShowMetricsRow = shouldShowUnbilledCard || shouldShowUnpaidInvoicesCard;
+
+    return (
+      <TouchableOpacity
+        style={[styles.itemContainer, { borderColor: itemBorderColor }]}
+        onPress={() => router.push(`/clients/viewModal?id=${item.id}`)}
+        onLongPress={() => canEditClient && router.push(`/clients/${item.id}`)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.itemHeader}>
+          <View style={styles.itemContent}>
+            <CircleImagePicker fileId={item.brand_file_id} size={50} />
+            <View style={styles.itemInfo}>
+              <ThemedText style={styles.itemTitle}>
+                {item.business_name && item.business_name.trim().length > 0
+                  ? item.business_name
+                  : 'Cliente sin nombre'}
+              </ThemedText>
+              {item.tax_id ? (
+                <ThemedText style={styles.itemSubtitle}>CUIT: {item.tax_id}</ThemedText>
+              ) : null}
+              {item.address ? (
+                <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
+              ) : null}
+              {item.email ? (
+                <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
+              ) : null}
+            </View>
+          </View>
+          {canDeleteClient && (
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={(event) => handleDeleteClient(event, item.id)}
+              >
+                <ThemedText style={styles.actionText}>🗑️</ThemedText>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
-        <View
-          style={[
-            styles.metricCard,
-            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
-          ]}
-        >
-          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
-          <ThemedText style={styles.metricValue}>
-            {formatCurrency(item.unpaid_invoices_total)}
-          </ThemedText>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        {shouldShowMetricsRow ? (
+          <View style={styles.metricsRow}>
+            {shouldShowUnbilledCard ? (
+              <View
+                style={[
+                  styles.metricCard,
+                  shouldShowUnpaidInvoicesCard && styles.metricCardSpacer,
+                  { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+                ]}
+              >
+                <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
+                <ThemedText style={styles.metricValue}>{formatCurrency(unbilledTotal)}</ThemedText>
+              </View>
+            ) : null}
+            {shouldShowUnpaidInvoicesCard ? (
+              <View
+                style={[
+                  styles.metricCard,
+                  { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+                ]}
+              >
+                <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
+                <ThemedText style={styles.metricValue}>{formatCurrency(unpaidInvoicesTotal)}</ThemedText>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
