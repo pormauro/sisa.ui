@@ -13,6 +13,8 @@ const FINALIZED_KEYWORDS = new Set([
   'completed',
 ]);
 
+const FINALIZED_STATUS_IDS = new Set([6]);
+
 const normalizeTimeValue = (value?: string | null): string | null => {
   if (typeof value !== 'string') {
     return null;
@@ -102,6 +104,10 @@ export const isStatusFinalized = (status?: Status): boolean => {
     return false;
   }
 
+  if (FINALIZED_STATUS_IDS.has(status.id)) {
+    return true;
+  }
+
   const candidates = [status.label]
     .map(value => (typeof value === 'string' ? value.trim().toLowerCase() : ''))
     .filter(Boolean);
@@ -114,7 +120,7 @@ export const useClientFinalizedJobTotals = () => {
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
 
-  const totalsMap = useMemo(() => {
+  const { totalsMap, finalizedClientIds } = useMemo(() => {
     const statusById = new Map<number, Status>();
     statuses.forEach(status => {
       statusById.set(status.id, status);
@@ -126,6 +132,7 @@ export const useClientFinalizedJobTotals = () => {
     });
 
     const totals = new Map<number, number>();
+    const finalizedIds = new Set<number>();
 
     jobs.forEach(job => {
       if (!job || job.client_id == null) {
@@ -133,9 +140,14 @@ export const useClientFinalizedJobTotals = () => {
       }
 
       const status = job.status_id != null ? statusById.get(job.status_id) : undefined;
-      if (!isStatusFinalized(status)) {
+      const isFinalizedByStatus = isStatusFinalized(status);
+      const isFinalizedById = job.status_id != null && FINALIZED_STATUS_IDS.has(job.status_id);
+
+      if (!isFinalizedByStatus && !isFinalizedById) {
         return;
       }
+
+      finalizedIds.add(job.client_id);
 
       const durationHours = getJobDurationHours(job);
       if (!Number.isFinite(durationHours) || durationHours <= 0) {
@@ -152,7 +164,7 @@ export const useClientFinalizedJobTotals = () => {
       totals.set(job.client_id, previousTotal + totalForJob);
     });
 
-    return totals;
+    return { totalsMap: totals, finalizedClientIds: finalizedIds };
   }, [jobs, statuses, tariffs]);
 
   const getTotalForClient = useCallback(
@@ -166,7 +178,17 @@ export const useClientFinalizedJobTotals = () => {
     [totalsMap]
   );
 
-  return { totalsMap, getTotalForClient };
+  const hasFinalizedJobs = useCallback(
+    (clientId: number | null | undefined) => {
+      if (clientId == null) {
+        return false;
+      }
+      return finalizedClientIds.has(clientId);
+    },
+    [finalizedClientIds]
+  );
+
+  return { totalsMap, getTotalForClient, hasFinalizedJobs };
 };
 
 export type ClientFinalizedJobTotalsHook = ReturnType<typeof useClientFinalizedJobTotals>;

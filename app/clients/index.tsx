@@ -42,7 +42,7 @@ const FILTER_OPTIONS: { label: string; value: ClientFilter }[] = [
 
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
-  const { getTotalForClient } = useClientFinalizedJobTotals();
+  const { getTotalForClient, hasFinalizedJobs } = useClientFinalizedJobTotals();
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
@@ -131,7 +131,9 @@ export default function ClientsListPage() {
 
     switch (selectedFilter) {
       case 'unbilledJobs':
-        result = result.filter(client => getSafeTotal(client.unbilled_total) > 0);
+        result = result.filter(
+          client => getSafeTotal(client.unbilled_total) > 0 || hasFinalizedJobs(client.id)
+        );
         comparator = (a, b) =>
           getSafeTotal(a.unbilled_total) - getSafeTotal(b.unbilled_total);
         break;
@@ -167,7 +169,14 @@ export default function ClientsListPage() {
     }
 
     return result;
-  }, [clientsWithComputedTotals, fuse, searchQuery, selectedFilter, sortDirection]);
+  }, [
+    clientsWithComputedTotals,
+    fuse,
+    searchQuery,
+    selectedFilter,
+    sortDirection,
+    hasFinalizedJobs,
+  ]);
 
   const currentFilterLabel = useMemo(
     () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
@@ -222,9 +231,10 @@ export default function ClientsListPage() {
       typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
     const unbilledTotal = getSafeTotal(item.unbilled_total);
+    const finalizedJobsAvailable = hasFinalizedJobs(item.id);
     const unpaidInvoicesTotal = getSafeTotal(item.unpaid_invoices_total);
 
-    const shouldShowUnbilledCard = unbilledTotal > 0;
+    const shouldShowUnbilledCard = finalizedJobsAvailable || unbilledTotal > 0;
     const shouldShowUnpaidInvoicesCard = unpaidInvoicesTotal > 0;
     const shouldShowMetricsRow = shouldShowUnbilledCard || shouldShowUnpaidInvoicesCard;
 
