@@ -68,6 +68,8 @@ export default function ClientsListPage() {
   const canAddClient = permissions.includes('addClient');
   const canDeleteClient = permissions.includes('deleteClient');
   const canEditClient = permissions.includes('updateClient');
+  const canViewJobs = permissions.includes('listJobs');
+  const canViewInvoices = permissions.includes('listInvoices');
 
   useFocusEffect(
     useCallback(() => {
@@ -268,27 +270,49 @@ export default function ClientsListPage() {
         {shouldShowMetricsRow ? (
           <View style={styles.metricsRow}>
             {shouldShowUnbilledCard ? (
-              <View
+              <TouchableOpacity
                 style={[
                   styles.metricCard,
                   shouldShowUnpaidInvoicesCard && styles.metricCardSpacer,
                   { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+                  !canViewJobs && styles.metricCardDisabled,
                 ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  if (!canViewJobs) {
+                    Alert.alert('Acceso denegado', 'No tienes permiso para ver trabajos.');
+                    return;
+                  }
+                  router.push(`/clients/finalizedJobs?id=${item.id}`);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Ver trabajos finalizados del cliente"
               >
                 <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
                 <ThemedText style={styles.metricValue}>{formatCurrency(unbilledTotal)}</ThemedText>
-              </View>
+              </TouchableOpacity>
             ) : null}
             {shouldShowUnpaidInvoicesCard ? (
-              <View
+              <TouchableOpacity
                 style={[
                   styles.metricCard,
                   { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+                  !canViewInvoices && styles.metricCardDisabled,
                 ]}
+                activeOpacity={0.75}
+                onPress={() => {
+                  if (!canViewInvoices) {
+                    Alert.alert('Acceso denegado', 'No tienes permiso para ver facturas.');
+                    return;
+                  }
+                  router.push(`/invoices?clientId=${item.id}`);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Ver facturas del cliente"
               >
                 <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
                 <ThemedText style={styles.metricValue}>{formatCurrency(unpaidInvoicesTotal)}</ThemedText>
-              </View>
+              </TouchableOpacity>
             ) : null}
           </View>
         ) : null}
@@ -479,6 +503,9 @@ const styles = StyleSheet.create({
   },
   metricCardSpacer: {
     marginRight: 8,
+  },
+  metricCardDisabled: {
+    opacity: 0.6,
   },
   metricLabel: {
     fontSize: 12,

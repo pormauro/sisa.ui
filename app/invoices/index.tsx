@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import { Alert, FlatList, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Fuse from 'fuse.js';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { InvoicesContext, Invoice } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -31,6 +31,7 @@ export default function InvoicesScreen() {
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const router = useRouter();
+  const { clientId: clientIdParam } = useLocalSearchParams<{ clientId?: string | string[] }>();
 
   const [search, setSearch] = useState('');
   const background = useThemeColor({}, 'background');
@@ -42,10 +43,28 @@ export default function InvoicesScreen() {
   const secondaryText = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+  const filterBannerBackground = useThemeColor({ light: '#e0f2fe', dark: '#1f2937' }, 'background');
+  const filterBannerBorder = useThemeColor({ light: '#bae6fd', dark: '#334155' }, 'background');
 
   const canList = permissions.includes('listInvoices');
   const canCreateInvoice =
     permissions.includes('createInvoice') || permissions.includes('updateInvoice');
+
+  const clientFilterId = useMemo(() => {
+    const rawValue = Array.isArray(clientIdParam) ? clientIdParam[0] : clientIdParam;
+    if (!rawValue) {
+      return null;
+    }
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [clientIdParam]);
+
+  const clientFilterName = useMemo(() => {
+    if (clientFilterId == null) {
+      return null;
+    }
+    return clients.find(client => client.id === clientFilterId)?.business_name ?? null;
+  }, [clientFilterId, clients]);
 
   useEffect(() => {
     if (!canList) {
@@ -73,12 +92,26 @@ export default function InvoicesScreen() {
   );
 
   const filteredInvoices = useMemo(() => {
+    const applyClientFilter = (data: Invoice[]) => {
+      if (clientFilterId == null) {
+        return data;
+      }
+      return data.filter(invoice => {
+        const candidate = invoice.client_id ?? invoice.clientId;
+        if (candidate == null) {
+          return false;
+        }
+        const numeric = Number(candidate);
+        return Number.isFinite(numeric) && numeric === clientFilterId;
+      });
+    };
+
     if (!search) {
-      return invoices;
+      return applyClientFilter(invoices);
     }
     const results = fuse.search(search.trim());
-    return results.map(result => result.item);
-  }, [fuse, invoices, search]);
+    return applyClientFilter(results.map(result => result.item));
+  }, [clientFilterId, fuse, invoices, search]);
 
   const formatCurrency = (value: number | null | undefined) => {
     if (value === undefined || value === null || Number.isNaN(Number(value))) {
@@ -177,6 +210,18 @@ export default function InvoicesScreen() {
         onChangeText={setSearch}
         placeholderTextColor={placeholderColor}
       />
+      {clientFilterId != null ? (
+        <View
+          style={[
+            styles.activeFilterBanner,
+            { backgroundColor: filterBannerBackground, borderColor: filterBannerBorder },
+          ]}
+        >
+          <ThemedText style={styles.activeFilterText}>
+            Mostrando facturas de {clientFilterName ?? `cliente #${clientFilterId}`}
+          </ThemedText>
+        </View>
+      ) : null}
       {canCreateInvoice ? (
         <TouchableOpacity
           style={[styles.createButton, { backgroundColor: buttonColor }]}
@@ -201,6 +246,14 @@ export default function InvoicesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  activeFilterBanner: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  activeFilterText: { fontSize: 14, fontWeight: '600' },
   listContent: { paddingBottom: 24 },
   createButton: {
     borderRadius: 10,
