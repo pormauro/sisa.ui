@@ -58,6 +58,12 @@ export default function ClientsListPage() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
+  const metricCardBackground = useThemeColor(
+    { light: '#f3f4f6', dark: '#1f2937' },
+    'background'
+  );
+  const metricCardBorder = useThemeColor({ light: '#e5e7eb', dark: '#374151' }, 'background');
+  const metricLabelColor = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
 
   const canAddClient = permissions.includes('addClient');
   const canDeleteClient = permissions.includes('deleteClient');
@@ -233,16 +239,27 @@ export default function ClientsListPage() {
           {item.email ? (
             <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
           ) : null}
-          <View style={styles.amountContainer}>
-            <View style={styles.amountRow}>
-              <ThemedText style={styles.amountLabel}>Trabajos no facturados</ThemedText>
-              <ThemedText style={styles.amountValue}>
+          <View style={styles.metricsRow}>
+            <View
+              style={[
+                styles.metricCard,
+                styles.metricCardSpacer,
+                { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+              ]}
+            >
+              <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
+              <ThemedText style={styles.metricValue}>
                 {formatCurrency(item.unbilled_total)}
               </ThemedText>
             </View>
-            <View style={styles.amountRow}>
-              <ThemedText style={styles.amountLabel}>Facturas impagas</ThemedText>
-              <ThemedText style={styles.amountValue}>
+            <View
+              style={[
+                styles.metricCard,
+                { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+              ]}
+            >
+              <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
+              <ThemedText style={styles.metricValue}>
                 {formatCurrency(item.unpaid_invoices_total)}
               </ThemedText>
             </View>
@@ -427,15 +444,33 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, marginLeft: 12 },
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   itemSubtitle: { fontSize: 14, marginTop: 2 },
-  amountContainer: { marginTop: 8 },
-  amountRow: {
+  metricsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
+    marginTop: 12,
   },
-  amountLabel: { fontSize: 13 },
-  amountValue: { fontSize: 13, fontWeight: '600' },
+  metricCard: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    minHeight: 72,
+  },
+  metricCardSpacer: {
+    marginRight: 8,
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    opacity: 0.85,
+  },
+  metricValue: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
   actionsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
