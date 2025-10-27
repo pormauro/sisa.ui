@@ -488,6 +488,14 @@ export default function EditCompanyPage() {
       <ThemedText style={styles.helperText}>
         Solo el nombre comercial es obligatorio para actualizar la empresa.
       </ThemedText>
+      <ThemedText style={styles.label}>Logo</ThemedText>
+      <CircleImagePicker
+        fileId={brandFileId}
+        editable={canEdit}
+        size={180}
+        onImageChange={setBrandFileId}
+      />
+
       <ThemedText style={styles.label}>Nombre Comercial *</ThemedText>
       <TextInput
         style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
@@ -500,16 +508,8 @@ export default function EditCompanyPage() {
 
       <CollapsibleSection
         title="Información comercial adicional"
-        description="Logo, razón social y datos de contacto"
+        description="Razón social y datos de contacto"
       >
-        <ThemedText style={styles.label}>Logo</ThemedText>
-        <CircleImagePicker
-          fileId={brandFileId}
-          editable={canEdit}
-          size={180}
-          onImageChange={setBrandFileId}
-        />
-
         <ThemedText style={styles.label}>Razón Social</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
