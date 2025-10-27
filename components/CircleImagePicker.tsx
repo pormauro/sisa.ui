@@ -44,7 +44,7 @@ interface CircleImagePickerProps {
    * Callback que se dispara cuando se sube con éxito una nueva imagen
    * y se obtiene un nuevo fileId del servidor.
    */
-  onImageChange?: (newFileId: string) => void;
+  onImageChange?: (newFileId: string | null) => void;
   /**
    * Indica si se debe recortar la imagen tras seleccionarla.
    */
@@ -306,6 +306,28 @@ export default function CircleImagePicker({
     borderRadius: size / 2,
   };
 
+  const handleRemoveImage = () => {
+    Alert.alert(
+      'Quitar imagen',
+      '¿Deseas eliminar la imagen actual?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            setInternalUri(null);
+            setHasError(false);
+            onImageChange?.(null);
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const hasImage = Boolean(internalUri || fileId || imageUri);
+
   return (
     <View style={[styles.container, style, circleStyle]}>
       {loading && (
@@ -327,9 +349,16 @@ export default function CircleImagePicker({
         <View style={[styles.image, styles.placeholder, circleStyle]} />
       )}
       {editable && !loading && (
-        <TouchableOpacity style={styles.cameraButton} onPress={handleSelectImage}>
-          <Text style={styles.cameraIcon}>📷</Text>
-        </TouchableOpacity>
+        <>
+          <TouchableOpacity style={styles.cameraButton} onPress={handleSelectImage}>
+            <Text style={styles.cameraIcon}>📷</Text>
+          </TouchableOpacity>
+          {hasImage ? (
+            <TouchableOpacity style={styles.removeButton} onPress={handleRemoveImage}>
+              <Text style={styles.removeIcon}>✕</Text>
+            </TouchableOpacity>
+          ) : null}
+        </>
       )}
     </View>
   );
@@ -367,5 +396,21 @@ const styles = StyleSheet.create({
   cameraIcon: {
     color: '#fff',
     fontSize: 32,
+  },
+  removeButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: '30%',
+    height: '30%',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 3,
+  },
+  removeIcon: {
+    color: '#fff',
+    fontSize: 28,
   },
 });

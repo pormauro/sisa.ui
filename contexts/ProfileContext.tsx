@@ -28,7 +28,7 @@ interface ProfileContextType {
   profileDetails: ProfileDetails | null;
   loadProfile: () => Promise<void>;
   updateProfile: (profileForm: ProfileForm) => Promise<void>;
-  updateImage: (newFileId: string, profileForm: ProfileForm) => Promise<void>;
+  updateImage: (newFileId: string | null, profileForm: ProfileForm) => Promise<void>;
   deleteAccount: () => Promise<void>;
 }
 
@@ -119,7 +119,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
   };
 
   // Actualizar imagen de perfil
-  const updateImage = async (newFileId: string, profileForm: ProfileForm) => {
+  const updateImage = async (newFileId: string | null, profileForm: ProfileForm) => {
     if (!token) return;
     try {
       const response = await fetch(`${BASE_URL}/user_profile`, {
@@ -133,7 +133,7 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
           phone: profileForm.phone,
           address: profileForm.address,
           cuit: profileForm.cuit,
-          profile_file_id: newFileId,
+          profile_file_id: newFileId ? parseInt(newFileId, 10) : null,
         }),
       });
       if (response.ok) {
