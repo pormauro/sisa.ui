@@ -13,7 +13,6 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import FileGallery from '@/components/FileGallery';
 import {
   CompaniesContext,
   CompanyAddress,
@@ -91,7 +90,6 @@ export default function CreateCompanyPage() {
 
   const [addresses, setAddresses] = useState<CompanyAddress[]>([createEmptyAddress()]);
   const [contacts, setContacts] = useState<CompanyContact[]>([createEmptyContact()]);
-  const [attachmentsJson, setAttachmentsJson] = useState('');
 
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
@@ -284,11 +282,6 @@ export default function CreateCompanyPage() {
 
       if (sanitizedContacts.length > 0) {
         payload.contacts = sanitizedContacts;
-      }
-
-      const trimmedAttachments = attachmentsJson.trim();
-      if (trimmedAttachments) {
-        payload.attached_files = trimmedAttachments;
       }
 
       const created = await addCompany(payload);
@@ -725,14 +718,6 @@ export default function CreateCompanyPage() {
         <TouchableOpacity style={[styles.addItemButton, { borderColor }]} onPress={addContact}>
           <ThemedText style={styles.addItemButtonText}>➕ Agregar contacto</ThemedText>
         </TouchableOpacity>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="Adjuntos" description="Documentos, contratos y más">
-        <FileGallery
-          filesJson={attachmentsJson}
-          onChangeFilesJson={setAttachmentsJson}
-          editable
-        />
       </CollapsibleSection>
 
       <TouchableOpacity
