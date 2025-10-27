@@ -18,8 +18,14 @@ import { formatTimeInterval } from '@/utils/time';
 import { sortByNewest } from '@/utils/sort';
 import { formatCurrency } from '@/utils/currency';
 
-type SortField = 'updatedAt' | 'jobDate';
+type SortField = 'updatedAt' | 'jobDate' | 'clientName';
 type SortDirection = 'asc' | 'desc';
+
+const SORT_OPTIONS: { label: string; value: SortField }[] = [
+  { label: 'Nombre del cliente', value: 'clientName' },
+  { label: 'Fecha del trabajo', value: 'jobDate' },
+  { label: 'Última modificación', value: 'updatedAt' },
+];
 
 export default function JobsScreen() {
   const { jobs, loadJobs, deleteJob } = useContext(JobsContext);
@@ -87,16 +93,53 @@ export default function JobsScreen() {
   }, []);
 
   const sortedJobs = useMemo(() => {
+    if (sortField === 'clientName') {
+      const items = [...filteredJobs];
+      items.sort((a, b) => {
+        const aName = (getClientName(a.client_id) ?? '').trim();
+        const bName = (getClientName(b.client_id) ?? '').trim();
+        const comparison = aName.localeCompare(bName, undefined, { sensitivity: 'base' });
+        if (comparison !== 0) {
+          return sortDirection === 'asc' ? comparison : -comparison;
+        }
+        return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
+      });
+      return items;
+    }
+
     const list =
       sortField === 'updatedAt'
         ? sortByNewest(filteredJobs, getJobUpdatedValue)
         : sortByNewest(filteredJobs, getJobDateValue);
     return sortDirection === 'asc' ? [...list].reverse() : list;
-  }, [filteredJobs, sortField, sortDirection, getJobUpdatedValue, getJobDateValue]);
+  }, [
+    filteredJobs,
+    sortField,
+    sortDirection,
+    getJobUpdatedValue,
+    getJobDateValue,
+    getClientName,
+  ]);
 
-  const toggleDirection = () => {
-    setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
-  };
+  const currentSortLabel = useMemo(
+    () => SORT_OPTIONS.find(option => option.value === sortField)?.label ?? 'Última modificación',
+    [sortField]
+  );
+
+  const sortDirectionLabel = useMemo(
+    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
+    [sortDirection]
+  );
+
+  const handleSelectSort = useCallback((option: SortField) => {
+    setSortField(option);
+    if (option === 'clientName') {
+      setSortDirection('asc');
+    } else {
+      setSortDirection('desc');
+    }
+    setFiltersVisible(false);
+  }, []);
 
   // Función para buscar el objeto status que corresponda al trabajo
   const getJobStatus = (job: Job): Status | undefined => {
@@ -105,11 +148,14 @@ export default function JobsScreen() {
   };
 
   // Función para obtener el nombre del cliente según el client_id
-  const getClientName = (clientId: number | null): string | undefined => {
-    if (clientId == null) return undefined;
-    const client = clients.find(client => client.id === clientId);
-    return client ? client.business_name : undefined; // Usamos business_name para el nombre
-  };
+  const getClientName = useCallback(
+    (clientId: number | null): string | undefined => {
+      if (clientId == null) return undefined;
+      const client = clients.find(client => client.id === clientId);
+      return client ? client.business_name : undefined; // Usamos business_name para el nombre
+    },
+    [clients]
+  );
 
   const handleDelete = (id: number) => {
     Alert.alert('Eliminar trabajo', '¿Estás seguro?', [
@@ -235,6 +281,17 @@ export default function JobsScreen() {
         />
         <TouchableOpacity
           style={[
+            styles.sortDirectionButton,
+            { backgroundColor: inputBackground, borderColor }
+          ]}
+          onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+        >
+          <ThemedText style={styles.sortDirectionButtonText}>
+            {sortDirection === 'asc' ? 'Asc ⬆️' : 'Desc ⬇️'}
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
             styles.filterButton,
             { backgroundColor: inputBackground, borderColor }
           ]}
@@ -242,6 +299,11 @@ export default function JobsScreen() {
         >
           <Ionicons name="filter" size={20} color={inputTextColor} />
         </TouchableOpacity>
+      </View>
+      <View style={styles.filterSummaryRow}>
+        <ThemedText style={styles.filterSummaryText}>
+          Ordenado por {currentSortLabel} · {sortDirectionLabel}
+        </ThemedText>
       </View>
       <FlatList
         data={sortedJobs}
@@ -272,43 +334,36 @@ export default function JobsScreen() {
             <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
             <View style={styles.modalSection}>
               <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
-              <View style={styles.sortButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.sortButton,
-                    { borderColor },
-                    sortField === 'updatedAt' && { borderColor: addButtonColor }
-                  ]}
-                  onPress={() => setSortField('updatedAt')}
-                >
-                  <ThemedText style={styles.sortButtonText}>Actualización</ThemedText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.sortButton,
-                    { borderColor },
-                    sortField === 'jobDate' && { borderColor: addButtonColor }
-                  ]}
-                  onPress={() => setSortField('jobDate')}
-                >
-                  <ThemedText style={styles.sortButtonText}>Fecha del trabajo</ThemedText>
-                </TouchableOpacity>
-              </View>
+              {SORT_OPTIONS.map(option => {
+                const isSelected = sortField === option.value;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.modalOption,
+                      { borderColor },
+                      isSelected && { borderColor: addButtonColor },
+                    ]}
+                    onPress={() => handleSelectSort(option.value)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <TouchableOpacity
-              style={[styles.sortDirection, { borderColor }]}
-              onPress={toggleDirection}
-            >
-              <ThemedText style={styles.sortDirectionText}>
-                {sortDirection === 'asc' ? 'Ascendente ⬆️' : 'Descendente ⬇️'}
-              </ThemedText>
-            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
               onPress={() => setFiltersVisible(false)}
             >
               <ThemedText style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}>
-                Aplicar filtros
+                Aplicar orden
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -339,25 +394,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  sortButtons: { flexDirection: 'row', flexShrink: 1, flexWrap: 'wrap' as const },
-  sortButton: {
+  sortDirectionButton: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    marginRight: 8,
-    marginBottom: 8
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  sortButtonText: { fontSize: 12, fontWeight: '500' },
-  sortDirection: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    alignItems: 'center'
+  sortDirectionButtonText: { fontSize: 12, fontWeight: '600' },
+  filterSummaryRow: {
+    marginBottom: 12
   },
-  sortDirectionText: { fontSize: 12, fontWeight: '600' },
+  filterSummaryText: {
+    fontSize: 13,
+    fontWeight: '600'
+  },
   itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -402,6 +455,14 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
   modalSection: { marginBottom: 12 },
   modalSectionTitle: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  modalOption: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8
+  },
+  modalOptionText: { fontSize: 14, textAlign: 'center' },
   modalCloseButton: {
     borderRadius: 8,
     paddingVertical: 12,

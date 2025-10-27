@@ -19,6 +19,8 @@ export interface Provider {
   brand_file_id?: string | null;
   phone?: string;
   address?: string;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface ProvidersContextValue {
