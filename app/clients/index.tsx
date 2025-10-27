@@ -278,7 +278,8 @@ export default function ClientsListPage() {
                   !canViewJobs && styles.metricCardDisabled,
                 ]}
                 activeOpacity={0.75}
-                onPress={() => {
+                onPress={(event) => {
+                  event.stopPropagation();
                   if (!canViewJobs) {
                     Alert.alert('Acceso denegado', 'No tienes permiso para ver trabajos.');
                     return;
@@ -300,7 +301,8 @@ export default function ClientsListPage() {
                   !canViewInvoices && styles.metricCardDisabled,
                 ]}
                 activeOpacity={0.75}
-                onPress={() => {
+                onPress={(event) => {
+                  event.stopPropagation();
                   if (!canViewInvoices) {
                     Alert.alert('Acceso denegado', 'No tienes permiso para ver facturas.');
                     return;
