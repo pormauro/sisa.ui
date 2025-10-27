@@ -280,15 +280,18 @@ export default function ClientFinalizedJobsScreen() {
 
   const selectedCount = selectedJobIds.size;
 
+  const tariffAmountById = useMemo(() => {
+    const amountById = new Map<number, number>();
+    tariffs.forEach((tariff: Tariff) => {
+      amountById.set(tariff.id, tariff.amount);
+    });
+    return amountById;
+  }, [tariffs]);
+
   const selectedTotal = useMemo(() => {
     if (selectedJobIds.size === 0) {
       return 0;
     }
-
-    const tariffAmountById = new Map<number, number>();
-    tariffs.forEach((tariff: Tariff) => {
-      tariffAmountById.set(tariff.id, tariff.amount);
-    });
 
     return finalizedJobs.reduce((total, job) => {
       if (!selectedJobIds.has(job.id)) {
@@ -302,7 +305,7 @@ export default function ClientFinalizedJobsScreen() {
 
       return total + jobTotal;
     }, 0);
-  }, [finalizedJobs, selectedJobIds, tariffs]);
+  }, [finalizedJobs, selectedJobIds, tariffAmountById]);
 
   const handleGenerateInvoice = useCallback(() => {
     if (selectedCount === 0) {
@@ -325,6 +328,9 @@ export default function ClientFinalizedJobsScreen() {
     const end = extractTime(item.end_time);
     const interval = formatTimeInterval(start, end);
     const isSelected = selectedJobIds.has(item.id);
+    const jobTotal = calculateJobTotal(item, tariffAmountById);
+    const formattedJobTotal =
+      Number.isFinite(jobTotal) && jobTotal > 0 ? formatCurrency(jobTotal) : '—';
 
     return (
       <TouchableOpacity
@@ -365,6 +371,9 @@ export default function ClientFinalizedJobsScreen() {
             {interval ? ` (${interval})` : ''}
           </ThemedText>
         )}
+        <ThemedText style={[styles.cardAmount, { color: accentColor }]}>
+          Costo: {formattedJobTotal}
+        </ThemedText>
         <TouchableOpacity
           style={styles.detailButton}
           onPress={(event: GestureResponderEvent) => {
@@ -522,6 +531,12 @@ const styles = StyleSheet.create({
   },
   cardMeta: {
     fontSize: 12,
+  },
+  cardAmount: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    alignSelf: 'flex-end',
   },
   statusTag: {
     borderWidth: 1,
