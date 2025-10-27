@@ -16,6 +16,7 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { formatTimeInterval } from '@/utils/time';
 import { sortByNewest } from '@/utils/sort';
+import { formatCurrency } from '@/utils/currency';
 
 type SortField = 'updatedAt' | 'jobDate';
 type SortDirection = 'asc' | 'desc';
@@ -151,14 +152,23 @@ export default function JobsScreen() {
       ? tariffs.find(t => t.id === item.tariff_id)?.amount ?? null
       : null;
 
-    const rate = manualRate ?? tariffRate ?? 0;
-    let cost = 0;
-    if (startStr && endStr && rate) {
+    const hasExplicitRate = manualRate !== null || tariffRate !== null;
+    const appliedRate = manualRate ?? tariffRate ?? 0;
+    let cost: number | null = null;
+    if (hasExplicitRate && startStr && endStr) {
       const start = new Date(`1970-01-01T${startStr}`);
       const end = new Date(`1970-01-01T${endStr}`);
       const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-      cost = diffHours > 0 ? diffHours * rate : 0;
+      if (diffHours >= 0) {
+        cost = diffHours * appliedRate;
+      }
     }
+
+    const costLabel = cost !== null
+      ? `Costo estimado: ${formatCurrency(cost)}`
+      : hasExplicitRate
+        ? `Tarifa por hora: ${formatCurrency(appliedRate)}`
+        : 'Costo sin tarifa configurada';
 
     const itemTextStyle = { color: jobStatus ? '#fff' : itemTextColor };
     return (
@@ -192,9 +202,7 @@ export default function JobsScreen() {
               {`${dateStr} ${startStr} - ${endStr}${intervalStr ? ` (${intervalStr})` : ''}`}
             </ThemedText>
           )}
-          {cost > 0 && (
-            <ThemedText style={[styles.cost, itemTextStyle]}>Costo: ${cost.toFixed(2)}</ThemedText>
-          )}
+          <ThemedText style={[styles.cost, itemTextStyle]}>{costLabel}</ThemedText>
         </View>
         <View style={styles.itemRight}>
           <ThemedText style={[styles.statusText, itemTextStyle]}>
