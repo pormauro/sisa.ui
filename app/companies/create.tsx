@@ -345,6 +345,14 @@ export default function CreateCompanyPage() {
       <ThemedText style={styles.helperText}>
         Solo el nombre comercial es obligatorio para crear una empresa.
       </ThemedText>
+      <ThemedText style={styles.label}>Logo</ThemedText>
+      <CircleImagePicker
+        fileId={brandFileId}
+        editable
+        size={180}
+        onImageChange={setBrandFileId}
+      />
+
       <ThemedText style={styles.label}>Nombre Comercial *</ThemedText>
       <TextInput
         style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
@@ -356,16 +364,8 @@ export default function CreateCompanyPage() {
 
       <CollapsibleSection
         title="Información comercial adicional"
-        description="Logo, razón social y datos de contacto"
+        description="Razón social y datos de contacto"
       >
-        <ThemedText style={styles.label}>Logo</ThemedText>
-        <CircleImagePicker
-          fileId={brandFileId}
-          editable
-          size={180}
-          onImageChange={setBrandFileId}
-        />
-
         <ThemedText style={styles.label}>Razón Social</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
