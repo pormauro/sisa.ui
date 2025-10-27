@@ -209,7 +209,7 @@ export default function EditCompanyPage() {
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const destructiveColor = useThemeColor({ light: '#d32f2f', dark: '#ff6b6b' }, 'button');
 
-  const canEdit = permissions.includes('updateCompany');
+  const baseCanEdit = permissions.includes('updateCompany');
   const baseCanDelete = permissions.includes('deleteCompany');
   const normalizedUserId = useMemo(() => {
     if (typeof userId !== 'string') {
@@ -230,7 +230,9 @@ export default function EditCompanyPage() {
     }
     return companyAdministratorIds.some(adminId => String(adminId).trim() === normalizedUserId);
   }, [companyAdministratorIds, normalizedUserId]);
+  const canEdit = baseCanEdit && isCompanyAdministrator;
   const canDelete = baseCanDelete && isCompanyAdministrator;
+  const canAccess = baseCanEdit || baseCanDelete;
 
   const [name, setName] = useState('');
   const [legalName, setLegalName] = useState('');
@@ -263,12 +265,13 @@ export default function EditCompanyPage() {
   );
 
   useEffect(() => {
-    if (!canEdit && !canDelete) {
-      Alert.alert('Acceso denegado', 'No tienes permiso para acceder a esta empresa.');
-      router.back();
+    if (!company) {
       return;
     }
-    if (!company) {
+
+    if (!canAccess) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para acceder a esta empresa.');
+      router.back();
       return;
     }
 
@@ -296,7 +299,7 @@ export default function EditCompanyPage() {
 
     setAddresses(company.addresses.length ? company.addresses.map(address => ({ ...address })) : [createEmptyAddress()]);
     setContacts(company.contacts.length ? company.contacts.map(contact => ({ ...contact })) : [createEmptyContact()]);
-  }, [canDelete, canEdit, company, router]);
+  }, [canAccess, company, router]);
 
   useEffect(() => {
     if (!company && companies.length) {
