@@ -57,7 +57,7 @@ export default function CreateProvider() {
       ...(email ? { email } : {}),
       ...(phone ? { phone } : {}),
       ...(address ? { address } : {}),
-      ...(brandFileId ? { brand_file_id: brandFileId } : {}),
+      brand_file_id: brandFileId ?? null,
     });
     setLoading(false);
     if (newProvider) {
