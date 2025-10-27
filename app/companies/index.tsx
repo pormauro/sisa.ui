@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -14,6 +15,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 
 const fuseOptions: Fuse.IFuseOptions<Company> = {
   threshold: 0.35,
@@ -31,11 +33,12 @@ export default function CompaniesListPage() {
   const router = useRouter();
   const { companies, loadCompanies } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const [searchQuery, setSearchQuery] = useState('');
 
   const canList = permissions.includes('listCompanies');
   const canCreate = permissions.includes('addCompany');
-  const canEdit = permissions.includes('updateCompany');
+  const baseCanEdit = permissions.includes('updateCompany');
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -70,14 +73,53 @@ export default function CompaniesListPage() {
     return fuse.search(searchQuery.trim()).map(result => result.item);
   }, [canList, companies, fuse, searchQuery]);
 
+  const actorCanAdministrate = useCallback(
+    (company: Company) => {
+      if (isSuperAdministrator) {
+        return true;
+      }
+      if (!normalizedUserId) {
+        return false;
+      }
+      if (!Array.isArray(company.administrator_ids) || !company.administrator_ids.length) {
+        return false;
+      }
+      return company.administrator_ids.some(
+        adminId => String(adminId).trim() === normalizedUserId
+      );
+    },
+    [isSuperAdministrator, normalizedUserId]
+  );
+
+  const canEditCompany = useCallback(
+    (company: Company) => {
+      const hasPermission = baseCanEdit || isSuperAdministrator;
+      if (!hasPermission) {
+        return false;
+      }
+      return actorCanAdministrate(company);
+    },
+    [actorCanAdministrate, baseCanEdit, isSuperAdministrator]
+  );
+
   const renderItem = ({ item }: { item: Company }) => {
     const commercialName = (item.name ?? '').trim() || (item.legal_name ?? '').trim();
+    const allowEdit = canEditCompany(item);
 
     return (
       <TouchableOpacity
         style={[styles.itemContainer, { borderColor: itemBorderColor }]}
         onPress={() => (canList ? router.push(`/companies/viewModal?id=${item.id}`) : undefined)}
-        onLongPress={() => (canEdit ? router.push(`/companies/${item.id}`) : undefined)}
+        onLongPress={() => {
+          if (!allowEdit) {
+            Alert.alert(
+              'Acceso denegado',
+              'Solo los administradores autorizados o el superadministrador pueden editar esta empresa.'
+            );
+            return;
+          }
+          router.push(`/companies/${item.id}`);
+        }}
         activeOpacity={0.85}
         disabled={!canList}
       >

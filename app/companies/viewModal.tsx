@@ -7,6 +7,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
 import FileGallery from '@/components/FileGallery';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 
 export default function ViewCompanyModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,10 +16,31 @@ export default function ViewCompanyModal() {
 
   const { companies } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const company = companies.find(item => item.id === companyId);
 
   const canView = permissions.includes('listCompanies') || permissions.includes('updateCompany');
-  const canEdit = permissions.includes('updateCompany');
+  const administratorIds = useMemo(() => {
+    if (!company || !Array.isArray(company.administrator_ids)) {
+      return [] as string[];
+    }
+    return company.administrator_ids
+      .map(adminId => String(adminId).trim())
+      .filter((adminId): adminId is string => Boolean(adminId.length));
+  }, [company]);
+  const isListedAdministrator = useMemo(() => {
+    if (!normalizedUserId) {
+      return false;
+    }
+    if (!administratorIds.length) {
+      return false;
+    }
+    return administratorIds.some(adminId => adminId === normalizedUserId);
+  }, [administratorIds, normalizedUserId]);
+  const canEdit =
+    Boolean(company) &&
+    (permissions.includes('updateCompany') || isSuperAdministrator) &&
+    (isSuperAdministrator || isListedAdministrator);
 
   const background = useThemeColor({}, 'background');
   const cardBorder = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
