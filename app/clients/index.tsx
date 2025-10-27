@@ -23,21 +23,19 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
 
-type ClientFilter =
-  | 'all'
-  | 'unbilledJobs'
-  | 'unpaidInvoices'
+type ClientSortOption =
   | 'name'
   | 'created'
-  | 'updated';
+  | 'updated'
+  | 'unpaidInvoices'
+  | 'finalizedJobs';
 
-const FILTER_OPTIONS: { label: string; value: ClientFilter }[] = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Trabajos no facturados', value: 'unbilledJobs' },
-  { label: 'Facturas impagas', value: 'unpaidInvoices' },
+const SORT_OPTIONS: { label: string; value: ClientSortOption }[] = [
   { label: 'Nombre', value: 'name' },
-  { label: 'Creado', value: 'created' },
-  { label: 'Modificado', value: 'updated' },
+  { label: 'Fecha de creación', value: 'created' },
+  { label: 'Última modificación', value: 'updated' },
+  { label: 'Facturas impagas', value: 'unpaidInvoices' },
+  { label: 'Trabajos finalizados', value: 'finalizedJobs' },
 ];
 
 export default function ClientsListPage() {
@@ -46,7 +44,7 @@ export default function ClientsListPage() {
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<ClientFilter>('all');
+  const [selectedSort, setSelectedSort] = useState<ClientSortOption>('updated');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
@@ -114,7 +112,7 @@ export default function ClientsListPage() {
       ? fuse.search(searchQuery).map(result => result.item)
       : clientsWithComputedTotals;
 
-    let result = [...baseClients];
+    const result = [...baseClients];
 
     const getTimestamp = (value?: string | null) => {
       if (!value) {
@@ -129,16 +127,18 @@ export default function ClientsListPage() {
 
     let comparator: ((a: Client, b: Client) => number) | null = null;
 
-    switch (selectedFilter) {
-      case 'unbilledJobs':
-        result = result.filter(
-          client => getSafeTotal(client.unbilled_total) > 0 || hasFinalizedJobs(client.id)
-        );
-        comparator = (a, b) =>
-          getSafeTotal(a.unbilled_total) - getSafeTotal(b.unbilled_total);
+    switch (selectedSort) {
+      case 'finalizedJobs':
+        comparator = (a, b) => {
+          const aHasJobs = hasFinalizedJobs(a.id) ? 1 : 0;
+          const bHasJobs = hasFinalizedJobs(b.id) ? 1 : 0;
+          if (aHasJobs !== bHasJobs) {
+            return aHasJobs - bHasJobs;
+          }
+          return getSafeTotal(a.unbilled_total) - getSafeTotal(b.unbilled_total);
+        };
         break;
       case 'unpaidInvoices':
-        result = result.filter(client => getSafeTotal(client.unpaid_invoices_total) > 0);
         comparator = (a, b) =>
           getSafeTotal(a.unpaid_invoices_total) - getSafeTotal(b.unpaid_invoices_total);
         break;
@@ -152,9 +152,6 @@ export default function ClientsListPage() {
         comparator = (a, b) => getTimestamp(a.created_at) - getTimestamp(b.created_at);
         break;
       case 'updated':
-        comparator = (a, b) => getTimestamp(a.updated_at) - getTimestamp(b.updated_at);
-        break;
-      case 'all':
       default:
         comparator = (a, b) =>
           getTimestamp(a.updated_at ?? a.created_at) - getTimestamp(b.updated_at ?? b.created_at);
@@ -173,14 +170,14 @@ export default function ClientsListPage() {
     clientsWithComputedTotals,
     fuse,
     searchQuery,
-    selectedFilter,
+    selectedSort,
     sortDirection,
     hasFinalizedJobs,
   ]);
 
-  const currentFilterLabel = useMemo(
-    () => FILTER_OPTIONS.find(option => option.value === selectedFilter)?.label ?? 'Todos',
-    [selectedFilter]
+  const currentSortLabel = useMemo(
+    () => SORT_OPTIONS.find(option => option.value === selectedSort)?.label ?? 'Última modificación',
+    [selectedSort]
   );
 
   const sortDirectionLabel = useMemo(
@@ -188,9 +185,9 @@ export default function ClientsListPage() {
     [sortDirection]
   );
 
-  const handleSelectFilter = useCallback((filter: ClientFilter) => {
-    setSelectedFilter(filter);
-    if (filter === 'name') {
+  const handleSelectSort = useCallback((option: ClientSortOption) => {
+    setSelectedSort(option);
+    if (option === 'name') {
       setSortDirection('asc');
     } else {
       setSortDirection('desc');
@@ -344,17 +341,27 @@ export default function ClientsListPage() {
           placeholderTextColor={placeholderColor}
         />
         <TouchableOpacity
+          style={[styles.sortDirectionButton, { backgroundColor: inputBackground, borderColor }]}
+          onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar dirección de orden"
+        >
+          <ThemedText style={styles.sortDirectionButtonText}>
+            {sortDirection === 'asc' ? 'Asc ⬆️' : 'Desc ⬇️'}
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.filterButton, { backgroundColor: inputBackground, borderColor }]}
           onPress={() => setIsFilterModalVisible(true)}
           accessibilityRole="button"
-          accessibilityLabel="Abrir filtros de clientes"
+          accessibilityLabel="Abrir opciones de orden"
         >
           <Ionicons name="filter" size={20} color={inputTextColor} />
         </TouchableOpacity>
       </View>
       <View style={styles.filterSummaryRow}>
         <ThemedText style={styles.filterSummaryText}>
-          {currentFilterLabel} · {sortDirectionLabel}
+          Ordenado por {currentSortLabel} · {sortDirectionLabel}
         </ThemedText>
       </View>
       <FlatList
@@ -389,9 +396,9 @@ export default function ClientsListPage() {
           <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
             <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
             <View style={styles.modalSection}>
-              <ThemedText style={styles.modalSectionTitle}>Filtrar por</ThemedText>
-              {FILTER_OPTIONS.map(option => {
-                const isSelected = option.value === selectedFilter;
+            <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
+            {SORT_OPTIONS.map(option => {
+                const isSelected = option.value === selectedSort;
                 return (
                   <TouchableOpacity
                     key={option.value}
@@ -402,7 +409,7 @@ export default function ClientsListPage() {
                         backgroundColor: background,
                       },
                     ]}
-                    onPress={() => handleSelectFilter(option.value)}
+                    onPress={() => handleSelectSort(option.value)}
                   >
                     <ThemedText
                       style={[
@@ -415,17 +422,6 @@ export default function ClientsListPage() {
                   </TouchableOpacity>
                 );
               })}
-            </View>
-            <View style={styles.modalSection}>
-              <ThemedText style={styles.modalSectionTitle}>Dirección</ThemedText>
-              <TouchableOpacity
-                style={[styles.sortDirectionButton, { borderColor }]}
-                onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
-              >
-                <ThemedText style={styles.sortDirectionText}>
-                  {sortDirection === 'asc' ? 'Ascendente ⬆️' : 'Descendente ⬇️'}
-                </ThemedText>
-              </TouchableOpacity>
             </View>
             <TouchableOpacity
               style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
@@ -594,10 +590,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
   },
-  sortDirectionText: {
-    fontSize: 14,
-    fontWeight: '500',
+  sortDirectionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   modalCloseButton: {
     marginTop: 8,

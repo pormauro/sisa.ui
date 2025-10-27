@@ -6,7 +6,10 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -29,12 +32,23 @@ const fuseOptions: Fuse.IFuseOptions<Company> = {
   ignoreLocation: true,
 };
 
+type CompanySortOption = 'name' | 'created' | 'updated';
+
+const SORT_OPTIONS: { label: string; value: CompanySortOption }[] = [
+  { label: 'Nombre', value: 'name' },
+  { label: 'Fecha de creación', value: 'created' },
+  { label: 'Última modificación', value: 'updated' },
+];
+
 export default function CompaniesListPage() {
   const router = useRouter();
   const { companies, loadCompanies } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [selectedSort, setSelectedSort] = useState<CompanySortOption>('updated');
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
   const canList = permissions.includes('listCompanies');
   const canCreate = permissions.includes('addCompany');
@@ -67,11 +81,75 @@ export default function CompaniesListPage() {
     if (!canList) {
       return [];
     }
-    if (!searchQuery.trim()) {
-      return companies;
+
+    const baseList = (() => {
+      if (!searchQuery.trim()) {
+        return companies;
+      }
+      return fuse.search(searchQuery.trim()).map(result => result.item);
+    })();
+
+    const items = [...baseList];
+
+    const getTimestamp = (value?: string | null) => {
+      if (!value) {
+        return 0;
+      }
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) ? time : 0;
+    };
+
+    const getDisplayName = (company: Company) => {
+      const commercial = (company.name ?? '').trim();
+      const legal = (company.legal_name ?? '').trim();
+      return commercial || legal || '';
+    };
+
+    const comparator: ((a: Company, b: Company) => number) | null = (() => {
+      switch (selectedSort) {
+        case 'name':
+          return (a, b) =>
+            getDisplayName(a).localeCompare(getDisplayName(b), undefined, {
+              sensitivity: 'base',
+            });
+        case 'created':
+          return (a, b) => getTimestamp(a.created_at) - getTimestamp(b.created_at);
+        case 'updated':
+        default:
+          return (a, b) =>
+            getTimestamp(a.updated_at ?? a.created_at) - getTimestamp(b.updated_at ?? b.created_at);
+      }
+    })();
+
+    if (comparator) {
+      items.sort((a, b) => {
+        const comparison = comparator(a, b);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
     }
-    return fuse.search(searchQuery.trim()).map(result => result.item);
-  }, [canList, companies, fuse, searchQuery]);
+
+    return items;
+  }, [canList, companies, fuse, searchQuery, selectedSort, sortDirection]);
+
+  const currentSortLabel = useMemo(
+    () => SORT_OPTIONS.find(option => option.value === selectedSort)?.label ?? 'Última modificación',
+    [selectedSort]
+  );
+
+  const sortDirectionLabel = useMemo(
+    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
+    [sortDirection]
+  );
+
+  const handleSelectSort = useCallback((option: CompanySortOption) => {
+    setSelectedSort(option);
+    if (option === 'name') {
+      setSortDirection('asc');
+    } else {
+      setSortDirection('desc');
+    }
+    setIsFilterModalVisible(false);
+  }, []);
 
   const actorCanAdministrate = useCallback(
     (company: Company) => {
@@ -141,17 +219,52 @@ export default function CompaniesListPage() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <TextInput
-        placeholder="Buscar empresa por razón social, CUIT o ciudad"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        editable={canList}
-        style={[
-          styles.searchInput,
-          { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-        ]}
-        placeholderTextColor={placeholderColor}
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          placeholder="Buscar empresa por razón social, CUIT o ciudad"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          editable={canList}
+          style={[
+            styles.searchInput,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          placeholderTextColor={placeholderColor}
+        />
+        <TouchableOpacity
+          style={[
+            styles.sortDirectionButton,
+            { backgroundColor: inputBackground, borderColor },
+            !canList && styles.disabledControl,
+          ]}
+          onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar dirección de orden"
+          disabled={!canList}
+        >
+          <ThemedText style={styles.sortDirectionButtonText}>
+            {sortDirection === 'asc' ? 'Asc ⬆️' : 'Desc ⬇️'}
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.filterButton,
+            { backgroundColor: inputBackground, borderColor },
+            !canList && styles.disabledControl,
+          ]}
+          onPress={() => setIsFilterModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir opciones de orden"
+          disabled={!canList}
+        >
+          <Ionicons name="filter" size={20} color={inputTextColor} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.filterSummaryRow}>
+        <ThemedText style={styles.filterSummaryText}>
+          Ordenado por {currentSortLabel} · {sortDirectionLabel}
+        </ThemedText>
+      </View>
       {canList ? (
         <FlatList
           data={filteredCompanies}
@@ -178,6 +291,55 @@ export default function CompaniesListPage() {
           <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar Empresa</ThemedText>
         </TouchableOpacity>
       ) : null}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsFilterModalVisible(false)} />
+          <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
+            <ThemedText style={styles.modalTitle}>Ordenar empresas</ThemedText>
+            <View style={styles.modalSection}>
+              <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
+              {SORT_OPTIONS.map(option => {
+                const isSelected = option.value === selectedSort;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.modalOption,
+                      { borderColor },
+                      isSelected && {
+                        borderColor: addButtonColor,
+                        backgroundColor: background,
+                      },
+                    ]}
+                    onPress={() => handleSelectSort(option.value)}
+                    disabled={!canList}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+              onPress={() => setIsFilterModalVisible(false)}
+            >
+              <ThemedText style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}>Aplicar orden</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -187,11 +349,47 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   searchInput: {
+    flex: 1,
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
+    marginRight: 8,
+  },
+  sortDirectionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  sortDirectionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filterButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSummaryRow: {
     marginBottom: 12,
+  },
+  filterSummaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  disabledControl: {
+    opacity: 0.6,
   },
   listContent: {
     paddingBottom: 16,
@@ -244,5 +442,56 @@ const styles = StyleSheet.create({
   addButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalSection: {
+    marginBottom: 16,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    marginBottom: 8,
+  },
+  modalOptionText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
