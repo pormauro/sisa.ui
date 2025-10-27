@@ -7,6 +7,7 @@ import {
   Alert,
   GestureResponderEvent,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import ExpoCheckbox from 'expo-checkbox';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
@@ -412,13 +413,15 @@ export default function ClientFinalizedJobsScreen() {
               style={[styles.selectionButton, { borderColor: accentColor }]}
               onPress={selectAllJobs}
             >
-              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Seleccionar todos</ThemedText>
+              <Ionicons name="checkbox-outline" size={18} color={accentColor} style={styles.selectionButtonIcon} />
+              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Seleccionar todo</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.selectionButton, styles.selectionButtonSpacing, { borderColor: accentColor }]}
               onPress={clearSelectedJobs}
             >
-              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Des-seleccionar</ThemedText>
+              <Ionicons name="remove-circle-outline" size={18} color={accentColor} style={styles.selectionButtonIcon} />
+              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Limpiar selección</ThemedText>
             </TouchableOpacity>
           </View>
         </View>
@@ -543,31 +546,40 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 12,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   selectionSummary: {
     fontSize: 14,
     fontWeight: '600',
+    marginBottom: 8,
   },
   selectionActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   selectionButton: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
   selectionButtonSpacing: {
-    marginLeft: 8,
+    marginLeft: 12,
   },
   selectionButtonText: {
     fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
+  },
+  selectionButtonIcon: {
+    marginRight: 8,
   },
   emptyText: {
     textAlign: 'center',
