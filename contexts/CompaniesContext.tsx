@@ -160,19 +160,26 @@ const coalesceNestedArray = (...candidates: unknown[]): any[] => {
   return [];
 };
 
-const parseTaxIdentity = (raw: any): TaxIdentity => ({
-  id: raw?.id,
-  type: pickString(raw?.type, raw?.tipo, raw?.name) ?? '',
-  value: pickString(raw?.value, raw?.valor, raw?.number, raw?.nro_doc) ?? '',
-  country: pickString(raw?.country, raw?.pais) ?? null,
-  notes: pickString(raw?.notes, raw?.notas) ?? null,
-  version:
-    typeof raw?.version === 'number'
-      ? raw.version
-      : raw?.version
-      ? Number(raw.version) || 1
-      : undefined,
-});
+const parseTaxIdentity = (raw: any): TaxIdentity => {
+  const type = pickString(raw?.type, raw?.tipo, raw?.name) ?? '';
+  const typeKey = type.trim().toUpperCase();
+  const directValue = pickString(raw?.value, raw?.valor, raw?.nro_doc);
+  const numericCandidate = coerceToString(raw?.number);
+
+  return {
+    id: raw?.id,
+    type,
+    value: directValue ?? (numericCandidate && typeKey !== 'GWT' ? numericCandidate : '') ?? '',
+    country: pickString(raw?.country, raw?.pais) ?? null,
+    notes: pickString(raw?.notes, raw?.notas) ?? null,
+    version:
+      typeof raw?.version === 'number'
+        ? raw.version
+        : raw?.version
+        ? Number(raw.version) || 1
+        : undefined,
+  };
+};
 
 const parseAddress = (raw: any): CompanyAddress => ({
   id: raw?.id,
