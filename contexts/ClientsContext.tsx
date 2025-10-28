@@ -10,6 +10,7 @@ import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { toNumericValue } from '@/utils/currency';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 
 const normalizeTaxId = (value: unknown): string => {
   if (typeof value === 'string') {
@@ -87,6 +88,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       const res = await fetch(`${BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      await ensureAuthResponse(res);
       const data = await res.json();
       if (Array.isArray(data.clients)) {
         const fetchedClients = (data.clients as ClientApiResponse[]).map(client => ({
@@ -100,6 +102,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         setClients(sortByNewest(fetchedClients, getDefaultSortValue));
       }
     } catch (err) {
+      if (isTokenExpiredError(err)) {
+        console.warn('Token expirado al cargar clientes, se solicitará uno nuevo.');
+        return;
+      }
       console.error('Error loading clients:', err);
     }
   }, [setClients, token]);
@@ -121,6 +127,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(res);
         const data = await res.json();
         if (data.client_id) {
           const newClient: Client = {
@@ -133,6 +140,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           return newClient;
         }
       } catch (err) {
+        if (isTokenExpiredError(err)) {
+          console.warn('Token expirado al agregar un cliente, se solicitará uno nuevo.');
+          return null;
+        }
         console.error('Error adding client:', err);
       }
       return null;
@@ -158,6 +169,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(res);
         if (res.ok) {
           setClients(prev =>
             ensureSortedByNewest(
@@ -169,6 +181,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }
       } catch (err) {
+        if (isTokenExpiredError(err)) {
+          console.warn('Token expirado al actualizar un cliente, se solicitará uno nuevo.');
+          return false;
+        }
         console.error('Error updating client:', err);
       }
       return false;
@@ -182,12 +198,17 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
+      await ensureAuthResponse(res);
       const data = await res.json();
       if (data.message === 'Client deleted successfully') {
         setClients(prev => prev.filter(c => c.id !== id));
         return true;
       }
     } catch (err) {
+      if (isTokenExpiredError(err)) {
+        console.warn('Token expirado al eliminar un cliente, se solicitará uno nuevo.');
+        return false;
+      }
       console.error('Error deleting client:', err);
     }
     return false;

@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
+import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
 
 interface AuthContextProps {
   userId: string | null;
@@ -295,7 +296,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         },
         timeout: TIMEOUT_DURATION,
       });
-      
+
       // Si recibimos 401, el token es inválido o ha expirado, se reintenta el login
       if (response.status === 401) {
         if (username && password) {
@@ -315,6 +316,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsOffline(true);
     }
   }, [token, username, password, performLogin]);
+
+  useEffect(() => {
+    const originalFetch = globalThis.fetch;
+    if (typeof originalFetch !== 'function') {
+      return;
+    }
+
+    let isHandlingAuthError = false;
+
+    type FetchInput = Parameters<typeof fetch>[0];
+    const normalizedBaseUrl = BASE_URL.replace(/\/+$/, '').toLowerCase();
+
+    const shouldHandleRequest = (input: FetchInput): boolean => {
+      try {
+        let targetUrl: string | null = null;
+
+        if (typeof input === 'string') {
+          targetUrl = input;
+        } else if (typeof input === 'object' && input !== null) {
+          const maybeUrl = (input as { url?: string; href?: string }).url ??
+            (input as { url?: string; href?: string }).href;
+          if (typeof maybeUrl === 'string') {
+            targetUrl = maybeUrl;
+          }
+        }
+
+        if (!targetUrl) {
+          return false;
+        }
+
+        const normalizedUrl = targetUrl.toLowerCase();
+
+        if (normalizedBaseUrl && !normalizedUrl.startsWith(normalizedBaseUrl)) {
+          return false;
+        }
+
+        return !normalizedUrl.includes('/login');
+      } catch {
+        return false;
+      }
+    };
+
+    const guardedFetch: typeof fetch = async (input, init) => {
+      const response = await originalFetch(input as any, init as any);
+
+      if (!isHandlingAuthError && isAuthErrorStatus(response.status) && shouldHandleRequest(input)) {
+        isHandlingAuthError = true;
+        try {
+          await checkConnection();
+          Alert.alert(
+            'Sesión expirada',
+            'El token dejó de ser válido. Se solicitará uno nuevo; volvé a intentar la acción.'
+          );
+        } finally {
+          isHandlingAuthError = false;
+        }
+      }
+
+      return response;
+    };
+
+    globalThis.fetch = guardedFetch as typeof fetch;
+
+    return () => {
+      globalThis.fetch = originalFetch as typeof fetch;
+    };
+  }, [checkConnection]);
 
   useEffect(() => {
     autoLogin();
