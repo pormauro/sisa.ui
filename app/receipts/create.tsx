@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
-import { CategoriesContext } from '@/contexts/CategoriesContext';
+import { CategoriesContext, DEFAULT_INCOME_CATEGORY_NAME } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -125,6 +125,20 @@ export default function CreateReceipt() {
     ],
     [displayCategories]
   );
+
+  useEffect(() => {
+    if (categoryId) {
+      return;
+    }
+    const normalizedDefaultName = DEFAULT_INCOME_CATEGORY_NAME.trim().toLowerCase();
+    const defaultCategory = categories.find(
+      category =>
+        category.type === 'income' && category.name.trim().toLowerCase() === normalizedDefaultName
+    );
+    if (defaultCategory) {
+      setCategoryId(defaultCategory.id.toString());
+    }
+  }, [categories, categoryId]);
 
   useEffect(() => {
     if (!paidInAccount) return;

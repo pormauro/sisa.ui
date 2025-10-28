@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import { BASE_URL } from '@/config/Index';
@@ -17,6 +18,21 @@ export interface Category {
   name: string;
   type: 'income' | 'expense';
 }
+
+export type DefaultCategoryDefinition = Omit<Category, 'id'>;
+
+export const DEFAULT_INCOME_CATEGORY_NAME = 'Ingresos principales';
+export const DEFAULT_EXPENSE_CATEGORY_NAME = 'Gastos principales';
+
+export const DEFAULT_CATEGORY_DEFINITIONS: ReadonlyArray<DefaultCategoryDefinition> = [
+  { name: DEFAULT_INCOME_CATEGORY_NAME, type: 'income', parent_id: null },
+  { name: DEFAULT_EXPENSE_CATEGORY_NAME, type: 'expense', parent_id: null },
+] as const;
+
+export const DEFAULT_CATEGORY_NAMES: Record<'income' | 'expense', string> = {
+  income: DEFAULT_INCOME_CATEGORY_NAME,
+  expense: DEFAULT_EXPENSE_CATEGORY_NAME,
+};
 
 interface CategoriesContextValue {
   categories: Category[];
@@ -40,6 +56,100 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     []
   );
   const { token } = useContext(AuthContext);
+  const ensuringDefaultsRef = useRef(false);
+
+  const applyFetchedCategories = useCallback(
+    (items: Category[]) => {
+      setCategories(sortByNewest(items, getDefaultSortValue));
+    },
+    [setCategories]
+  );
+
+  const fetchCategories = useCallback(async (): Promise<Category[]> => {
+    const response = await fetch(`${BASE_URL}/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    try {
+      const data = await response.json();
+      if (Array.isArray(data.categories)) {
+        return data.categories as Category[];
+      }
+    } catch (error) {
+      console.error('Error parsing categories response:', error);
+    }
+
+    if (!response.ok) {
+      console.error('Error loading categories:', response.statusText);
+    }
+
+    return [];
+  }, [token]);
+
+  const ensureDefaultCategories = useCallback(
+    async (existingCategories: Category[]) => {
+      if (!token) {
+        return;
+      }
+
+      const lowercasedExisting = existingCategories.map(category => ({
+        ...category,
+        normalizedName: category.name.trim().toLowerCase(),
+      }));
+
+      const missingDefaults = DEFAULT_CATEGORY_DEFINITIONS.filter(defaultCategory =>
+        !lowercasedExisting.some(
+          category =>
+            category.type === defaultCategory.type &&
+            category.normalizedName === defaultCategory.name.trim().toLowerCase()
+        )
+      );
+
+      if (missingDefaults.length === 0 || ensuringDefaultsRef.current) {
+        return;
+      }
+
+      ensuringDefaultsRef.current = true;
+
+      try {
+        for (const defaultCategory of missingDefaults) {
+          try {
+            const response = await fetch(`${BASE_URL}/categories`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(defaultCategory),
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data?.category_id) {
+              console.error(
+                'Error ensuring default category:',
+                (data && (data.error as string)) || response.statusText
+              );
+            }
+          } catch (error) {
+            console.error('Error ensuring default category:', error);
+          }
+        }
+
+        try {
+          const refreshed = await fetchCategories();
+          applyFetchedCategories(refreshed);
+        } catch (error) {
+          console.error('Error refreshing categories after ensuring defaults:', error);
+        }
+      } finally {
+        ensuringDefaultsRef.current = false;
+      }
+    },
+    [applyFetchedCategories, fetchCategories, token]
+  );
 
   useEffect(() => {
     setCategories(prev => ensureSortedByNewest(prev, getDefaultSortValue));
@@ -47,20 +157,13 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   const loadCategories = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE_URL}/categories`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.categories) {
-        setCategories(sortByNewest(data.categories, getDefaultSortValue));
-      }
+      const fetched = await fetchCategories();
+      applyFetchedCategories(fetched);
+      await ensureDefaultCategories(fetched);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
-  }, [setCategories, token]);
+  }, [applyFetchedCategories, ensureDefaultCategories, fetchCategories]);
 
   const addCategory = useCallback(
     async (category: Omit<Category, 'id'>): Promise<Category | null> => {
