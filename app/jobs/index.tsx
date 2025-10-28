@@ -286,9 +286,11 @@ export default function JobsScreen() {
           ]}
           onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
         >
-          <ThemedText style={styles.sortDirectionButtonText}>
-            {sortDirection === 'asc' ? 'Asc ⬆️' : 'Desc ⬇️'}
-          </ThemedText>
+          <Ionicons
+            name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={inputTextColor}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -331,7 +333,7 @@ export default function JobsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: inputBackground }]}>
-            <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
+            <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
             <View style={styles.modalSection}>
               <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
               {SORT_OPTIONS.map(option => {
@@ -361,10 +363,10 @@ export default function JobsScreen() {
             <TouchableOpacity
               style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
               onPress={() => setFiltersVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar filtro"
             >
-              <ThemedText style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}>
-                Aplicar orden
-              </ThemedText>
+              <Ionicons name="close" size={20} color={addButtonTextColor} />
             </TouchableOpacity>
           </View>
         </View>
@@ -403,7 +405,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  sortDirectionButtonText: { fontSize: 12, fontWeight: '600' },
   filterSummaryRow: {
     marginBottom: 12
   },
@@ -464,9 +465,12 @@ const styles = StyleSheet.create({
   },
   modalOptionText: { fontSize: 14, textAlign: 'center' },
   modalCloseButton: {
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center'
-  },
-  modalCloseButtonText: { fontWeight: 'bold', fontSize: 14 }
+    alignSelf: 'flex-end',
+    marginTop: 12,
+    borderRadius: 999,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
 });

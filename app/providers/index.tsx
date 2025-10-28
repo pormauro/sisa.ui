@@ -225,9 +225,11 @@ export default function ProvidersListPage() {
           accessibilityRole="button"
           accessibilityLabel="Cambiar dirección de orden"
         >
-          <ThemedText style={styles.sortDirectionButtonText}>
-            {sortDirection === 'asc' ? 'Asc ⬆️' : 'Desc ⬇️'}
-          </ThemedText>
+          <Ionicons
+            name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={inputTextColor}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterButton, { backgroundColor: inputBackground, borderColor }]}
@@ -272,7 +274,7 @@ export default function ProvidersListPage() {
           <View
             style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}
           >
-            <ThemedText style={styles.modalTitle}>Ordenar proveedores</ThemedText>
+            <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
             <View style={styles.modalSection}>
               <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
               {SORT_OPTIONS.map(option => {
@@ -304,8 +306,10 @@ export default function ProvidersListPage() {
             <TouchableOpacity
               style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
               onPress={() => setIsFilterModalVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar filtro"
             >
-              <ThemedText style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}>Aplicar orden</ThemedText>
+              <Ionicons name="close" size={20} color={addButtonTextColor} />
             </TouchableOpacity>
           </View>
         </View>
@@ -337,10 +341,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
-  },
-  sortDirectionButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   filterButton: {
     padding: 10,
@@ -436,13 +436,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   modalCloseButton: {
+    alignSelf: 'flex-end',
     marginTop: 8,
-    paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 999,
+    width: 36,
+    height: 36,
     alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    justifyContent: 'center',
   },
 });
