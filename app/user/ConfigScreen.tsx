@@ -1,8 +1,8 @@
 // app/user/ConfigScreen.tsx
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, ScrollView, Alert, View, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { ConfigContext, ConfigForm } from '@/contexts/ConfigContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
@@ -10,12 +10,17 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useLog } from '@/contexts/LogContext';
 import { clearAllDataCaches } from '@/utils/cache';
+import { SearchableSelect } from '@/components/SearchableSelect';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
   const { clearLocalFiles } = useContext(FileContext);
   const { overlaySuppressed, setOverlaySuppressed, overlaySettingsHydrated } = useLog();
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
+  const { cashBoxes } = useContext(CashBoxesContext);
+  const [defaultPaymentCashBox, setDefaultPaymentCashBox] = useState<string>('');
+  const [defaultReceivingCashBox, setDefaultReceivingCashBox] = useState<string>('');
 
   useEffect(() => {
     // Cargamos la configuración (loadConfig se ejecuta al montar el provider, pero aquí se puede refrescar)
@@ -25,6 +30,18 @@ const ConfigScreen: React.FC = () => {
   useEffect(() => {
     if (configDetails?.theme) {
       setSelectedTheme(configDetails.theme);
+    }
+    if (configDetails) {
+      setDefaultPaymentCashBox(
+        configDetails.default_payment_cash_box_id !== null
+          ? String(configDetails.default_payment_cash_box_id)
+          : ''
+      );
+      setDefaultReceivingCashBox(
+        configDetails.default_receiving_cash_box_id !== null
+          ? String(configDetails.default_receiving_cash_box_id)
+          : ''
+      );
     }
   }, [configDetails]);
 
@@ -59,17 +76,78 @@ const ConfigScreen: React.FC = () => {
   const inputTextColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'tint');
 
+  const cashBoxOptions = useMemo(
+    () => [
+      { label: 'Sin asignar', value: '' },
+      ...cashBoxes.map(cb => ({ label: cb.name, value: cb.id.toString() })),
+    ],
+    [cashBoxes]
+  );
+
+  const normalizeSelectedValue = (value: string | number | null): { stringValue: string; numericValue: number | null } => {
+    if (value === null) {
+      return { stringValue: '', numericValue: null };
+    }
+
+    const stringValue = String(value);
+    if (stringValue.length === 0) {
+      return { stringValue: '', numericValue: null };
+    }
+
+    const parsed = Number(stringValue);
+    return {
+      stringValue,
+      numericValue: Number.isNaN(parsed) ? null : parsed,
+    };
+  };
+
   const handleThemeChange = (value: string): void => {
+    if (value === selectedTheme) {
+      return;
+    }
     setSelectedTheme(value);
     if (configDetails) {
-      const updated: ConfigForm = {
-        role: configDetails.role,
-        view_type: configDetails.view_type,
+      void updateConfig({
+        ...configDetails,
         theme: value,
-        font_size: configDetails.font_size,
-      };
-      void updateConfig(updated);
+      });
     }
+  };
+
+  const handleDefaultPaymentCashBoxChange = (value: string | number | null): void => {
+    const { stringValue, numericValue } = normalizeSelectedValue(value);
+    setDefaultPaymentCashBox(stringValue);
+
+    if (!configDetails) {
+      return;
+    }
+
+    if (configDetails.default_payment_cash_box_id === numericValue) {
+      return;
+    }
+
+    void updateConfig({
+      ...configDetails,
+      default_payment_cash_box_id: numericValue,
+    });
+  };
+
+  const handleDefaultReceivingCashBoxChange = (value: string | number | null): void => {
+    const { stringValue, numericValue } = normalizeSelectedValue(value);
+    setDefaultReceivingCashBox(stringValue);
+
+    if (!configDetails) {
+      return;
+    }
+
+    if (configDetails.default_receiving_cash_box_id === numericValue) {
+      return;
+    }
+
+    void updateConfig({
+      ...configDetails,
+      default_receiving_cash_box_id: numericValue,
+    });
   };
 
   return (
@@ -127,6 +205,22 @@ const ConfigScreen: React.FC = () => {
           <ThemedText style={styles.switchHint}>
             Al activarlo se ocultará el indicador flotante de errores.
           </ThemedText>
+          <ThemedText style={styles.selectLabel}>Caja por defecto para cobros</ThemedText>
+          <SearchableSelect
+            items={cashBoxOptions}
+            selectedValue={defaultReceivingCashBox}
+            onValueChange={handleDefaultReceivingCashBoxChange}
+            placeholder="Selecciona una caja"
+            style={styles.select}
+          />
+          <ThemedText style={styles.selectLabel}>Caja por defecto para pagos</ThemedText>
+          <SearchableSelect
+            items={cashBoxOptions}
+            selectedValue={defaultPaymentCashBox}
+            onValueChange={handleDefaultPaymentCashBoxChange}
+            placeholder="Selecciona una caja"
+            style={styles.select}
+          />
           <ThemedButton
             title="Borrar datos de archivos"
             lightColor="#d9534f"
@@ -177,6 +271,14 @@ const styles = StyleSheet.create({
     borderColor: '#007AFF',
   },
   editButton: { marginTop: 10 },
+  selectLabel: {
+    fontSize: 16,
+    marginTop: 18,
+    marginBottom: 6,
+  },
+  select: {
+    marginBottom: 6,
+  },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
