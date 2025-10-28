@@ -16,6 +16,8 @@ export interface CashBox {
   name: string;
   image_file_id: string | null;
   user_id: number;
+  created_at?: string | null;
+  updated_at?: string | null;
   // Puedes agregar más campos si los requiere tu API
 }
 
