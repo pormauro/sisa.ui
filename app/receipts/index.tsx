@@ -1,5 +1,5 @@
 // app/receipts/index.tsx
-import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useContext, useEffect, useMemo, useCallback, useState } from 'react';
 import {
   View,
   FlatList,
@@ -8,7 +8,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { ReceiptsContext, Receipt } from '@/contexts/ReceiptsContext';
@@ -18,6 +21,31 @@ import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useCachedState } from '@/hooks/useCachedState';
+
+type ReceiptSortOption = 'date' | 'amount' | 'payer' | 'description';
+
+type ReceiptListItem = Receipt & {
+  payerDisplayName: string;
+};
+
+const SORT_OPTIONS: { label: string; value: ReceiptSortOption }[] = [
+  { label: 'Fecha del recibo', value: 'date' },
+  { label: 'Monto', value: 'amount' },
+  { label: 'Pagador', value: 'payer' },
+  { label: 'Descripción', value: 'description' },
+];
+
+const fuseOptions: Fuse.IFuseOptions<ReceiptListItem> = {
+  keys: [
+    { name: 'payerDisplayName', weight: 0.5 },
+    { name: 'description', weight: 0.3 },
+    { name: 'payer_other', weight: 0.2 },
+    { name: 'paid_in_account', weight: 0.2 },
+  ],
+  threshold: 0.35,
+  ignoreLocation: true,
+};
 
 export default function ReceiptsScreen() {
   const { receipts, loadReceipts, deleteReceipt } = useContext(ReceiptsContext);
@@ -25,7 +53,16 @@ export default function ReceiptsScreen() {
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const router = useRouter();
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useCachedState<string>('receiptsFilters.searchQuery', '');
+  const [selectedSort, setSelectedSort] = useCachedState<ReceiptSortOption>(
+    'receiptsFilters.selectedSort',
+    'date'
+  );
+  const [sortDirection, setSortDirection] = useCachedState<'asc' | 'desc'>(
+    'receiptsFilters.sortDirection',
+    'desc'
+  );
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const background = useThemeColor({}, 'background');
@@ -54,43 +91,121 @@ export default function ReceiptsScreen() {
     }, [permissions, loadReceipts])
   );
 
-  const fuse = new Fuse(receipts, { keys: ['description'] });
+  const receiptsWithPayer = useMemo<ReceiptListItem[]>(() => {
+    const getPayerDisplayName = (receipt: Receipt): string => {
+      if (receipt.payer_type === 'client') {
+        const client = clients.find(c => c.id === receipt.payer_client_id);
+        return client?.business_name?.trim() || 'Cliente sin nombre';
+      }
+      if (receipt.payer_type === 'provider') {
+        const provider = providers.find(p => p.id === receipt.payer_provider_id);
+        return provider?.business_name?.trim() || 'Proveedor sin nombre';
+      }
+      return receipt.payer_other?.trim() || 'Sin pagador';
+    };
+
+    return receipts.map(receipt => ({
+      ...receipt,
+      payerDisplayName: getPayerDisplayName(receipt),
+    }));
+  }, [receipts, clients, providers]);
+
+  const fuse = useMemo(() => new Fuse(receiptsWithPayer, fuseOptions), [receiptsWithPayer]);
+
   const filteredReceipts = useMemo(() => {
-    if (!search) return receipts;
-    const result = fuse.search(search);
-    return result.map(r => r.item);
-  }, [search, receipts]);
+    const baseList = (() => {
+      if (!searchQuery.trim()) {
+        return receiptsWithPayer;
+      }
+      return fuse.search(searchQuery.trim()).map(result => result.item);
+    })();
+
+    const items = [...baseList];
+
+    const getTimestamp = (value?: string | null) => {
+      if (!value) {
+        return 0;
+      }
+      const parsed = Date.parse(value.includes(' ') ? value.replace(' ', 'T') : value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const getAmount = (value: number | null | undefined) =>
+      typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+    const comparator: ((a: ReceiptListItem, b: ReceiptListItem) => number) | null = (() => {
+      switch (selectedSort) {
+        case 'amount':
+          return (a, b) => getAmount(a.price) - getAmount(b.price);
+        case 'payer':
+          return (a, b) =>
+            a.payerDisplayName.localeCompare(b.payerDisplayName, undefined, { sensitivity: 'base' });
+        case 'description':
+          return (a, b) => (a.description ?? '').localeCompare(b.description ?? '', undefined, {
+            sensitivity: 'base',
+          });
+        case 'date':
+        default:
+          return (a, b) => getTimestamp(a.receipt_date) - getTimestamp(b.receipt_date);
+      }
+    })();
+
+    if (comparator) {
+      items.sort((a, b) => {
+        const comparison = comparator(a, b);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return items;
+  }, [fuse, receiptsWithPayer, searchQuery, selectedSort, sortDirection]);
 
   const canDelete = permissions.includes('deleteReceipt');
   const canAdd = permissions.includes('addReceipt');
 
-  const handleDelete = (id: number) => {
-    Alert.alert('Confirmar eliminación', '¿Eliminar este recibo?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          setLoadingId(id);
-          await deleteReceipt(id);
-          setLoadingId(null);
+  const handleDelete = useCallback(
+    (id: number) => {
+      Alert.alert('Confirmar eliminación', '¿Eliminar este recibo?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setLoadingId(id);
+            await deleteReceipt(id);
+            setLoadingId(null);
+          },
         },
-      },
-    ]);
-  };
+      ]);
+    },
+    [deleteReceipt, setLoadingId]
+  );
 
-  const renderItem = ({ item }: { item: Receipt }) => {
+  const handleSelectSort = useCallback(
+    (option: ReceiptSortOption) => {
+      setSelectedSort(option);
+      if (option === 'payer' || option === 'description') {
+        setSortDirection('asc');
+      } else {
+        setSortDirection('desc');
+      }
+      setIsFilterModalVisible(false);
+    },
+    [setIsFilterModalVisible, setSelectedSort, setSortDirection]
+  );
+
+  const currentSortLabel = useMemo(
+    () => SORT_OPTIONS.find(option => option.value === selectedSort)?.label ?? 'Fecha del recibo',
+    [selectedSort]
+  );
+
+  const sortDirectionLabel = useMemo(
+    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
+    [sortDirection]
+  );
+
+  const renderItem = ({ item }: { item: ReceiptListItem }) => {
     const total = item.price;
-    let title = '';
-    if (item.payer_type === 'client') {
-      const client = clients.find(c => c.id === item.payer_client_id);
-      title = client?.business_name || 'Sin cliente';
-    } else if (item.payer_type === 'provider') {
-      const provider = providers.find(p => p.id === item.payer_provider_id);
-      title = provider?.business_name || 'Sin proveedor';
-    } else {
-      title = item.payer_other || 'Sin pagador';
-    }
     return (
       <TouchableOpacity
         style={[styles.item, { borderColor: itemBorderColor }]}
@@ -98,7 +213,7 @@ export default function ReceiptsScreen() {
         onLongPress={() => router.push(`/receipts/${item.id}`)}
       >
         <View style={styles.itemInfo}>
-          <ThemedText style={styles.name}>{title}</ThemedText>
+          <ThemedText style={styles.name}>{item.payerDisplayName}</ThemedText>
           <ThemedText>{item.description || 'Sin descripción'}</ThemedText>
           <ThemedText>Total: ${total}</ThemedText>
         </View>
@@ -120,13 +235,43 @@ export default function ReceiptsScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <TextInput
-        style={[styles.search, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Buscar recibo..."
-        value={search}
-        onChangeText={setSearch}
-        placeholderTextColor={placeholderColor}
-      />
+      <View style={styles.searchRow}>
+        <TextInput
+          style={[
+            styles.search,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          placeholder="Buscar recibo..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={placeholderColor}
+        />
+        <TouchableOpacity
+          style={[styles.sortDirectionButton, { backgroundColor: inputBackground, borderColor }]}
+          onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar dirección de orden"
+        >
+          <Ionicons
+            name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={inputTextColor}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: inputBackground, borderColor }]}
+          onPress={() => setIsFilterModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir opciones de filtro"
+        >
+          <Ionicons name="filter" size={20} color={inputTextColor} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.filterSummaryRow}>
+        <ThemedText style={styles.filterSummaryText}>
+          Ordenado por {currentSortLabel} · {sortDirectionLabel}
+        </ThemedText>
+      </View>
       <FlatList
         data={filteredReceipts}
         keyExtractor={(item) => item.id.toString()}
@@ -140,13 +285,90 @@ export default function ReceiptsScreen() {
           <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>➕ Agregar Recibo</ThemedText>
         </TouchableOpacity>
       )}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsFilterModalVisible(false)} />
+          <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}
+          >
+            <ThemedText style={styles.modalTitle}>Ordenar por</ThemedText>
+            <View style={styles.modalSection}>
+              {SORT_OPTIONS.map(option => {
+                const isSelected = option.value === selectedSort;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.modalOption,
+                      isSelected && {
+                        borderColor: addButtonColor,
+                        backgroundColor: background,
+                      },
+                    ]}
+                    onPress={() => handleSelectSort(option.value)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+              onPress={() => setIsFilterModalVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar filtro"
+            >
+              <Ionicons name="close" size={20} color={addButtonTextColor} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  search: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  search: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 12, marginRight: 8 },
+  sortDirectionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  filterButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSummaryRow: {
+    marginBottom: 12,
+  },
+  filterSummaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1 },
   name: { fontSize: 16, fontWeight: 'bold' },
@@ -156,4 +378,44 @@ const styles = StyleSheet.create({
   addText: { fontSize: 16, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
   listContent: { paddingBottom: 16 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalSection: {
+    marginBottom: 16,
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  modalOptionText: {
+    fontSize: 15,
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

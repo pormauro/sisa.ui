@@ -1,6 +1,16 @@
-// C:/Users/Mauri/Documents/GitHub/router/app/products_services/index.tsx
 import React, { useContext, useState, useMemo, useEffect, useCallback } from 'react';
-import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -9,12 +19,34 @@ import { ProductsServicesContext, ProductService } from '@/contexts/ProductsServ
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useCachedState } from '@/hooks/useCachedState';
+
+type ProductServiceSortOption = 'description' | 'category' | 'price' | 'cost';
+
+const SORT_OPTIONS: { label: string; value: ProductServiceSortOption }[] = [
+  { label: 'Descripción', value: 'description' },
+  { label: 'Categoría', value: 'category' },
+  { label: 'Precio', value: 'price' },
+  { label: 'Costo', value: 'cost' },
+];
+
+const getNumeric = (value: number | null | undefined): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
 export default function ProductsServicesScreen() {
   const { productsServices, loadProductsServices, deleteProductService } = useContext(ProductsServicesContext);
   const { permissions } = useContext(PermissionsContext);
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useCachedState<string>('productsServicesFilters.searchQuery', '');
+  const [selectedSort, setSelectedSort] = useCachedState<ProductServiceSortOption>(
+    'productsServicesFilters.selectedSort',
+    'description'
+  );
+  const [sortDirection, setSortDirection] = useCachedState<'asc' | 'desc'>(
+    'productsServicesFilters.sortDirection',
+    'asc'
+  );
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
   const background = useThemeColor({}, 'background');
@@ -43,36 +75,99 @@ export default function ProductsServicesScreen() {
     }, [permissions, loadProductsServices])
   );
 
-  const fuse = new Fuse(productsServices, { keys: ['description', 'category'] });
+  const fuse = useMemo(
+    () =>
+      new Fuse(productsServices, {
+        keys: ['description', 'category', 'item_type'],
+        threshold: 0.3,
+        ignoreLocation: true,
+      }),
+    [productsServices]
+  );
+
   const filteredItems = useMemo(() => {
-    if (!searchQuery) return productsServices;
-    const results = fuse.search(searchQuery);
-    return results.map(result => result.item);
-  }, [searchQuery, productsServices]);
+    const baseList = (() => {
+      if (!searchQuery.trim()) {
+        return productsServices;
+      }
+      return fuse.search(searchQuery.trim()).map(result => result.item);
+    })();
+
+    const items = [...baseList];
+
+    const comparator: ((a: ProductService, b: ProductService) => number) | null = (() => {
+      switch (selectedSort) {
+        case 'category':
+          return (a, b) => a.category.localeCompare(b.category, undefined, { sensitivity: 'base' });
+        case 'price':
+          return (a, b) => getNumeric(a.price) - getNumeric(b.price);
+        case 'cost':
+          return (a, b) => getNumeric(a.cost) - getNumeric(b.cost);
+        case 'description':
+        default:
+          return (a, b) => a.description.localeCompare(b.description, undefined, { sensitivity: 'base' });
+      }
+    })();
+
+    if (comparator) {
+      items.sort((a, b) => {
+        const comparison = comparator(a, b);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return items;
+  }, [fuse, productsServices, searchQuery, selectedSort, sortDirection]);
 
   const canDelete = permissions.includes('deleteProductService');
 
-  const handleDelete = (id: number) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      '¿Estás seguro de que deseas eliminar este ítem?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            setLoadingId(id);
-            const success = await deleteProductService(id);
-            setLoadingId(null);
-            if (!success) {
-              Alert.alert('Error', 'No se pudo eliminar el producto/servicio');
-            }
-          }
-        }
-      ]
-    );
-  };
+  const handleDelete = useCallback(
+    (id: number) => {
+      Alert.alert(
+        'Confirmar eliminación',
+        '¿Estás seguro de que deseas eliminar este ítem?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              setLoadingId(id);
+              const success = await deleteProductService(id);
+              setLoadingId(null);
+              if (!success) {
+                Alert.alert('Error', 'No se pudo eliminar el producto/servicio');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [deleteProductService, setLoadingId]
+  );
+
+  const handleSelectSort = useCallback(
+    (option: ProductServiceSortOption) => {
+      setSelectedSort(option);
+      if (option === 'price' || option === 'cost') {
+        setSortDirection('desc');
+      } else {
+        setSortDirection('asc');
+      }
+      setIsFilterModalVisible(false);
+    },
+    [setSelectedSort, setSortDirection, setIsFilterModalVisible]
+  );
+
+  const currentSortLabel = useMemo(
+    () => SORT_OPTIONS.find(option => option.value === selectedSort)?.label ?? 'Descripción',
+    [selectedSort]
+  );
+
+  const sortDirectionLabel = useMemo(
+    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
+    [sortDirection]
+  );
 
   const renderItem = ({ item }: { item: ProductService }) => (
     <TouchableOpacity
@@ -97,14 +192,44 @@ export default function ProductsServicesScreen() {
   );
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <TextInput
-        placeholder="Buscar producto o servicio..."
-        style={[styles.searchInput, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholderTextColor={placeholderColor}
-      />
+    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+      <View style={styles.searchRow}>
+        <TextInput
+          placeholder="Buscar producto o servicio..."
+          style={[
+            styles.searchInput,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={placeholderColor}
+        />
+        <TouchableOpacity
+          style={[styles.sortDirectionButton, { backgroundColor: inputBackground, borderColor }]}
+          onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar dirección de orden"
+        >
+          <Ionicons
+            name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={inputTextColor}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, { backgroundColor: inputBackground, borderColor }]}
+          onPress={() => setIsFilterModalVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir opciones de filtro"
+        >
+          <Ionicons name="filter" size={20} color={inputTextColor} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.filterSummaryRow}>
+        <ThemedText style={styles.filterSummaryText}>
+          Ordenado por {currentSortLabel} · {sortDirectionLabel}
+        </ThemedText>
+      </View>
       <FlatList
         data={filteredItems}
         keyExtractor={(item) => item.id.toString()}
@@ -119,20 +244,145 @@ export default function ProductsServicesScreen() {
       >
         <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar</ThemedText>
       </TouchableOpacity>
+      <Modal
+        transparent
+        animationType="fade"
+        visible={isFilterModalVisible}
+        onRequestClose={() => setIsFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsFilterModalVisible(false)} />
+          <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}
+          >
+            <ThemedText style={styles.modalTitle}>Ordenar por</ThemedText>
+            <View style={styles.modalSection}>
+              {SORT_OPTIONS.map(option => {
+                const isSelected = option.value === selectedSort;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.modalOption,
+                      isSelected && {
+                        borderColor: addButtonColor,
+                        backgroundColor: background,
+                      },
+                    ]}
+                    onPress={() => handleSelectSort(option.value)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                      ]}
+                    >
+                      {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+              onPress={() => setIsFilterModalVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar filtro"
+            >
+              <Ionicons name="close" size={20} color={addButtonTextColor} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  searchInput: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  searchInput: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 12, marginRight: 8 },
+  sortDirectionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  filterButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSummaryRow: {
+    marginBottom: 12,
+  },
+  filterSummaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   itemContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1 },
   itemInfo: { flex: 1, marginLeft: 12 },
   itemTitle: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
+  addButton: {
+    position: 'absolute',
+    right: 16,
+    bottom: 32,
+    padding: 16,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   addButtonText: { fontSize: 16, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
   listContent: { paddingBottom: 16 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalSection: {
+    marginBottom: 16,
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  modalOptionText: {
+    fontSize: 15,
+  },
+  modalCloseButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
