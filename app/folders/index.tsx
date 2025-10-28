@@ -1,7 +1,17 @@
 // Archivo: app/folders/index.tsx
 
 import React, { useContext, useState, useMemo, useCallback } from 'react';
-import { View, FlatList, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Modal,
+  Pressable,
+} from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -11,12 +21,26 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { Ionicons } from '@expo/vector-icons';
+import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
+
+type ClientSortOption = 'name' | 'created' | 'updated' | 'finalizedJobs';
+
+const SORT_OPTIONS: { label: string; value: ClientSortOption }[] = [
+  { label: 'Nombre', value: 'name' },
+  { label: 'Fecha de creación', value: 'created' },
+  { label: 'Última modificación', value: 'updated' },
+  { label: 'Trabajos finalizados', value: 'finalizedJobs' },
+];
 
 export default function FoldersPage() {
   const { folders, loadFolders, deleteFolder } = useContext(FoldersContext);
   const { clients, loadClients } = useContext(ClientsContext);
   const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSort, setSelectedSort] = useState<ClientSortOption>('updated');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -32,6 +56,7 @@ export default function FoldersPage() {
   const backButtonColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const textColor = useThemeColor({}, 'text');
   const spinnerColor = useThemeColor({}, 'tint');
+  const filterButtonBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
 
   const client_id = params.client_id as string | undefined;
   const parent_id = params.parent_id as string | undefined;
@@ -40,6 +65,8 @@ export default function FoldersPage() {
   const canDeleteFolder = permissions.includes('deleteFolder');
   const canEditFolder = permissions.includes('updateFolder');
   const isRootLevel = !client_id && !parent_id;
+
+  const { getTotalForClient, hasFinalizedJobs } = useClientFinalizedJobTotals();
 
   const handleAddFolder = () => {
     if (client_id || parent_id) {
@@ -72,8 +99,121 @@ export default function FoldersPage() {
   const fuseFolders = new Fuse(currentFolders, { keys: ['name'] });
   const filteredFolders = searchQuery ? fuseFolders.search(searchQuery).map(r => r.item) : currentFolders;
 
-  const fuseClients = new Fuse(clients, { keys: ['business_name', 'email', 'tax_id'] });
-  const filteredClients = searchQuery ? fuseClients.search(searchQuery).map(r => r.item) : clients;
+  const clientsWithComputedTotals = useMemo(
+    () =>
+      clients.map(client => {
+        const computedTotal = getTotalForClient(client.id);
+        const currentTotal = typeof client.unbilled_total === 'number' ? client.unbilled_total : 0;
+
+        if (currentTotal === computedTotal) {
+          return client;
+        }
+
+        if (computedTotal === 0 && (client.unbilled_total == null || client.unbilled_total === 0)) {
+          return client;
+        }
+
+        return {
+          ...client,
+          unbilled_total: computedTotal,
+        };
+      }),
+    [clients, getTotalForClient]
+  );
+
+  const fuseClients = useMemo(
+    () =>
+      new Fuse(clientsWithComputedTotals, {
+        keys: ['business_name', 'tax_id', 'email', 'address'],
+        threshold: 0.3,
+        ignoreLocation: true,
+      }),
+    [clientsWithComputedTotals]
+  );
+
+  const filteredClients = useMemo(() => {
+    const baseClients = searchQuery
+      ? fuseClients.search(searchQuery).map(result => result.item)
+      : clientsWithComputedTotals;
+
+    const result = [...baseClients];
+
+    const getTimestamp = (value?: string | null) => {
+      if (!value) {
+        return 0;
+      }
+      const time = new Date(value).getTime();
+      return Number.isFinite(time) ? time : 0;
+    };
+
+    const getSafeTotal = (value: number | null | undefined) =>
+      typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+    let comparator: ((a: typeof baseClients[number], b: typeof baseClients[number]) => number) | null = null;
+
+    switch (selectedSort) {
+      case 'finalizedJobs':
+        comparator = (a, b) => {
+          const aHasJobs = hasFinalizedJobs(a.id) ? 1 : 0;
+          const bHasJobs = hasFinalizedJobs(b.id) ? 1 : 0;
+          if (aHasJobs !== bHasJobs) {
+            return aHasJobs - bHasJobs;
+          }
+          return getSafeTotal(a.unbilled_total) - getSafeTotal(b.unbilled_total);
+        };
+        break;
+      case 'name':
+        comparator = (a, b) =>
+          (a.business_name ?? '').localeCompare(b.business_name ?? '', undefined, {
+            sensitivity: 'base',
+          });
+        break;
+      case 'created':
+        comparator = (a, b) => getTimestamp(a.created_at) - getTimestamp(b.created_at);
+        break;
+      case 'updated':
+      default:
+        comparator = (a, b) =>
+          getTimestamp(a.updated_at ?? a.created_at) - getTimestamp(b.updated_at ?? b.created_at);
+        break;
+    }
+
+    if (comparator) {
+      result.sort((a, b) => {
+        const comparison = comparator?.(a, b) ?? 0;
+        return sortDirection === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return result;
+  }, [
+    clientsWithComputedTotals,
+    fuseClients,
+    searchQuery,
+    selectedSort,
+    sortDirection,
+    hasFinalizedJobs,
+  ]);
+
+  const currentSortLabel = useMemo(
+    () => SORT_OPTIONS.find(option => option.value === selectedSort)?.label ?? 'Última modificación',
+    [selectedSort]
+  );
+
+  const sortDirectionLabel = useMemo(
+    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
+    [sortDirection]
+  );
+
+  const handleSelectSort = useCallback((option: ClientSortOption) => {
+    setSelectedSort(option);
+    if (option === 'name') {
+      setSortDirection('asc');
+    } else {
+      setSortDirection('desc');
+    }
+    setIsFilterModalVisible(false);
+  }, []);
 
   const handleDelete = (id: number) => {
     Alert.alert('Confirmar eliminación', '¿Seguro deseas eliminar la carpeta?', [
@@ -91,7 +231,7 @@ export default function FoldersPage() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       {(client_id || parent_id) && (
         <TouchableOpacity style={[styles.backButton, { backgroundColor: backButtonColor }]} onPress={() => {
           if (parent_id) {
@@ -109,13 +249,61 @@ export default function FoldersPage() {
         </TouchableOpacity>
       )}
 
-      <TextInput
-        placeholder="Buscar..."
-        style={[styles.search, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholderTextColor={placeholderColor}
-      />
+      <View style={[styles.searchRow, !isRootLevel && styles.searchRowStandalone]}>
+        <TextInput
+          placeholder={isRootLevel ? 'Buscar cliente...' : 'Buscar carpeta...'}
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: inputBackground,
+              color: inputTextColor,
+              borderColor,
+            },
+            !isRootLevel && styles.searchInputStandalone,
+          ]}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor={placeholderColor}
+        />
+        {isRootLevel && (
+          <>
+            <TouchableOpacity
+              style={[
+                styles.sortDirectionButton,
+                { backgroundColor: filterButtonBackground, borderColor },
+              ]}
+              onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+              accessibilityRole="button"
+              accessibilityLabel="Cambiar dirección de orden"
+            >
+              <Ionicons
+                name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={inputTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                { backgroundColor: filterButtonBackground, borderColor },
+              ]}
+              onPress={() => setIsFilterModalVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir opciones de orden"
+            >
+              <Ionicons name="filter" size={20} color={inputTextColor} />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+
+      {isRootLevel && (
+        <View style={styles.filterSummaryRow}>
+          <ThemedText style={styles.filterSummaryText}>
+            Ordenado por {currentSortLabel} · {sortDirectionLabel}
+          </ThemedText>
+        </View>
+      )}
 
       {client_id || parent_id ? (
         <FlatList
@@ -168,13 +356,82 @@ export default function FoldersPage() {
           <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>＋ Agregar carpeta</ThemedText>
         </TouchableOpacity>
       )}
+
+      {isRootLevel && (
+        <Modal
+          transparent
+          animationType="fade"
+          visible={isFilterModalVisible}
+          onRequestClose={() => setIsFilterModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsFilterModalVisible(false)} />
+            <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
+                <TouchableOpacity
+                  style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+                  onPress={() => setIsFilterModalVisible(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cerrar filtro"
+                >
+                  <Ionicons name="close" size={20} color={addButtonTextColor} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.modalSection}>
+                {SORT_OPTIONS.map(option => {
+                  const isSelected = option.value === selectedSort;
+                  return (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.modalOption,
+                        isSelected && {
+                          borderColor: addButtonColor,
+                          backgroundColor: background,
+                        },
+                      ]}
+                      onPress={() => handleSelectSort(option.value)}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.modalOptionText,
+                          isSelected && { color: addButtonColor, fontWeight: '600' },
+                        ]}
+                      >
+                        {option.label}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  search: { padding: 10, borderWidth: 1, borderRadius: 8, marginBottom: 10 },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  searchRowStandalone: {
+    marginBottom: 10,
+  },
+  searchInput: {
+    flex: 1,
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  searchInputStandalone: {
+    marginRight: 0,
+  },
   item: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1 },
   text: { flex: 1, marginLeft: 10 },
   delete: { fontSize: 18 },
@@ -183,4 +440,75 @@ const styles = StyleSheet.create({
   backButton: { marginBottom: 10, padding: 8, borderRadius: 8 },
   backButtonText: { fontSize: 16 },
   listContent: { paddingBottom: 16 },
+  sortDirectionButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  filterButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  filterSummaryRow: {
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  filterSummaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalSection: {
+    marginBottom: 16,
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    marginBottom: 8,
+  },
+  modalOptionText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  modalCloseButton: {
+    borderRadius: 999,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
