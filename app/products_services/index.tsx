@@ -254,7 +254,17 @@ export default function ProductsServicesScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setIsFilterModalVisible(false)} />
           <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}
           >
-            <ThemedText style={styles.modalTitle}>Ordenar por</ThemedText>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
+              <TouchableOpacity
+                style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+                onPress={() => setIsFilterModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar filtro"
+              >
+                <Ionicons name="close" size={20} color={addButtonTextColor} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.modalSection}>
               {SORT_OPTIONS.map(option => {
                 const isSelected = option.value === selectedSort;
@@ -282,14 +292,6 @@ export default function ProductsServicesScreen() {
                 );
               })}
             </View>
-            <TouchableOpacity
-              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
-              onPress={() => setIsFilterModalVisible(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar filtro"
-            >
-              <Ionicons name="close" size={20} color={addButtonTextColor} />
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -359,11 +361,15 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   modalTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
   },
   modalSection: {
     marginBottom: 16,
@@ -379,9 +385,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   modalCloseButton: {
-    marginTop: 8,
-    paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 999,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },

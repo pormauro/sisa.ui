@@ -364,10 +364,19 @@ export default function ClientsListPage() {
             onPress={() => setIsFilterModalVisible(false)}
           />
           <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
-            <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
+              <TouchableOpacity
+                style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+                onPress={() => setIsFilterModalVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar filtro"
+              >
+                <Ionicons name="close" size={20} color={addButtonTextColor} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.modalSection}>
-            <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
-            {SORT_OPTIONS.map(option => {
+              {SORT_OPTIONS.map(option => {
                 const isSelected = option.value === selectedSort;
                 return (
                   <TouchableOpacity
@@ -393,14 +402,6 @@ export default function ClientsListPage() {
                 );
               })}
             </View>
-            <TouchableOpacity
-              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
-              onPress={() => setIsFilterModalVisible(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar filtro"
-            >
-              <Ionicons name="close" size={20} color={addButtonTextColor} />
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -522,20 +523,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   modalTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 12,
-    textAlign: 'center',
   },
   modalSection: {
     marginBottom: 16,
-  },
-  modalSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
   },
   modalOption: {
     paddingVertical: 10,
@@ -559,8 +558,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   modalCloseButton: {
-    alignSelf: 'flex-end',
-    marginTop: 8,
     borderRadius: 999,
     width: 36,
     height: 36,
