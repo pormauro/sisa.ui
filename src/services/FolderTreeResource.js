@@ -7,6 +7,13 @@ class FolderTreeResource {
     this.tree = [];
   }
 
+  async handleAuth(response) {
+    if ([401, 403, 419].includes(response.status)) {
+      await AsyncStorage.removeItem('token');
+      throw new Error('Token inválido o expirado. Inicie sesión nuevamente.');
+    }
+  }
+
   /**
    * Carga el árbol completo de carpetas:
    * - Solicita todos los clientes y los mapea como nodos raíz (type: 'client').
@@ -23,6 +30,7 @@ class FolderTreeResource {
       const clientsResponse = await fetch(`${BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      await this.handleAuth(clientsResponse);
       if (!clientsResponse.ok) {
         throw new Error('Error fetching clients');
       }
@@ -41,6 +49,7 @@ class FolderTreeResource {
       const foldersResponse = await fetch(`${BASE_URL}/folders`, {
          headers: { Authorization: `Bearer ${token}` },
       });
+      await this.handleAuth(foldersResponse);
       if (!foldersResponse.ok) {
          throw new Error('Error fetching folders');
       }
@@ -113,6 +122,7 @@ class FolderTreeResource {
          },
          body: JSON.stringify(payload),
       });
+      await this.handleAuth(response);
       if (!response.ok) {
          const errorData = await response.json();
          throw new Error(errorData.error || 'Error adding folder');
@@ -177,6 +187,7 @@ class FolderTreeResource {
          },
          body: JSON.stringify(updatedData),
       });
+      await this.handleAuth(response);
       if (!response.ok) {
          const errorData = await response.json();
          throw new Error(errorData.error || 'Error updating folder');
@@ -223,6 +234,7 @@ class FolderTreeResource {
            Authorization: `Bearer ${token}`,
          },
       });
+      await this.handleAuth(response);
       if (!response.ok) {
          const errorData = await response.json();
          throw new Error(errorData.error || 'Error deleting folder');

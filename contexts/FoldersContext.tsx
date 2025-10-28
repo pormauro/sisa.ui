@@ -12,6 +12,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 
 export interface Folder {
   id: number;
@@ -63,11 +64,16 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.folders) {
         setFolders(sortByNewest(data.folders, getDefaultSortValue));
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al cargar carpetas, se solicitará uno nuevo.');
+        return;
+      }
       console.error("Error loading folders:", error);
     }
   }, [permissions, setFolders, token]);
@@ -83,6 +89,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
         },
         body: JSON.stringify(folderData),
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       const newIdRaw =
         data.folder_id != null
@@ -96,6 +103,10 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
         return Number.isNaN(numericId) ? null : numericId;
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al agregar una carpeta, se solicitará uno nuevo.');
+        return null;
+      }
       console.error("Error adding folder:", error);
     }
     return null;
@@ -112,12 +123,17 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
         },
         body: JSON.stringify(folderData),
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.message === 'Folder updated successfully') {
         await loadFolders();
         return true;
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al actualizar una carpeta, se solicitará uno nuevo.');
+        return false;
+      }
       console.error("Error updating folder:", error);
     }
     return false;
@@ -133,12 +149,17 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.message === 'Folder deleted successfully') {
         await loadFolders();
         return true;
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al eliminar una carpeta, se solicitará uno nuevo.');
+        return false;
+      }
       console.error("Error deleting folder:", error);
     }
     return false;

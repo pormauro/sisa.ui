@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
@@ -62,11 +63,16 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.receipts) {
         setReceipts(sortByNewest(data.receipts, getDefaultSortValue));
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al cargar recibos, se solicitará uno nuevo.');
+        return;
+      }
       console.error('Error loading receipts:', error);
     }
   }, [setReceipts, token]);
@@ -92,6 +98,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(response);
         const data = await response.json();
         if (data.receipt_id) {
           const newReceipt: Receipt = { id: parseInt(data.receipt_id, 10), ...payload };
@@ -100,6 +107,10 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           return newReceipt;
         }
       } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al agregar un recibo, se solicitará uno nuevo.');
+          return null;
+        }
         console.error('Error adding receipt:', error);
       }
       return null;
@@ -128,6 +139,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(response);
         const data = await response.json();
         if (data.message === 'Receipt updated successfully') {
           setReceipts(prev =>
@@ -140,6 +152,10 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }
       } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al actualizar un recibo, se solicitará uno nuevo.');
+          return false;
+        }
         console.error('Error updating receipt:', error);
       }
       return false;
@@ -157,12 +173,17 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.message === 'Receipt deleted successfully') {
         setReceipts(prev => prev.filter(r => r.id !== id));
         return true;
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al eliminar un recibo, se solicitará uno nuevo.');
+        return false;
+      }
       console.error('Error deleting receipt:', error);
     }
     return false;
