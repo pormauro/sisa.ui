@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
-import { CategoriesContext, DEFAULT_EXPENSE_CATEGORY_NAME } from '@/contexts/CategoriesContext';
+import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -131,15 +131,11 @@ export default function CreatePayment() {
     if (categoryId) {
       return;
     }
-    const normalizedDefaultName = DEFAULT_EXPENSE_CATEGORY_NAME.trim().toLowerCase();
-    const defaultCategory = categories.find(
-      category =>
-        category.type === 'expense' && category.name.trim().toLowerCase() === normalizedDefaultName
-    );
-    if (defaultCategory) {
-      setCategoryId(defaultCategory.id.toString());
+    if (!displayCategories.length) {
+      return;
     }
-  }, [categories, categoryId]);
+    setCategoryId(displayCategories[0].id.toString());
+  }, [displayCategories, categoryId]);
 
   useEffect(() => {
     if (!paidWithAccount) return;
