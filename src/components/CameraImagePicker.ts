@@ -5,6 +5,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Alert } from 'react-native';
 import { BASE_URL, MAX_FILE_SIZE } from '../config/index';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 
 /**
  * Solicita permisos para cámara o galería, abre la fuente de imagen
@@ -147,6 +148,15 @@ export async function uploadImage(localUri: string, token: string): Promise<numb
       body: formData,
     });
 
+    try {
+      await ensureAuthResponse(uploadResponse);
+    } catch (error) {
+      if (isTokenExpiredError(error)) {
+        return null;
+      }
+      throw error;
+    }
+
     if (!uploadResponse.ok) {
       Alert.alert('Error', 'Error al subir archivo');
       return null;
@@ -156,7 +166,10 @@ export async function uploadImage(localUri: string, token: string): Promise<numb
     const fileId = data?.file?.id;
     return fileId || null;
   } catch (error: any) {
-    Alert.alert('Error', error.message);
+    if (isTokenExpiredError(error)) {
+      return null;
+    }
+    Alert.alert('Error', error?.message ?? 'Error al subir archivo');
     return null;
   }
 }
