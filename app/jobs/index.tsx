@@ -333,9 +333,18 @@ export default function JobsScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: inputBackground }]}>
-            <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
+              <TouchableOpacity
+                style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
+                onPress={() => setFiltersVisible(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar filtro"
+              >
+                <Ionicons name="close" size={20} color={addButtonTextColor} />
+              </TouchableOpacity>
+            </View>
             <View style={styles.modalSection}>
-              <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
               {SORT_OPTIONS.map(option => {
                 const isSelected = sortField === option.value;
                 return (
@@ -360,14 +369,6 @@ export default function JobsScreen() {
                 );
               })}
             </View>
-            <TouchableOpacity
-              style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
-              onPress={() => setFiltersVisible(false)}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar filtro"
-            >
-              <Ionicons name="close" size={20} color={addButtonTextColor} />
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -453,9 +454,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold' },
   modalSection: { marginBottom: 12 },
-  modalSectionTitle: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
   modalOption: {
     borderWidth: 1,
     borderRadius: 8,
@@ -465,8 +471,6 @@ const styles = StyleSheet.create({
   },
   modalOptionText: { fontSize: 14, textAlign: 'center' },
   modalCloseButton: {
-    alignSelf: 'flex-end',
-    marginTop: 12,
     borderRadius: 999,
     width: 36,
     height: 36,
