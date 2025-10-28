@@ -92,35 +92,6 @@ export default function JobsScreen() {
     return `${job.job_date}T${time}`;
   }, []);
 
-  const sortedJobs = useMemo(() => {
-    if (sortField === 'clientName') {
-      const items = [...filteredJobs];
-      items.sort((a, b) => {
-        const aName = (getClientName(a.client_id) ?? '').trim();
-        const bName = (getClientName(b.client_id) ?? '').trim();
-        const comparison = aName.localeCompare(bName, undefined, { sensitivity: 'base' });
-        if (comparison !== 0) {
-          return sortDirection === 'asc' ? comparison : -comparison;
-        }
-        return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
-      });
-      return items;
-    }
-
-    const list =
-      sortField === 'updatedAt'
-        ? sortByNewest(filteredJobs, getJobUpdatedValue)
-        : sortByNewest(filteredJobs, getJobDateValue);
-    return sortDirection === 'asc' ? [...list].reverse() : list;
-  }, [
-    filteredJobs,
-    sortField,
-    sortDirection,
-    getJobUpdatedValue,
-    getJobDateValue,
-    getClientName,
-  ]);
-
   const currentSortLabel = useMemo(
     () => SORT_OPTIONS.find(option => option.value === sortField)?.label ?? 'Última modificación',
     [sortField]
@@ -156,6 +127,35 @@ export default function JobsScreen() {
     },
     [clients]
   );
+
+  const sortedJobs = useMemo(() => {
+    if (sortField === 'clientName') {
+      const items = [...filteredJobs];
+      items.sort((a, b) => {
+        const aName = (getClientName(a.client_id) ?? '').trim();
+        const bName = (getClientName(b.client_id) ?? '').trim();
+        const comparison = aName.localeCompare(bName, undefined, { sensitivity: 'base' });
+        if (comparison !== 0) {
+          return sortDirection === 'asc' ? comparison : -comparison;
+        }
+        return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
+      });
+      return items;
+    }
+
+    const list =
+      sortField === 'updatedAt'
+        ? sortByNewest(filteredJobs, getJobUpdatedValue)
+        : sortByNewest(filteredJobs, getJobDateValue);
+    return sortDirection === 'asc' ? [...list].reverse() : list;
+  }, [
+    filteredJobs,
+    sortField,
+    sortDirection,
+    getJobUpdatedValue,
+    getJobDateValue,
+    getClientName,
+  ]);
 
   const handleDelete = (id: number) => {
     Alert.alert('Eliminar trabajo', '¿Estás seguro?', [
