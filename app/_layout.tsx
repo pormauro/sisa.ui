@@ -9,7 +9,6 @@ import { FoldersProvider } from '@/contexts/FoldersContext';
 import { JobsProvider } from '@/contexts/JobsContext';
 import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
 import { PaymentsProvider } from '@/contexts/PaymentsContext';
-import { InvoicesProvider } from '@/contexts/InvoicesContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { ProductsServicesProvider } from '@/contexts/ProductsServicesContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
@@ -93,20 +92,18 @@ export default function RootLayout() {
                                         <JobsProvider>
                                           <AppointmentsProvider>
                                             <PaymentsProvider>
-                                              <InvoicesProvider>
-                                                <ReceiptsProvider>
-                                                  <FoldersProvider>
-                                                    <CommentsProvider>
-                                                      <PendingSelectionProvider>
-                                                        <>
-                                                          <RootLayoutContent />
-                                                          <LogOverlay />
-                                                        </>
-                                                      </PendingSelectionProvider>
-                                                    </CommentsProvider>
-                                                  </FoldersProvider>
-                                                </ReceiptsProvider>
-                                              </InvoicesProvider>
+                                              <ReceiptsProvider>
+                                                <FoldersProvider>
+                                                  <CommentsProvider>
+                                                    <PendingSelectionProvider>
+                                                      <>
+                                                        <RootLayoutContent />
+                                                        <LogOverlay />
+                                                      </>
+                                                    </PendingSelectionProvider>
+                                                  </CommentsProvider>
+                                                </FoldersProvider>
+                                              </ReceiptsProvider>
                                             </PaymentsProvider>
                                           </AppointmentsProvider>
                                         </JobsProvider>

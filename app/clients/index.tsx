@@ -27,14 +27,12 @@ type ClientSortOption =
   | 'name'
   | 'created'
   | 'updated'
-  | 'unpaidInvoices'
   | 'finalizedJobs';
 
 const SORT_OPTIONS: { label: string; value: ClientSortOption }[] = [
   { label: 'Nombre', value: 'name' },
   { label: 'Fecha de creación', value: 'created' },
   { label: 'Última modificación', value: 'updated' },
-  { label: 'Facturas impagas', value: 'unpaidInvoices' },
   { label: 'Trabajos finalizados', value: 'finalizedJobs' },
 ];
 
@@ -67,7 +65,6 @@ export default function ClientsListPage() {
   const canDeleteClient = permissions.includes('deleteClient');
   const canEditClient = permissions.includes('updateClient');
   const canViewJobs = permissions.includes('listJobs');
-  const canViewInvoices = permissions.includes('listInvoices');
 
   useFocusEffect(
     useCallback(() => {
@@ -137,10 +134,6 @@ export default function ClientsListPage() {
           }
           return getSafeTotal(a.unbilled_total) - getSafeTotal(b.unbilled_total);
         };
-        break;
-      case 'unpaidInvoices':
-        comparator = (a, b) =>
-          getSafeTotal(a.unpaid_invoices_total) - getSafeTotal(b.unpaid_invoices_total);
         break;
       case 'name':
         comparator = (a, b) =>
@@ -229,11 +222,9 @@ export default function ClientsListPage() {
 
     const unbilledTotal = getSafeTotal(item.unbilled_total);
     const finalizedJobsAvailable = hasFinalizedJobs(item.id);
-    const unpaidInvoicesTotal = getSafeTotal(item.unpaid_invoices_total);
 
     const shouldShowUnbilledCard = finalizedJobsAvailable || unbilledTotal > 0;
-    const shouldShowUnpaidInvoicesCard = unpaidInvoicesTotal > 0;
-    const shouldShowMetricsRow = shouldShowUnbilledCard || shouldShowUnpaidInvoicesCard;
+    const shouldShowMetricsRow = shouldShowUnbilledCard;
 
     return (
       <TouchableOpacity
@@ -280,7 +271,6 @@ export default function ClientsListPage() {
               <TouchableOpacity
                 style={[
                   styles.metricCard,
-                  shouldShowUnpaidInvoicesCard && styles.metricCardSpacer,
                   { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
                   !canViewJobs && styles.metricCardDisabled,
                 ]}
@@ -297,28 +287,6 @@ export default function ClientsListPage() {
               >
                 <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
                 <ThemedText style={styles.metricValue}>{formatCurrency(unbilledTotal)}</ThemedText>
-              </TouchableOpacity>
-            ) : null}
-            {shouldShowUnpaidInvoicesCard ? (
-              <TouchableOpacity
-                style={[
-                  styles.metricCard,
-                  { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
-                  !canViewInvoices && styles.metricCardDisabled,
-                ]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  if (!canViewInvoices) {
-                    Alert.alert('Acceso denegado', 'No tienes permiso para ver facturas.');
-                    return;
-                  }
-                  router.push(`/invoices?clientId=${item.id}`);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Ver facturas del cliente"
-              >
-                <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Facturas</ThemedText>
-                <ThemedText style={styles.metricValue}>{formatCurrency(unpaidInvoicesTotal)}</ThemedText>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -506,9 +474,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     minHeight: 72,
-  },
-  metricCardSpacer: {
-    marginRight: 8,
   },
   metricCardDisabled: {
     opacity: 0.6,

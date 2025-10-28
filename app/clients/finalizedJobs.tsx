@@ -191,7 +191,7 @@ export default function ClientFinalizedJobsScreen() {
   const textColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'tint');
   const selectionAccent = useThemeColor({}, 'button');
-  const buttonTextColor = useThemeColor({}, 'buttonText');
+  const metricLabelColor = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
 
   const canListJobs = permissions.includes('listJobs');
 
@@ -306,20 +306,6 @@ export default function ClientFinalizedJobsScreen() {
       return total + jobTotal;
     }, 0);
   }, [finalizedJobs, selectedJobIds, tariffAmountById]);
-
-  const handleGenerateInvoice = useCallback(() => {
-    if (selectedCount === 0) {
-      Alert.alert('Selecciona trabajos', 'Selecciona al menos un trabajo para continuar.');
-      return;
-    }
-
-    Alert.alert(
-      'Próximamente',
-      'La generación de facturas a partir de trabajos seleccionados estará disponible en una próxima versión.'
-    );
-  }, [selectedCount]);
-
-  const isGenerateDisabled = selectedCount === 0;
 
   const renderItem = ({ item }: { item: Job }) => {
     const status = item.status_id != null ? statusById.get(item.status_id) : undefined;
@@ -457,20 +443,9 @@ export default function ClientFinalizedJobsScreen() {
               <ThemedText style={styles.footerTotal}>
                 Total seleccionado: {formatCurrency(selectedTotal)}
               </ThemedText>
-              <TouchableOpacity
-                style={[
-                  styles.generateButton,
-                  { backgroundColor: selectionAccent },
-                  isGenerateDisabled && styles.generateButtonDisabled,
-                ]}
-                onPress={handleGenerateInvoice}
-                activeOpacity={0.85}
-                disabled={isGenerateDisabled}
-              >
-                <ThemedText style={[styles.generateButtonText, { color: buttonTextColor }]}>
-                  Generar factura
-                </ThemedText>
-              </TouchableOpacity>
+              <ThemedText style={[styles.footerNote, { color: metricLabelColor }]}>
+                Selecciona trabajos para consultar el total y registra la facturación manualmente en el sistema.
+              </ThemedText>
             </View>
           ) : null
         }
@@ -612,17 +587,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 8,
   },
-  generateButton: {
-    borderRadius: 999,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  generateButtonDisabled: {
-    opacity: 0.5,
-  },
-  generateButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  footerNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginHorizontal: 12,
   },
 });
 
