@@ -314,9 +314,11 @@ export default function ClientsListPage() {
           accessibilityRole="button"
           accessibilityLabel="Cambiar dirección de orden"
         >
-          <ThemedText style={styles.sortDirectionButtonText}>
-            {sortDirection === 'asc' ? 'Asc ⬆️' : 'Desc ⬇️'}
-          </ThemedText>
+          <Ionicons
+            name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={inputTextColor}
+          />
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterButton, { backgroundColor: inputBackground, borderColor }]}
@@ -362,7 +364,7 @@ export default function ClientsListPage() {
             onPress={() => setIsFilterModalVisible(false)}
           />
           <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}>
-            <ThemedText style={styles.modalTitle}>Filtros y orden</ThemedText>
+            <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
             <View style={styles.modalSection}>
             <ThemedText style={styles.modalSectionTitle}>Ordenar por</ThemedText>
             {SORT_OPTIONS.map(option => {
@@ -394,12 +396,10 @@ export default function ClientsListPage() {
             <TouchableOpacity
               style={[styles.modalCloseButton, { backgroundColor: addButtonColor }]}
               onPress={() => setIsFilterModalVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar filtro"
             >
-              <ThemedText
-                style={[styles.modalCloseButtonText, { color: addButtonTextColor }]}
-              >
-                Aplicar filtros
-              </ThemedText>
+              <Ionicons name="close" size={20} color={addButtonTextColor} />
             </TouchableOpacity>
           </View>
         </View>
@@ -558,18 +558,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 8,
   },
-  sortDirectionButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   modalCloseButton: {
+    alignSelf: 'flex-end',
     marginTop: 8,
-    paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 999,
+    width: 36,
+    height: 36,
     alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    justifyContent: 'center',
   },
 });
