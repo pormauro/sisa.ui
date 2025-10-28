@@ -10,14 +10,12 @@ export interface ConfigDetails {
   view_type: string;
   theme: string;
   font_size: string;
+  filter_config: unknown;
+  default_payment_cash_box_id: number | null;
+  default_receiving_cash_box_id: number | null;
 }
 
-export interface ConfigForm {
-  role: string;
-  view_type: string;
-  theme: string;
-  font_size: string;
-}
+export type ConfigForm = ConfigDetails;
 
 interface ConfigContextType {
   configDetails: ConfigDetails | null;
@@ -38,6 +36,51 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
   );
   const { userId, token } = useContext(AuthContext);
 
+  const parseNullableNumber = (value: unknown): number | null => {
+    if (value === null || typeof value === 'undefined') {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const DEFAULT_CONFIG: ConfigDetails = {
+    role: '',
+    view_type: '',
+    theme: 'light',
+    font_size: 'medium',
+    filter_config: null,
+    default_payment_cash_box_id: null,
+    default_receiving_cash_box_id: null,
+  };
+
+  const normalizeConfig = (
+    config: Partial<ConfigDetails> & {
+      default_payment_cash_box_id?: unknown;
+      default_receiving_cash_box_id?: unknown;
+    }
+  ): ConfigDetails => ({
+    role: config.role ?? DEFAULT_CONFIG.role,
+    view_type: config.view_type ?? DEFAULT_CONFIG.view_type,
+    theme: config.theme ?? DEFAULT_CONFIG.theme,
+    font_size: config.font_size ?? DEFAULT_CONFIG.font_size,
+    filter_config:
+      typeof config.filter_config === 'undefined'
+        ? DEFAULT_CONFIG.filter_config
+        : config.filter_config,
+    default_payment_cash_box_id: parseNullableNumber(
+      typeof config.default_payment_cash_box_id === 'undefined'
+        ? DEFAULT_CONFIG.default_payment_cash_box_id
+        : config.default_payment_cash_box_id
+    ),
+    default_receiving_cash_box_id: parseNullableNumber(
+      typeof config.default_receiving_cash_box_id === 'undefined'
+        ? DEFAULT_CONFIG.default_receiving_cash_box_id
+        : config.default_receiving_cash_box_id
+    ),
+  });
+
   const loadConfig = async (): Promise<void> => {
     if (!userId || !token) return;
     try {
@@ -46,7 +89,7 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        const configuration = data.configuration as ConfigDetails;
+        const configuration = normalizeConfig(data.configuration ?? {});
         setConfigDetails(configuration);
       } else {
         // Se evita usar console.error para prevenir pantallas rojas en ausencia de conexión
@@ -71,7 +114,11 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
       });
       if (response.ok) {
         // Actualiza el estado combinando la configuración previa con los nuevos datos
-        setConfigDetails(prev => (prev ? { ...prev, ...configForm } : { ...configForm }));
+        setConfigDetails(prev =>
+          prev
+            ? normalizeConfig({ ...prev, ...configForm })
+            : normalizeConfig({ ...configForm })
+        );
       } else {
         const errData = await response.json();
         Alert.alert('Error', errData.error || 'Error actualizando configuración');
