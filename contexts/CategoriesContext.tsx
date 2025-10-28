@@ -66,6 +66,11 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const fetchCategories = useCallback(async (): Promise<Category[]> => {
+    if (!token) {
+      console.warn('Skipping categories fetch because no auth token is available.');
+      return [];
+    }
+
     const response = await fetch(`${BASE_URL}/categories`, {
       headers: {
         'Content-Type': 'application/json',
@@ -167,6 +172,11 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   const addCategory = useCallback(
     async (category: Omit<Category, 'id'>): Promise<Category | null> => {
+      if (!token) {
+        console.warn('Cannot add category without an auth token.');
+        return null;
+      }
+
       try {
         const response = await fetch(`${BASE_URL}/categories`, {
           method: 'POST',
@@ -193,6 +203,11 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   const updateCategory = useCallback(
     async (id: number, category: Omit<Category, 'id'>): Promise<boolean> => {
+      if (!token) {
+        console.warn('Cannot update category without an auth token.');
+        return false;
+      }
+
       try {
         const response = await fetch(`${BASE_URL}/categories/${id}`, {
           method: 'PUT',
@@ -225,6 +240,11 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteCategory = useCallback(
     async (id: number): Promise<boolean> => {
+      if (!token) {
+        console.warn('Cannot delete category without an auth token.');
+        return false;
+      }
+
       try {
         const response = await fetch(`${BASE_URL}/categories/${id}`, {
           method: 'DELETE',
