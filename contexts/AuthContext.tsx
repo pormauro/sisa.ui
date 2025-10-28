@@ -324,6 +324,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     let isHandlingAuthError = false;
+    let pendingRefresh: Promise<void> | null = null;
 
     type FetchInput = Parameters<typeof fetch>[0];
     const normalizedBaseUrl = BASE_URL.replace(/\/+$/, '').toLowerCase();
@@ -358,19 +359,78 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    const guardedFetch: typeof fetch = async (input, init) => {
-      const response = await originalFetch(input as any, init as any);
+    const ensureAuthRefresh = async () => {
+      if (!pendingRefresh) {
+        pendingRefresh = (async () => {
+          try {
+            isHandlingAuthError = true;
+            await checkConnection();
+          } catch (refreshError) {
+            console.error('Error refreshing auth token', refreshError);
+          } finally {
+            isHandlingAuthError = false;
+          }
+        })();
+      }
 
-      if (!isHandlingAuthError && isAuthErrorStatus(response.status) && shouldHandleRequest(input)) {
-        isHandlingAuthError = true;
-        try {
-          await checkConnection();
-          Alert.alert(
-            'Sesión expirada',
-            'El token dejó de ser válido. Se solicitará uno nuevo; volvé a intentar la acción.'
-          );
-        } finally {
-          isHandlingAuthError = false;
+      const currentTask = pendingRefresh;
+      try {
+        if (currentTask) {
+          await currentTask;
+        }
+      } finally {
+        if (pendingRefresh === currentTask) {
+          pendingRefresh = null;
+        }
+      }
+    };
+
+    const cloneHeadersWithToken = (
+      headersInit: RequestInit['headers'] | undefined,
+      tokenValue: string
+    ): RequestInit['headers'] => {
+      const bearerValue = `Bearer ${tokenValue}`;
+
+      if (!headersInit) {
+        return { Authorization: bearerValue };
+      }
+
+      if (headersInit instanceof Headers) {
+        const cloned = new Headers(headersInit);
+        cloned.set('Authorization', bearerValue);
+        return cloned;
+      }
+
+      if (Array.isArray(headersInit)) {
+        const filtered = headersInit.filter(([key]) => key?.toLowerCase() !== 'authorization');
+        return [...filtered, ['Authorization', bearerValue]] as RequestInit['headers'];
+      }
+
+      return { ...(headersInit as Record<string, string>), Authorization: bearerValue };
+    };
+
+    const guardedFetch: typeof fetch = async (input, init) => {
+      let response = await originalFetch(input as any, init as any);
+
+      if (isAuthErrorStatus(response.status) && shouldHandleRequest(input)) {
+        await ensureAuthRefresh();
+
+        const latestToken = await getItem('token');
+        const hasStringInput = typeof input === 'string';
+
+        if (latestToken && hasStringInput) {
+          const retryInit: RequestInit = {
+            ...(init ?? {}),
+            headers: cloneHeadersWithToken(init?.headers, latestToken),
+          };
+
+          const retriedResponse = await originalFetch(input as any, retryInit as any);
+
+          if (!isAuthErrorStatus(retriedResponse.status)) {
+            return retriedResponse;
+          }
+
+          response = retriedResponse;
         }
       }
 
