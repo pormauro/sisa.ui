@@ -22,7 +22,16 @@ const Menu: React.FC = () => {
     // Si no hay permisos requeridos, se muestra.
     if (!item.requiredPermissions) return true;
     // De lo contrario, se verifica que el usuario tenga todos los permisos requeridos.
-    return item.requiredPermissions.every((perm) => permissions.includes(perm));
+    const hasRequired = item.requiredPermissions.every(perm => permissions.includes(perm));
+    if (hasRequired) {
+      return true;
+    }
+
+    if (item.fallbackPermissions?.some(perm => permissions.includes(perm))) {
+      return true;
+    }
+
+    return false;
   };
 
   const visibleSections = MENU_SECTIONS

@@ -22,13 +22,35 @@ const MenuGroupScreen: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
   const iconForegroundColor = useThemeColor({ light: '#FFFFFF', dark: '#2f273e' }, 'text');
 
-  const isEnabled = (item: MenuItem): boolean => {
-    if (item.route === '/permission' && userId === '1') return true;
-    if (!item.requiredPermissions) return true;
-    return item.requiredPermissions.every((perm) => permissions.includes(perm));
+  const resolveAccess = (item: MenuItem): { enabled: boolean; route: string } => {
+    if (item.route === '/permission' && userId === '1') {
+      return { enabled: true, route: item.route };
+    }
+
+    if (!item.requiredPermissions) {
+      return { enabled: true, route: item.route };
+    }
+
+    const hasRequired = item.requiredPermissions.every(perm => permissions.includes(perm));
+    if (hasRequired) {
+      return { enabled: true, route: item.route };
+    }
+
+    if (item.fallbackPermissions?.some(perm => permissions.includes(perm))) {
+      return {
+        enabled: true,
+        route: item.fallbackRoute ?? item.route,
+      };
+    }
+
+    return { enabled: false, route: item.route };
   };
 
-  const visibleItems = menuSection ? menuSection.items.filter(isEnabled) : [];
+  const visibleItems = menuSection
+    ? menuSection.items
+        .map(item => ({ item, access: resolveAccess(item) }))
+        .filter(entry => entry.access.enabled)
+    : [];
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
@@ -50,12 +72,12 @@ const MenuGroupScreen: React.FC = () => {
         {menuSection ? (
           visibleItems.length > 0 ? (
             <View style={styles.menuContainer}>
-              {visibleItems.map((item) => (
+              {visibleItems.map(({ item, access }) => (
                 <MenuButton
                   key={item.route}
                   icon={item.icon}
                   title={item.title}
-                  onPress={() => router.push(item.route as any)}
+                  onPress={() => router.push(access.route as any)}
                 />
               ))}
             </View>
