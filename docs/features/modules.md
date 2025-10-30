@@ -64,6 +64,32 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Las operaciones de alta y edición serializan los bloques anidados antes de invocar la API, manteniendo la compatibilidad con la base `sisa.api`, que continúa sin claves foráneas según lo acordado a nivel backend.【F:contexts/CompaniesContext.tsx†L205-L218】【F:docs/setup-and-configuration.md†L21-L26】
 - Todos los requests al endpoint `/companies` incluyen el encabezado `Authorization: Bearer <token>`, requisito obligatorio salvo en el flujo de login inicial.【F:contexts/CompaniesContext.tsx†L229-L344】【F:docs/setup-and-configuration.md†L14-L24】
 
+## Membresías de empresas (`CompanyMembershipsContext`)
+### Modelo
+- `CompanyMembership`: vincula una empresa con un usuario final e incluye datos auxiliares como rol, estado, notas y marcas de auditoría.【F:contexts/CompanyMembershipsContext.tsx†L14-L39】
+
+### Métodos del contexto
+- `loadCompanyMemberships()`: consulta `/company_memberships`, normaliza la colección devuelta y la almacena en caché local.【F:contexts/CompanyMembershipsContext.tsx†L86-L138】
+- `addCompanyMembership(payload)`: serializa el vínculo empresa-usuario, envía `POST /company_memberships` e inserta la respuesta en el estado compartido.【F:contexts/CompanyMembershipsContext.tsx†L140-L185】
+- `updateCompanyMembership(id, payload)`: ejecuta `PUT /company_memberships/{id}` y fusiona la respuesta con el elemento existente.【F:contexts/CompanyMembershipsContext.tsx†L187-L227】
+- `deleteCompanyMembership(id)`: elimina el registro remoto mediante `DELETE /company_memberships/{id}` y depura la caché local.【F:contexts/CompanyMembershipsContext.tsx†L229-L253】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/company_memberships` — listado actualizado de membresías.【F:contexts/CompanyMembershipsContext.tsx†L103-L138】
+- `POST ${BASE_URL}/company_memberships` — alta de relación empresa-usuario.【F:contexts/CompanyMembershipsContext.tsx†L140-L185】
+- `PUT ${BASE_URL}/company_memberships/{id}` — actualización del vínculo existente.【F:contexts/CompanyMembershipsContext.tsx†L187-L222】
+- `DELETE ${BASE_URL}/company_memberships/{id}` — baja lógica del vínculo.【F:contexts/CompanyMembershipsContext.tsx†L229-L253】
+
+### Permisos requeridos
+- `listCompanyMemberships` habilita el módulo desde el menú comercial.【F:constants/menuSections.ts†L36-L40】【F:app/company_memberships/index.tsx†L44-L67】
+- `addCompanyMembership`, `updateCompanyMembership`, `deleteCompanyMembership` controlan la disponibilidad de altas, ediciones y bajas dentro de las pantallas del módulo.【F:app/company_memberships/index.tsx†L44-L172】【F:app/company_memberships/create.tsx†L24-L109】【F:app/company_memberships/[id].tsx†L44-L211】
+
+### Pantallas relacionadas
+- `app/company_memberships/index.tsx` — listado con búsqueda, orden dinámico y acciones rápidas de baja.【F:app/company_memberships/index.tsx†L1-L196】
+- `app/company_memberships/create.tsx` — formulario de alta que reutiliza catálogos de empresas y usuarios registrados.【F:app/company_memberships/create.tsx†L1-L147】
+- `app/company_memberships/[id].tsx` — edición del vínculo con controles para reasignar usuario, actualizar rol/estado y eliminar la membresía.【F:app/company_memberships/[id].tsx†L1-L258】
+- `app/company_memberships/viewModal.tsx` — vista de lectura rápida con opción de salto a edición si el usuario posee permisos.【F:app/company_memberships/viewModal.tsx†L1-L94】
+
 ## Proveedores (`ProvidersContext`)
 ### Modelo
 - `Provider`: razón social, identificadores y datos de contacto opcionales.【F:contexts/ProvidersContext.tsx†L13-L21】
