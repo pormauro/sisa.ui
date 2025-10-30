@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { CompanyMembershipsContext } from '@/contexts/CompanyMembershipsContext';
@@ -13,15 +13,24 @@ export default function ViewCompanyMembershipModal() {
   const membershipId = useMemo(() => Number(id), [id]);
   const router = useRouter();
 
-  const { memberships } = useContext(CompanyMembershipsContext);
+  const { memberships, hydrated, loading } = useContext(CompanyMembershipsContext);
   const { permissions } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#ffffff', dark: '#1b1b1b' }, 'background');
   const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#444' }, 'background');
+  const spinnerColor = useThemeColor({}, 'tint');
 
   const membership = memberships.find(item => item.id === membershipId);
   const canEdit = permissions.includes('updateCompanyMembership');
+
+  if (!membership && (!hydrated || loading)) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { backgroundColor: background }]}>
+        <ActivityIndicator size="large" color={spinnerColor} />
+      </View>
+    );
+  }
 
   if (!membership) {
     return (
@@ -96,6 +105,11 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   card: {
     borderWidth: 1,
