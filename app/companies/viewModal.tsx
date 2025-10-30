@@ -1,13 +1,64 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
+import {
+  CompanyMembershipsContext,
+  CompanyMembership,
+} from '@/contexts/CompanyMembershipsContext';
 import FileGallery from '@/components/FileGallery';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
+
+const normalizeMembershipStatus = (status?: string | null): string => {
+  if (!status) {
+    return '';
+  }
+  return status.trim().toLowerCase();
+};
+
+const membershipIsPending = (status?: string | null): boolean => {
+  const normalized = normalizeMembershipStatus(status);
+  if (!normalized) {
+    return false;
+  }
+  return normalized.includes('pend') || normalized.includes('solicit');
+};
+
+const membershipIsActive = (status?: string | null): boolean => {
+  const normalized = normalizeMembershipStatus(status);
+  if (!normalized) {
+    return false;
+  }
+  return ['active', 'activo', 'habilitado', 'approved', 'aprobado', 'vigente'].some(keyword =>
+    normalized.includes(keyword)
+  );
+};
+
+const membershipIsRejected = (status?: string | null): boolean => {
+  const normalized = normalizeMembershipStatus(status);
+  if (!normalized) {
+    return false;
+  }
+  return ['rechaz', 'deneg', 'declin', 'cancel'].some(keyword => normalized.includes(keyword));
+};
+
+type MembershipDecision = 'approve' | 'reject';
+
+const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, string> = {
+  approve: 'activo',
+  reject: 'rechazado',
+};
 
 export default function ViewCompanyModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +66,13 @@ export default function ViewCompanyModal() {
   const router = useRouter();
 
   const { companies } = useContext(CompaniesContext);
+  const {
+    memberships,
+    loading: membershipsLoading,
+    loadCompanyMemberships,
+    requestMembershipAccess,
+    updateMembershipStatus,
+  } = useContext(CompanyMembershipsContext);
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const company = companies.find(item => item.id === companyId);
@@ -42,8 +100,166 @@ export default function ViewCompanyModal() {
     (permissions.includes('updateCompany') || isSuperAdministrator) &&
     (isSuperAdministrator || isListedAdministrator);
 
+  const [requestingAccess, setRequestingAccess] = useState(false);
+  const [respondingId, setRespondingId] = useState<number | null>(null);
+
   const background = useThemeColor({}, 'background');
   const cardBorder = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
+  const actionBackground = useThemeColor({}, 'button');
+  const actionText = useThemeColor({}, 'buttonText');
+  const destructiveBackground = useThemeColor({ light: '#d32f2f', dark: '#ff6b6b' }, 'button');
+  const destructiveText = useThemeColor({ light: '#ffffff', dark: '#2f273e' }, 'buttonText');
+
+  useEffect(() => {
+    if (!canView) {
+      return;
+    }
+    void loadCompanyMemberships();
+  }, [canView, loadCompanyMemberships]);
+
+  const numericUserId = useMemo(() => {
+    if (!normalizedUserId) {
+      return null;
+    }
+    const parsed = Number(normalizedUserId);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    return Math.trunc(parsed);
+  }, [normalizedUserId]);
+
+  const companyMemberships = useMemo(() => {
+    if (!Number.isFinite(companyId)) {
+      return [] as CompanyMembership[];
+    }
+    return memberships.filter(item => item.company_id === companyId);
+  }, [companyId, memberships]);
+
+  const currentMembership = useMemo(() => {
+    if (numericUserId === null) {
+      return null;
+    }
+    return (
+      companyMemberships.find(membership => membership.user_id === numericUserId) ?? null
+    );
+  }, [companyMemberships, numericUserId]);
+
+  const pendingMemberships = useMemo(
+    () => companyMemberships.filter(membership => membershipIsPending(membership.status)),
+    [companyMemberships]
+  );
+
+  const activeMemberships = useMemo(
+    () => companyMemberships.filter(membership => membershipIsActive(membership.status)),
+    [companyMemberships]
+  );
+
+  const membershipStatusLabel = membershipsLoading
+    ? 'Cargando...'
+    : currentMembership
+      ? currentMembership.status ?? 'Sin estado'
+      : 'Sin acceso';
+
+  const pendingCountLabel = membershipsLoading ? '—' : String(pendingMemberships.length);
+  const activeCountLabel = membershipsLoading ? '—' : String(activeMemberships.length);
+
+  const allowRequestAccess =
+    numericUserId !== null &&
+    (!currentMembership || membershipIsRejected(currentMembership.status));
+
+  const handleRequestAccess = useCallback(async () => {
+    if (!company || requestingAccess) {
+      return;
+    }
+
+    if (currentMembership && !membershipIsRejected(currentMembership.status)) {
+      Alert.alert('Acceso existente', 'Ya tenés una solicitud registrada para esta empresa.');
+      return;
+    }
+
+    setRequestingAccess(true);
+    try {
+      const result = await requestMembershipAccess(company.id);
+
+      if (!result) {
+        Alert.alert(
+          'No fue posible registrar la solicitud',
+          'Intentá nuevamente más tarde o contactá a un administrador.'
+        );
+        return;
+      }
+
+      if (membershipIsPending(result.status)) {
+        Alert.alert(
+          'Solicitud enviada',
+          'Notificamos a los administradores para que revisen tu acceso.'
+        );
+      } else if (membershipIsActive(result.status)) {
+        Alert.alert('Acceso confirmado', 'Ya contás con acceso activo a esta empresa.');
+      } else if (membershipIsRejected(result.status)) {
+        Alert.alert(
+          'Solicitud rechazada',
+          'Tu solicitud fue marcada como rechazada. Te recomendamos contactar a un administrador para más detalles.'
+        );
+      } else {
+        Alert.alert('Solicitud actualizada', 'Registramos tu solicitud de acceso.');
+      }
+    } catch (error) {
+      console.error('Error requesting membership access:', error);
+      Alert.alert('Error', 'No pudimos enviar tu solicitud. Intentá nuevamente en unos minutos.');
+    } finally {
+      setRequestingAccess(false);
+    }
+  }, [company, currentMembership, requestMembershipAccess, requestingAccess]);
+
+  const performRespond = useCallback(
+    async (membership: CompanyMembership, decision: MembershipDecision) => {
+      const targetStatus = MEMBERSHIP_STATUS_BY_DECISION[decision];
+      setRespondingId(membership.id);
+      try {
+        const ok = await updateMembershipStatus(membership.id, targetStatus);
+        if (!ok) {
+          Alert.alert(
+            'No pudimos actualizar la solicitud',
+            'Intentá nuevamente o revisá el módulo de membresías.'
+          );
+          return;
+        }
+
+        const successMessage =
+          decision === 'approve'
+            ? 'El usuario ahora cuenta con acceso a la empresa.'
+            : 'La solicitud fue marcada como rechazada.';
+
+        Alert.alert('Solicitud actualizada', successMessage);
+      } catch (error) {
+        console.error('Error responding to membership request:', error);
+        Alert.alert('Error', 'No pudimos responder la solicitud. Intentalo nuevamente.');
+      } finally {
+        setRespondingId(null);
+      }
+    },
+    [updateMembershipStatus]
+  );
+
+  const confirmRespond = useCallback(
+    (membership: CompanyMembership, decision: MembershipDecision) => {
+      const actionLabel = decision === 'approve' ? 'aprobar' : 'rechazar';
+      Alert.alert(
+        'Responder solicitud',
+        `¿Querés ${actionLabel} el acceso de ${membership.user_name}?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: decision === 'approve' ? 'Aprobar' : 'Rechazar',
+            style: decision === 'reject' ? 'destructive' : 'default',
+            onPress: () => void performRespond(membership, decision),
+          },
+        ]
+      );
+    },
+    [performRespond]
+  );
 
   const attachments = useMemo(() => {
     if (!company?.attached_files) {
@@ -179,6 +395,102 @@ export default function ViewCompanyModal() {
         </View>
       ) : null}
 
+      <View>
+        <ThemedText style={styles.sectionTitle}>Accesos y membresías</ThemedText>
+        <View style={[styles.card, styles.membershipCard, { borderColor: cardBorder }]}>
+          <View style={styles.membershipRow}>
+            <ThemedText style={styles.label}>Tu estado</ThemedText>
+            <ThemedText style={styles.value}>{membershipStatusLabel}</ThemedText>
+          </View>
+          <View style={styles.membershipRow}>
+            <ThemedText style={styles.label}>Solicitudes pendientes</ThemedText>
+            <ThemedText style={styles.value}>{pendingCountLabel}</ThemedText>
+          </View>
+          <View style={styles.membershipRow}>
+            <ThemedText style={styles.label}>Miembros activos</ThemedText>
+            <ThemedText style={styles.value}>{activeCountLabel}</ThemedText>
+          </View>
+        </View>
+
+        {currentMembership && membershipIsPending(currentMembership.status) ? (
+          <ThemedText style={styles.membershipNotice}>
+            Tu solicitud está pendiente de revisión.
+          </ThemedText>
+        ) : null}
+
+        {currentMembership && membershipIsRejected(currentMembership.status) ? (
+          <ThemedText style={styles.membershipNotice}>
+            Tu última solicitud fue rechazada. Podés volver a solicitar acceso si corresponde.
+          </ThemedText>
+        ) : null}
+
+        {allowRequestAccess ? (
+          <TouchableOpacity
+            style={[styles.requestButton, { backgroundColor: actionBackground }]}
+            onPress={handleRequestAccess}
+            disabled={requestingAccess}
+            activeOpacity={0.85}
+          >
+            {requestingAccess ? (
+              <ActivityIndicator color={actionText} />
+            ) : (
+              <ThemedText style={[styles.requestButtonText, { color: actionText }]}>
+                Solicitar acceso
+              </ThemedText>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {canEdit && pendingMemberships.length ? (
+          <View style={[styles.pendingCard, { borderColor: cardBorder }]}>
+            <ThemedText style={styles.pendingTitle}>Solicitudes pendientes</ThemedText>
+            {pendingMemberships.map(pending => (
+              <View key={`pending-${pending.id}`} style={styles.pendingRow}>
+                <View style={styles.pendingInfo}>
+                  <ThemedText style={styles.pendingName}>{pending.user_name}</ThemedText>
+                  {pending.user_email ? (
+                    <ThemedText style={styles.identityExtra}>{pending.user_email}</ThemedText>
+                  ) : null}
+                  {pending.notes ? (
+                    <ThemedText style={styles.identityExtra}>{pending.notes}</ThemedText>
+                  ) : null}
+                </View>
+                <View style={styles.pendingActions}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: actionBackground }]}
+                    onPress={() => confirmRespond(pending, 'approve')}
+                    disabled={respondingId === pending.id}
+                    activeOpacity={0.85}
+                  >
+                    {respondingId === pending.id ? (
+                      <ActivityIndicator color={actionText} />
+                    ) : (
+                      <ThemedText style={[styles.actionButtonText, { color: actionText }]}>
+                        Aprobar
+                      </ThemedText>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: destructiveBackground }]}
+                    onPress={() => confirmRespond(pending, 'reject')}
+                    disabled={respondingId === pending.id}
+                    activeOpacity={0.85}
+                  >
+                    {respondingId === pending.id ? (
+                      <ActivityIndicator color={destructiveText} />
+                    ) : (
+                      <ThemedText style={[styles.actionButtonText, { color: destructiveText }]}>
+                        Rechazar
+                      </ThemedText>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </View>
+
       {hasTaxIdentities ? (
         <View>
           <ThemedText style={styles.sectionTitle}>Identidad Fiscal</ThemedText>
@@ -260,6 +572,70 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginTop: 8,
+  },
+  membershipCard: {
+    gap: 12,
+  },
+  membershipRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  membershipNotice: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  requestButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  requestButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pendingCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    gap: 12,
+  },
+  pendingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  pendingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pendingInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  pendingName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  pendingActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 96,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   identityRow: {
     marginBottom: 8,
