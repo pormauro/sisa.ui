@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
@@ -45,6 +46,9 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     []
   );
   const { token } = useContext(AuthContext);
+  const configContext = useContext(ConfigContext);
+  const configDetails = configContext?.configDetails;
+  const updateConfig = configContext?.updateConfig;
 
   useEffect(() => {
     setCashBoxes(prev => ensureSortedByNewest(prev, getDefaultSortValue));
@@ -135,6 +139,22 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       if (data.message === 'Cash box deleted successfully') {
         setCashBoxes(prev => prev.filter(cb => cb.id !== id));
+        if (configDetails && updateConfig) {
+          const shouldClearPayment = id === configDetails.default_payment_cash_box_id;
+          const shouldClearReceiving = id === configDetails.default_receiving_cash_box_id;
+
+          if (shouldClearPayment || shouldClearReceiving) {
+            await updateConfig({
+              ...configDetails,
+              default_payment_cash_box_id: shouldClearPayment
+                ? null
+                : configDetails.default_payment_cash_box_id,
+              default_receiving_cash_box_id: shouldClearReceiving
+                ? null
+                : configDetails.default_receiving_cash_box_id
+            });
+          }
+        }
         return true;
       }
     } catch (error) {
