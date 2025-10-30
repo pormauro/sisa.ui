@@ -23,6 +23,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { normalizeNullableText } from '@/utils/normalizeNullableText';
 
 export default function EditCompanyMembershipPage() {
   const router = useRouter();
@@ -113,12 +114,16 @@ export default function EditCompanyMembershipPage() {
 
     setSubmitting(true);
     try {
+      const normalizedRole = normalizeNullableText(role);
+      const normalizedStatus = normalizeNullableText(status);
+      const normalizedNotes = normalizeNullableText(notes);
+
       const ok = await updateCompanyMembership(membershipId, {
         company_id: companyId,
         user_id: userId,
-        role: role.trim() || undefined,
-        status: status.trim() || undefined,
-        notes: notes.trim() || undefined,
+        role: normalizedRole,
+        status: normalizedStatus,
+        notes: normalizedNotes,
       });
 
       if (ok) {
