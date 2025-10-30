@@ -7,6 +7,8 @@ export interface MenuItem {
   route: string;
   icon: IconName;
   requiredPermissions?: string[];
+  fallbackPermissions?: string[];
+  fallbackRoute?: string;
 }
 
 export type MenuSectionKey =
@@ -55,6 +57,12 @@ export const MENU_SECTIONS: MenuSection[] = [
         route: '/company_memberships',
         icon: 'people-circle',
         requiredPermissions: ['listCompanyMemberships'],
+        fallbackPermissions: [
+          'requestCompanyMembership',
+          'requestCompanyMemberships',
+          'requestCompanyMembershipAccess',
+        ],
+        fallbackRoute: '/company_memberships/request',
       },
       { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
       { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
