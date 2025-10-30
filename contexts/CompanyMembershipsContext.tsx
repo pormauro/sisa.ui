@@ -33,6 +33,17 @@ export interface CompanyMembershipPayload {
   notes: string | null;
 }
 
+export interface MembershipRequestOptions {
+  role?: string | null;
+  status?: string | null;
+  notes?: string | null;
+}
+
+export interface MembershipStatusUpdateOptions {
+  role?: string | null;
+  notes?: string | null;
+}
+
 interface CompanyMembershipsContextValue {
   memberships: CompanyMembership[];
   hydrated: boolean;
@@ -41,6 +52,15 @@ interface CompanyMembershipsContextValue {
   addCompanyMembership: (payload: CompanyMembershipPayload) => Promise<CompanyMembership | null>;
   updateCompanyMembership: (id: number, payload: CompanyMembershipPayload) => Promise<boolean>;
   deleteCompanyMembership: (id: number) => Promise<boolean>;
+  requestMembershipAccess: (
+    companyId: number,
+    options?: MembershipRequestOptions
+  ) => Promise<CompanyMembership | null>;
+  updateMembershipStatus: (
+    id: number,
+    status: string,
+    options?: MembershipStatusUpdateOptions
+  ) => Promise<boolean>;
 }
 
 const defaultContextValue: CompanyMembershipsContextValue = {
@@ -51,30 +71,38 @@ const defaultContextValue: CompanyMembershipsContextValue = {
   addCompanyMembership: async () => null,
   updateCompanyMembership: async () => false,
   deleteCompanyMembership: async () => false,
+  requestMembershipAccess: async () => null,
+  updateMembershipStatus: async () => false,
 };
 
 export const CompanyMembershipsContext =
   createContext<CompanyMembershipsContextValue>(defaultContextValue);
+
+const coerceToNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+  }
+
+  return null;
+};
 
 const parseMembership = (raw: any): CompanyMembership | null => {
   if (!raw) {
     return null;
   }
 
-  const ensureNumber = (value: any): number | null => {
-    if (typeof value === 'number') {
-      return Number.isFinite(value) ? value : null;
-    }
-    if (typeof value === 'string' && value.trim()) {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : null;
-    }
-    return null;
-  };
-
-  const id = ensureNumber(raw.id);
-  const companyId = ensureNumber(raw.company_id ?? raw.companyId ?? raw.company?.id);
-  const userId = ensureNumber(raw.user_id ?? raw.userId ?? raw.user?.id);
+  const id = coerceToNumber(raw.id);
+  const companyId = coerceToNumber(raw.company_id ?? raw.companyId ?? raw.company?.id);
+  const userId = coerceToNumber(raw.user_id ?? raw.userId ?? raw.user?.id);
 
   if (id === null || companyId === null || userId === null) {
     return null;
@@ -153,7 +181,7 @@ const serializePayload = (payload: CompanyMembershipPayload) => ({
 });
 
 export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }) => {
-  const { token } = useContext(AuthContext);
+  const { token, userId } = useContext(AuthContext);
   const [memberships, setMemberships, hydrated] = useCachedState<CompanyMembership[]>(
     'company_memberships',
     []
@@ -324,6 +352,91 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [headers, setMemberships]
   );
 
+  const requestMembershipAccess = useCallback(
+    async (
+      companyId: number,
+      options?: MembershipRequestOptions
+    ): Promise<CompanyMembership | null> => {
+      if (!headers) {
+        return null;
+      }
+
+      const numericCompanyId = coerceToNumber(companyId);
+      const numericUserId = coerceToNumber(userId);
+
+      if (numericCompanyId === null || numericUserId === null) {
+        return null;
+      }
+
+      const targetStatus = options?.status ?? 'pending';
+
+      const existing = memberships.find(
+        membership =>
+          membership.company_id === numericCompanyId && membership.user_id === numericUserId
+      );
+
+      if (existing) {
+        const normalizedTarget =
+          typeof targetStatus === 'string' ? targetStatus.trim().toLowerCase() : '';
+        const normalizedCurrent =
+          typeof existing.status === 'string' ? existing.status.trim().toLowerCase() : '';
+
+        if (normalizedTarget && normalizedTarget !== normalizedCurrent) {
+          await updateCompanyMembership(existing.id, {
+            company_id: existing.company_id,
+            user_id: existing.user_id,
+            role: options?.role ?? existing.role ?? null,
+            status: targetStatus,
+            notes: options?.notes ?? existing.notes ?? null,
+          });
+        }
+
+        return existing;
+      }
+
+      return addCompanyMembership({
+        company_id: numericCompanyId,
+        user_id: numericUserId,
+        role: options?.role ?? null,
+        status: targetStatus,
+        notes: options?.notes ?? null,
+      });
+    },
+    [
+      addCompanyMembership,
+      headers,
+      memberships,
+      updateCompanyMembership,
+      userId,
+    ]
+  );
+
+  const updateMembershipStatus = useCallback(
+    async (
+      id: number,
+      status: string,
+      options?: MembershipStatusUpdateOptions
+    ): Promise<boolean> => {
+      if (!status) {
+        return false;
+      }
+
+      const membership = memberships.find(item => item.id === id);
+      if (!membership) {
+        return false;
+      }
+
+      return updateCompanyMembership(id, {
+        company_id: membership.company_id,
+        user_id: membership.user_id,
+        role: options?.role ?? membership.role ?? null,
+        status,
+        notes: options?.notes ?? membership.notes ?? null,
+      });
+    },
+    [memberships, updateCompanyMembership]
+  );
+
   const value = useMemo(
     () => ({
       memberships,
@@ -333,6 +446,8 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       addCompanyMembership,
       updateCompanyMembership,
       deleteCompanyMembership,
+      requestMembershipAccess,
+      updateMembershipStatus,
     }),
     [
       memberships,
@@ -342,6 +457,8 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       addCompanyMembership,
       updateCompanyMembership,
       deleteCompanyMembership,
+      requestMembershipAccess,
+      updateMembershipStatus,
     ]
   );
 
