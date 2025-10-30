@@ -3,6 +3,7 @@ import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
 import { CompaniesProvider } from '@/contexts/CompaniesContext';
+import { CompanyMembershipsProvider } from '@/contexts/CompanyMembershipsContext';
 import { ConfigProvider } from '@/contexts/ConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
@@ -82,9 +83,10 @@ export default function RootLayout() {
                     <LogProvider>
                       <ToastProvider>
                         <CashBoxesProvider>
-                          <CompaniesProvider>
-                            <ClientsProvider>
-                              <ProvidersProvider>
+                            <CompaniesProvider>
+                              <CompanyMembershipsProvider>
+                                <ClientsProvider>
+                                  <ProvidersProvider>
                                 <CategoriesProvider>
                                   <ProductsServicesProvider>
                                     <StatusesProvider>
@@ -111,10 +113,11 @@ export default function RootLayout() {
                                     </StatusesProvider>
                                   </ProductsServicesProvider>
                                 </CategoriesProvider>
-                              </ProvidersProvider>
-                            </ClientsProvider>
-                          </CompaniesProvider>
-                        </CashBoxesProvider>
+                                  </ProvidersProvider>
+                                </ClientsProvider>
+                              </CompanyMembershipsProvider>
+                            </CompaniesProvider>
+                          </CashBoxesProvider>
                       </ToastProvider>
                     </LogProvider>
                   </ThemeProvider>

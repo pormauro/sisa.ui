@@ -50,6 +50,12 @@ export const MENU_SECTIONS: MenuSection[] = [
     icon: 'pricetags',
     items: [
       { title: 'Empresas', route: '/companies', icon: 'business', requiredPermissions: ['listCompanies'] },
+      {
+        title: 'Membresías de empresas',
+        route: '/company_memberships',
+        icon: 'people-circle',
+        requiredPermissions: ['listCompanyMemberships'],
+      },
       { title: 'Clientes', route: '/clients', icon: 'people', requiredPermissions: ['listClients'] },
       { title: 'Proveedores', route: '/providers', icon: 'cart', requiredPermissions: ['listProviders'] },
       {
