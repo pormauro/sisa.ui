@@ -28,9 +28,9 @@ export interface CompanyMembership {
 export interface CompanyMembershipPayload {
   company_id: number;
   user_id: number;
-  role?: string | null;
-  status?: string | null;
-  notes?: string | null;
+  role: string | null;
+  status: string | null;
+  notes: string | null;
 }
 
 interface CompanyMembershipsContextValue {
@@ -142,24 +142,13 @@ const normalizeCollection = (value: any): CompanyMembership[] => {
     .filter((membership): membership is CompanyMembership => Boolean(membership));
 };
 
-const serializePayload = (payload: CompanyMembershipPayload) => {
-  const body: Record<string, any> = {
-    company_id: payload.company_id,
-    user_id: payload.user_id,
-  };
-
-  if (payload.role !== undefined) {
-    body.role = payload.role ?? null;
-  }
-  if (payload.status !== undefined) {
-    body.status = payload.status ?? null;
-  }
-  if (payload.notes !== undefined) {
-    body.notes = payload.notes ?? null;
-  }
-
-  return body;
-};
+const serializePayload = (payload: CompanyMembershipPayload) => ({
+  company_id: payload.company_id,
+  user_id: payload.user_id,
+  role: payload.role,
+  status: payload.status,
+  notes: payload.notes,
+});
 
 export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
