@@ -180,6 +180,34 @@ const serializePayload = (payload: CompanyMembershipPayload) => ({
   notes: payload.notes,
 });
 
+const MEMBERSHIP_ENDPOINT_VARIANTS = ['/company_memberships', '/company-memberships'] as const;
+
+const fetchMembershipResource = async (
+  suffix = '',
+  init?: RequestInit | (() => RequestInit)
+): Promise<Response> => {
+  const normalizedSuffix = suffix ? (suffix.startsWith('/') ? suffix : `/${suffix}`) : '';
+  const buildOptions = (): RequestInit | undefined => {
+    if (!init) {
+      return undefined;
+    }
+    if (typeof init === 'function') {
+      return (init as () => RequestInit)();
+    }
+    return { ...init };
+  };
+
+  for (let index = 0; index < MEMBERSHIP_ENDPOINT_VARIANTS.length; index += 1) {
+    const basePath = MEMBERSHIP_ENDPOINT_VARIANTS[index];
+    const response = await fetch(`${BASE_URL}${basePath}${normalizedSuffix}`, buildOptions());
+    if (response.status !== 404 || index === MEMBERSHIP_ENDPOINT_VARIANTS.length - 1) {
+      return response;
+    }
+  }
+
+  throw new Error('Unable to resolve company memberships endpoint');
+};
+
 export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }) => {
   const { token, userId } = useContext(AuthContext);
   const [memberships, setMemberships, hydrated] = useCachedState<CompanyMembership[]>(
@@ -205,9 +233,12 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     }
     setLoading(true);
     try {
-      const response = await fetch(`${BASE_URL}/company_memberships`, {
-        headers,
-      });
+      const response = await fetchMembershipResource('', { headers });
+
+      if (response.status === 404) {
+        setMemberships([]);
+        return;
+      }
 
       if (!response.ok) {
         console.error('Error loading company memberships:', response.status, response.statusText);
@@ -240,11 +271,11 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
 
       try {
-        const response = await fetch(`${BASE_URL}/company_memberships`, {
+        const response = await fetchMembershipResource('', () => ({
           method: 'POST',
           headers,
           body: JSON.stringify(serializePayload(payload)),
-        });
+        }));
 
         const text = await response.text();
         if (!text) {
@@ -288,11 +319,11 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
 
       try {
-        const response = await fetch(`${BASE_URL}/company_memberships/${id}`, {
+        const response = await fetchMembershipResource(`/${id}`, () => ({
           method: 'PUT',
           headers,
           body: JSON.stringify(serializePayload(payload)),
-        });
+        }));
 
         if (!response.ok) {
           console.error('Error updating company membership:', response.status, response.statusText);
@@ -332,10 +363,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
 
       try {
-        const response = await fetch(`${BASE_URL}/company_memberships/${id}`, {
+        const response = await fetchMembershipResource(`/${id}`, () => ({
           method: 'DELETE',
           headers,
-        });
+        }));
 
         if (!response.ok) {
           console.error('Error deleting company membership:', response.status, response.statusText);
