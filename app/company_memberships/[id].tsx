@@ -32,6 +32,7 @@ export default function EditCompanyMembershipPage() {
 
   const {
     memberships,
+    hydrated,
     loadCompanyMemberships,
     updateCompanyMembership,
     deleteCompanyMembership,
@@ -183,9 +184,9 @@ export default function EditCompanyMembershipPage() {
     );
   }, [deleteCompanyMembership, membership, membershipId, router]);
 
-  if (!membership && loading) {
+  if (!membership && (!hydrated || loading)) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor }]}> 
+      <View style={[styles.loadingContainer, { backgroundColor }]}>
         <ActivityIndicator size="large" color={spinnerColor} />
       </View>
     );

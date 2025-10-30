@@ -35,7 +35,13 @@ const getTimestamp = (value?: string | null): number => {
 
 export default function CompanyMembershipsListPage() {
   const router = useRouter();
-  const { memberships, loadCompanyMemberships, deleteCompanyMembership, loading } = useContext(CompanyMembershipsContext);
+  const {
+    memberships,
+    hydrated,
+    loadCompanyMemberships,
+    deleteCompanyMembership,
+    loading,
+  } = useContext(CompanyMembershipsContext);
   const { permissions } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
@@ -201,8 +207,10 @@ export default function CompanyMembershipsListPage() {
 
   const sortDirectionLabel = sortDirection === 'asc' ? 'Ascendente' : 'Descendente';
 
+  const isLoading = loading || !hydrated;
+
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <View style={styles.searchRow}>
         <TextInput
           placeholder="Buscar por empresa, usuario o rol"
@@ -243,7 +251,7 @@ export default function CompanyMembershipsListPage() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator color={spinnerColor} size="large" />
         </View>

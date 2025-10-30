@@ -35,6 +35,7 @@ export interface CompanyMembershipPayload {
 
 interface CompanyMembershipsContextValue {
   memberships: CompanyMembership[];
+  hydrated: boolean;
   loading: boolean;
   loadCompanyMemberships: () => Promise<void>;
   addCompanyMembership: (payload: CompanyMembershipPayload) => Promise<CompanyMembership | null>;
@@ -44,6 +45,7 @@ interface CompanyMembershipsContextValue {
 
 const defaultContextValue: CompanyMembershipsContextValue = {
   memberships: [],
+  hydrated: false,
   loading: false,
   loadCompanyMemberships: async () => {},
   addCompanyMembership: async () => null,
@@ -152,7 +154,7 @@ const serializePayload = (payload: CompanyMembershipPayload) => ({
 
 export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
-  const [memberships, setMemberships] = useCachedState<CompanyMembership[]>(
+  const [memberships, setMemberships, hydrated] = useCachedState<CompanyMembership[]>(
     'company_memberships',
     []
   );
@@ -325,6 +327,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const value = useMemo(
     () => ({
       memberships,
+      hydrated,
       loading,
       loadCompanyMemberships,
       addCompanyMembership,
@@ -333,6 +336,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     }),
     [
       memberships,
+      hydrated,
       loading,
       loadCompanyMemberships,
       addCompanyMembership,
