@@ -7,7 +7,7 @@ Este documento resume las diferencias entre los pagos operativos y las plantilla
 - **Pagos (`PaymentsContext`)** representan movimientos financieros efectivos. Cada registro incluye fecha, cuenta de salida, acreedor (cliente/proveedor/otro), categoría, monto, adjuntos serializados y banderas para imputar a clientes.【F:contexts/PaymentsContext.tsx†L14-L30】
 - **Plantillas de pago (`PaymentTemplatesContext`)** almacenan valores predeterminados para acelerar la captura de pagos: acreedor sugerido, categoría, cuenta contable, monto esperado y banderas de imputación al cliente.【F:contexts/PaymentTemplatesContext.tsx†L15-L37】
 
-Ambos contextos se inicializan con `useCachedState` para persistir datos localmente y ordenar por las entradas más recientes antes de exponerlos a la UI.【F:contexts/PaymentsContext.tsx†L48-L54】【F:contexts/PaymentTemplatesContext.tsx†L57-L66】
+Ambos contextos se inicializan con `useCachedState` para persistir datos localmente y ordenar por las entradas más recientes antes de exponerlos a la UI.【F:contexts/PaymentsContext.tsx†L48-L54】【F:contexts/PaymentTemplatesContext.tsx†L261-L269】
 
 ## Diferencias funcionales en la UI
 
@@ -19,10 +19,10 @@ Ambos contextos se inicializan con `useCachedState` para persistir datos localme
 ## Flujos de sincronización
 
 - `PaymentsContext` consulta `/payments` al inicializarse y después de cada alta/actualización para garantizar que la caché local refleje el estado definitivo del backend.【F:contexts/PaymentsContext.tsx†L56-L140】
-- `PaymentTemplatesContext` también arranca con un `loadPaymentTemplates()` cuando existe un token válido y repite la sincronización tras cada operación mutadora (`add`, `update`, `delete`).【F:contexts/PaymentTemplatesContext.tsx†L68-L224】
+- `PaymentTemplatesContext` también arranca con un `loadPaymentTemplates()` cuando existe un token válido y repite la sincronización tras cada operación mutadora (`add`, `update`, `delete`).【F:contexts/PaymentTemplatesContext.tsx†L271-L441】
 - La pantalla de listado de plantillas refuerza la sincronización mediante `useFocusEffect`, recargando el catálogo cada vez que el usuario vuelve a la vista si mantiene permisos suficientes.【F:app/payment_templates/index.tsx†L96-L187】
 
-En todos los casos se exige el encabezado `Authorization: Bearer <token>` para las peticiones, preservando la política de autenticación que exceptúa únicamente el flujo de login.【F:contexts/PaymentsContext.tsx†L56-L158】【F:contexts/PaymentTemplatesContext.tsx†L68-L206】
+En todos los casos se exige el encabezado `Authorization: Bearer <token>` para las peticiones, preservando la política de autenticación que exceptúa únicamente el flujo de login.【F:contexts/PaymentsContext.tsx†L56-L158】【F:contexts/PaymentTemplatesContext.tsx†L271-L441】
 
 ## Trabajar a partir de plantillas
 

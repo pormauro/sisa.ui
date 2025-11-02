@@ -199,16 +199,17 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `PaymentTemplate`: define valores predeterminados de acreedor, categoría, cuenta contable, monto y banderas para reutilizar en altas de pagos.【F:contexts/PaymentTemplatesContext.tsx†L15-L43】
 
 ### Métodos del contexto
-- `loadPaymentTemplates()` recupera las plantillas ordenadas por fecha más reciente y respeta el token Bearer activo.【F:contexts/PaymentTemplatesContext.tsx†L68-L95】
-- `addPaymentTemplate(template)` serializa el payload, invoca `POST /payment_templates` y refresca la caché local tras crear la plantilla.【F:contexts/PaymentTemplatesContext.tsx†L96-L137】
-- `updatePaymentTemplate(id, template)` envía `PUT /payment_templates/{id}`, reordena la colección y vuelve a consultar al backend cuando la respuesta es satisfactoria.【F:contexts/PaymentTemplatesContext.tsx†L139-L183】
-- `deletePaymentTemplate(id)` elimina la plantilla en el servidor con `DELETE /payment_templates/{id}` y filtra el ítem local al confirmar éxito.【F:contexts/PaymentTemplatesContext.tsx†L185-L217】
+- `loadPaymentTemplates()` recupera las plantillas ordenadas por fecha más reciente y respeta el token Bearer activo.【F:contexts/PaymentTemplatesContext.tsx†L271-L309】
+- `addPaymentTemplate(template)` serializa el payload, invoca `POST /payment_templates` y refresca la caché local tras crear la plantilla.【F:contexts/PaymentTemplatesContext.tsx†L319-L343】
+- `updatePaymentTemplate(id, template)` envía `PUT /payment_templates/{id}`, reordena la colección y vuelve a consultar al backend cuando la respuesta es satisfactoria.【F:contexts/PaymentTemplatesContext.tsx†L357-L393】
+- `deletePaymentTemplate(id)` elimina la plantilla en el servidor con `DELETE /payment_templates/{id}` y filtra el ítem local al confirmar éxito.【F:contexts/PaymentTemplatesContext.tsx†L407-L429】
+- Las respuestas de la API pueden incluir la plantilla como objeto anidado (`payment_template`, `template`) o sólo informar el identificador y un `Location` header; el contexto normaliza cualquiera de estos formatos antes de sincronizar el caché local.【F:contexts/PaymentTemplatesContext.tsx†L53-L258】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/payment_templates` — listado principal protegido por token Bearer.【F:contexts/PaymentTemplatesContext.tsx†L68-L95】
-- `POST ${BASE_URL}/payment_templates` — alta de plantillas con validación de permisos.【F:contexts/PaymentTemplatesContext.tsx†L96-L126】
-- `PUT ${BASE_URL}/payment_templates/{id}` — actualización de valores predeterminados.【F:contexts/PaymentTemplatesContext.tsx†L139-L170】
-- `DELETE ${BASE_URL}/payment_templates/{id}` — baja lógica de plantillas reutilizables.【F:contexts/PaymentTemplatesContext.tsx†L185-L206】
+- `GET ${BASE_URL}/payment_templates` — listado principal protegido por token Bearer.【F:contexts/PaymentTemplatesContext.tsx†L271-L309】
+- `POST ${BASE_URL}/payment_templates` — alta de plantillas con validación de permisos.【F:contexts/PaymentTemplatesContext.tsx†L319-L343】
+- `PUT ${BASE_URL}/payment_templates/{id}` — actualización de valores predeterminados.【F:contexts/PaymentTemplatesContext.tsx†L357-L393】
+- `DELETE ${BASE_URL}/payment_templates/{id}` — baja lógica de plantillas reutilizables.【F:contexts/PaymentTemplatesContext.tsx†L407-L429】
 
 ### Permisos requeridos
 - `listPaymentTemplates` habilita la navegación al listado y protege la pantalla de índices.【F:app/payment_templates/index.tsx†L61-L103】
