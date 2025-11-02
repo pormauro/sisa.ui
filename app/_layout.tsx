@@ -24,6 +24,7 @@ import { CommentsProvider } from '@/contexts/CommentsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
@@ -72,62 +73,64 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <PermissionsProvider>
-        <FilesProvider>
-          <ProfileProvider>
-            <ProfilesProvider>
-              <ProfilesListProvider>
-                <ConfigProvider>
-                  <ThemeProvider>
-                    <LogProvider>
-                      <ToastProvider>
-                        <CashBoxesProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <PermissionsProvider>
+          <FilesProvider>
+            <ProfileProvider>
+              <ProfilesProvider>
+                <ProfilesListProvider>
+                  <ConfigProvider>
+                    <ThemeProvider>
+                      <LogProvider>
+                        <ToastProvider>
+                          <CashBoxesProvider>
                             <CompaniesProvider>
                               <CompanyMembershipsProvider>
                                 <ClientsProvider>
                                   <ProvidersProvider>
-                                <CategoriesProvider>
-                                  <ProductsServicesProvider>
-                                    <StatusesProvider>
-                                      <TariffsProvider>
-                                        <JobsProvider>
-                                          <AppointmentsProvider>
-                                            <PaymentsProvider>
-                                              <ReceiptsProvider>
-                                                <FoldersProvider>
-                                                  <CommentsProvider>
-                                                    <PendingSelectionProvider>
-                                                      <>
-                                                        <RootLayoutContent />
-                                                        <LogOverlay />
-                                                      </>
-                                                    </PendingSelectionProvider>
-                                                  </CommentsProvider>
-                                                </FoldersProvider>
-                                              </ReceiptsProvider>
-                                            </PaymentsProvider>
-                                          </AppointmentsProvider>
-                                        </JobsProvider>
-                                      </TariffsProvider>
-                                    </StatusesProvider>
-                                  </ProductsServicesProvider>
-                                </CategoriesProvider>
+                                    <CategoriesProvider>
+                                      <ProductsServicesProvider>
+                                        <StatusesProvider>
+                                          <TariffsProvider>
+                                            <JobsProvider>
+                                              <AppointmentsProvider>
+                                                <PaymentsProvider>
+                                                  <ReceiptsProvider>
+                                                    <FoldersProvider>
+                                                      <CommentsProvider>
+                                                        <PendingSelectionProvider>
+                                                          <>
+                                                            <RootLayoutContent />
+                                                            <LogOverlay />
+                                                          </>
+                                                        </PendingSelectionProvider>
+                                                      </CommentsProvider>
+                                                    </FoldersProvider>
+                                                  </ReceiptsProvider>
+                                                </PaymentsProvider>
+                                              </AppointmentsProvider>
+                                            </JobsProvider>
+                                          </TariffsProvider>
+                                        </StatusesProvider>
+                                      </ProductsServicesProvider>
+                                    </CategoriesProvider>
                                   </ProvidersProvider>
                                 </ClientsProvider>
                               </CompanyMembershipsProvider>
                             </CompaniesProvider>
                           </CashBoxesProvider>
-                      </ToastProvider>
-                    </LogProvider>
-                  </ThemeProvider>
-                </ConfigProvider>
-              </ProfilesListProvider>
-            </ProfilesProvider>
-          </ProfileProvider>
-        </FilesProvider>
-      </PermissionsProvider>
-    </AuthProvider>
+                        </ToastProvider>
+                      </LogProvider>
+                    </ThemeProvider>
+                  </ConfigProvider>
+                </ProfilesListProvider>
+              </ProfilesProvider>
+            </ProfileProvider>
+          </FilesProvider>
+        </PermissionsProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
