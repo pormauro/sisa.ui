@@ -19,6 +19,7 @@ import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -66,6 +67,7 @@ export default function EditPaymentTemplateScreen() {
   const { clients } = useContext(ClientsContext);
   const { providers } = useContext(ProvidersContext);
   const { cashBoxes } = useContext(CashBoxesContext);
+  const { configDetails } = useContext(ConfigContext);
   const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
   const [localState, setLocalState] = useState<LocalTemplateState>(INITIAL_STATE);
@@ -138,6 +140,17 @@ export default function EditPaymentTemplateScreen() {
     }
     setDefaultCategoryId(categories[0].id.toString());
   }, [categories, defaultCategoryId]);
+
+  useEffect(() => {
+    if (defaultPaidWithAccount) {
+      return;
+    }
+    const defaultCashBoxId = configDetails?.default_payment_cash_box_id;
+    if (defaultCashBoxId === null || typeof defaultCashBoxId === 'undefined') {
+      return;
+    }
+    setDefaultPaidWithAccount(defaultCashBoxId.toString());
+  }, [configDetails, defaultPaidWithAccount]);
 
   const categoryItems = useMemo(
     () => [
@@ -494,8 +507,8 @@ export default function EditPaymentTemplateScreen() {
         <ThemedText style={styles.label}>Acreedor predeterminado</ThemedText>
         <RadioGroup
           options={creditorOptions.map(option => ({ label: option.label, value: option.value }))}
-          selected={creditorType}
-          onChange={value => {
+          value={creditorType}
+          onValueChange={value => {
             setCreditorType(value as CreditorType);
             if (value !== 'client') {
               setCreditorClientId('');
