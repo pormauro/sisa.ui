@@ -12,6 +12,7 @@ export interface MenuItem {
 }
 
 export type MenuSectionKey =
+  | 'shortcuts'
   | 'financial'
   | 'commercial'
   | 'operations'
@@ -23,6 +24,21 @@ export interface MenuSection {
   icon: IconName;
   items: MenuItem[];
 }
+
+export const SHORTCUTS_SECTION: MenuSection = {
+  key: 'shortcuts',
+  title: 'Atajos',
+  icon: 'flash-outline',
+  items: [
+    { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
+    {
+      title: 'Pagos por plantilla',
+      route: '/payment_templates',
+      icon: 'sparkles-outline',
+      requiredPermissions: ['listPaymentTemplates'],
+    },
+  ],
+};
 
 export const MENU_SECTIONS: MenuSection[] = [
   {
@@ -111,4 +127,6 @@ export const MENU_SECTIONS: MenuSection[] = [
 ];
 
 export const findMenuSection = (key: string | undefined) =>
-  MENU_SECTIONS.find((section) => section.key === key);
+  key === SHORTCUTS_SECTION.key
+    ? SHORTCUTS_SECTION
+    : MENU_SECTIONS.find((section) => section.key === key);
