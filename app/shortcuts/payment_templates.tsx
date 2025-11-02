@@ -125,7 +125,7 @@ const ShortcutPaymentTemplatesScreen = () => {
     ({ item }: { item: PaymentTemplate }) => (
       <MenuButton
         title={item.name}
-        icon="flash"
+        icon="sparkles-outline"
         subtitle={`${formatAmount(item.default_amount)} · ${getRecipientLabel(item)}`}
         onPress={() => handleSelectTemplate(item)}
       />
@@ -139,7 +139,7 @@ const ShortcutPaymentTemplatesScreen = () => {
     () => (
       <View style={[styles.emptyStateContainer, { borderColor }]}> 
         <ThemedText style={styles.emptyStateText}>
-          No hay plantillas disponibles. Creá una desde el módulo de plantillas de pago.
+          No hay planillas de pago disponibles. Creá una desde el módulo de plantillas de pago.
         </ThemedText>
       </View>
     ),
@@ -150,9 +150,9 @@ const ShortcutPaymentTemplatesScreen = () => {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: backgroundColor }]}> 
-      <ThemedText style={styles.title}>Pagos desde plantilla</ThemedText>
+      <ThemedText style={styles.title}>Planillas de pagos</ThemedText>
       <ThemedText style={styles.description}>
-        Elegí una plantilla para precargar el formulario de pagos con sus valores predeterminados.
+        Elegí una planilla para precargar el formulario de pagos con sus valores predeterminados.
       </ThemedText>
       <FlatList
         data={paymentTemplates}

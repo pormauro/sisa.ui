@@ -89,7 +89,7 @@ SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la 
 - `app/products_services/`, `app/categories/`, `app/statuses/`, `app/tariffs/`, `app/cash_boxes/`: catálogos maestros con búsqueda, acciones restringidas y refresco tras cada operación.
 - `app/payments/` y `app/receipts/`: flujos financieros que combinan clientes/proveedores, adjuntos y banderas contables.【F:app/payments/index.tsx†L61-L187】
 - `app/payment_templates/`: catálogo, formularios y modal de lectura para definir plantillas reutilizables de pagos; exige `listPaymentTemplates` para navegar y aplica los permisos `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` sobre las acciones disponibles, siempre bajo autenticación Bearer.【F:app/payment_templates/index.tsx†L61-L187】【F:contexts/PaymentTemplatesContext.tsx†L271-L441】
-- `app/shortcuts/payment_templates.tsx`: vista de atajos que permite elegir una plantilla y abre `/payments/create` con los valores contables precargados cuando el perfil cuenta con `usePaymentTemplateShortcuts`.【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
+- `app/shortcuts/payment_templates.tsx`: vista de atajos "Planillas de pagos" que permite elegir una plantilla habilitada y abre `/payments/create` con los valores contables precargados cuando el perfil cuenta con `usePaymentTemplateShortcuts`.【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
 - `app/permission/`: UI para asignar permisos globales o por usuario mediante checkboxes, agrupando sectores y utilizando `PermissionsContext`.
 - `app/user/`: `ProfileScreen` para editar datos personales y `ConfigScreen` para cambiar tema, limpiar cachés (`clearAllDataCaches`) y purgar archivos locales.
 
@@ -105,7 +105,7 @@ La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/
 
 ## Novedades
 - **Plantillas de pago:** funcionalidad disponible desde el menú financiero y los atajos para definir valores predeterminados de pagos. Requiere permisos `listPaymentTemplates` (navegación) y `addPaymentTemplate`/`updatePaymentTemplate`/`deletePaymentTemplate` (operaciones), además de token Bearer en todas las llamadas a `payment_templates` salvo el login.【F:app/payment_templates/index.tsx†L61-L187】【F:contexts/PaymentTemplatesContext.tsx†L271-L441】
-- **Pagos desde plantilla:** nuevo acceso directo (`/shortcuts/payment_templates`) que lista plantillas habilitadas para atajos, respeta `usePaymentTemplateShortcuts` y precarga `/payments/create` con la configuración contable correspondiente.【F:constants/menuSections.ts†L29-L40】【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
+- **Planillas de pagos (atajo):** acceso directo (`/shortcuts/payment_templates`) que lista plantillas habilitadas para atajos, respeta `usePaymentTemplateShortcuts` y precarga `/payments/create` con la configuración contable correspondiente.【F:constants/menuSections.ts†L29-L40】【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
 - **Colección Postman actualizada:** consulta `docs/postman/sisa-api.postman_collection.json` para probar los endpoints de pagos y plantillas con autenticación Bearer.【F:docs/postman/sisa-api.postman_collection.json†L1-L206】
 
 ## Scripts y utilidades
