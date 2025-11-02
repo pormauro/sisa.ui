@@ -21,8 +21,8 @@ export interface Category {
 
 export type DefaultCategoryDefinition = Omit<Category, 'id'>;
 
-export const DEFAULT_INCOME_CATEGORY_NAME = 'Ingresos principales';
-export const DEFAULT_EXPENSE_CATEGORY_NAME = 'Gastos principales';
+export const DEFAULT_INCOME_CATEGORY_NAME = 'Ingresos totales';
+export const DEFAULT_EXPENSE_CATEGORY_NAME = 'Gastos totales';
 
 export const DEFAULT_CATEGORY_DEFINITIONS: ReadonlyArray<DefaultCategoryDefinition> = [
   { name: DEFAULT_INCOME_CATEGORY_NAME, type: 'income', parent_id: null },
