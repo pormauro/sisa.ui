@@ -87,7 +87,8 @@ SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la 
 - `app/clients/`, `app/providers/`: listados con búsqueda difusa (`Fuse.js`), modales de detalle y formularios de alta/edición condicionados por permisos.
 - `app/folders/`: navegación jerárquica de carpetas por cliente, con soporte para imágenes y borrado controlado por permisos.
 - `app/products_services/`, `app/categories/`, `app/statuses/`, `app/tariffs/`, `app/cash_boxes/`: catálogos maestros con búsqueda, acciones restringidas y refresco tras cada operación.
-- `app/payments/` y `app/receipts/`: flujos financieros que combinan clientes/proveedores, adjuntos y banderas contables.
+- `app/payments/` y `app/receipts/`: flujos financieros que combinan clientes/proveedores, adjuntos y banderas contables.【F:app/payments/index.tsx†L61-L187】
+- `app/payment_templates/`: catálogo, formularios y modal de lectura para definir plantillas reutilizables de pagos; exige `listPaymentTemplates` para navegar y aplica los permisos `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` sobre las acciones disponibles, siempre bajo autenticación Bearer.【F:app/payment_templates/index.tsx†L61-L187】【F:contexts/PaymentTemplatesContext.tsx†L68-L206】
 - `app/permission/`: UI para asignar permisos globales o por usuario mediante checkboxes, agrupando sectores y utilizando `PermissionsContext`.
 - `app/user/`: `ProfileScreen` para editar datos personales y `ConfigScreen` para cambiar tema, limpiar cachés (`clearAllDataCaches`) y purgar archivos locales.
 
@@ -99,7 +100,11 @@ SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la 
 - El directorio `database/` contiene scripts SQL (`clients.sql`, `sync_tables.sql`) y migraciones (`database/migrations/*`) que definen la estructura esperada por `sisa.api`. Respeta el criterio de no crear claves foráneas y realiza las asociaciones en capa de aplicación.
 
 ## Documentación complementaria
-La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/` (por ejemplo, guías de sincronización, manuales operativos y convenciones de API). Si no la encuentras en este repositorio, consulta el repositorio principal o al equipo de backend para obtenerla.
+La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/` (por ejemplo, guías de sincronización, manuales operativos y convenciones de API). Si no la encuentras en este repositorio, consulta el repositorio principal o al equipo de backend para obtenerla. El documento `docs/architecture/payments-vs-templates.md` resume las diferencias entre los pagos tradicionales y las plantillas de pago, incluyendo sus flujos de sincronización y dependencias de permisos.【F:docs/architecture/payments-vs-templates.md†L1-L43】
+
+## Novedades
+- **Plantillas de pago:** nueva funcionalidad disponible desde el menú financiero y los atajos para definir valores predeterminados de pagos. Requiere permisos `listPaymentTemplates` (navegación) y `addPaymentTemplate`/`updatePaymentTemplate`/`deletePaymentTemplate` (operaciones), además de token Bearer en todas las llamadas a `payment_templates` salvo el login.【F:app/payment_templates/index.tsx†L61-L187】【F:contexts/PaymentTemplatesContext.tsx†L68-L206】
+- **Colección Postman actualizada:** consulta `docs/postman/sisa-api.postman_collection.json` para probar los endpoints de pagos y plantillas con autenticación Bearer.【F:docs/postman/sisa-api.postman_collection.json†L1-L206】
 
 ## Scripts y utilidades
 - `npm start` / `npx expo start`: inicia el bundler de Expo.
