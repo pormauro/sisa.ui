@@ -311,6 +311,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
             }
           }
         }
+      }
       if (Array.isArray(templatesRaw)) {
         const normalized = templatesRaw
           .map(template => normalizePaymentTemplate(template))
