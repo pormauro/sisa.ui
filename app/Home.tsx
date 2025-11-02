@@ -35,6 +35,16 @@ const Menu: React.FC = () => {
     return false;
   };
 
+  const shortcuts: MenuItem[] = [
+    { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
+    {
+      title: 'Pagos por plantilla',
+      route: '/payment_templates',
+      icon: 'sparkles',
+      requiredPermissions: ['listPaymentTemplates'],
+    },
+  ].filter(isEnabled);
+
   const visibleSections = MENU_SECTIONS
     .map((section) => ({
       ...section,
@@ -49,6 +59,23 @@ const Menu: React.FC = () => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
         <ThemedText style={styles.title}>Menú Principal</ThemedText>
+        {shortcuts.length > 0 ? (
+          <View style={[styles.shortcutsContainer, { borderColor: tintColor }]}>
+            <ThemedText style={styles.shortcutsTitle}>Atajos</ThemedText>
+            <View style={styles.shortcutsButtons}>
+              {shortcuts.map((shortcut) => (
+                <MenuButton
+                  key={shortcut.route}
+                  icon={shortcut.icon}
+                  title={shortcut.title}
+                  showChevron
+                  style={styles.shortcutButton}
+                  onPress={() => router.push(shortcut.route)}
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
         <View style={styles.sectionsContainer}>
           {visibleSections.length === 0 ? (
             <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
@@ -88,6 +115,24 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
+  },
+  shortcutsContainer: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 24,
+    backgroundColor: 'transparent',
+  },
+  shortcutsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  shortcutsButtons: {
+    marginTop: 4,
+  },
+  shortcutButton: {
+    marginBottom: 12,
   },
   sectionsContainer: {
     paddingBottom: 30,
