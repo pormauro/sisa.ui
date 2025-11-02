@@ -25,6 +25,16 @@ const PERMISSION_GROUPS = [
   { group: "Folders", permissions: ['listFolders', 'getFolder', 'addFolder', 'updateFolder', 'deleteFolder', 'listFolderHistory', 'listFoldersByClient'] },
   { group: "Cash Boxes", permissions: ['listCashBoxes', 'getCashBox', 'addCashBox', 'updateCashBox', 'deleteCashBox', 'listCashBoxHistory'] },
   { group: "Payments", permissions: ['listPayments', 'getPayment', 'addPayment', 'updatePayment', 'deletePayment', 'listPaymentHistory'] },
+  {
+    group: "Payment Templates",
+    permissions: [
+      'listPaymentTemplates',
+      'getPaymentTemplate',
+      'addPaymentTemplate',
+      'updatePaymentTemplate',
+      'deletePaymentTemplate',
+    ],
+  },
   { group: "Receipts", permissions: ['listReceipts', 'getReceipt', 'addReceipt', 'updateReceipt', 'deleteReceipt', 'listReceiptHistory'] },
   { group: "Categories", permissions: ['listCategories', 'getCategory', 'addCategory', 'updateCategory', 'deleteCategory', 'listCategoryHistory'] },
   { group: "Providers", permissions: ['listProviders', 'getProvider', 'addProvider', 'updateProvider', 'deleteProvider', 'listProviderHistory'] },

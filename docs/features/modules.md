@@ -213,6 +213,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Permisos requeridos
 - `listPaymentTemplates` habilita la navegación al listado y protege la pantalla de índices.【F:app/payment_templates/index.tsx†L61-L103】
 - `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` controlan los formularios de creación/edición y la opción de eliminar desde listado o detalle.【F:app/payment_templates/index.tsx†L145-L187】【F:app/payment_templates/create.tsx†L71-L253】【F:app/payment_templates/[id].tsx†L85-L190】
+- La pantalla de Permisos agrupa estos sectores en el bloque "Payment Templates" para facilitar su asignación global o por usuario.【F:app/permission/PermissionScreen.tsx†L23-L52】
 
 ### Pantallas relacionadas
 - `app/payment_templates/index.tsx` — catálogo con filtros, orden dinámico y acceso a modales/detalle.【F:app/payment_templates/index.tsx†L1-L206】
