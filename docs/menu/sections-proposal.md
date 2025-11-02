@@ -29,7 +29,7 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 - **Permisos** — Ruta: `/permission`. Permiso: `listPermissions` (siempre visible para el usuario maestro con `userId === '1'`).
 
 ## Atajos
-- **Ir a Pagos** — Acceso directo a `/payments` desde el panel de atajos; requiere `listPayments` y respeta los permisos secundarios de creación/edición/baja descritos en el módulo financiero.【F:constants/menuSections.ts†L26-L44】【F:app/payments/index.tsx†L61-L187】
-- **Pagos por plantilla** — Acceso directo a `/payment_templates` para consultar o disparar altas basadas en plantillas; requiere `listPaymentTemplates` y hereda los permisos específicos `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` para habilitar acciones sobre la lista.【F:constants/menuSections.ts†L28-L35】【F:app/payment_templates/index.tsx†L61-L187】
+- **Pagos por plantilla** — Acceso directo a `/payment_templates` para consultar o actualizar plantillas existentes; requiere `listPaymentTemplates` y hereda los permisos específicos `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` para habilitar acciones sobre la lista.【F:constants/menuSections.ts†L30-L39】【F:app/payment_templates/index.tsx†L61-L187】
+- **Crear pago desde plantilla** — Abre `/shortcuts/payment_templates`, permite elegir una plantilla y precarga `/payments/create` con los valores contables; exige `listPaymentTemplates` y `usePaymentTemplateShortcuts` para mostrarse.【F:constants/menuSections.ts†L32-L40】【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
 
 > Esta propuesta queda sujeta a revisión y ajustes según las prioridades que defina el usuario final antes de cerrar la entrega.

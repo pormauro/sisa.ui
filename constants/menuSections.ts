@@ -30,12 +30,17 @@ export const SHORTCUTS_SECTION: MenuSection = {
   title: 'Atajos',
   icon: 'flash-outline',
   items: [
-    { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
     {
       title: 'Pagos por plantilla',
       route: '/payment_templates',
       icon: 'sparkles-outline',
       requiredPermissions: ['listPaymentTemplates'],
+    },
+    {
+      title: 'Crear pago desde plantilla',
+      route: '/shortcuts/payment_templates',
+      icon: 'flash',
+      requiredPermissions: ['listPaymentTemplates', 'usePaymentTemplateShortcuts'],
     },
   ],
 };

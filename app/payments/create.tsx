@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -29,8 +29,44 @@ import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
+type PaymentTemplatePrefillParams = {
+  templateId?: string | string[];
+  fromTemplate?: string | string[];
+  paidWithAccount?: string | string[];
+  creditorType?: string | string[];
+  creditorClientId?: string | string[];
+  creditorProviderId?: string | string[];
+  creditorOther?: string | string[];
+  categoryId?: string | string[];
+  amount?: string | string[];
+  chargeClient?: string | string[];
+  chargeClientId?: string | string[];
+};
+
+const toSingleParamValue = (value?: string | string[]): string | undefined => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return value;
+};
+
+const parseBooleanParam = (value?: string): boolean | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === '1' || normalized === 'true') {
+    return true;
+  }
+  if (normalized === '0' || normalized === 'false') {
+    return false;
+  }
+  return undefined;
+};
+
 export default function CreatePayment() {
   const router = useRouter();
+  const searchParams = useLocalSearchParams<PaymentTemplatePrefillParams>();
   const { addPayment } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes } = useContext(CashBoxesContext);
@@ -61,6 +97,49 @@ export default function CreatePayment() {
   const [chargeClientId, setChargeClientId] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [appliedTemplateSignature, setAppliedTemplateSignature] = useState<string | null>(null);
+
+  const templateIdParam = toSingleParamValue(searchParams.templateId);
+  const fromTemplateParam = toSingleParamValue(searchParams.fromTemplate);
+  const paidWithAccountParam = toSingleParamValue(searchParams.paidWithAccount);
+  const creditorTypeParam = toSingleParamValue(searchParams.creditorType);
+  const creditorClientIdParam = toSingleParamValue(searchParams.creditorClientId);
+  const creditorProviderIdParam = toSingleParamValue(searchParams.creditorProviderId);
+  const creditorOtherParam = toSingleParamValue(searchParams.creditorOther);
+  const categoryIdParam = toSingleParamValue(searchParams.categoryId);
+  const amountParam = toSingleParamValue(searchParams.amount);
+  const chargeClientParam = toSingleParamValue(searchParams.chargeClient);
+  const chargeClientIdParam = toSingleParamValue(searchParams.chargeClientId);
+
+  const templatePrefillSignature = useMemo(() => {
+    if (!fromTemplateParam && !templateIdParam) {
+      return null;
+    }
+    return JSON.stringify({
+      templateId: templateIdParam ?? '',
+      paidWithAccount: paidWithAccountParam ?? null,
+      creditorType: creditorTypeParam ?? null,
+      creditorClientId: creditorClientIdParam ?? null,
+      creditorProviderId: creditorProviderIdParam ?? null,
+      creditorOther: creditorOtherParam ?? null,
+      categoryId: categoryIdParam ?? null,
+      amount: amountParam ?? null,
+      chargeClient: chargeClientParam ?? null,
+      chargeClientId: chargeClientIdParam ?? null,
+    });
+  }, [
+    amountParam,
+    categoryIdParam,
+    chargeClientIdParam,
+    chargeClientParam,
+    creditorClientIdParam,
+    creditorOtherParam,
+    creditorProviderIdParam,
+    creditorTypeParam,
+    fromTemplateParam,
+    paidWithAccountParam,
+    templateIdParam,
+  ]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -128,6 +207,75 @@ export default function CreatePayment() {
     ],
     [displayCategories]
   );
+
+  useEffect(() => {
+    if (!templatePrefillSignature) {
+      if (appliedTemplateSignature !== null) {
+        setAppliedTemplateSignature(null);
+      }
+      return;
+    }
+
+    if (appliedTemplateSignature === templatePrefillSignature) {
+      return;
+    }
+
+    if (paidWithAccountParam !== undefined) {
+      setPaidWithAccount(paidWithAccountParam);
+    }
+
+    if (
+      creditorTypeParam === 'client' ||
+      creditorTypeParam === 'provider' ||
+      creditorTypeParam === 'other'
+    ) {
+      setCreditorType(creditorTypeParam);
+      if (creditorTypeParam === 'client') {
+        setCreditorClientId(creditorClientIdParam ?? '');
+        setCreditorProviderId('');
+        setCreditorOther('');
+      } else if (creditorTypeParam === 'provider') {
+        setCreditorProviderId(creditorProviderIdParam ?? '');
+        setCreditorClientId('');
+        setCreditorOther('');
+      } else {
+        setCreditorOther(creditorOtherParam ?? '');
+        setCreditorClientId('');
+        setCreditorProviderId('');
+      }
+    }
+
+    if (categoryIdParam !== undefined) {
+      setCategoryId(categoryIdParam);
+    }
+
+    if (amountParam !== undefined) {
+      setPrice(amountParam);
+    }
+
+    const parsedChargeClient = parseBooleanParam(chargeClientParam);
+    if (parsedChargeClient !== undefined) {
+      setChargeClient(parsedChargeClient);
+      setChargeClientId(parsedChargeClient ? chargeClientIdParam ?? '' : '');
+    } else if (chargeClientIdParam !== undefined) {
+      setChargeClient(true);
+      setChargeClientId(chargeClientIdParam);
+    }
+
+    setAppliedTemplateSignature(templatePrefillSignature);
+  }, [
+    amountParam,
+    appliedTemplateSignature,
+    categoryIdParam,
+    chargeClientIdParam,
+    chargeClientParam,
+    creditorClientIdParam,
+    creditorOtherParam,
+    creditorProviderIdParam,
+    creditorTypeParam,
+    paidWithAccountParam,
+    templatePrefillSignature,
+  ]);
 
   useEffect(() => {
     if (categoryId) {
