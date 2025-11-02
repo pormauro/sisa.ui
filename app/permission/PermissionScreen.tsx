@@ -33,6 +33,7 @@ const PERMISSION_GROUPS = [
       'addPaymentTemplate',
       'updatePaymentTemplate',
       'deletePaymentTemplate',
+      'usePaymentTemplateShortcuts',
     ],
   },
   { group: "Receipts", permissions: ['listReceipts', 'getReceipt', 'addReceipt', 'updateReceipt', 'deleteReceipt', 'listReceiptHistory'] },
