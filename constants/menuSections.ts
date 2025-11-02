@@ -33,6 +33,12 @@ export const MENU_SECTIONS: MenuSection[] = [
       { title: 'Recibos', route: '/receipts', icon: 'receipt', requiredPermissions: ['listReceipts'] },
       { title: 'Pagos', route: '/payments', icon: 'card', requiredPermissions: ['listPayments'] },
       {
+        title: 'Plantillas de pago',
+        route: '/payment_templates',
+        icon: 'sparkles-outline',
+        requiredPermissions: ['listPaymentTemplates'],
+      },
+      {
         title: 'Cajas',
         route: '/cash_boxes',
         icon: 'cash-outline',

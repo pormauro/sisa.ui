@@ -34,13 +34,14 @@ AuthProvider
                                                                    └─ TariffsProvider
                                                                         └─ JobsProvider
                                                                              └─ AppointmentsProvider
-                                                                                  └─ PaymentsProvider
-                                                                                       └─ ReceiptsProvider
+                                                                                  └─ PaymentTemplatesProvider
+                                                                                       └─ PaymentsProvider
+                                                                                            └─ ReceiptsProvider
                                                                                             └─ FoldersProvider
                                                                                                  └─ <Stack />
 ```
 
-La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de sesión antes de montar el resto de los contextos; `PermissionsProvider` consume el token y el `userId` del contexto de autenticación; el resto de los proveedores usan ese token para obtener datos de dominio. Cualquier pantalla dentro de `app/` puede consumir estas fuentes de datos a través de `useContext`, como ocurre en [`app/Home.tsx`](../../app/Home.tsx) al filtrar el menú según permisos.
+La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de sesión antes de montar el resto de los contextos; `PermissionsProvider` consume el token y el `userId` del contexto de autenticación; el resto de los proveedores usan ese token para obtener datos de dominio. Cualquier pantalla dentro de `app/` puede consumir estas fuentes de datos a través de `useContext`, como ocurre en [`app/Home.tsx`](../../app/Home.tsx) al filtrar el menú según permisos. El flujo financiero incorpora un `PaymentTemplatesProvider` que expone plantillas reutilizables para pagos.
 
 ## Contextos y flujo de datos
 
