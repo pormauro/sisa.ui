@@ -17,6 +17,7 @@ import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
@@ -37,6 +38,7 @@ export default function CreatePayment() {
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
   const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
+  const configContext = useContext(ConfigContext);
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -153,6 +155,22 @@ export default function CreatePayment() {
     }
     setPaidWithAccount('');
   }, [cashBoxes, paidWithAccount, pendingSelections]);
+
+  useEffect(() => {
+    if (paidWithAccount) {
+      return;
+    }
+    const defaultCashBoxId = configContext?.configDetails?.default_payment_cash_box_id;
+    if (!defaultCashBoxId) {
+      return;
+    }
+    const defaultCashBoxIdString = String(defaultCashBoxId);
+    const exists = cashBoxes.some(cb => cb.id.toString() === defaultCashBoxIdString);
+    if (!exists) {
+      return;
+    }
+    setPaidWithAccount(defaultCashBoxIdString);
+  }, [cashBoxes, configContext?.configDetails?.default_payment_cash_box_id, paidWithAccount]);
 
   useEffect(() => {
     const pendingCashBox = pendingSelections[SELECTION_KEYS.payments.cashBox];
