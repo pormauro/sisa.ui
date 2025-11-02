@@ -13,6 +13,13 @@ export const SELECTION_KEYS = {
     cashBox: 'payments.cashBox',
     category: 'payments.category',
   },
+  paymentTemplates: {
+    creditorClient: 'paymentTemplates.creditorClient',
+    chargeClient: 'paymentTemplates.chargeClient',
+    creditorProvider: 'paymentTemplates.creditorProvider',
+    cashBox: 'paymentTemplates.cashBox',
+    category: 'paymentTemplates.category',
+  },
   jobs: {
     client: 'jobs.client',
     tariff: 'jobs.tariff',

@@ -19,6 +19,7 @@ export interface MenuButtonProps {
   title: string;
   icon: IconName;
   onPress: () => void;
+  onLongPress?: () => void;
   subtitle?: string;
   showChevron?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -29,6 +30,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   title,
   icon,
   onPress,
+  onLongPress,
   subtitle,
   showChevron = true,
   style,
@@ -47,6 +49,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
       accessibilityRole="button"
       accessibilityState={accessibilityState}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={[
         styles.container,
         {
