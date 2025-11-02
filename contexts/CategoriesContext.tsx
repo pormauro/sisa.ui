@@ -12,12 +12,130 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 
+type CategoryType = 'income' | 'expense';
+
 export interface Category {
   id: number;
   parent_id: number | null;
   name: string;
-  type: 'income' | 'expense';
+  type: CategoryType;
+  user_id?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
+
+const parseNumeric = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const parseCategoryType = (value: unknown): CategoryType | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'income' || normalized === 'ingreso') {
+    return 'income';
+  }
+  if (normalized === 'expense' || normalized === 'gasto') {
+    return 'expense';
+  }
+
+  return null;
+};
+
+const normalizeDate = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+};
+
+type RawCategory = Record<string, unknown>;
+
+const normalizeCategory = (raw: unknown): Category | null => {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const record = raw as RawCategory;
+  const id = parseNumeric(record.id);
+  const name = typeof record.name === 'string' ? record.name.trim() : '';
+  const type = parseCategoryType(record.type);
+
+  if (id === null || !name || !type) {
+    return null;
+  }
+
+  const parentParsed = parseNumeric(record.parent_id);
+  const parentId = parentParsed === null || parentParsed === 0 ? null : parentParsed;
+  const userParsed = parseNumeric(record.user_id);
+  const userId = userParsed === null ? null : userParsed;
+  const createdAt = normalizeDate(record.created_at);
+  const updatedAt = normalizeDate(record.updated_at);
+
+  return {
+    id,
+    parent_id: parentId,
+    name,
+    type,
+    user_id: userId,
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+};
+
+const toCategoryArray = (payload: unknown): Category[] => {
+  const sourceArray: unknown[] | null = (() => {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+
+    if (payload && typeof payload === 'object') {
+      const objectPayload = payload as Record<string, unknown>;
+      if (Array.isArray(objectPayload.categories)) {
+        return objectPayload.categories as unknown[];
+      }
+      if (Array.isArray(objectPayload.data)) {
+        return objectPayload.data as unknown[];
+      }
+      const nestedData = objectPayload.data;
+      if (nestedData && typeof nestedData === 'object') {
+        const nestedRecord = nestedData as Record<string, unknown>;
+        if (Array.isArray(nestedRecord.categories)) {
+          return nestedRecord.categories as unknown[];
+        }
+      }
+    }
+
+    return null;
+  })();
+
+  if (!sourceArray) {
+    return [];
+  }
+
+  return sourceArray
+    .map(normalizeCategory)
+    .filter((item): item is Category => item !== null);
+};
 
 export type DefaultCategoryDefinition = Omit<Category, 'id'>;
 
@@ -61,7 +179,8 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
   const applyFetchedCategories = useCallback(
     (items: Category[]) => {
-      setCategories(sortByNewest(items, getDefaultSortValue));
+      const sanitized = toCategoryArray(items);
+      setCategories(sortByNewest(sanitized, getDefaultSortValue));
     },
     [setCategories]
   );
@@ -81,8 +200,9 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       const data = await response.json();
-      if (Array.isArray(data.categories)) {
-        return data.categories as Category[];
+      const categoriesArray = toCategoryArray(data);
+      if (categoriesArray.length > 0) {
+        return categoriesArray;
       }
     } catch (error) {
       console.error('Error parsing categories response:', error);
@@ -158,7 +278,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
-    setCategories(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+    setCategories(prev => ensureSortedByNewest(toCategoryArray(prev), getDefaultSortValue));
   }, [setCategories]);
 
   const loadCategories = useCallback(async () => {
@@ -190,10 +310,12 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
         });
         const data = await response.json();
         if (data.category_id) {
-          const newCategory: Category = { id: parseInt(data.category_id, 10), ...category };
-          setCategories(prev => [...prev, newCategory]);
+          const newCategory = normalizeCategory({ id: data.category_id, ...category });
+          if (newCategory) {
+            setCategories(prev => ensureSortedByNewest([...prev, newCategory], getDefaultSortValue));
+          }
           await loadCategories();
-          return newCategory;
+          return newCategory ?? null;
         }
       } catch (error) {
         console.error('Error adding category:', error);
@@ -224,9 +346,10 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
           console.error('Error updating category:', data?.error ?? response.statusText);
           return false;
         }
+        const updatedCategory = normalizeCategory({ id, ...category });
         setCategories(prev =>
           ensureSortedByNewest(
-            prev.map(c => (c.id === id ? { id, ...category } : c)),
+            prev.map(c => (c.id === id && updatedCategory ? updatedCategory : c)),
             getDefaultSortValue
           )
         );
