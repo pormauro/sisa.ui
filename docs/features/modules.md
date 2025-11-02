@@ -170,29 +170,55 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Pagos (`PaymentsContext`)
 ### Modelo
-- `Payment`: fecha, cuenta de salida, acreedor (cliente/proveedor/otro), categoría, monto, adjuntos y banderas contables.【F:contexts/PaymentsContext.tsx†L13-L28】
+- `Payment`: fecha, cuenta de salida, acreedor (cliente/proveedor/otro), categoría, monto, adjuntos y banderas contables.【F:contexts/PaymentsContext.tsx†L13-L30】
 
 ### Métodos del contexto
-- `loadPayments()` hidrata la cache financiera.【F:contexts/PaymentsContext.tsx†L51-L63】
-- `addPayment(payment)` serializa adjuntos y recarga datos.【F:contexts/PaymentsContext.tsx†L69-L101】
-- `updatePayment(id, payment)` aplica la misma normalización y vuelve a cargar.【F:contexts/PaymentsContext.tsx†L105-L138】
-- `deletePayment(id)` filtra el pago eliminado en memoria.【F:contexts/PaymentsContext.tsx†L140-L158】
+- `loadPayments()` hidrata la cache financiera.【F:contexts/PaymentsContext.tsx†L51-L72】
+- `addPayment(payment)` serializa adjuntos y recarga datos.【F:contexts/PaymentsContext.tsx†L74-L108】
+- `updatePayment(id, payment)` aplica la misma normalización y vuelve a cargar.【F:contexts/PaymentsContext.tsx†L110-L148】
+- `deletePayment(id)` filtra el pago eliminado en memoria.【F:contexts/PaymentsContext.tsx†L150-L168】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/payments` — listado.【F:contexts/PaymentsContext.tsx†L51-L59】
-- `POST ${BASE_URL}/payments` — alta.【F:contexts/PaymentsContext.tsx†L81-L90】
-- `PUT ${BASE_URL}/payments/{id}` — actualización.【F:contexts/PaymentsContext.tsx†L117-L129】
-- `DELETE ${BASE_URL}/payments/{id}` — baja.【F:contexts/PaymentsContext.tsx†L140-L153】
+- `GET ${BASE_URL}/payments` — listado.【F:contexts/PaymentsContext.tsx†L56-L67】
+- `POST ${BASE_URL}/payments` — alta.【F:contexts/PaymentsContext.tsx†L86-L100】
+- `PUT ${BASE_URL}/payments/{id}` — actualización.【F:contexts/PaymentsContext.tsx†L122-L140】
+- `DELETE ${BASE_URL}/payments/{id}` — baja.【F:contexts/PaymentsContext.tsx†L150-L164】
 
 ### Permisos requeridos
-- `listPayments` habilita la vista general.【F:app/Home.tsx†L20-L37】【F:app/payments/index.tsx†L41-L48】
-- `addPayment`, `updatePayment`, `deletePayment` gobiernan formularios y acciones destructivas.【F:app/payments/create.tsx†L166-L206】【F:app/payments/[id].tsx†L29-L132】【F:app/payments/index.tsx†L57-L133】
+- `listPayments` habilita la vista general.【F:app/Home.tsx†L20-L37】【F:app/payments/index.tsx†L41-L133】
+- `addPayment`, `updatePayment`, `deletePayment` gobiernan formularios y acciones destructivas.【F:app/payments/create.tsx†L166-L206】【F:app/payments/[id].tsx†L29-L120】【F:app/payments/index.tsx†L145-L187】
 
 ### Pantallas relacionadas
-- `app/payments/index.tsx` — listado con búsqueda y accesos a detalle/modales.【F:app/payments/index.tsx†L1-L146】
+- `app/payments/index.tsx` — listado con búsqueda y accesos a detalle/modales.【F:app/payments/index.tsx†L1-L187】
 - `app/payments/create.tsx` — captura de pagos con selección de acreedor y adjuntos.【F:app/payments/create.tsx†L160-L207】
-- `app/payments/[id].tsx` — edición completa, cambio de acreedor y carga a cliente.【F:app/payments/[id].tsx†L1-L120】
+- `app/payments/[id].tsx` — edición completa, cambio de acreedor y carga a cliente.【F:app/payments/[id].tsx†L1-L205】
 - `app/payments/viewModal.tsx` — lectura resumida, enlaza a edición.【F:app/payments/viewModal.tsx†L1-L99】
+
+## Plantillas de pago (`PaymentTemplatesContext`)
+### Modelo
+- `PaymentTemplate`: define valores predeterminados de acreedor, categoría, cuenta contable, monto y banderas para reutilizar en altas de pagos.【F:contexts/PaymentTemplatesContext.tsx†L15-L43】
+
+### Métodos del contexto
+- `loadPaymentTemplates()` recupera las plantillas ordenadas por fecha más reciente y respeta el token Bearer activo.【F:contexts/PaymentTemplatesContext.tsx†L68-L95】
+- `addPaymentTemplate(template)` serializa el payload, invoca `POST /payment_templates` y refresca la caché local tras crear la plantilla.【F:contexts/PaymentTemplatesContext.tsx†L96-L137】
+- `updatePaymentTemplate(id, template)` envía `PUT /payment_templates/{id}`, reordena la colección y vuelve a consultar al backend cuando la respuesta es satisfactoria.【F:contexts/PaymentTemplatesContext.tsx†L139-L183】
+- `deletePaymentTemplate(id)` elimina la plantilla en el servidor con `DELETE /payment_templates/{id}` y filtra el ítem local al confirmar éxito.【F:contexts/PaymentTemplatesContext.tsx†L185-L217】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/payment_templates` — listado principal protegido por token Bearer.【F:contexts/PaymentTemplatesContext.tsx†L68-L95】
+- `POST ${BASE_URL}/payment_templates` — alta de plantillas con validación de permisos.【F:contexts/PaymentTemplatesContext.tsx†L96-L126】
+- `PUT ${BASE_URL}/payment_templates/{id}` — actualización de valores predeterminados.【F:contexts/PaymentTemplatesContext.tsx†L139-L170】
+- `DELETE ${BASE_URL}/payment_templates/{id}` — baja lógica de plantillas reutilizables.【F:contexts/PaymentTemplatesContext.tsx†L185-L206】
+
+### Permisos requeridos
+- `listPaymentTemplates` habilita la navegación al listado y protege la pantalla de índices.【F:app/payment_templates/index.tsx†L61-L103】
+- `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` controlan los formularios de creación/edición y la opción de eliminar desde listado o detalle.【F:app/payment_templates/index.tsx†L145-L187】【F:app/payment_templates/create.tsx†L71-L253】【F:app/payment_templates/[id].tsx†L85-L190】
+
+### Pantallas relacionadas
+- `app/payment_templates/index.tsx` — catálogo con filtros, orden dinámico y acceso a modales/detalle.【F:app/payment_templates/index.tsx†L1-L206】
+- `app/payment_templates/create.tsx` — formulario de alta que reutiliza catálogos (clientes, proveedores, categorías, cajas) y soporta selección diferida.【F:app/payment_templates/create.tsx†L1-L462】
+- `app/payment_templates/[id].tsx` — edición con carga de datos locales, rescate de permisos y acciones de eliminación.【F:app/payment_templates/[id].tsx†L1-L205】
+- `app/payment_templates/viewModal.tsx` — modal de lectura con accesos a edición según permisos.【F:app/payment_templates/viewModal.tsx†L1-L139】
 
 ## Recibos (`ReceiptsContext`)
 ### Modelo

@@ -1,0 +1,309 @@
+{
+  "info": {
+    "_postman_id": "0b0c1de5-4a9b-4a1f-9dd9-plantillas",
+    "name": "SISA API",
+    "description": "Colección de endpoints protegidos por token Bearer para pagos y plantillas de pago.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Autenticación",
+      "description": "Obtiene el token Bearer requerido para el resto de las operaciones.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@example.com\",\n  \"password\": \"<contraseña>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Devuelve el token Bearer utilizado en los módulos autenticados."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Pagos",
+      "description": "CRUD completo de pagos operativos protegido por token.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{authToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Listar pagos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear pago",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_date\": \"2024-07-01\",\n  \"paid_with_account\": \"CAJA_PPAL\",\n  \"creditor_type\": \"provider\",\n  \"creditor_provider_id\": 12,\n  \"description\": \"Pago de servicio\",\n  \"category_id\": 3,\n  \"price\": 1500.00,\n  \"charge_client\": false,\n  \"attached_files\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar pago",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_date\": \"2024-07-02\",\n  \"paid_with_account\": \"CAJA_PPAL\",\n  \"creditor_type\": \"provider\",\n  \"creditor_provider_id\": 12,\n  \"description\": \"Pago ajustado\",\n  \"category_id\": 3,\n  \"price\": 1520.00,\n  \"charge_client\": false,\n  \"attached_files\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar pago",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Plantillas de pago",
+      "description": "Endpoints para administrar las plantillas reutilizables.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{authToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Listar plantillas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment_templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment_templates"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear plantilla",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pago de proveedor mensual\",\n  \"description\": \"Plantilla base para servicios\",\n  \"default_amount\": 1200.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_PPAL\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment_templates",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment_templates"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar plantilla",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Pago mensual actualizado\",\n  \"description\": \"Se ajusta el monto\",\n  \"default_amount\": 1250.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_SECUNDARIA\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment_templates/{{templateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment_templates",
+                "{{templateId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar plantilla",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payment_templates/{{templateId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment_templates",
+                "{{templateId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://sistema.depros.com.ar"
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "paymentId",
+      "value": "1"
+    },
+    {
+      "key": "templateId",
+      "value": "1"
+    }
+  ]
+}
