@@ -31,15 +31,9 @@ export const SHORTCUTS_SECTION: MenuSection = {
   icon: 'flash-outline',
   items: [
     {
-      title: 'Pagos por plantilla',
-      route: '/payment_templates',
-      icon: 'sparkles-outline',
-      requiredPermissions: ['listPaymentTemplates'],
-    },
-    {
-      title: 'Crear pago desde plantilla',
+      title: 'Planillas de pagos',
       route: '/shortcuts/payment_templates',
-      icon: 'flash',
+      icon: 'sparkles-outline',
       requiredPermissions: ['listPaymentTemplates', 'usePaymentTemplateShortcuts'],
     },
   ],
