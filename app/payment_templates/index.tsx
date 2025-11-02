@@ -75,7 +75,24 @@ export default function PaymentTemplatesScreen() {
     'paymentTemplates.filters.direction',
     'desc'
   );
-  const fuse = useMemo(() => new Fuse(listItems, fuseOptions), [listItems]);
+
+  const listItems = useMemo<TemplateListItem[]>(() => {
+    return paymentTemplates.map(template => ({
+      ...template,
+      displayAmount:
+        typeof template.default_amount === 'number'
+          ? `$${template.default_amount.toFixed(2)}`
+          : 'Sin monto',
+      displayUpdatedAt: getUpdatedLabel(template),
+    }));
+  }, [paymentTemplates]);
+
+  const fuse = useMemo(() => {
+    if (listItems.length === 0) {
+      return null;
+    }
+    return new Fuse(listItems, fuseOptions);
+  }, [listItems]);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -102,20 +119,10 @@ export default function PaymentTemplatesScreen() {
     }, [permissions, loadPaymentTemplates])
   );
 
-  const listItems = useMemo<TemplateListItem[]>(() => {
-    return paymentTemplates.map(template => ({
-      ...template,
-      displayAmount:
-        typeof template.default_amount === 'number'
-          ? `$${template.default_amount.toFixed(2)}`
-          : 'Sin monto',
-      displayUpdatedAt: getUpdatedLabel(template),
-    }));
-  }, [paymentTemplates]);
-
   const filteredTemplates = useMemo(() => {
-    const base = searchQuery.trim()
-      ? fuse.search(searchQuery.trim()).map(result => result.item)
+    const trimmedQuery = searchQuery.trim();
+    const base = trimmedQuery
+      ? fuse?.search(trimmedQuery).map(result => result.item) ?? listItems
       : listItems;
 
     const sorted = [...base];
