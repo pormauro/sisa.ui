@@ -122,7 +122,7 @@ export default function PaymentTemplatesScreen() {
   const filteredTemplates = useMemo(() => {
     const trimmedQuery = searchQuery.trim();
     const base = trimmedQuery
-      ? fuse?.search(trimmedQuery).map(result => result.item) ?? listItems
+      ? fuse?.search(trimmedQuery)?.map(result => result.item) ?? listItems
       : listItems;
 
     const sorted = [...base];
