@@ -51,12 +51,13 @@ export const CategoriesContext = createContext<CategoriesContextValue>({
 });
 
 export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
-  const [categories, setCategories] = useCachedState<Category[]>(
+  const [categories, setCategories, categoriesHydrated] = useCachedState<Category[]>(
     'categories',
     []
   );
   const { token } = useContext(AuthContext);
   const ensuringDefaultsRef = useRef(false);
+  const hasFetchedRef = useRef(false);
 
   const applyFetchedCategories = useCallback(
     (items: Category[]) => {
@@ -163,6 +164,7 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   const loadCategories = useCallback(async () => {
     try {
       const fetched = await fetchCategories();
+      hasFetchedRef.current = true;
       applyFetchedCategories(fetched);
       await ensureDefaultCategories(fetched);
     } catch (error) {
@@ -298,6 +300,20 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
       void loadCategories();
     }
   }, [loadCategories, token]);
+
+  useEffect(() => {
+    if (!token) {
+      hasFetchedRef.current = false;
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !categoriesHydrated || !hasFetchedRef.current || ensuringDefaultsRef.current) {
+      return;
+    }
+
+    void ensureDefaultCategories(categories);
+  }, [categories, categoriesHydrated, ensureDefaultCategories, token]);
 
   return (
     <CategoriesContext.Provider value={{ categories, loadCategories, addCategory, updateCategory, deleteCategory }}>
