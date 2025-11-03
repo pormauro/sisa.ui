@@ -27,6 +27,9 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { ShortcutIconSelector } from '@/components/ShortcutIconSelector';
+import { DEFAULT_PAYMENT_TEMPLATE_ICON } from '@/constants/paymentTemplateIcons';
+import type { IconName } from '@/constants/menuSections';
 
 const NEW_CLIENT_VALUE = '__new_client__';
 const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -82,6 +85,7 @@ export default function EditPaymentTemplateScreen() {
   const [creditorOther, setCreditorOther] = useState('');
   const [chargeClient, setChargeClient] = useState(false);
   const [chargeClientId, setChargeClientId] = useState('');
+  const [shortcutIcon, setShortcutIcon] = useState<IconName>(DEFAULT_PAYMENT_TEMPLATE_ICON);
   const [loading, setLoading] = useState(false);
 
   const canEdit = permissions.includes('updatePaymentTemplate');
@@ -113,6 +117,7 @@ export default function EditPaymentTemplateScreen() {
       setCreditorOther(existing.default_creditor_other ?? '');
       setChargeClient(Boolean(existing.default_charge_client));
       setChargeClientId(existing.default_charge_client_id?.toString() ?? '');
+      setShortcutIcon(existing.shortcut_icon_name ?? DEFAULT_PAYMENT_TEMPLATE_ICON);
       return;
     }
 
@@ -307,6 +312,7 @@ export default function EditPaymentTemplateScreen() {
       default_creditor_other: creditorType === 'other' ? creditorOther.trim() || null : null,
       default_charge_client: chargeClient,
       default_charge_client_id: chargeClient && chargeClientId ? Number(chargeClientId) : null,
+      shortcut_icon_name: shortcutIcon,
     } as const;
 
     const result = await updatePaymentTemplate(templateId, payload);
@@ -503,6 +509,9 @@ export default function EditPaymentTemplateScreen() {
             router.push(`/cash_boxes/${stringValue}`);
           }}
         />
+
+        <ThemedText style={styles.label}>Icono para acceso rápido</ThemedText>
+        <ShortcutIconSelector value={shortcutIcon} onChange={setShortcutIcon} />
 
         <ThemedText style={styles.label}>Acreedor predeterminado</ThemedText>
         <RadioGroup

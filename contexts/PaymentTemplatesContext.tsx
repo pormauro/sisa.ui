@@ -6,11 +6,15 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
+import { DEFAULT_PAYMENT_TEMPLATE_ICON } from '@/constants/paymentTemplateIcons';
+import type { IconName } from '@/constants/menuSections';
 
 export interface PaymentTemplate {
   id: number;
@@ -27,6 +31,7 @@ export interface PaymentTemplate {
   default_charge_client_id?: number | null;
   created_at?: string | null;
   updated_at?: string | null;
+  shortcut_icon_name: IconName;
 }
 
 export type PaymentTemplateInput = Omit<
@@ -54,7 +59,18 @@ type RawTemplate = Record<string, unknown> | null | undefined;
 
 const toSerializablePayload = (template: PaymentTemplateInput) => ({
   ...template,
+  shortcut_icon_name: sanitizeIconName(template.shortcut_icon_name) ?? DEFAULT_PAYMENT_TEMPLATE_ICON,
 });
+
+const sanitizeIconName = (value: unknown): IconName | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  if (value in Ionicons.glyphMap) {
+    return value as IconName;
+  }
+  return null;
+};
 
 const toNullableNumber = (value: unknown): number | null => {
   if (value === null || typeof value === 'undefined' || value === '') {
@@ -235,8 +251,15 @@ const normalizePaymentTemplate = (rawTemplate: RawTemplate): PaymentTemplate | n
     ),
     created_at: toNullableString(template.created_at),
     updated_at: toNullableString(template.updated_at),
-    // TODO(sisa.ui): El backend aún no envía campos como `icon_name` o `payment_date`
-    // para las plantillas; documentado como pendiente para mapearlos si aparecen.
+    shortcut_icon_name:
+      sanitizeIconName(
+        template.shortcut_icon_name ??
+          template.icon_name ??
+          template.shortcut_icon ??
+          template.icon ??
+          template.shortcutIcon ??
+          template.iconName
+      ) ?? DEFAULT_PAYMENT_TEMPLATE_ICON,
   };
 };
 

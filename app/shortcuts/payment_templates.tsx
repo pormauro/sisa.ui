@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo } from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 
 import {
@@ -11,6 +12,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { MenuButton } from '@/components/MenuButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { DEFAULT_PAYMENT_TEMPLATE_ICON } from '@/constants/paymentTemplateIcons';
 
 const formatAmount = (amount?: number | null): string => {
   if (typeof amount === 'number') {
@@ -70,6 +72,7 @@ const ShortcutPaymentTemplatesScreen = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const accentColor = useThemeColor({}, 'tint');
 
   const handleSelectTemplate = useCallback(
     (template: PaymentTemplate) => {
@@ -125,7 +128,7 @@ const ShortcutPaymentTemplatesScreen = () => {
     ({ item }: { item: PaymentTemplate }) => (
       <MenuButton
         title={item.name}
-        icon="sparkles-outline"
+        icon={item.shortcut_icon_name ?? DEFAULT_PAYMENT_TEMPLATE_ICON}
         subtitle={`${formatAmount(item.default_amount)} · ${getRecipientLabel(item)}`}
         onPress={() => handleSelectTemplate(item)}
       />
@@ -148,12 +151,26 @@ const ShortcutPaymentTemplatesScreen = () => {
 
   const hasItems = paymentTemplates.length > 0;
 
+  const showHelp = useCallback(() => {
+    Alert.alert(
+      '¿Cómo usar los atajos?',
+      'Elegí una planilla de pago para cargar el formulario con los valores predeterminados que guardaste previamente.',
+    );
+  }, []);
+
   return (
-    <ThemedView style={[styles.container, { backgroundColor: backgroundColor }]}> 
-      <ThemedText style={styles.title}>Planillas de pagos</ThemedText>
-      <ThemedText style={styles.description}>
-        Elegí una planilla para precargar el formulario de pagos con sus valores predeterminados.
-      </ThemedText>
+    <ThemedView style={[styles.container, { backgroundColor: backgroundColor }]}>
+      <View style={styles.headerRow}>
+        <ThemedText style={styles.title}>Planillas de pagos</ThemedText>
+        <TouchableOpacity
+          onPress={showHelp}
+          style={styles.helpButton}
+          accessibilityRole="button"
+          accessibilityLabel="Ver ayuda de atajos"
+        >
+          <Ionicons name="help-circle-outline" size={24} color={accentColor} />
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={paymentTemplates}
         keyExtractor={keyExtractor}
@@ -173,15 +190,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 24,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     marginBottom: 8,
   },
-  description: {
-    fontSize: 16,
-    opacity: 0.7,
-    marginBottom: 20,
+  helpButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   listContent: {
     paddingBottom: 40,

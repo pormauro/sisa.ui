@@ -197,6 +197,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ## Plantillas de pago (`PaymentTemplatesContext`)
 ### Modelo
 - `PaymentTemplate`: define valores predeterminados de acreedor, categoría, cuenta contable, monto y banderas para reutilizar en altas de pagos.【F:contexts/PaymentTemplatesContext.tsx†L15-L43】
+- Cada plantilla guarda `shortcut_icon_name` para elegir el ícono mostrado en los atajos de pagos, configurable desde los formularios de alta y edición.【F:contexts/PaymentTemplatesContext.tsx†L15-L43】【F:app/payment_templates/create.tsx†L33-L225】【F:app/payment_templates/[id].tsx†L28-L232】
 - El backend expone los campos `title`, `price` y `client_id`, que la app normaliza respectivamente como `name`, `default_amount` y `default_charge_client_id` para mantener compatibilidad con versiones previas.【F:contexts/PaymentTemplatesContext.tsx†L208-L234】
 
 ### Métodos del contexto
@@ -215,7 +216,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Permisos requeridos
 - `listPaymentTemplates` habilita la navegación al listado y protege la pantalla de índices.【F:app/payment_templates/index.tsx†L61-L103】
 - `addPaymentTemplate`, `updatePaymentTemplate`, `deletePaymentTemplate` controlan los formularios de creación/edición y la opción de eliminar desde listado o detalle.【F:app/payment_templates/index.tsx†L145-L187】【F:app/payment_templates/create.tsx†L71-L253】【F:app/payment_templates/[id].tsx†L85-L190】
-- `usePaymentTemplateShortcuts` activa la vista de atajos "Planillas de pagos" para crear pagos desde una plantilla y restringe el acceso a la precarga de `/payments/create`.【F:constants/menuSections.ts†L29-L37】【F:app/shortcuts/payment_templates.tsx†L1-L139】
+- `usePaymentTemplateShortcuts` activa la vista de atajos "Planillas de pagos" para crear pagos desde una plantilla y restringe el acceso a la precarga de `/payments/create`.【F:constants/menuSections.ts†L29-L37】【F:app/shortcuts/payment_templates.tsx†L1-L150】
 - La pantalla de Permisos agrupa estos sectores en el bloque "Payment Templates" para facilitar su asignación global o por usuario.【F:app/permission/PermissionScreen.tsx†L23-L52】
 
 ### Pantallas relacionadas
