@@ -251,7 +251,7 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Pago mensual actualizado\",\n  \"description\": \"Se ajusta el monto\",\n  \"default_amount\": 1250.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_SECUNDARIA\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
             },
-            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"updated_at\": \"2024-05-18T12:34:56Z\",\n    ...\n  }\n}\nSi no se incluye el objeto completo, la app toma los valores enviados en el payload y el identificador informado por la API.\nLas respuestas pueden seguir utilizando \"title\", \"price\" y \"client_id\", que se normalizan automáticamente.",
+            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"updated_at\": \"2024-05-18T12:34:56Z\",\n    ...\n  }\n}\nLa app también considera exitosas las respuestas que solo devuelven `{\"message\": \"Template updated\"}` o un `204 No Content` siempre que el servidor responda `response.ok`.\nSi no se incluye el objeto completo, la app toma los valores enviados en el payload y el identificador informado por la API.\nLas respuestas pueden seguir utilizando \"title\", \"price\" y \"client_id\", que se normalizan automáticamente.",
             "url": {
               "raw": "{{baseUrl}}/payment_templates/{{templateId}}",
               "host": [
@@ -284,7 +284,8 @@
                 "payment_templates",
                 "{{templateId}}"
               ]
-            }
+            },
+            "description": "El backend puede responder `{\"success\": true}`, `{\"message\": \"Template deleted\"}` o simplemente un `204 No Content`. Cualquier variante con `response.ok` provoca que la app refresque el listado y remueva la plantilla local."
           },
           "response": []
         }

@@ -389,11 +389,20 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
         await ensureAuthResponse(response);
         const data = (await parseJsonSafely(response)) as RawTemplate;
         const updatedTemplate = buildTemplateFromResponse(response, data, payload);
+        const message = getStringProperty(data, 'message');
+        const normalizedMessage = message ? message.trim().toLowerCase() : null;
+        const successFlag = getBooleanProperty(data, 'success') === true;
+        const matchesVerboseMessage =
+          normalizedMessage === 'payment template updated successfully' ||
+          normalizedMessage === 'template updated successfully';
+        const okWithShortMessage = response.ok && normalizedMessage === 'template updated';
+        const hasNoPayload = data === null || typeof data === 'undefined';
         const isSuccess =
-          getStringProperty(data, 'message') === 'Payment template updated successfully' ||
-          getStringProperty(data, 'message') === 'Template updated successfully' ||
-          getBooleanProperty(data, 'success') === true ||
-          Boolean(updatedTemplate);
+          successFlag ||
+          Boolean(updatedTemplate) ||
+          matchesVerboseMessage ||
+          okWithShortMessage ||
+          (response.ok && hasNoPayload);
         if (isSuccess) {
           setPaymentTemplates(prev =>
             ensureSortedByNewest(
@@ -436,10 +445,16 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
         });
         await ensureAuthResponse(response);
         const data = (await parseJsonSafely(response)) as RawTemplate;
+        const message = getStringProperty(data, 'message');
+        const normalizedMessage = message ? message.trim().toLowerCase() : null;
+        const successFlag = getBooleanProperty(data, 'success') === true;
+        const matchesVerboseMessage =
+          normalizedMessage === 'payment template deleted successfully' ||
+          normalizedMessage === 'template deleted successfully';
+        const okWithShortMessage = response.ok && normalizedMessage === 'template deleted';
+        const hasNoPayload = data === null || typeof data === 'undefined';
         const isSuccess =
-          getStringProperty(data, 'message') === 'Payment template deleted successfully' ||
-          getStringProperty(data, 'message') === 'Template deleted successfully' ||
-          getBooleanProperty(data, 'success') === true;
+          successFlag || matchesVerboseMessage || okWithShortMessage || (response.ok && hasNoPayload);
         if (isSuccess) {
           setPaymentTemplates(prev => prev.filter(templateItem => templateItem.id !== id));
           return true;
