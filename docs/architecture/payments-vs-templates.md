@@ -5,7 +5,7 @@ Este documento resume las diferencias entre los pagos operativos y las plantilla
 ## Modelos y propósito
 
 - **Pagos (`PaymentsContext`)** representan movimientos financieros efectivos. Cada registro incluye fecha, cuenta de salida, acreedor (cliente/proveedor/otro), categoría, monto, adjuntos serializados y banderas para imputar a clientes.【F:contexts/PaymentsContext.tsx†L14-L30】
-- **Plantillas de pago (`PaymentTemplatesContext`)** almacenan valores predeterminados para acelerar la captura de pagos: acreedor sugerido, categoría, cuenta contable, monto esperado y banderas de imputación al cliente.【F:contexts/PaymentTemplatesContext.tsx†L15-L37】
+- **Plantillas de pago (`PaymentTemplatesContext`)** almacenan valores predeterminados para acelerar la captura de pagos: acreedor sugerido, categoría, cuenta contable, monto esperado, icono sugerido, fecha tentativa y banderas de imputación al cliente.【F:contexts/PaymentTemplatesContext.tsx†L15-L43】
 
 Ambos contextos se inicializan con `useCachedState` para persistir datos localmente y ordenar por las entradas más recientes antes de exponerlos a la UI.【F:contexts/PaymentsContext.tsx†L48-L54】【F:contexts/PaymentTemplatesContext.tsx†L261-L269】
 

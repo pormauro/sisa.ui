@@ -41,6 +41,7 @@ type PaymentTemplatePrefillParams = {
   amount?: string | string[];
   chargeClient?: string | string[];
   chargeClientId?: string | string[];
+  paymentDate?: string | string[];
 };
 
 const toSingleParamValue = (value?: string | string[]): string | undefined => {
@@ -110,6 +111,7 @@ export default function CreatePayment() {
   const amountParam = toSingleParamValue(searchParams.amount);
   const chargeClientParam = toSingleParamValue(searchParams.chargeClient);
   const chargeClientIdParam = toSingleParamValue(searchParams.chargeClientId);
+  const paymentDateParam = toSingleParamValue(searchParams.paymentDate);
 
   const templatePrefillSignature = useMemo(() => {
     if (!fromTemplateParam && !templateIdParam) {
@@ -118,6 +120,7 @@ export default function CreatePayment() {
     return JSON.stringify({
       templateId: templateIdParam ?? '',
       paidWithAccount: paidWithAccountParam ?? null,
+      paymentDate: paymentDateParam ?? null,
       creditorType: creditorTypeParam ?? null,
       creditorClientId: creditorClientIdParam ?? null,
       creditorProviderId: creditorProviderIdParam ?? null,
@@ -136,6 +139,7 @@ export default function CreatePayment() {
     creditorOtherParam,
     creditorProviderIdParam,
     creditorTypeParam,
+    paymentDateParam,
     fromTemplateParam,
     paidWithAccountParam,
     templateIdParam,
@@ -262,6 +266,14 @@ export default function CreatePayment() {
       setChargeClientId(chargeClientIdParam);
     }
 
+    if (paymentDateParam) {
+      const normalized = paymentDateParam.replace(' ', 'T');
+      const parsedDate = new Date(normalized);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        setPaymentDate(parsedDate);
+      }
+    }
+
     setAppliedTemplateSignature(templatePrefillSignature);
   }, [
     amountParam,
@@ -273,6 +285,7 @@ export default function CreatePayment() {
     creditorOtherParam,
     creditorProviderIdParam,
     creditorTypeParam,
+    paymentDateParam,
     paidWithAccountParam,
     templatePrefillSignature,
   ]);
