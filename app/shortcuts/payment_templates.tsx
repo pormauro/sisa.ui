@@ -79,6 +79,11 @@ const ShortcutPaymentTemplatesScreen = () => {
         templateId: String(template.id),
       };
 
+      const normalizedDescription = template.description?.trim();
+      if (normalizedDescription) {
+        params.description = normalizedDescription;
+      }
+
       if (template.default_paid_with_account !== undefined && template.default_paid_with_account !== null) {
         params.paidWithAccount = String(template.default_paid_with_account);
       }

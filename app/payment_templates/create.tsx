@@ -22,8 +22,10 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { RadioGroup } from '@/components/RadioGroup';
+import IconSelector from '@/components/IconSelector';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { PAYMENT_TEMPLATE_ICON_OPTIONS } from '@/constants/paymentTemplateIconOptions';
 
 const NEW_CLIENT_VALUE = '__new_client__';
 const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -60,6 +62,7 @@ export default function CreatePaymentTemplateScreen() {
   const [creditorOther, setCreditorOther] = useState('');
   const [chargeClient, setChargeClient] = useState(false);
   const [chargeClientId, setChargeClientId] = useState('');
+  const [iconName, setIconName] = useState('');
   const [loading, setLoading] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
@@ -248,6 +251,7 @@ export default function CreatePaymentTemplateScreen() {
       default_creditor_other: creditorType === 'other' ? creditorOther.trim() || null : null,
       default_charge_client: chargeClient,
       default_charge_client_id: chargeClient && chargeClientId ? Number(chargeClientId) : null,
+      icon_name: iconName || null,
     } as const;
 
     const result = await addPaymentTemplate(payload);
@@ -352,6 +356,14 @@ export default function CreatePaymentTemplateScreen() {
           numberOfLines={4}
           value={description}
           onChangeText={setDescription}
+        />
+
+        <ThemedText style={styles.label}>Icono</ThemedText>
+        <IconSelector
+          style={styles.iconSelector}
+          options={PAYMENT_TEMPLATE_ICON_OPTIONS}
+          value={iconName || null}
+          onChange={next => setIconName(next ?? '')}
         />
 
         <ThemedText style={styles.label}>Monto predeterminado</ThemedText>
@@ -502,6 +514,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     minHeight: 100,
+  },
+  iconSelector: {
+    marginBottom: 16,
   },
   select: {
     marginBottom: 16,
