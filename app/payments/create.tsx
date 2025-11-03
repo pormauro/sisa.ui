@@ -115,6 +115,14 @@ export default function CreatePayment() {
   const paymentDateParam = toSingleParamValue(searchParams.paymentDate);
   const descriptionParam = toSingleParamValue(searchParams.description);
 
+  const templateIdNumber = useMemo(() => {
+    if (!templateIdParam) {
+      return null;
+    }
+    const parsed = Number.parseInt(String(templateIdParam), 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }, [templateIdParam]);
+
   const templatePrefillSignature = useMemo(() => {
     if (!fromTemplateParam && !templateIdParam) {
       return null;
@@ -479,6 +487,7 @@ export default function CreatePayment() {
     const newPayment = await addPayment({
       payment_date: toMySQLDateTime(paymentDate),
       paid_with_account: paidWithAccount,
+      payment_template_id: templateIdNumber,
       creditor_type: creditorType,
       creditor_client_id:
         creditorType === 'client' && creditorClientId

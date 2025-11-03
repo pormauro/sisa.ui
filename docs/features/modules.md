@@ -174,7 +174,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Métodos del contexto
 - `loadPayments()` hidrata la cache financiera.【F:contexts/PaymentsContext.tsx†L51-L72】
-- `addPayment(payment)` serializa adjuntos y recarga datos.【F:contexts/PaymentsContext.tsx†L74-L108】
+- `addPayment(payment)` serializa adjuntos, envía `payment_template_id` cuando corresponde y recarga datos.【F:contexts/PaymentsContext.tsx†L74-L108】【F:app/payments/create.tsx†L100-L208】
 - `updatePayment(id, payment)` aplica la misma normalización y vuelve a cargar.【F:contexts/PaymentsContext.tsx†L110-L148】
 - `deletePayment(id)` filtra el pago eliminado en memoria.【F:contexts/PaymentsContext.tsx†L150-L168】
 

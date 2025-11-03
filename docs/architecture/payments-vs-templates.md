@@ -32,5 +32,6 @@ Para replicar un pago a partir de una plantilla:
 
 1. Consulta el detalle desde el catálogo de plantillas y revisa montos, categoría, acreedor y banderas de imputación.【F:app/payment_templates/viewModal.tsx†L80-L139】
 2. Dirígete al módulo de pagos (`/payments`) usando el acceso directo del menú o de la sección de Atajos para cargar un nuevo pago con esos valores.【F:constants/menuSections.ts†L26-L35】【F:app/payments/create.tsx†L160-L207】
+3. Si la pantalla de pagos recibe el parámetro `templateId`, adjunta `payment_template_id` en el cuerpo enviado a `/payments` para que el backend relacione el movimiento con la plantilla utilizada.【F:app/payments/create.tsx†L100-L208】【F:contexts/PaymentsContext.tsx†L14-L108】
 
 Esta separación mantiene la base de datos sin `FOREIGN KEY` y evita operaciones automáticas hasta que el backend defina un flujo específico para instanciar pagos desde plantillas.

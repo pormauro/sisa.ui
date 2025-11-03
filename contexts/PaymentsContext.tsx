@@ -16,6 +16,7 @@ export interface Payment {
   user_id?: number;
   payment_date: string;
   paid_with_account: string;
+  payment_template_id?: number | null;
   creditor_type: 'client' | 'provider' | 'other';
   creditor_client_id?: number | null;
   creditor_provider_id?: number | null;
