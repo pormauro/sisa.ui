@@ -202,8 +202,8 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Métodos del contexto
 - `loadPaymentTemplates()` recupera las plantillas ordenadas por fecha más reciente y respeta el token Bearer activo.【F:contexts/PaymentTemplatesContext.tsx†L271-L309】
 - `addPaymentTemplate(template)` serializa el payload, invoca `POST /payment_templates` y refresca la caché local tras crear la plantilla.【F:contexts/PaymentTemplatesContext.tsx†L319-L343】
-- `updatePaymentTemplate(id, template)` envía `PUT /payment_templates/{id}`, reordena la colección y vuelve a consultar al backend cuando la respuesta es satisfactoria.【F:contexts/PaymentTemplatesContext.tsx†L357-L393】
-- `deletePaymentTemplate(id)` elimina la plantilla en el servidor con `DELETE /payment_templates/{id}` y filtra el ítem local al confirmar éxito.【F:contexts/PaymentTemplatesContext.tsx†L407-L429】
+- `updatePaymentTemplate(id, template)` envía `PUT /payment_templates/{id}`, reordena la colección y vuelve a consultar al backend cuando la respuesta es satisfactoria, incluso si el backend solo devuelve `Template updated` o un `204` sin cuerpo mientras `response.ok` sea verdadero.【F:contexts/PaymentTemplatesContext.tsx†L357-L404】
+- `deletePaymentTemplate(id)` elimina la plantilla en el servidor con `DELETE /payment_templates/{id}` y filtra el ítem local al confirmar éxito, aceptando tanto `success: true`, `Template deleted` como respuestas vacías con `response.ok`.【F:contexts/PaymentTemplatesContext.tsx†L405-L432】
 - Las respuestas de la API pueden incluir la plantilla como objeto anidado (`payment_template`, `template`) o sólo informar el identificador y un `Location` header; el contexto normaliza cualquiera de estos formatos antes de sincronizar el caché local.【F:contexts/PaymentTemplatesContext.tsx†L53-L258】
 
 ### Endpoints consumidos
