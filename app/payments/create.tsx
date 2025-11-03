@@ -41,6 +41,7 @@ type PaymentTemplatePrefillParams = {
   amount?: string | string[];
   chargeClient?: string | string[];
   chargeClientId?: string | string[];
+  description?: string | string[];
 };
 
 const toSingleParamValue = (value?: string | string[]): string | undefined => {
@@ -110,6 +111,7 @@ export default function CreatePayment() {
   const amountParam = toSingleParamValue(searchParams.amount);
   const chargeClientParam = toSingleParamValue(searchParams.chargeClient);
   const chargeClientIdParam = toSingleParamValue(searchParams.chargeClientId);
+  const descriptionParam = toSingleParamValue(searchParams.description);
 
   const templatePrefillSignature = useMemo(() => {
     if (!fromTemplateParam && !templateIdParam) {
@@ -126,6 +128,7 @@ export default function CreatePayment() {
       amount: amountParam ?? null,
       chargeClient: chargeClientParam ?? null,
       chargeClientId: chargeClientIdParam ?? null,
+      description: descriptionParam ?? null,
     });
   }, [
     amountParam,
@@ -136,6 +139,7 @@ export default function CreatePayment() {
     creditorOtherParam,
     creditorProviderIdParam,
     creditorTypeParam,
+    descriptionParam,
     fromTemplateParam,
     paidWithAccountParam,
     templateIdParam,
@@ -262,6 +266,10 @@ export default function CreatePayment() {
       setChargeClientId(chargeClientIdParam);
     }
 
+    if (descriptionParam !== undefined) {
+      setDescription(descriptionParam);
+    }
+
     setAppliedTemplateSignature(templatePrefillSignature);
   }, [
     amountParam,
@@ -273,6 +281,7 @@ export default function CreatePayment() {
     creditorOtherParam,
     creditorProviderIdParam,
     creditorTypeParam,
+    descriptionParam,
     paidWithAccountParam,
     templatePrefillSignature,
   ]);

@@ -115,6 +115,9 @@ const ShortcutPaymentTemplatesScreen = () => {
           params.chargeClientId = String(template.default_charge_client_id);
         }
       }
+      if (template.description) {
+        params.description = template.description;
+      }
 
       router.push({ pathname: '/payments/create', params });
     },
