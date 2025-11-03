@@ -25,14 +25,29 @@ export interface PaymentTemplate {
   default_creditor_other?: string | null;
   default_charge_client?: boolean;
   default_charge_client_id?: number | null;
+  icon_name?: string | null;
+  default_payment_date?: string | null;
+  attached_files?: number[];
   created_at?: string | null;
   updated_at?: string | null;
 }
 
-export type PaymentTemplateInput = Omit<
-  PaymentTemplate,
-  'id' | 'created_at' | 'updated_at'
->;
+export type PaymentTemplateInput = {
+  name: string;
+  description?: string | null;
+  default_amount?: number | null;
+  default_category_id?: number | null;
+  default_paid_with_account?: string | null;
+  default_creditor_type: 'client' | 'provider' | 'other';
+  default_creditor_client_id?: number | null;
+  default_creditor_provider_id?: number | null;
+  default_creditor_other?: string | null;
+  default_charge_client?: boolean;
+  default_charge_client_id?: number | null;
+  icon_name?: string | null;
+  default_payment_date?: string | null;
+  attached_files?: number[] | null;
+};
 
 interface PaymentTemplatesContextValue {
   paymentTemplates: PaymentTemplate[];
@@ -52,9 +67,63 @@ export const PaymentTemplatesContext = createContext<PaymentTemplatesContextValu
 
 type RawTemplate = Record<string, unknown> | null | undefined;
 
-const toSerializablePayload = (template: PaymentTemplateInput) => ({
-  ...template,
-});
+const toSerializablePayload = (template: PaymentTemplateInput) => {
+  const paidWithAccountRaw = template.default_paid_with_account ?? null;
+  const paidWithAccountNumeric = toNullableNumber(paidWithAccountRaw ?? undefined);
+  const creditorClientId = toNullableNumber(template.default_creditor_client_id);
+  const creditorProviderId = toNullableNumber(template.default_creditor_provider_id);
+  const chargeClientId = toNullableNumber(template.default_charge_client_id);
+  const amount =
+    typeof template.default_amount === 'number' ? template.default_amount : toNullableNumber(template.default_amount);
+  const payload: Record<string, unknown> = {
+    name: template.name,
+    title: template.name,
+    description: template.description ?? null,
+    default_amount: amount,
+    price: amount,
+    default_category_id: template.default_category_id ?? null,
+    category_id: template.default_category_id ?? null,
+    default_paid_with_account: paidWithAccountRaw,
+    default_creditor_type: template.default_creditor_type,
+    creditor_type: template.default_creditor_type,
+    default_creditor_client_id: creditorClientId,
+    creditor_client_id: creditorClientId,
+    default_creditor_provider_id: creditorProviderId,
+    creditor_provider_id: creditorProviderId,
+    default_creditor_other: template.default_creditor_other ?? null,
+    creditor_other: template.default_creditor_other ?? null,
+    default_charge_client: template.default_charge_client ?? false,
+    charge_client: template.default_charge_client ?? false,
+    default_charge_client_id: chargeClientId,
+    charge_client_id: chargeClientId,
+  };
+
+  if (paidWithAccountNumeric !== null) {
+    payload.paid_with_account = paidWithAccountNumeric;
+  } else if (paidWithAccountRaw !== null) {
+    payload.paid_with_account = paidWithAccountRaw;
+  }
+
+  if (typeof template.default_charge_client === 'boolean' && !template.default_charge_client) {
+    payload.charge_client_id = null;
+    payload.default_charge_client_id = null;
+  }
+
+  if (template.icon_name !== undefined) {
+    payload.icon_name = template.icon_name;
+  }
+
+  if (template.default_payment_date !== undefined) {
+    payload.default_payment_date = template.default_payment_date ?? null;
+    payload.payment_date = template.default_payment_date ?? null;
+  }
+
+  if (template.attached_files !== undefined) {
+    payload.attached_files = template.attached_files ?? null;
+  }
+
+  return payload;
+};
 
 const toNullableNumber = (value: unknown): number | null => {
   if (value === null || typeof value === 'undefined' || value === '') {
@@ -89,6 +158,34 @@ const toBoolean = (value: unknown, fallback = false): boolean => {
     }
   }
   return fallback;
+};
+
+const parseAttachedFiles = (value: unknown): number[] => {
+  if (value === null || typeof value === 'undefined') {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map(item => {
+        const parsed = toNullableNumber(item);
+        return parsed === null ? null : parsed;
+      })
+      .filter((item): item is number => item !== null);
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      return parseAttachedFiles(parsed);
+    } catch (error) {
+      console.warn('No se pudo interpretar attached_files de la plantilla de pago.', error);
+      return [];
+    }
+  }
+  return [];
 };
 
 const parseJsonSafely = async (response: Response): Promise<unknown> => {
@@ -233,10 +330,17 @@ const normalizePaymentTemplate = (rawTemplate: RawTemplate): PaymentTemplate | n
     default_charge_client_id: toNullableNumber(
       template.default_charge_client_id ?? template.charge_client_id ?? template.client_id
     ),
+    icon_name: toNullableString(template.icon_name ?? template.default_icon_name),
+    default_payment_date: toNullableString(
+      template.default_payment_date ?? template.payment_date ?? template.due_date
+    ),
+    attached_files: parseAttachedFiles(
+      (template.attached_files as unknown) ??
+        (template.default_attached_files as unknown) ??
+        (template.attachments as unknown)
+    ),
     created_at: toNullableString(template.created_at),
     updated_at: toNullableString(template.updated_at),
-    // TODO(sisa.ui): El backend aún no envía campos como `icon_name` o `payment_date`
-    // para las plantillas; documentado como pendiente para mapearlos si aparecen.
   };
 };
 

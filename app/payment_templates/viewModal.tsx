@@ -1,5 +1,6 @@
 import React, { useContext, useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { PaymentTemplatesContext } from '@/contexts/PaymentTemplatesContext';
@@ -13,6 +14,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { MenuButton } from '@/components/MenuButton';
 import { toMySQLDateTime } from '@/utils/date';
+import { resolvePaymentTemplateIcon } from '@/utils/paymentTemplateIcons';
 
 export default function ViewPaymentTemplateModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,6 +29,7 @@ export default function ViewPaymentTemplateModal() {
   const { permissions } = useContext(PermissionsContext);
 
   const background = useThemeColor({}, 'background');
+  const tintColor = useThemeColor({}, 'tint');
 
   const template = paymentTemplates.find(item => item.id === templateId);
 
@@ -69,6 +72,16 @@ export default function ViewPaymentTemplateModal() {
     ? `$${Number(template.default_amount).toFixed(2)}`
     : 'Sin monto';
 
+  const defaultPaymentDateLabel = template?.default_payment_date
+    ? (() => {
+        const parsed = new Date(template.default_payment_date.replace(' ', 'T'));
+        if (Number.isNaN(parsed.getTime())) {
+          return template.default_payment_date;
+        }
+        return toMySQLDateTime(parsed);
+      })()
+    : 'Sin fecha';
+
   if (!template) {
     return (
       <ThemedView style={[styles.container, { backgroundColor: background, alignItems: 'center', justifyContent: 'center' }]}>
@@ -81,6 +94,20 @@ export default function ViewPaymentTemplateModal() {
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
       <ThemedText style={styles.title}>{template.name}</ThemedText>
       <ThemedText style={styles.subtitle}>Última actualización: {updatedLabel || 'N/D'}</ThemedText>
+
+      <View style={styles.section}>
+        <ThemedText style={styles.label}>Icono sugerido</ThemedText>
+        <View style={styles.iconRow}>
+          <View style={[styles.iconBadge, { backgroundColor: tintColor }]}>
+            <Ionicons
+              name={resolvePaymentTemplateIcon(template.icon_name)}
+              size={20}
+              color="#fff"
+            />
+          </View>
+          <ThemedText style={styles.value}>{template.icon_name || 'Predeterminado'}</ThemedText>
+        </View>
+      </View>
 
       <View style={styles.section}>
         <ThemedText style={styles.label}>Descripción</ThemedText>
@@ -100,6 +127,11 @@ export default function ViewPaymentTemplateModal() {
       <View style={styles.section}>
         <ThemedText style={styles.label}>Cuenta</ThemedText>
         <ThemedText style={styles.value}>{cashBoxName || 'Sin cuenta'}</ThemedText>
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText style={styles.label}>Fecha predeterminada</ThemedText>
+        <ThemedText style={styles.value}>{defaultPaymentDateLabel}</ThemedText>
       </View>
 
       <View style={styles.section}>
@@ -125,6 +157,15 @@ export default function ViewPaymentTemplateModal() {
             ? clients.find(client => client.id === template.default_charge_client_id)?.business_name ||
               'Cliente sin nombre'
             : 'No'}
+        </ThemedText>
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
+        <ThemedText style={styles.value}>
+          {template.attached_files && template.attached_files.length > 0
+            ? `${template.attached_files.length} archivo(s)`
+            : 'Sin archivos'}
         </ThemedText>
       </View>
 
@@ -157,6 +198,18 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 20,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     fontSize: 15,

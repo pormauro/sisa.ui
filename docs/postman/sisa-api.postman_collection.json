@@ -218,9 +218,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Pago de proveedor mensual\",\n  \"description\": \"Plantilla base para servicios\",\n  \"default_amount\": 1200.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_PPAL\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
+              "raw": "{\n  \"title\": \"Combustible 30\",\n  \"icon_name\": \"fuel-pump\",\n  \"payment_date\": \"2025-10-30 08:21:47\",\n  \"paid_with_account\": 5,\n  \"creditor_type\": \"provider\",\n  \"creditor_provider_id\": 12,\n  \"description\": \"30 super\",\n  \"category_id\": 3,\n  \"price\": 20000,\n  \"charge_client\": false,\n  \"attached_files\": [29]\n}"
             },
-            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"name\": \"Pago de proveedor mensual\",\n    ...\n  }\n}\nEl backend también puede devolver solo {\"success\": true, \"payment_template_id\": 123} junto con el header Location, que la app interpreta automáticamente.\nCampos devueltos por el backend: \"title\" (alias de \"name\"), \"price\" (importe sugerido) y \"client_id\" (cliente a cargar).",
+            "description": "Respuesta esperada: {\n  \"message\": \"Template created\",\n  \"template_id\": 6\n}\nEl backend también puede devolver {\"success\": true, \"payment_template_id\": 123} junto con el header Location, que la app interpreta automáticamente.\nLa UI envía tanto los campos nuevos (\"title\", \"price\", \"payment_date\", \"icon_name\", \"attached_files\") como los alias históricos (\"name\", \"default_amount\", etc.) para mantener compatibilidad con versiones anteriores.",
             "url": {
               "raw": "{{baseUrl}}/payment_templates",
               "host": [
@@ -249,9 +249,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Pago mensual actualizado\",\n  \"description\": \"Se ajusta el monto\",\n  \"default_amount\": 1250.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_SECUNDARIA\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
+              "raw": "{\n  \"title\": \"Combustible 30 (ajustada)\",\n  \"icon_name\": \"fuel-pump\",\n  \"payment_date\": \"2025-11-05 09:00:00\",\n  \"paid_with_account\": 7,\n  \"creditor_type\": \"provider\",\n  \"creditor_provider_id\": 12,\n  \"description\": \"Actualización mensual\",\n  \"category_id\": 3,\n  \"price\": 21500,\n  \"charge_client\": false,\n  \"attached_files\": []\n}"
             },
-            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"updated_at\": \"2024-05-18T12:34:56Z\",\n    ...\n  }\n}\nLa app también considera exitosas las respuestas que solo devuelven `{\"message\": \"Template updated\"}` o un `204 No Content` siempre que el servidor responda `response.ok`.\nSi no se incluye el objeto completo, la app toma los valores enviados en el payload y el identificador informado por la API.\nLas respuestas pueden seguir utilizando \"title\", \"price\" y \"client_id\", que se normalizan automáticamente.",
+            "description": "Respuesta esperada: {\n  \"message\": \"Template updated\"\n}\nLa app también considera exitosas las respuestas que solo devuelven `204 No Content` siempre que el servidor responda `response.ok`.\nSi no se incluye el objeto completo, la app toma los valores enviados en el payload y el identificador informado por la API.\nEl frontend serializa también los alias históricos (\"name\", \"default_amount\", etc.) para que APIs previas sigan funcionando sin cambios.",
             "url": {
               "raw": "{{baseUrl}}/payment_templates/{{templateId}}",
               "host": [

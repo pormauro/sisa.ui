@@ -22,6 +22,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { MenuButton } from '@/components/MenuButton';
 import { useCachedState } from '@/hooks/useCachedState';
 import { toMySQLDateTime } from '@/utils/date';
+import { resolvePaymentTemplateIcon } from '@/utils/paymentTemplateIcons';
 
 type TemplateSortOption = 'updated' | 'name' | 'amount';
 
@@ -175,7 +176,7 @@ export default function PaymentTemplatesScreen() {
         <MenuButton
           title={item.name}
           subtitle={`${item.displayAmount} · Actualizada ${item.displayUpdatedAt}`}
-          icon="flame-outline"
+          icon={resolvePaymentTemplateIcon(item.icon_name)}
           onPress={() => router.push(`/payment_templates/viewModal?id=${item.id}`)}
           onLongPress={canEdit ? () => router.push(`/payment_templates/${item.id}`) : undefined}
         />

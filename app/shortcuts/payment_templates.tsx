@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { MenuButton } from '@/components/MenuButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { resolvePaymentTemplateIcon } from '@/utils/paymentTemplateIcons';
 
 const formatAmount = (amount?: number | null): string => {
   if (typeof amount === 'number') {
@@ -105,6 +106,9 @@ const ShortcutPaymentTemplatesScreen = () => {
       if (typeof template.default_amount === 'number') {
         params.amount = template.default_amount.toString();
       }
+      if (template.default_payment_date) {
+        params.paymentDate = template.default_payment_date;
+      }
       if (typeof template.default_charge_client === 'boolean') {
         params.chargeClient = template.default_charge_client ? '1' : '0';
         if (
@@ -125,7 +129,7 @@ const ShortcutPaymentTemplatesScreen = () => {
     ({ item }: { item: PaymentTemplate }) => (
       <MenuButton
         title={item.name}
-        icon="sparkles-outline"
+        icon={resolvePaymentTemplateIcon(item.icon_name)}
         subtitle={`${formatAmount(item.default_amount)} · ${getRecipientLabel(item)}`}
         onPress={() => handleSelectTemplate(item)}
       />
