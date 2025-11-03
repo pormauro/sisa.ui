@@ -95,7 +95,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"payment_date\": \"2024-07-01\",\n  \"paid_with_account\": \"CAJA_PPAL\",\n  \"creditor_type\": \"provider\",\n  \"creditor_provider_id\": 12,\n  \"description\": \"Pago de servicio\",\n  \"category_id\": 3,\n  \"price\": 1500.00,\n  \"charge_client\": false,\n  \"attached_files\": []\n}"
+              "raw": "{\n  \"payment_date\": \"2024-07-01\",\n  \"paid_with_account\": \"CAJA_PPAL\",\n  \"payment_template_id\": 6,\n  \"creditor_type\": \"provider\",\n  \"creditor_provider_id\": 12,\n  \"description\": \"Pago de servicio\",\n  \"category_id\": 3,\n  \"price\": 1500.00,\n  \"charge_client\": false,\n  \"attached_files\": []\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/payments",
