@@ -197,7 +197,8 @@
               "path": [
                 "payment_templates"
               ]
-            }
+            },
+            "description": "Devuelve la colección de plantillas. El backend utiliza \"title\" como nombre, \"price\" para el importe sugerido y \"client_id\" para el cliente a cargar; la app los normaliza al esquema interno."
           },
           "response": []
         },
@@ -219,7 +220,7 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Pago de proveedor mensual\",\n  \"description\": \"Plantilla base para servicios\",\n  \"default_amount\": 1200.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_PPAL\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
             },
-            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"name\": \"Pago de proveedor mensual\",\n    ...\n  }\n}\nEl backend también puede devolver solo {\"success\": true, \"payment_template_id\": 123} junto con el header Location, que la app interpreta automáticamente.",
+            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"name\": \"Pago de proveedor mensual\",\n    ...\n  }\n}\nEl backend también puede devolver solo {\"success\": true, \"payment_template_id\": 123} junto con el header Location, que la app interpreta automáticamente.\nCampos devueltos por el backend: \"title\" (alias de \"name\"), \"price\" (importe sugerido) y \"client_id\" (cliente a cargar).",
             "url": {
               "raw": "{{baseUrl}}/payment_templates",
               "host": [
@@ -250,7 +251,7 @@
               "mode": "raw",
               "raw": "{\n  \"name\": \"Pago mensual actualizado\",\n  \"description\": \"Se ajusta el monto\",\n  \"default_amount\": 1250.00,\n  \"default_category_id\": 3,\n  \"default_paid_with_account\": \"CAJA_SECUNDARIA\",\n  \"default_creditor_type\": \"provider\",\n  \"default_creditor_provider_id\": 12,\n  \"default_charge_client\": false\n}"
             },
-            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"updated_at\": \"2024-05-18T12:34:56Z\",\n    ...\n  }\n}\nSi no se incluye el objeto completo, la app toma los valores enviados en el payload y el identificador informado por la API.",
+            "description": "Respuesta esperada: {\n  \"success\": true,\n  \"payment_template\": {\n    \"id\": 123,\n    \"updated_at\": \"2024-05-18T12:34:56Z\",\n    ...\n  }\n}\nSi no se incluye el objeto completo, la app toma los valores enviados en el payload y el identificador informado por la API.\nLas respuestas pueden seguir utilizando \"title\", \"price\" y \"client_id\", que se normalizan automáticamente.",
             "url": {
               "raw": "{{baseUrl}}/payment_templates/{{templateId}}",
               "host": [

@@ -202,9 +202,12 @@ const normalizePaymentTemplate = (rawTemplate: RawTemplate): PaymentTemplate | n
 
   return {
     id,
-    name: typeof template.name === 'string' ? template.name : '',
+    name:
+      toNullableString(template.name) ?? toNullableString(template.title) ?? '',
     description: toNullableString(template.description),
-    default_amount: toNullableNumber(template.default_amount ?? template.amount),
+    default_amount: toNullableNumber(
+      template.default_amount ?? template.amount ?? template.price
+    ),
     default_category_id: toNullableNumber(
       template.default_category_id ?? template.category_id ?? template.categoryId
     ),
@@ -228,10 +231,12 @@ const normalizePaymentTemplate = (rawTemplate: RawTemplate): PaymentTemplate | n
       false
     ),
     default_charge_client_id: toNullableNumber(
-      template.default_charge_client_id ?? template.charge_client_id
+      template.default_charge_client_id ?? template.charge_client_id ?? template.client_id
     ),
     created_at: toNullableString(template.created_at),
     updated_at: toNullableString(template.updated_at),
+    // TODO(sisa.ui): El backend aún no envía campos como `icon_name` o `payment_date`
+    // para las plantillas; documentado como pendiente para mapearlos si aparecen.
   };
 };
 

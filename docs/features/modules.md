@@ -197,6 +197,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ## Plantillas de pago (`PaymentTemplatesContext`)
 ### Modelo
 - `PaymentTemplate`: define valores predeterminados de acreedor, categoría, cuenta contable, monto y banderas para reutilizar en altas de pagos.【F:contexts/PaymentTemplatesContext.tsx†L15-L43】
+- El backend expone los campos `title`, `price` y `client_id`, que la app normaliza respectivamente como `name`, `default_amount` y `default_charge_client_id` para mantener compatibilidad con versiones previas.【F:contexts/PaymentTemplatesContext.tsx†L208-L234】
 
 ### Métodos del contexto
 - `loadPaymentTemplates()` recupera las plantillas ordenadas por fecha más reciente y respeta el token Bearer activo.【F:contexts/PaymentTemplatesContext.tsx†L271-L309】
