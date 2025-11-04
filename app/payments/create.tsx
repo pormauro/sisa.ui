@@ -484,7 +484,7 @@ export default function CreatePayment() {
       return;
     }
     setLoading(true);
-    const newPayment = await addPayment({
+    const created = await addPayment({
       payment_date: toMySQLDateTime(paymentDate),
       paid_with_account: paidWithAccount,
       payment_template_id: templateIdNumber,
@@ -507,7 +507,7 @@ export default function CreatePayment() {
         chargeClient && chargeClientId ? parseInt(chargeClientId, 10) : null,
     });
     setLoading(false);
-    if (newPayment) {
+    if (created) {
       Alert.alert('Éxito', 'Pago creado.');
       router.back();
     } else {

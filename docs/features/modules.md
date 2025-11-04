@@ -173,16 +173,17 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `Payment`: fecha, cuenta de salida, acreedor (cliente/proveedor/otro), categoría, monto, adjuntos y banderas contables.【F:contexts/PaymentsContext.tsx†L13-L30】
 
 ### Métodos del contexto
-- `loadPayments()` hidrata la cache financiera.【F:contexts/PaymentsContext.tsx†L51-L72】
-- `addPayment(payment)` serializa adjuntos, envía `payment_template_id` cuando corresponde y recarga datos.【F:contexts/PaymentsContext.tsx†L74-L108】【F:app/payments/create.tsx†L100-L208】
-- `updatePayment(id, payment)` aplica la misma normalización y vuelve a cargar.【F:contexts/PaymentsContext.tsx†L110-L148】
-- `deletePayment(id)` filtra el pago eliminado en memoria.【F:contexts/PaymentsContext.tsx†L150-L168】
+- `loadPayments()` hidrata la cache financiera.【F:contexts/PaymentsContext.tsx†L145-L166】
+- `addPayment(payment)` serializa adjuntos, envía `payment_template_id` cuando corresponde y recarga datos.【F:contexts/PaymentsContext.tsx†L168-L213】【F:app/payments/create.tsx†L478-L515】
+- Tolera respuestas que entregan el ID del pago dentro de `payment`, `data` o únicamente a través del header `Location`, evitando bloqueos al crear pagos desde plantillas.【F:contexts/PaymentsContext.tsx†L50-L135】【F:contexts/PaymentsContext.tsx†L168-L213】
+- `updatePayment(id, payment)` aplica la misma normalización y vuelve a cargar.【F:contexts/PaymentsContext.tsx†L215-L257】
+- `deletePayment(id)` filtra el pago eliminado en memoria.【F:contexts/PaymentsContext.tsx†L260-L284】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/payments` — listado.【F:contexts/PaymentsContext.tsx†L56-L67】
-- `POST ${BASE_URL}/payments` — alta.【F:contexts/PaymentsContext.tsx†L86-L100】
-- `PUT ${BASE_URL}/payments/{id}` — actualización.【F:contexts/PaymentsContext.tsx†L122-L140】
-- `DELETE ${BASE_URL}/payments/{id}` — baja.【F:contexts/PaymentsContext.tsx†L150-L164】
+- `GET ${BASE_URL}/payments` — listado.【F:contexts/PaymentsContext.tsx†L145-L158】
+- `POST ${BASE_URL}/payments` — alta.【F:contexts/PaymentsContext.tsx†L180-L201】
+- `PUT ${BASE_URL}/payments/{id}` — actualización.【F:contexts/PaymentsContext.tsx†L227-L246】
+- `DELETE ${BASE_URL}/payments/{id}` — baja.【F:contexts/PaymentsContext.tsx†L262-L274】
 
 ### Permisos requeridos
 - `listPayments` habilita la vista general.【F:app/Home.tsx†L20-L37】【F:app/payments/index.tsx†L41-L133】

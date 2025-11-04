@@ -10,6 +10,7 @@ import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 
 export interface Payment {
   id: number;
@@ -33,7 +34,7 @@ export interface Payment {
 interface PaymentsContextValue {
   payments: Payment[];
   loadPayments: () => void;
-  addPayment: (payment: Omit<Payment, 'id'>) => Promise<Payment | null>;
+  addPayment: (payment: Omit<Payment, 'id'>) => Promise<boolean>;
   updatePayment: (id: number, payment: Omit<Payment, 'id'>) => Promise<boolean>;
   deletePayment: (id: number) => Promise<boolean>;
 }
@@ -41,10 +42,97 @@ interface PaymentsContextValue {
 export const PaymentsContext = createContext<PaymentsContextValue>({
   payments: [],
   loadPayments: () => {},
-  addPayment: async () => null,
+  addPayment: async () => false,
   updatePayment: async () => false,
   deletePayment: async () => false,
 });
+
+const parseJsonSafely = async (response: Response): Promise<unknown> => {
+  try {
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    console.warn('No se pudo interpretar la respuesta JSON del endpoint de pagos.', error);
+    return null;
+  }
+};
+
+const toNullableNumber = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const getIdFromLocationHeader = (response: Response): number | null => {
+  const location = response.headers.get('Location') ?? response.headers.get('location');
+  if (!location) {
+    return null;
+  }
+  const match = /\/(\d+)(?:\D*$|$)/.exec(location);
+  if (!match) {
+    return null;
+  }
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const extractPaymentId = (data: unknown): number | null => {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const id = extractPaymentId(item);
+      if (id !== null) {
+        return id;
+      }
+    }
+    return null;
+  }
+  const record = data as Record<string, unknown>;
+  const directKeys = ['payment_id', 'paymentId', 'id'];
+  for (const key of directKeys) {
+    if (key in record) {
+      const candidate = toNullableNumber(record[key]);
+      if (candidate !== null) {
+        return candidate;
+      }
+    }
+  }
+  const nestedKeys = ['payment', 'data', 'result'];
+  for (const nestedKey of nestedKeys) {
+    const nested = record[nestedKey];
+    const nestedId = extractPaymentId(nested);
+    if (nestedId !== null) {
+      return nestedId;
+    }
+  }
+  return null;
+};
+
+const buildPaymentFromResponse = (
+  response: Response,
+  data: unknown,
+  payload: Omit<Payment, 'id'>
+): Payment | null => {
+  const resolvedId = extractPaymentId(data) ?? getIdFromLocationHeader(response);
+  if (resolvedId === null) {
+    return null;
+  }
+  return { id: resolvedId, ...payload };
+};
 
 export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
   const [payments, setPayments] = useCachedState<Payment[]>('payments', []);
@@ -63,17 +151,22 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.payments) {
         setPayments(sortByNewest(data.payments, getDefaultSortValue));
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al cargar pagos, se solicitará uno nuevo.');
+        return;
+      }
       console.error('Error loading payments:', error);
     }
   }, [setPayments, token]);
 
   const addPayment = useCallback(
-    async (payment: Omit<Payment, 'id'>): Promise<Payment | null> => {
+    async (payment: Omit<Payment, 'id'>): Promise<boolean> => {
       try {
         const payload = {
           ...payment,
@@ -93,17 +186,28 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify(payload),
         });
-        const data = await response.json();
-        if (data.payment_id) {
-          const newPayment: Payment = { id: parseInt(data.payment_id, 10), ...payload };
+        await ensureAuthResponse(response);
+        const data = await parseJsonSafely(response);
+        const newPayment = buildPaymentFromResponse(response, data, payload);
+        if (newPayment) {
           setPayments(prev => ensureSortedByNewest([...prev, newPayment], getDefaultSortValue));
+        } else if (response.ok) {
+          console.warn(
+            'El backend confirmó la creación del pago, pero no envió un identificador explícito.'
+          );
+        }
+        if (response.ok) {
           await loadPayments();
-          return newPayment;
+          return true;
         }
       } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al agregar un pago, se solicitará uno nuevo.');
+          return false;
+        }
         console.error('Error adding payment:', error);
       }
-      return null;
+      return false;
     },
     [loadPayments, setPayments, token]
   );
@@ -129,8 +233,9 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(response);
         const data = await response.json();
-        if (data.message === 'Payment updated successfully') {
+        if (data.message === 'Payment updated successfully' || response.ok) {
           setPayments(prev =>
             ensureSortedByNewest(
               prev.map(p => (p.id === id ? { id, ...payload } : p)),
@@ -141,6 +246,10 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }
       } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al actualizar un pago, se solicitará uno nuevo.');
+          return false;
+        }
         console.error('Error updating payment:', error);
       }
       return false;
@@ -158,12 +267,17 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
-      if (data.message === 'Payment deleted successfully') {
+      if (data.message === 'Payment deleted successfully' || response.ok) {
         setPayments(prev => prev.filter(p => p.id !== id));
         return true;
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al eliminar un pago, se solicitará uno nuevo.');
+        return false;
+      }
       console.error('Error deleting payment:', error);
     }
     return false;
