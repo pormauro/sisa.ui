@@ -126,8 +126,38 @@ export default function PaymentsScreen() {
       if (!value) {
         return 0;
       }
-      const parsed = Date.parse(value.includes(' ') ? value.replace(' ', 'T') : value);
-      return Number.isFinite(parsed) ? parsed : 0;
+
+      const normalized = value.trim();
+      if (!normalized) {
+        return 0;
+      }
+
+      const isoLike = normalized.includes(' ') ? normalized.replace(' ', 'T') : normalized;
+      const parsedIso = Date.parse(isoLike);
+      if (Number.isFinite(parsedIso)) {
+        return parsedIso;
+      }
+
+      const manualMatch =
+        /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(normalized);
+      if (manualMatch) {
+        const [, year, month, day, hours = '00', minutes = '00', seconds = '00'] = manualMatch;
+        const fallbackDate = new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day),
+          Number(hours),
+          Number(minutes),
+          Number(seconds),
+        );
+        const time = fallbackDate.getTime();
+        if (Number.isFinite(time)) {
+          return time;
+        }
+      }
+
+      const numeric = Number(normalized);
+      return Number.isFinite(numeric) ? numeric : 0;
     };
 
     const getAmount = (value: number | null | undefined) =>

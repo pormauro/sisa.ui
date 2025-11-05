@@ -123,6 +123,14 @@ export default function CreatePayment() {
     return Number.isNaN(parsed) ? null : parsed;
   }, [templateIdParam]);
 
+  const cameFromShortcut = useMemo(() => {
+    const parsed = parseBooleanParam(fromTemplateParam);
+    if (parsed !== undefined) {
+      return parsed;
+    }
+    return Boolean(templateIdParam);
+  }, [fromTemplateParam, templateIdParam]);
+
   const templatePrefillSignature = useMemo(() => {
     if (!fromTemplateParam && !templateIdParam) {
       return null;
@@ -508,8 +516,20 @@ export default function CreatePayment() {
     });
     setLoading(false);
     if (created) {
-      Alert.alert('Éxito', 'Pago creado.');
-      router.back();
+      const handleSuccessNavigation = () => {
+        if (cameFromShortcut) {
+          router.replace('/payments');
+        } else {
+          router.back();
+        }
+      };
+
+      Alert.alert('Éxito', 'Pago creado.', [
+        {
+          text: 'Aceptar',
+          onPress: handleSuccessNavigation,
+        },
+      ]);
     } else {
       Alert.alert('Error', 'No se pudo crear el pago.');
     }
