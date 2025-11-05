@@ -16,7 +16,7 @@ export interface Payment {
   id: number;
   user_id?: number;
   payment_date: string;
-  paid_with_account: string;
+  paid_with_account: number | string | null;
   payment_template_id?: number | null;
   creditor_type: 'client' | 'provider' | 'other';
   creditor_client_id?: number | null;
@@ -170,6 +170,10 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const payload = {
           ...payment,
+          paid_with_account:
+            payment.paid_with_account === undefined || payment.paid_with_account === null
+              ? null
+              : toNullableNumber(payment.paid_with_account) ?? payment.paid_with_account,
           attached_files:
             typeof payment.attached_files === 'string'
               ? payment.attached_files
@@ -217,6 +221,10 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       try {
         const payload = {
           ...payment,
+          paid_with_account:
+            payment.paid_with_account === undefined || payment.paid_with_account === null
+              ? null
+              : toNullableNumber(payment.paid_with_account) ?? payment.paid_with_account,
           attached_files:
             typeof payment.attached_files === 'string'
               ? payment.attached_files
