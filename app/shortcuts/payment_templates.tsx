@@ -111,9 +111,6 @@ const ShortcutPaymentTemplatesScreen = () => {
       if (typeof template.default_amount === 'number') {
         params.amount = template.default_amount.toString();
       }
-      if (template.default_payment_date) {
-        params.paymentDate = template.default_payment_date;
-      }
       if (typeof template.default_charge_client === 'boolean') {
         params.chargeClient = template.default_charge_client ? '1' : '0';
         if (

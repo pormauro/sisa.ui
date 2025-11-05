@@ -224,7 +224,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/payment_templates/index.tsx` — catálogo con filtros, orden dinámico y acceso a modales/detalle.【F:app/payment_templates/index.tsx†L1-L206】
 - `app/payment_templates/create.tsx` — formulario de alta que reutiliza catálogos (clientes, proveedores, categorías, cajas), soporta selección diferida e incorpora un selector con buscador para elegir el `icon_name`.【F:components/IconSelector.tsx†L1-L213】【F:app/payment_templates/create.tsx†L1-L495】
 - `app/payment_templates/[id].tsx` — edición con carga de datos locales, rescate de permisos, acciones de eliminación y el mismo selector enriquecido de iconos para actualizar el `icon_name`.【F:components/IconSelector.tsx†L1-L213】【F:app/payment_templates/[id].tsx†L1-L616】
-- `app/shortcuts/payment_templates.tsx` — atajo que precarga `/payments/create` incluyendo la descripción, montos y acreedores predeterminados cuando existen en la plantilla.【F:app/shortcuts/payment_templates.tsx†L74-L146】【F:app/payments/create.tsx†L90-L231】
+- `app/shortcuts/payment_templates.tsx` — atajo que precarga `/payments/create` incluyendo la descripción, montos y acreedores predeterminados cuando existen en la plantilla, dejando que la fecha y la hora se definan al momento de la creación.【F:app/shortcuts/payment_templates.tsx†L74-L143】【F:app/payments/create.tsx†L90-L231】
 - `app/payment_templates/viewModal.tsx` — modal de lectura con accesos a edición según permisos.【F:app/payment_templates/viewModal.tsx†L1-L139】
 
 ## Recibos (`ReceiptsContext`)
