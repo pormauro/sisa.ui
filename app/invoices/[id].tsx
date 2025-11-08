@@ -1,11 +1,15 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { InvoicesContext, type Invoice, type InvoicePayload } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { JobsContext } from '@/contexts/JobsContext';
+import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { formatCurrency } from '@/utils/currency';
+import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -84,7 +88,7 @@ const getInitialState = (invoice: Invoice | undefined): InvoiceFormState => {
 
 export default function EditInvoiceScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{ id?: string; jobIds?: string | string[] }>();
   const invoiceId = useMemo(() => {
     if (!params.id) {
       return null;
@@ -96,6 +100,8 @@ export default function EditInvoiceScreen() {
 
   const { invoices, loadInvoices, updateInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { jobs, loadJobs } = useContext(JobsContext);
+  const { tariffs } = useContext(TariffsContext);
 
   const canUpdate = permissions.includes('updateInvoice');
 
@@ -104,9 +110,69 @@ export default function EditInvoiceScreen() {
     [invoiceId, invoices],
   );
 
+  const selectedJobIds = useMemo(() => new Set(parseJobIdsParam(params.jobIds)), [params.jobIds]);
+
+  const tariffAmountById = useMemo(() => {
+    const amountById = new Map<number, number>();
+    tariffs.forEach((tariff: Tariff) => {
+      amountById.set(tariff.id, tariff.amount);
+    });
+    return amountById;
+  }, [tariffs]);
+
+  const selectedJobs = useMemo(() => {
+    if (selectedJobIds.size === 0) {
+      return [];
+    }
+    return jobs.filter(job => selectedJobIds.has(job.id));
+  }, [jobs, selectedJobIds]);
+
+  const selectedJobsTotal = useMemo(() => {
+    if (selectedJobs.length === 0) {
+      return 0;
+    }
+    return selectedJobs.reduce((total, job) => {
+      const jobTotal = calculateJobTotal(job, tariffAmountById);
+      if (!Number.isFinite(jobTotal) || jobTotal <= 0) {
+        return total;
+      }
+      return total + jobTotal;
+    }, 0);
+  }, [selectedJobs, tariffAmountById]);
+
+  const formattedSelectedJobsTotal = useMemo(
+    () => formatCurrency(selectedJobsTotal),
+    [selectedJobsTotal],
+  );
+
+  const selectedJobsCount = selectedJobs.length;
+
+  const mergedJobIdsString = useMemo(() => {
+    const merged = new Set<number>();
+    if (currentInvoice) {
+      currentInvoice.job_ids.forEach(id => merged.add(id));
+    }
+    selectedJobIds.forEach(id => merged.add(id));
+    if (merged.size === 0) {
+      return '';
+    }
+    return Array.from(merged.values())
+      .sort((a, b) => a - b)
+      .map(id => id.toString())
+      .join(', ');
+  }, [currentInvoice, selectedJobIds]);
+
+  const baseInvoiceJobIdsString = useMemo(() => {
+    if (!currentInvoice) {
+      return '';
+    }
+    return currentInvoice.job_ids.join(', ');
+  }, [currentInvoice]);
+
   const [formState, setFormState] = useState<InvoiceFormState>(getInitialState(currentInvoice));
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(!currentInvoice);
+  const lastPrefillJobIds = useRef<string>('');
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -115,6 +181,8 @@ export default function EditInvoiceScreen() {
   const placeholderColor = useThemeColor({ light: '#888888', dark: '#AAAAAA' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+  const highlightBackground = useThemeColor({ light: '#F1F5F9', dark: '#1F2937' }, 'background');
+  const highlightBorder = useThemeColor({ light: '#CBD5F5', dark: '#334155' }, 'background');
 
   useEffect(() => {
     if (!canUpdate) {
@@ -122,6 +190,12 @@ export default function EditInvoiceScreen() {
       router.back();
     }
   }, [canUpdate, router]);
+
+  useEffect(() => {
+    if (selectedJobIds.size > 0) {
+      void loadJobs();
+    }
+  }, [loadJobs, selectedJobIds.size]);
 
   useEffect(() => {
     if (!invoiceId) {
@@ -144,6 +218,24 @@ export default function EditInvoiceScreen() {
       setIsLoading(false);
     }
   }, [currentInvoice]);
+
+  useEffect(() => {
+    lastPrefillJobIds.current = baseInvoiceJobIdsString;
+  }, [baseInvoiceJobIdsString]);
+
+  useEffect(() => {
+    if (!mergedJobIdsString) {
+      return;
+    }
+
+    setFormState(current => {
+      if (current.jobIds.trim().length === 0 || current.jobIds === lastPrefillJobIds.current) {
+        lastPrefillJobIds.current = mergedJobIdsString;
+        return { ...current, jobIds: mergedJobIdsString };
+      }
+      return current;
+    });
+  }, [mergedJobIdsString]);
 
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
@@ -220,6 +312,25 @@ export default function EditInvoiceScreen() {
       keyboardDismissMode="on-drag"
       contentContainerStyle={[styles.container, { backgroundColor: background }]}
     >
+      {selectedJobsCount > 0 ? (
+        <View
+          style={[
+            styles.selectionSummary,
+            { borderColor: highlightBorder, backgroundColor: highlightBackground },
+          ]}
+        >
+          <ThemedText style={styles.selectionSummaryTitle}>
+            Trabajos preseleccionados: {selectedJobsCount}
+          </ThemedText>
+          <ThemedText style={styles.selectionSummaryBody}>
+            Total estimado por trabajos: {formattedSelectedJobsTotal}
+          </ThemedText>
+          <ThemedText style={styles.selectionSummaryNote}>
+            Se agregó la selección a la lista de trabajos vinculados. Revisá y confirma antes de guardar.
+          </ThemedText>
+        </View>
+      ) : null}
+
       <ThemedText style={styles.sectionTitle}>Datos principales</ThemedText>
 
       <ThemedText style={styles.label}>Número de factura</ThemedText>
@@ -335,6 +446,26 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 120,
+  },
+  selectionSummary: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  selectionSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  selectionSummaryBody: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  selectionSummaryNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#6B7280',
   },
   sectionTitle: {
     fontSize: 18,

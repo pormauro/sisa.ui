@@ -16,6 +16,7 @@ Este documento describe cómo la aplicación Expo sincroniza el módulo de Factu
 - Al preparar payloads se vuelven a serializar los IDs y se limpian los conceptos (cantidad, precio unitario, `job_id`) para evitar inconsistencias con datos de versiones anteriores o campos opcionales.【F:contexts/InvoicesContext.tsx†L333-L395】【F:contexts/InvoicesContext.tsx†L118-L212】
 
 ## Consumo en la interfaz
+- Desde la vista "Trabajos no facturados" (`/clients/finalizedJobs`) se habilita un panel de acciones cuando el usuario cuenta con `listInvoices` y `addInvoice`. La selección de trabajos viaja como parámetro hacia `/invoices` y `/invoices/create`, lo que precarga cliente, IDs y totales calculados con `calculateJobTotal` antes de confirmar la facturación o la vinculación con comprobantes existentes.【F:app/clients/finalizedJobs.tsx†L24-L247】【F:app/invoices/create.tsx†L1-L219】【F:app/invoices/index.tsx†L1-L220】【F:app/invoices/[id].tsx†L1-L255】
 - El listado de `/invoices` usa el contexto para refrescar al hacer pull-to-refresh, validar permisos (`listInvoices`, `voidInvoice`) y mostrar acciones inmediatas de anulación.【F:app/invoices/index.tsx†L59-L209】
 - La pantalla de creación verifica `addInvoice`, transforma números de cliente y trabajos antes de llamar a `addInvoice` y redirige al listado al completar.【F:app/invoices/create.tsx†L59-L136】
 - El formulario de edición comprueba `updateInvoice`, precarga datos normalizados desde el contexto y persiste los cambios con `updateInvoice` manteniendo la navegación intacta.【F:app/invoices/[id].tsx†L85-L195】

@@ -8,14 +8,17 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoicesContext, type Invoice } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { JobsContext } from '@/contexts/JobsContext';
+import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
+import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 
 type InvoiceListItem = Invoice & {
   jobReferences: string;
@@ -57,9 +60,12 @@ const formatDate = (value?: string | null): string => {
 };
 
 export default function InvoicesScreen() {
+  const params = useLocalSearchParams<{ jobIds?: string | string[] }>();
   const router = useRouter();
   const { invoices, loadInvoices, voidInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { jobs, loadJobs } = useContext(JobsContext);
+  const { tariffs } = useContext(TariffsContext);
 
   const [refreshing, setRefreshing] = useState(false);
   const [voidingId, setVoidingId] = useState<number | null>(null);
@@ -72,11 +78,59 @@ export default function InvoicesScreen() {
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const dangerColor = useThemeColor({ light: '#ff4d4f', dark: '#ff7072' }, 'button');
+  const bannerBackground = useThemeColor({ light: '#F0F9FF', dark: '#0F172A' }, 'background');
+  const bannerBorder = useThemeColor({ light: '#BAE6FD', dark: '#1E293B' }, 'background');
 
   const canList = permissions.includes('listInvoices');
   const canCreate = permissions.includes('addInvoice');
   const canUpdate = permissions.includes('updateInvoice');
   const canVoid = permissions.includes('voidInvoice');
+
+  const selectedJobIds = useMemo(() => new Set(parseJobIdsParam(params.jobIds)), [params.jobIds]);
+
+  const tariffAmountById = useMemo(() => {
+    const amountById = new Map<number, number>();
+    tariffs.forEach((tariff: Tariff) => {
+      amountById.set(tariff.id, tariff.amount);
+    });
+    return amountById;
+  }, [tariffs]);
+
+  const selectedJobs = useMemo(() => {
+    if (selectedJobIds.size === 0) {
+      return [];
+    }
+    return jobs.filter(job => selectedJobIds.has(job.id));
+  }, [jobs, selectedJobIds]);
+
+  const selectedJobsTotal = useMemo(() => {
+    if (selectedJobs.length === 0) {
+      return 0;
+    }
+    return selectedJobs.reduce((total, job) => {
+      const jobTotal = calculateJobTotal(job, tariffAmountById);
+      if (!Number.isFinite(jobTotal) || jobTotal <= 0) {
+        return total;
+      }
+      return total + jobTotal;
+    }, 0);
+  }, [selectedJobs, tariffAmountById]);
+
+  const formattedSelectedJobsTotal = useMemo(
+    () => formatCurrency(selectedJobsTotal),
+    [selectedJobsTotal],
+  );
+
+  const selectedJobsCount = selectedJobs.length;
+
+  const formattedJobIdsParam = useMemo(() => {
+    if (selectedJobIds.size === 0) {
+      return '';
+    }
+    return Array.from(selectedJobIds.values())
+      .map(id => id.toString())
+      .join(',');
+  }, [selectedJobIds]);
 
   useEffect(() => {
     if (!canList) {
@@ -84,6 +138,12 @@ export default function InvoicesScreen() {
       router.back();
     }
   }, [canList, router]);
+
+  useEffect(() => {
+    if (selectedJobIds.size > 0) {
+      void loadJobs();
+    }
+  }, [loadJobs, selectedJobIds.size]);
 
   useFocusEffect(
     useCallback(() => {
@@ -120,17 +180,28 @@ export default function InvoicesScreen() {
   }, [invoices, tintColor]);
 
   const handleCreate = useCallback(() => {
+    if (formattedJobIdsParam) {
+      router.push({ pathname: '/invoices/create', params: { jobIds: formattedJobIdsParam } });
+      return;
+    }
     router.push('/invoices/create');
-  }, [router]);
+  }, [formattedJobIdsParam, router]);
 
   const handleEdit = useCallback(
     (invoice: Invoice) => {
       if (!canUpdate) {
         return;
       }
+      if (formattedJobIdsParam) {
+        router.push({
+          pathname: '/invoices/[id]',
+          params: { id: invoice.id.toString(), jobIds: formattedJobIdsParam },
+        });
+        return;
+      }
       router.push({ pathname: '/invoices/[id]', params: { id: invoice.id.toString() } });
     },
-    [canUpdate, router],
+    [canUpdate, formattedJobIdsParam, router],
   );
 
   const requestVoid = useCallback(
@@ -219,13 +290,39 @@ export default function InvoicesScreen() {
     </View>
   ), []);
 
+  const listHeaderComponent = useMemo(() => {
+    if (selectedJobsCount === 0) {
+      return null;
+    }
+
+    return (
+      <View
+        style={[
+          styles.selectionBanner,
+          { backgroundColor: bannerBackground, borderColor: bannerBorder },
+        ]}
+      >
+        <ThemedText style={styles.selectionBannerTitle}>
+          Trabajos seleccionados: {selectedJobsCount}
+        </ThemedText>
+        <ThemedText style={styles.selectionBannerBody}>
+          Total estimado a facturar: {formattedSelectedJobsTotal}
+        </ThemedText>
+        <ThemedText style={styles.selectionBannerNote}>
+          Abrí una factura existente para vincular los trabajos o creá una nueva con los importes sugeridos.
+        </ThemedText>
+      </View>
+    );
+  }, [bannerBackground, bannerBorder, formattedSelectedJobsTotal, selectedJobsCount]);
+
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <FlatList
         data={enrichedInvoices}
         keyExtractor={item => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={listHeaderComponent}
         ListEmptyComponent={listEmptyComponent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       />
@@ -246,6 +343,26 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 96,
+  },
+  selectionBanner: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  selectionBannerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  selectionBannerBody: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  selectionBannerNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#64748B',
   },
   card: {
     borderRadius: 16,
