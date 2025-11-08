@@ -26,6 +26,19 @@ const PERMISSION_GROUPS = [
   { group: "Cash Boxes", permissions: ['listCashBoxes', 'getCashBox', 'addCashBox', 'updateCashBox', 'deleteCashBox', 'listCashBoxHistory'] },
   { group: "Payments", permissions: ['listPayments', 'getPayment', 'addPayment', 'updatePayment', 'deletePayment', 'listPaymentHistory'] },
   {
+    group: "Invoices",
+    permissions: [
+      'listInvoices',
+      'getInvoice',
+      'addInvoice',
+      'updateInvoice',
+      'voidInvoice',
+      'issueInvoice',
+      'downloadInvoicePdf',
+      'listInvoiceHistory',
+    ],
+  },
+  {
     group: "Payment Templates",
     permissions: [
       'listPaymentTemplates',
