@@ -290,6 +290,221 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Facturación",
+      "description": "Endpoints para gestionar facturas y conceptos individuales con token Bearer obligatorio.",
+      "item": [
+        {
+          "name": "Listar facturas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices"
+              ]
+            },
+            "description": "Devuelve la lista paginada de facturas incluyendo conceptos e importes calculados cuando están disponibles."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear factura con conceptos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_number\": \"A-0001-00004567\",\n  \"client_id\": 120,\n  \"job_ids\": [\n    45,\n    46\n  ],\n  \"issue_date\": \"2024-05-10\",\n  \"currency\": \"ARS\",\n  \"concepts\": [\n    {\n      \"concept_code\": \"SERV-001\",\n      \"description\": \"Guardia técnica\",\n      \"quantity\": 8,\n      \"unit_price\": 5500,\n      \"job_id\": 45\n    },\n    {\n      \"concept_code\": \"SERV-002\",\n      \"description\": \"Mantenimiento preventivo\",\n      \"quantity\": 1,\n      \"unit_price\": 18000,\n      \"job_id\": 46\n    }\n  ],\n  \"metadata\": {\n    \"notes\": \"Generada desde app móvil\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices"
+              ]
+            },
+            "description": "Crea una factura en estado borrador enviando los conceptos normalizados."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar factura y conceptos",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_number\": \"A-0001-00004567\",\n  \"status\": \"draft\",\n  \"concepts\": [\n    {\n      \"id\": 9,\n      \"concept_code\": \"SERV-001\",\n      \"description\": \"Guardia técnica\",\n      \"quantity\": 6,\n      \"unit_price\": 5500,\n      \"job_id\": 45\n    },\n    {\n      \"concept_code\": \"AJUSTE\",\n      \"description\": \"Ajuste manual\",\n      \"quantity\": 1,\n      \"unit_price\": 2500\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}"
+              ]
+            },
+            "description": "Actualiza encabezado y lista completa de conceptos de la factura indicada."
+          },
+          "response": []
+        },
+        {
+          "name": "Agregar concepto a factura",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"concept_code\": \"SERV-003\",\n  \"description\": \"Horas extra\",\n  \"quantity\": 4,\n  \"unit_price\": 4500,\n  \"job_id\": 47\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "items"
+              ]
+            },
+            "description": "Agrega un concepto puntual sin reenviar la factura completa."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar concepto de factura",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Horas extra nocturnas\",\n  \"quantity\": 5,\n  \"unit_price\": 4700\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/items/{{invoiceItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "items",
+                "{{invoiceItemId}}"
+              ]
+            },
+            "description": "Modifica un concepto existente utilizando el identificador del ítem."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar concepto de factura",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/items/{{invoiceItemId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "items",
+                "{{invoiceItemId}}"
+              ]
+            },
+            "description": "Elimina el concepto indicado dejando registro en el historial de la factura."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -307,6 +522,14 @@
     },
     {
       "key": "templateId",
+      "value": "1"
+    },
+    {
+      "key": "invoiceId",
+      "value": "1"
+    },
+    {
+      "key": "invoiceItemId",
       "value": "1"
     }
   ]
