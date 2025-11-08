@@ -180,12 +180,15 @@ export default function InvoicesScreen() {
   }, [invoices, tintColor]);
 
   const handleCreate = useCallback(() => {
+    if (!canCreate) {
+      return;
+    }
     if (formattedJobIdsParam) {
       router.push({ pathname: '/invoices/create', params: { jobIds: formattedJobIdsParam } });
       return;
     }
     router.push('/invoices/create');
-  }, [formattedJobIdsParam, router]);
+  }, [canCreate, formattedJobIdsParam, router]);
 
   const handleEdit = useCallback(
     (invoice: Invoice) => {

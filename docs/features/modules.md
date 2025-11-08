@@ -232,6 +232,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Integración en la app móvil: [docs/features/invoices-context.md](./invoices-context.md).
 - Endpoints protegidos: requieren `Authorization: Bearer <token>` en todas las llamadas posteriores al login, en sintonía con las [notas de integración](#notas-de-integración-con-el-backend).
 - Relaciones con clientes, trabajos o cobros se resuelven por identificadores sin claves foráneas en `sisa.api`, manteniendo la convención global del backend.
+- El menú "Gestión financiera" muestra la opción "Facturas" únicamente cuando el perfil cuenta con `listInvoices`, enlazando al listado principal del módulo.【F:constants/menuSections.ts†L44-L52】
 - Permisos esperados (`listInvoices`, `addInvoice`, `updateInvoice`, `voidInvoice`, `downloadInvoicePdf`) deben registrarse en la pantalla de permisos al habilitar nuevas secciones vinculadas al módulo.
 - El historial expuesto por `/invoices/{id}/history` y `/invoices/history` soporta auditorías financieras y debe incluirse en la colección de Postman cuando se actualicen flujos.
 

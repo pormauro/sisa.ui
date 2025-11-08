@@ -242,6 +242,10 @@ export default function EditInvoiceScreen() {
   };
 
   const handleSubmit = useCallback(async () => {
+    if (!canUpdate) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para editar facturas.');
+      return;
+    }
     if (!invoiceId) {
       Alert.alert('Error', 'No se reconoce el comprobante a actualizar.');
       return;
@@ -427,17 +431,19 @@ export default function EditInvoiceScreen() {
         numberOfLines={5}
       />
 
-      <TouchableOpacity
-        style={[styles.submitButton, { backgroundColor: buttonColor }]}
-        onPress={handleSubmit}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color={buttonTextColor} />
-        ) : (
-          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Guardar cambios</ThemedText>
-        )}
-      </TouchableOpacity>
+      {canUpdate ? (
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Guardar cambios</ThemedText>
+          )}
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 }
