@@ -23,110 +23,17 @@ import { isStatusFinalized } from '@/hooks/useClientFinalizedJobTotals';
 import { sortByNewest } from '@/utils/sort';
 import { formatCurrency } from '@/utils/currency';
 import { formatTimeInterval } from '@/utils/time';
+import {
+  calculateJobTotal,
+  calculateJobsTotal,
+  formatJobIdsParam,
+} from '@/utils/jobTotals';
 
 type Params = {
   id?: string;
 };
 
 const FINALIZED_STATUS_ID = 6;
-
-const normalizeTimeValue = (value?: string | null): string | null => {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  let trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  const separators = [' ', 'T'];
-  separators.forEach(separator => {
-    if (trimmed.includes(separator)) {
-      const parts = trimmed.split(separator);
-      trimmed = parts[parts.length - 1] ?? trimmed;
-    }
-  });
-
-  trimmed = trimmed.replace(/[zZ]$/, '');
-  const timezoneIndex = trimmed.search(/[+-]/);
-  if (timezoneIndex > 0) {
-    trimmed = trimmed.slice(0, timezoneIndex);
-  }
-
-  const timeSegments = trimmed.split(':').filter(Boolean);
-  if (timeSegments.length === 0) {
-    return null;
-  }
-
-  const [hours = '00', minutes = '00', secondsWithFraction = '00'] = timeSegments;
-  const [seconds = '00'] = secondsWithFraction.split('.');
-  const normalizedHours = hours.padStart(2, '0');
-  const normalizedMinutes = minutes.padStart(2, '0');
-  const normalizedSeconds = seconds.padStart(2, '0');
-
-  return `${normalizedHours}:${normalizedMinutes}:${normalizedSeconds}`;
-};
-
-const getJobDurationHours = (job: Job): number => {
-  const start = normalizeTimeValue(job.start_time);
-  const end = normalizeTimeValue(job.end_time);
-
-  if (!start || !end) {
-    return 0;
-  }
-
-  const startDate = new Date(`1970-01-01T${start}`);
-  const endDate = new Date(`1970-01-01T${end}`);
-
-  if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime())) {
-    return 0;
-  }
-
-  const diffMs = endDate.getTime() - startDate.getTime();
-  if (diffMs <= 0) {
-    return 0;
-  }
-
-  return diffMs / (1000 * 60 * 60);
-};
-
-const getJobHourlyRate = (job: Job, tariffAmountById: Map<number, number>): number => {
-  const manualAmount = job.manual_amount;
-  if (typeof manualAmount === 'number' && Number.isFinite(manualAmount)) {
-    return manualAmount;
-  }
-
-  if (typeof manualAmount === 'string') {
-    const parsedManual = Number(manualAmount.trim());
-    if (Number.isFinite(parsedManual)) {
-      return parsedManual;
-    }
-  }
-
-  if (job.tariff_id != null) {
-    const tariffAmount = tariffAmountById.get(job.tariff_id);
-    if (typeof tariffAmount === 'number' && Number.isFinite(tariffAmount)) {
-      return tariffAmount;
-    }
-  }
-
-  return 0;
-};
-
-const calculateJobTotal = (job: Job, tariffAmountById: Map<number, number>): number => {
-  const durationHours = getJobDurationHours(job);
-  if (!Number.isFinite(durationHours) || durationHours <= 0) {
-    return 0;
-  }
-
-  const hourlyRate = getJobHourlyRate(job, tariffAmountById);
-  if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
-    return 0;
-  }
-
-  return durationHours * hourlyRate;
-};
 
 const getStatusById = (statuses: Status[]) => {
   const map = new Map<number, Status>();
@@ -288,24 +195,43 @@ export default function ClientFinalizedJobsScreen() {
     return amountById;
   }, [tariffs]);
 
-  const selectedTotal = useMemo(() => {
-    if (selectedJobIds.size === 0) {
-      return 0;
+  const selectedJobIdsList = useMemo(() => Array.from(selectedJobIds.values()), [selectedJobIds]);
+
+  const selectedTotal = useMemo(
+    () => calculateJobsTotal(finalizedJobs, selectedJobIds, tariffAmountById),
+    [finalizedJobs, selectedJobIds, tariffAmountById],
+  );
+
+  const jobIdsParam = useMemo(() => formatJobIdsParam(selectedJobIdsList), [selectedJobIdsList]);
+  const clientIdParam = useMemo(
+    () => (isValidClientId ? clientId.toString() : undefined),
+    [clientId, isValidClientId],
+  );
+
+  const showInvoiceActions =
+    selectedCount > 0 &&
+    Boolean(clientIdParam) &&
+    permissions.includes('listInvoices') &&
+    permissions.includes('addInvoice');
+
+  const handleCreateInvoice = useCallback(() => {
+    if (!showInvoiceActions || !jobIdsParam) {
+      return;
     }
 
-    return finalizedJobs.reduce((total, job) => {
-      if (!selectedJobIds.has(job.id)) {
-        return total;
-      }
+    router.push({
+      pathname: '/invoices/create',
+      params: { jobIds: jobIdsParam, clientId: clientIdParam as string },
+    });
+  }, [clientIdParam, jobIdsParam, router, showInvoiceActions]);
 
-      const jobTotal = calculateJobTotal(job, tariffAmountById);
-      if (!Number.isFinite(jobTotal) || jobTotal <= 0) {
-        return total;
-      }
+  const handleLinkExistingInvoice = useCallback(() => {
+    if (!showInvoiceActions || !jobIdsParam) {
+      return;
+    }
 
-      return total + jobTotal;
-    }, 0);
-  }, [finalizedJobs, selectedJobIds, tariffAmountById]);
+    router.push({ pathname: '/invoices', params: { jobIds: jobIdsParam } });
+  }, [jobIdsParam, router, showInvoiceActions]);
 
   const renderItem = ({ item }: { item: Job }) => {
     const status = item.status_id != null ? statusById.get(item.status_id) : undefined;
@@ -421,6 +347,31 @@ export default function ClientFinalizedJobsScreen() {
           </View>
         </View>
       ) : null}
+      {showInvoiceActions ? (
+        <View style={[styles.invoiceActionsContainer, { backgroundColor: cardBackground, borderColor }]}> 
+          <ThemedText style={styles.invoiceActionsTitle}>Acciones con trabajos seleccionados</ThemedText>
+          <View style={styles.invoiceActionsButtons}>
+            <TouchableOpacity
+              style={[styles.invoiceActionButton, { backgroundColor: selectionAccent }]}
+              onPress={handleCreateInvoice}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={styles.invoiceActionIcon} />
+              <ThemedText style={styles.invoiceActionText} lightColor="#FFFFFF" darkColor="#FFFFFF">
+                Crear factura
+              </ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.invoiceActionButtonOutline, { borderColor: selectionAccent }]}
+              onPress={handleLinkExistingInvoice}
+            >
+              <Ionicons name="link-outline" size={20} color={selectionAccent} style={styles.invoiceActionIcon} />
+              <ThemedText style={[styles.invoiceActionOutlineText, { color: selectionAccent }]}>
+                Vincular trabajos existentes
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
       <FlatList
         data={finalizedJobs}
         keyExtractor={item => item.id.toString()}
@@ -444,7 +395,7 @@ export default function ClientFinalizedJobsScreen() {
                 Total seleccionado: {formatCurrency(selectedTotal)}
               </ThemedText>
               <ThemedText style={[styles.footerNote, { color: metricLabelColor }]}>
-                Selecciona trabajos para consultar el total y registra la facturación manualmente en el sistema.
+                Selecciona trabajos para consultar el total y usá las acciones para iniciar la facturación.
               </ThemedText>
             </View>
           ) : null
@@ -592,6 +543,54 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: 'center',
     marginHorizontal: 12,
+  },
+  invoiceActionsContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  invoiceActionsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  invoiceActionsButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  invoiceActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flex: 1,
+  },
+  invoiceActionButtonOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    flex: 1,
+    marginLeft: 12,
+  },
+  invoiceActionIcon: {
+    marginRight: 8,
+  },
+  invoiceActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  invoiceActionOutlineText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
 
