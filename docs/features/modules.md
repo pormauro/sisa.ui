@@ -227,6 +227,13 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/shortcuts/payment_templates.tsx` — atajo que precarga `/payments/create` incluyendo la descripción, montos y acreedores predeterminados cuando existen en la plantilla, dejando que la fecha y la hora se definan al momento de la creación.【F:app/shortcuts/payment_templates.tsx†L74-L143】【F:app/payments/create.tsx†L90-L231】
 - `app/payment_templates/viewModal.tsx` — modal de lectura con accesos a edición según permisos.【F:app/payment_templates/viewModal.tsx†L1-L139】
 
+## Facturación (Invoices API)
+- Documentación completa: [docs/features/invoices-api.md](./invoices-api.md).
+- Endpoints protegidos: requieren `Authorization: Bearer <token>` en todas las llamadas posteriores al login, en sintonía con las [notas de integración](#notas-de-integración-con-el-backend).
+- Relaciones con clientes, trabajos o cobros se resuelven por identificadores sin claves foráneas en `sisa.api`, manteniendo la convención global del backend.
+- Permisos esperados (`listInvoices`, `addInvoice`, `updateInvoice`, `voidInvoice`, `downloadInvoicePdf`) deben registrarse en la pantalla de permisos al habilitar nuevas secciones vinculadas al módulo.
+- El historial expuesto por `/invoices/{id}/history` y `/invoices/history` soporta auditorías financieras y debe incluirse en la colección de Postman cuando se actualicen flujos.
+
 ## Recibos (`ReceiptsContext`)
 ### Modelo
 - `Receipt`: fecha, cuenta de ingreso, pagador, categoría, monto, adjuntos y bandera de pago a proveedor.【F:contexts/ReceiptsContext.tsx†L13-L28】
