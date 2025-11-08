@@ -227,6 +227,10 @@ export default function CreateInvoiceScreen() {
   };
 
   const handleSubmit = async () => {
+    if (!canCreate) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para crear facturas.');
+      return;
+    }
     if (!isValid) {
       Alert.alert('Datos incompletos', 'Completá al menos el número y el cliente.');
       return;
@@ -377,17 +381,19 @@ export default function CreateInvoiceScreen() {
         numberOfLines={5}
       />
 
-      <TouchableOpacity
-        style={[styles.submitButton, { backgroundColor: buttonColor }]}
-        onPress={handleSubmit}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color={buttonTextColor} />
-        ) : (
-          <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear factura</ThemedText>
-        )}
-      </TouchableOpacity>
+      {canCreate ? (
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          onPress={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear factura</ThemedText>
+          )}
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 }
