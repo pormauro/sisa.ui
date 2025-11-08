@@ -17,6 +17,13 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
+import {
+  InvoiceItemFormValue,
+  calculateInvoiceItemsTotal,
+  createInvoiceItemsFromJobs,
+  hasInvoiceItemData,
+  prepareInvoiceConceptPayloads,
+} from '@/utils/invoiceItems';
 
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -24,7 +31,6 @@ interface InvoiceFormState {
   jobIds: string;
   issueDate: string;
   dueDate: string;
-  totalAmount: string;
   currency: string;
   notes: string;
 }
@@ -35,7 +41,6 @@ const DEFAULT_FORM_STATE: InvoiceFormState = {
   jobIds: '',
   issueDate: '',
   dueDate: '',
-  totalAmount: '',
   currency: 'ARS',
   notes: '',
 };
@@ -52,15 +57,6 @@ const parseJobIdsInput = (value: string): number[] => {
     .filter(item => Number.isFinite(item));
 };
 
-const parseAmountInput = (value: string): number | null => {
-  if (!value.trim()) {
-    return null;
-  }
-  const normalized = value.replace(/\./g, '').replace(',', '.');
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 export default function CreateInvoiceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ jobIds?: string | string[]; clientId?: string | string[] }>();
@@ -70,12 +66,13 @@ export default function CreateInvoiceScreen() {
   const { tariffs } = useContext(TariffsContext);
 
   const [formState, setFormState] = useState<InvoiceFormState>(DEFAULT_FORM_STATE);
+  const [items, setItems] = useState<InvoiceItemFormValue[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const lastPrefill = useRef<{ jobIds: string; clientId: string; totalAmount: string }>({
+  const lastPrefill = useRef<{ jobIds: string; clientId: string }>({
     jobIds: '',
     clientId: '',
-    totalAmount: '',
   });
+  const itemsTouchedManually = useRef(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -125,6 +122,9 @@ export default function CreateInvoiceScreen() {
   );
 
   const selectedJobsCount = selectedJobs.length;
+
+  const itemsTotal = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
+  const formattedItemsTotal = useMemo(() => formatCurrency(itemsTotal), [itemsTotal]);
 
   const clientIdFromParams = useMemo(() => {
     const raw = params.clientId;
@@ -197,20 +197,23 @@ export default function CreateInvoiceScreen() {
         didUpdate = true;
       }
 
-      if (
-        selectedJobsTotal > 0 &&
-        (current.totalAmount.trim().length === 0 || current.totalAmount === lastPrefill.current.totalAmount)
-      ) {
-        const totalString = selectedJobsTotal.toFixed(2);
-        nextState = nextState === current ? { ...nextState } : nextState;
-        nextState.totalAmount = totalString;
-        lastPrefill.current.totalAmount = totalString;
-        didUpdate = true;
-      }
-
       return didUpdate ? nextState : current;
     });
-  }, [derivedClientId, formattedJobIds, selectedJobsTotal]);
+  }, [derivedClientId, formattedJobIds]);
+
+  useEffect(() => {
+    if (selectedJobsCount === 0) {
+      if (!itemsTouchedManually.current) {
+        setItems([]);
+      }
+      return;
+    }
+
+    if (items.length === 0 && !itemsTouchedManually.current) {
+      const generated = createInvoiceItemsFromJobs(selectedJobs, tariffAmountById);
+      setItems(generated);
+    }
+  }, [items.length, selectedJobs, selectedJobsCount, tariffAmountById]);
 
   const isValid = useMemo(() => {
     if (!formState.invoiceNumber.trim()) {
@@ -219,11 +222,46 @@ export default function CreateInvoiceScreen() {
     if (!formState.clientId.trim()) {
       return false;
     }
+    if (!items.some(item => hasInvoiceItemData(item))) {
+      return false;
+    }
     return true;
-  }, [formState.clientId, formState.invoiceNumber]);
+  }, [formState.clientId, formState.invoiceNumber, items]);
 
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
+  };
+
+  const handleItemChange = (index: number, key: keyof InvoiceItemFormValue) => (value: string) => {
+    itemsTouchedManually.current = true;
+    setItems(current => {
+      const next = [...current];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
+  const handleAddItem = () => {
+    itemsTouchedManually.current = true;
+    setItems(current => [
+      ...current,
+      { conceptCode: '', description: '', quantity: '1', unitPrice: '', jobId: '' },
+    ]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    itemsTouchedManually.current = true;
+    setItems(current => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const handleGenerateItemsFromJobs = () => {
+    if (selectedJobsCount === 0) {
+      Alert.alert('Sin trabajos seleccionados', 'Seleccioná trabajos para generar conceptos.');
+      return;
+    }
+    const generated = createInvoiceItemsFromJobs(selectedJobs, tariffAmountById);
+    setItems(generated);
+    itemsTouchedManually.current = false;
   };
 
   const handleSubmit = async () => {
@@ -232,13 +270,25 @@ export default function CreateInvoiceScreen() {
       return;
     }
     if (!isValid) {
-      Alert.alert('Datos incompletos', 'Completá al menos el número y el cliente.');
+      Alert.alert(
+        'Datos incompletos',
+        'Completá el número, el cliente y al menos un concepto con cantidad y precio.',
+      );
       return;
     }
 
     const clientId = Number(formState.clientId.trim());
     if (!Number.isFinite(clientId)) {
       Alert.alert('Cliente inválido', 'Ingresá un identificador numérico de cliente.');
+      return;
+    }
+
+    const concepts = prepareInvoiceConceptPayloads(items);
+    if (concepts.length === 0) {
+      Alert.alert(
+        'Conceptos incompletos',
+        'Agregá al menos un concepto con cantidad y precio para generar la factura.',
+      );
       return;
     }
 
@@ -250,9 +300,10 @@ export default function CreateInvoiceScreen() {
       job_ids: parseJobIdsInput(formState.jobIds),
       issue_date: formState.issueDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
-      total_amount: parseAmountInput(formState.totalAmount),
+      total_amount: itemsTotal || null,
       currency: formState.currency.trim() || null,
       status: 'draft',
+      concepts,
     };
 
     if (formState.notes.trim()) {
@@ -290,7 +341,7 @@ export default function CreateInvoiceScreen() {
             Total estimado por trabajos: {formattedSelectedJobsTotal}
           </ThemedText>
           <ThemedText style={styles.selectionSummaryNote}>
-            Los campos de trabajos, cliente e importe se completaron automáticamente según tu selección.
+            Los campos de trabajos, cliente y conceptos iniciales se completaron automáticamente según tu selección.
           </ThemedText>
         </View>
       ) : null}
@@ -349,16 +400,6 @@ export default function CreateInvoiceScreen() {
         autoCapitalize="none"
       />
 
-      <ThemedText style={styles.label}>Importe total</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="Ej: 15400,50"
-        placeholderTextColor={placeholderColor}
-        value={formState.totalAmount}
-        onChangeText={handleChange('totalAmount')}
-        keyboardType="decimal-pad"
-      />
-
       <ThemedText style={styles.label}>Moneda</ThemedText>
       <TextInput
         style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
@@ -369,6 +410,102 @@ export default function CreateInvoiceScreen() {
         autoCapitalize="characters"
         maxLength={5}
       />
+
+      <View style={styles.sectionHeader}>
+        <ThemedText style={styles.sectionTitle}>Conceptos facturados</ThemedText>
+        <View style={styles.sectionActions}>
+          <TouchableOpacity style={[styles.sectionActionButton, { backgroundColor: buttonColor }]} onPress={handleAddItem}>
+            <ThemedText style={[styles.sectionActionText, { color: buttonTextColor }]}>Agregar concepto</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sectionActionButtonSecondary, { borderColor: buttonColor }]}
+            onPress={handleGenerateItemsFromJobs}
+          >
+            <ThemedText style={[styles.sectionActionSecondaryText, { color: buttonColor }]}>Desde trabajos</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {items.length === 0 ? (
+        <View style={[styles.emptyItems, { borderColor }]}
+        >
+          <ThemedText style={styles.emptyItemsText}>
+            Añadí conceptos manualmente o generálos desde los trabajos seleccionados.
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {items.map((item, index) => (
+        <View key={`invoice-item-${index}`} style={[styles.itemContainer, { borderColor }]}
+        >
+          <View style={styles.itemHeader}>
+            <ThemedText style={styles.itemTitle}>Concepto #{index + 1}</ThemedText>
+            <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+              <ThemedText style={styles.removeItemText}>Quitar</ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <ThemedText style={styles.label}>Código (opcional)</ThemedText>
+          <TextInput
+            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Ej: SERV-001"
+            placeholderTextColor={placeholderColor}
+            value={item.conceptCode}
+            onChangeText={handleItemChange(index, 'conceptCode')}
+            autoCapitalize="characters"
+          />
+
+          <ThemedText style={styles.label}>Descripción</ThemedText>
+          <TextInput
+            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Detalle del servicio"
+            placeholderTextColor={placeholderColor}
+            value={item.description}
+            onChangeText={handleItemChange(index, 'description')}
+          />
+
+          <View style={styles.itemRow}>
+            <View style={styles.itemColumn}>
+              <ThemedText style={styles.label}>Cantidad</ThemedText>
+              <TextInput
+                style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                placeholder="Ej: 1"
+                placeholderTextColor={placeholderColor}
+                value={item.quantity}
+                onChangeText={handleItemChange(index, 'quantity')}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.itemColumn}>
+              <ThemedText style={styles.label}>Precio unitario</ThemedText>
+              <TextInput
+                style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                placeholder="Ej: 1500"
+                placeholderTextColor={placeholderColor}
+                value={item.unitPrice}
+                onChangeText={handleItemChange(index, 'unitPrice')}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+
+          <ThemedText style={styles.label}>Trabajo vinculado (ID opcional)</ThemedText>
+          <TextInput
+            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Ej: 42"
+            placeholderTextColor={placeholderColor}
+            value={item.jobId}
+            onChangeText={handleItemChange(index, 'jobId')}
+            keyboardType="numeric"
+          />
+        </View>
+      ))}
+
+      <View style={[styles.itemsTotalContainer, { borderColor }]}
+      >
+        <ThemedText style={styles.itemsTotalLabel}>Total calculado por conceptos</ThemedText>
+        <ThemedText style={styles.itemsTotalValue}>{formattedItemsTotal}</ThemedText>
+      </View>
 
       <ThemedText style={styles.sectionTitle}>Notas internas</ThemedText>
       <TextInput
@@ -400,56 +537,131 @@ export default function CreateInvoiceScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 120,
+    padding: 16,
+    gap: 16,
   },
   selectionSummary: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    gap: 6,
   },
   selectionSummaryTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontWeight: '600',
   },
   selectionSummaryBody: {
     fontSize: 14,
-    marginBottom: 8,
   },
   selectionSummaryNote: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
     color: '#6B7280',
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: '700',
   },
   label: {
     fontSize: 14,
-    marginTop: 16,
-    marginBottom: 6,
+    fontWeight: '500',
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
   },
   textarea: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: 8,
+    padding: 12,
     minHeight: 120,
     textAlignVertical: 'top',
   },
+  sectionHeader: {
+    marginTop: 8,
+    gap: 12,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  sectionActionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  sectionActionText: {
+    fontWeight: '600',
+  },
+  sectionActionButtonSecondary: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sectionActionSecondaryText: {
+    fontWeight: '600',
+  },
+  emptyItems: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 16,
+  },
+  emptyItemsText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  itemContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  removeItemText: {
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+  itemInput: {
+    marginTop: 4,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  itemColumn: {
+    flex: 1,
+  },
+  itemsTotalContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemsTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  itemsTotalValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
   submitButton: {
-    marginTop: 32,
-    paddingVertical: 16,
+    marginTop: 8,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },

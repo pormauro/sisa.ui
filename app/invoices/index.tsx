@@ -26,6 +26,7 @@ type InvoiceListItem = Invoice & {
   formattedIssueDate: string;
   statusLabel: string;
   statusColor: string;
+  conceptsLabel: string;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -168,6 +169,8 @@ export default function InvoicesScreen() {
         total !== null && Number.isFinite(total) ? formatCurrency(total) : 'Importe no disponible';
       const statusLabel = STATUS_LABELS[invoice.status] ?? invoice.status ?? 'Sin estado';
       const statusColor = resolveStatusColor(invoice.status ?? 'draft', tintColor);
+      const conceptsCount = Array.isArray(invoice.concepts) ? invoice.concepts.length : 0;
+      const conceptsLabel = conceptsCount > 0 ? `${conceptsCount} concepto${conceptsCount === 1 ? '' : 's'}` : 'Sin conceptos';
       return {
         ...invoice,
         jobReferences,
@@ -175,6 +178,7 @@ export default function InvoicesScreen() {
         formattedIssueDate: formatDate(invoice.issue_date ?? invoice.created_at ?? null),
         statusLabel,
         statusColor,
+        conceptsLabel,
       };
     });
   }, [invoices, tintColor]);
@@ -263,6 +267,9 @@ export default function InvoicesScreen() {
 
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Trabajos vinculados</ThemedText>
           <ThemedText style={styles.cardValue}>{item.jobReferences}</ThemedText>
+
+          <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Conceptos</ThemedText>
+          <ThemedText style={styles.cardValue}>{item.conceptsLabel}</ThemedText>
 
           {canVoid && item.status.toLowerCase() !== 'void' && (
             <TouchableOpacity

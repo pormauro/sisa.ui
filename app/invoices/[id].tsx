@@ -10,6 +10,14 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
+import {
+  InvoiceItemFormValue,
+  calculateInvoiceItemsTotal,
+  createInvoiceItemsFromJobs,
+  mapInvoiceConceptToFormValue,
+  mergeInvoiceItemsWithJobs,
+  prepareInvoiceConceptPayloads,
+} from '@/utils/invoiceItems';
 
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -17,20 +25,10 @@ interface InvoiceFormState {
   jobIds: string;
   issueDate: string;
   dueDate: string;
-  totalAmount: string;
   currency: string;
   status: string;
   notes: string;
 }
-
-const parseAmountInput = (value: string): number | null => {
-  if (!value.trim()) {
-    return null;
-  }
-  const normalized = value.replace(/\./g, '').replace(',', '.');
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-};
 
 const parseJobIdsInput = (value: string): number[] => {
   if (!value.trim()) {
@@ -52,7 +50,6 @@ const getInitialState = (invoice: Invoice | undefined): InvoiceFormState => {
       jobIds: '',
       issueDate: '',
       dueDate: '',
-      totalAmount: '',
       currency: 'ARS',
       status: 'draft',
       notes: '',
@@ -76,10 +73,6 @@ const getInitialState = (invoice: Invoice | undefined): InvoiceFormState => {
     jobIds: invoice.job_ids.join(', '),
     issueDate: invoice.issue_date ?? '',
     dueDate: invoice.due_date ?? '',
-    totalAmount:
-      typeof invoice.total_amount === 'number' && Number.isFinite(invoice.total_amount)
-        ? invoice.total_amount.toString()
-        : '',
     currency: invoice.currency ?? 'ARS',
     status: invoice.status ?? 'draft',
     notes: notesFromMetadata,
@@ -170,9 +163,11 @@ export default function EditInvoiceScreen() {
   }, [currentInvoice]);
 
   const [formState, setFormState] = useState<InvoiceFormState>(getInitialState(currentInvoice));
+  const [items, setItems] = useState<InvoiceItemFormValue[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(!currentInvoice);
   const lastPrefillJobIds = useRef<string>('');
+  const itemsTouchedManually = useRef(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -183,6 +178,9 @@ export default function EditInvoiceScreen() {
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const highlightBackground = useThemeColor({ light: '#F1F5F9', dark: '#1F2937' }, 'background');
   const highlightBorder = useThemeColor({ light: '#CBD5F5', dark: '#334155' }, 'background');
+
+  const itemsTotal = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
+  const formattedItemsTotal = useMemo(() => formatCurrency(itemsTotal), [itemsTotal]);
 
   useEffect(() => {
     if (!canUpdate) {
@@ -215,6 +213,9 @@ export default function EditInvoiceScreen() {
   useEffect(() => {
     if (currentInvoice) {
       setFormState(getInitialState(currentInvoice));
+      const mappedItems = (currentInvoice.concepts ?? []).map(mapInvoiceConceptToFormValue);
+      setItems(mappedItems);
+      itemsTouchedManually.current = false;
       setIsLoading(false);
     }
   }, [currentInvoice]);
@@ -237,8 +238,56 @@ export default function EditInvoiceScreen() {
     });
   }, [mergedJobIdsString]);
 
+  useEffect(() => {
+    if (selectedJobs.length === 0) {
+      return;
+    }
+    setItems(current => mergeInvoiceItemsWithJobs(current, selectedJobs, tariffAmountById));
+  }, [selectedJobs, tariffAmountById]);
+
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
+  };
+
+  const handleItemChange = (index: number, key: keyof InvoiceItemFormValue) => (value: string) => {
+    itemsTouchedManually.current = true;
+    setItems(current => {
+      const next = [...current];
+      next[index] = { ...next[index], [key]: value };
+      return next;
+    });
+  };
+
+  const handleAddItem = () => {
+    itemsTouchedManually.current = true;
+    setItems(current => [
+      ...current,
+      { conceptCode: '', description: '', quantity: '1', unitPrice: '', jobId: '' },
+    ]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    itemsTouchedManually.current = true;
+    setItems(current => current.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const handleGenerateItemsFromJobs = () => {
+    if (!currentInvoice && selectedJobs.length === 0) {
+      Alert.alert('Sin trabajos seleccionados', 'No hay trabajos asociados para importar conceptos.');
+      return;
+    }
+    const jobsToProcess = selectedJobs.length > 0 ? selectedJobs : jobs.filter(job => currentInvoice?.job_ids.includes(job.id));
+    if (jobsToProcess.length === 0) {
+      Alert.alert('Sin trabajos asociados', 'La factura no tiene trabajos vinculados para generar conceptos.');
+      return;
+    }
+    const generated = createInvoiceItemsFromJobs(jobsToProcess, tariffAmountById);
+    setItems(current => {
+      if (!itemsTouchedManually.current) {
+        return generated;
+      }
+      return mergeInvoiceItemsWithJobs(current, jobsToProcess, tariffAmountById);
+    });
   };
 
   const handleSubmit = useCallback(async () => {
@@ -262,6 +311,12 @@ export default function EditInvoiceScreen() {
       return;
     }
 
+    const concepts = prepareInvoiceConceptPayloads(items);
+    if (concepts.length === 0) {
+      Alert.alert('Conceptos incompletos', 'Agregá al menos un concepto válido antes de guardar.');
+      return;
+    }
+
     setSubmitting(true);
 
     const payload: InvoicePayload = {
@@ -270,9 +325,10 @@ export default function EditInvoiceScreen() {
       job_ids: parseJobIdsInput(formState.jobIds),
       issue_date: formState.issueDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
-      total_amount: parseAmountInput(formState.totalAmount),
+      total_amount: itemsTotal || null,
       currency: formState.currency.trim() || null,
       status: formState.status.trim() || 'draft',
+      concepts,
     };
 
     if (formState.notes.trim()) {
@@ -288,7 +344,7 @@ export default function EditInvoiceScreen() {
     } else {
       Alert.alert('Error', 'No fue posible actualizar la factura. Intentá nuevamente.');
     }
-  }, [formState, invoiceId, router, updateInvoice]);
+  }, [canUpdate, formState, invoiceId, items, itemsTotal, router, updateInvoice]);
 
   if (!invoiceId) {
     return null;
@@ -296,7 +352,8 @@ export default function EditInvoiceScreen() {
 
   if (isLoading) {
     return (
-      <ThemedView style={[styles.loadingContainer, { backgroundColor: background }]}> 
+      <ThemedView style={[styles.loadingContainer, { backgroundColor: background }]}
+      >
         <ActivityIndicator />
       </ThemedView>
     );
@@ -304,7 +361,8 @@ export default function EditInvoiceScreen() {
 
   if (!currentInvoice) {
     return (
-      <ThemedView style={[styles.loadingContainer, { backgroundColor: background }]}> 
+      <ThemedView style={[styles.loadingContainer, { backgroundColor: background }]}
+      >
         <ThemedText>No encontramos la factura solicitada.</ThemedText>
       </ThemedView>
     );
@@ -330,7 +388,7 @@ export default function EditInvoiceScreen() {
             Total estimado por trabajos: {formattedSelectedJobsTotal}
           </ThemedText>
           <ThemedText style={styles.selectionSummaryNote}>
-            Se agregó la selección a la lista de trabajos vinculados. Revisá y confirma antes de guardar.
+            Se agregaron los trabajos seleccionados a la lista vinculada. Verificá los conceptos antes de guardar.
           </ThemedText>
         </View>
       ) : null}
@@ -399,16 +457,6 @@ export default function EditInvoiceScreen() {
         autoCapitalize="none"
       />
 
-      <ThemedText style={styles.label}>Importe total</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="Ej: 15400,50"
-        placeholderTextColor={placeholderColor}
-        value={formState.totalAmount}
-        onChangeText={handleChange('totalAmount')}
-        keyboardType="decimal-pad"
-      />
-
       <ThemedText style={styles.label}>Moneda</ThemedText>
       <TextInput
         style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
@@ -419,6 +467,102 @@ export default function EditInvoiceScreen() {
         autoCapitalize="characters"
         maxLength={5}
       />
+
+      <View style={styles.sectionHeader}>
+        <ThemedText style={styles.sectionTitle}>Conceptos facturados</ThemedText>
+        <View style={styles.sectionActions}>
+          <TouchableOpacity style={[styles.sectionActionButton, { backgroundColor: buttonColor }]} onPress={handleAddItem}>
+            <ThemedText style={[styles.sectionActionText, { color: buttonTextColor }]}>Agregar concepto</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sectionActionButtonSecondary, { borderColor: buttonColor }]}
+            onPress={handleGenerateItemsFromJobs}
+          >
+            <ThemedText style={[styles.sectionActionSecondaryText, { color: buttonColor }]}>Desde trabajos</ThemedText>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {items.length === 0 ? (
+        <View style={[styles.emptyItems, { borderColor }]}
+        >
+          <ThemedText style={styles.emptyItemsText}>
+            Agregá los conceptos facturados para este comprobante. Podés importarlos desde los trabajos vinculados.
+          </ThemedText>
+        </View>
+      ) : null}
+
+      {items.map((item, index) => (
+        <View key={`invoice-item-${index}`} style={[styles.itemContainer, { borderColor }]}
+        >
+          <View style={styles.itemHeader}>
+            <ThemedText style={styles.itemTitle}>Concepto #{index + 1}</ThemedText>
+            <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+              <ThemedText style={styles.removeItemText}>Quitar</ThemedText>
+            </TouchableOpacity>
+          </View>
+
+          <ThemedText style={styles.label}>Código (opcional)</ThemedText>
+          <TextInput
+            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Ej: SERV-001"
+            placeholderTextColor={placeholderColor}
+            value={item.conceptCode}
+            onChangeText={handleItemChange(index, 'conceptCode')}
+            autoCapitalize="characters"
+          />
+
+          <ThemedText style={styles.label}>Descripción</ThemedText>
+          <TextInput
+            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Detalle del servicio"
+            placeholderTextColor={placeholderColor}
+            value={item.description}
+            onChangeText={handleItemChange(index, 'description')}
+          />
+
+          <View style={styles.itemRow}>
+            <View style={styles.itemColumn}>
+              <ThemedText style={styles.label}>Cantidad</ThemedText>
+              <TextInput
+                style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                placeholder="Ej: 1"
+                placeholderTextColor={placeholderColor}
+                value={item.quantity}
+                onChangeText={handleItemChange(index, 'quantity')}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.itemColumn}>
+              <ThemedText style={styles.label}>Precio unitario</ThemedText>
+              <TextInput
+                style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                placeholder="Ej: 1500"
+                placeholderTextColor={placeholderColor}
+                value={item.unitPrice}
+                onChangeText={handleItemChange(index, 'unitPrice')}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+
+          <ThemedText style={styles.label}>Trabajo vinculado (ID opcional)</ThemedText>
+          <TextInput
+            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Ej: 42"
+            placeholderTextColor={placeholderColor}
+            value={item.jobId}
+            onChangeText={handleItemChange(index, 'jobId')}
+            keyboardType="numeric"
+          />
+        </View>
+      ))}
+
+      <View style={[styles.itemsTotalContainer, { borderColor }]}
+      >
+        <ThemedText style={styles.itemsTotalLabel}>Total calculado por conceptos</ThemedText>
+        <ThemedText style={styles.itemsTotalValue}>{formattedItemsTotal}</ThemedText>
+      </View>
 
       <ThemedText style={styles.sectionTitle}>Notas internas</ThemedText>
       <TextInput
@@ -451,32 +595,30 @@ export default function EditInvoiceScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 160,
+    gap: 16,
   },
   selectionSummary: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 12,
+    gap: 8,
   },
   selectionSummaryTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
   },
   selectionSummaryBody: {
     fontSize: 14,
-    marginBottom: 8,
   },
   selectionSummaryNote: {
     fontSize: 12,
-    lineHeight: 16,
     color: '#6B7280',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
   },
   label: {
     fontSize: 14,
@@ -496,6 +638,86 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 120,
     textAlignVertical: 'top',
+  },
+  sectionHeader: {
+    marginTop: 16,
+    gap: 12,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  sectionActionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  sectionActionText: {
+    fontWeight: '600',
+  },
+  sectionActionButtonSecondary: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  sectionActionSecondaryText: {
+    fontWeight: '600',
+  },
+  emptyItems: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 16,
+  },
+  emptyItemsText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  itemContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  removeItemText: {
+    color: '#DC2626',
+    fontWeight: '600',
+  },
+  itemInput: {
+    marginTop: 4,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  itemColumn: {
+    flex: 1,
+  },
+  itemsTotalContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemsTotalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  itemsTotalValue: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   submitButton: {
     marginTop: 32,

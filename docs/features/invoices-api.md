@@ -25,6 +25,14 @@ Cuando se cree una nueva sección en la app que consuma estos endpoints, debe ag
 - `PUT /invoices/{id}`: actualiza datos de encabezado, conceptos o totales siempre que la factura siga en `draft`.
 - `POST /invoices/{id}/issue`: cambia el estado a `issued`, registra el número fiscal definitivo y emite el comprobante electrónico asociado.
 
+### Manejo directo de conceptos (items)
+- Cada payload acepta la clave `concepts` con un array de objetos `{ concept_code, description, quantity, unit_price, job_id }`. La UI normaliza cantidades y precios antes de enviarlos, manteniendo la compatibilidad con APIs que esperan enteros o strings numéricas.
+- `POST /invoices/{id}/items`: agrega un ítem puntual sin reenviar la factura completa. Es ideal para sumar ajustes o tareas nuevas detectadas tras la creación inicial.
+- `PUT /invoices/{id}/items/{itemId}`: modifica un concepto existente; basta enviar los campos a actualizar. La API recalcula el total y registra el evento en el historial.
+- `DELETE /invoices/{id}/items/{itemId}`: elimina el concepto y deja registro en el feed de auditoría.
+- Los totales se recalculan automáticamente en el backend y deben reflejarse en `total_amount`. La app móvil re-sincroniza después de cada operación para mantener alineada la caché local.
+- La colección de Postman incorpora ejemplos listos para usar en la carpeta **Facturación**, con cuerpos de ejemplo y encabezados Bearer preconfigurados.
+
 ### Anulación y regeneración de archivos
 - `POST /invoices/{id}/void`: marca la factura como anulada conservando el historial y dejando constancia del usuario responsable.
 - `POST /invoices/{id}/regenerate_pdf`: fuerza la reconstrucción del PDF en caso de modificaciones sobre datos auxiliares permitidos tras la emisión.
