@@ -229,6 +229,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Facturación (Invoices API)
 - Documentación completa: [docs/features/invoices-api.md](./invoices-api.md).
+- Integración en la app móvil: [docs/features/invoices-context.md](./invoices-context.md).
 - Endpoints protegidos: requieren `Authorization: Bearer <token>` en todas las llamadas posteriores al login, en sintonía con las [notas de integración](#notas-de-integración-con-el-backend).
 - Relaciones con clientes, trabajos o cobros se resuelven por identificadores sin claves foráneas en `sisa.api`, manteniendo la convención global del backend.
 - Permisos esperados (`listInvoices`, `addInvoice`, `updateInvoice`, `voidInvoice`, `downloadInvoicePdf`) deben registrarse en la pantalla de permisos al habilitar nuevas secciones vinculadas al módulo.
