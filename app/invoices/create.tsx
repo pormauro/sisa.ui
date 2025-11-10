@@ -13,6 +13,8 @@ import { InvoicesContext, type InvoicePayload } from '@/contexts/InvoicesContext
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { JobsContext, type Job } from '@/contexts/JobsContext';
 import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
@@ -25,6 +27,8 @@ import {
   prepareInvoiceItemPayloads,
 } from '@/utils/invoiceItems';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 type InvoiceRouteParams = {
   jobIds?: string | string[];
@@ -133,6 +137,8 @@ const DEFAULT_FORM_STATE: InvoiceFormState = {
   notes: '',
 };
 
+const NEW_CLIENT_VALUE = '__new_client__';
+
 export default function CreateInvoiceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<InvoiceRouteParams>();
@@ -140,6 +146,8 @@ export default function CreateInvoiceScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { jobs, loadJobs } = useContext(JobsContext);
   const { tariffs, loadTariffs } = useContext(TariffsContext);
+  const { clients } = useContext(ClientsContext);
+  const { beginSelection, consumeSelection, pendingSelections, cancelSelection } = usePendingSelection();
 
   const jobIdsFromParams = useMemo(() => parseJobIdsParam(params.jobIds), [params.jobIds]);
   const jobIdsKey = useMemo(() => jobIdsFromParams.join(','), [jobIdsFromParams]);
@@ -177,6 +185,18 @@ export default function CreateInvoiceScreen() {
     return map;
   }, [tariffs]);
 
+  const clientItems = useMemo(
+    () => [
+      { label: '-- Selecciona un cliente --', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({
+        label: client.business_name,
+        value: client.id.toString(),
+      })),
+    ],
+    [clients],
+  );
+
   useEffect(() => {
     setItemsPrefilled(false);
   }, [jobIdsKey]);
@@ -195,6 +215,13 @@ export default function CreateInvoiceScreen() {
     }
   }, [canCreate, router]);
 
+  useEffect(
+    () => () => {
+      cancelSelection();
+    },
+    [cancelSelection],
+  );
+
   useEffect(() => {
     setClientPrefilled(false);
   }, [clientIdFromParams]);
@@ -210,6 +237,26 @@ export default function CreateInvoiceScreen() {
     setFormState(current => ({ ...current, clientId: clientIdFromParams }));
     setClientPrefilled(true);
   }, [clientIdFromParams, clientPrefilled]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.invoices.client)) {
+      return;
+    }
+    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.invoices.client);
+    if (pendingClientId) {
+      setFormState(current => ({ ...current, clientId: pendingClientId.toString() }));
+    }
+  }, [pendingSelections, consumeSelection]);
+
+  useEffect(() => {
+    if (!formState.clientId) {
+      return;
+    }
+    const exists = clients.some(client => client.id.toString() === formState.clientId);
+    if (!exists) {
+      setFormState(current => ({ ...current, clientId: '' }));
+    }
+  }, [clients, formState.clientId]);
 
   useEffect(() => {
     if (itemsPrefilled) {
@@ -392,13 +439,29 @@ export default function CreateInvoiceScreen() {
       />
 
       <ThemedText style={styles.label}>Cliente</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="ID del cliente"
-        placeholderTextColor={placeholderColor}
-        value={formState.clientId}
-        onChangeText={handleChange('clientId')}
-        keyboardType="numeric"
+      <SearchableSelect
+        style={styles.select}
+        items={clientItems}
+        selectedValue={formState.clientId}
+        onValueChange={value => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setFormState(current => ({ ...current, clientId: '' }));
+            beginSelection(SELECTION_KEYS.invoices.client);
+            router.push('/clients/create');
+            return;
+          }
+          setFormState(current => ({ ...current, clientId: stringValue }));
+        }}
+        placeholder="-- Selecciona un cliente --"
+        onItemLongPress={item => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CLIENT_VALUE) {
+            return;
+          }
+          beginSelection(SELECTION_KEYS.invoices.client);
+          router.push(`/clients/${value}`);
+        }}
       />
 
       <ThemedText style={styles.label}>Número de factura</ThemedText>
@@ -687,6 +750,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  select: {
+    marginBottom: 12,
   },
   textarea: {
     borderWidth: 1,

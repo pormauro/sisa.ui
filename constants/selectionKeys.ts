@@ -1,4 +1,7 @@
 export const SELECTION_KEYS = {
+  invoices: {
+    client: 'invoices.client',
+  },
   receipts: {
     payerClient: 'receipts.payerClient',
     payerProvider: 'receipts.payerProvider',
