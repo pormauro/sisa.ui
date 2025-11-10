@@ -26,7 +26,7 @@ import {
   calculateInvoiceItemsTotal,
   hasInvoiceItemData,
   prepareInvoiceItemPayloads,
-  parseInvoiceDecimalInput,
+  parseInvoicePercentageInput,
 } from '@/utils/invoiceItems';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
@@ -370,8 +370,7 @@ export default function CreateInvoiceScreen() {
     if (!formState.taxPercentage.trim()) {
       return null;
     }
-    const normalized = formState.taxPercentage.replace('%', '');
-    return parseInvoiceDecimalInput(normalized);
+    return parseInvoicePercentageInput(formState.taxPercentage);
   }, [formState.taxPercentage]);
   const taxes = useMemo(() => {
     if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {

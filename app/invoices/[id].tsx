@@ -28,7 +28,7 @@ import {
   hasInvoiceItemData,
   mapInvoiceItemToFormValue,
   prepareInvoiceItemPayloads,
-  parseInvoiceDecimalInput,
+  parseInvoicePercentageInput,
 } from '@/utils/invoiceItems';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
@@ -159,8 +159,7 @@ export default function EditInvoiceScreen() {
     if (!formState.taxPercentage.trim()) {
       return null;
     }
-    const normalized = formState.taxPercentage.replace('%', '');
-    return parseInvoiceDecimalInput(normalized);
+    return parseInvoicePercentageInput(formState.taxPercentage);
   }, [formState.taxPercentage]);
   const hasTaxData = useMemo(() => {
     if (parsedTaxPercentage !== null) {
