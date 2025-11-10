@@ -11,7 +11,7 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 import { ensureSortedByNewest, sortByNewest, SortableDate } from '@/utils/sort';
 
-export type InvoiceStatus = 'draft' | 'issued' | 'void' | (string & {});
+export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'canceled' | (string & {});
 
 export interface InvoiceItem {
   id?: number;
@@ -273,6 +273,37 @@ const parseAttachedFiles = (value: unknown): number[] | string | null => {
   return null;
 };
 
+const normalizeInvoiceStatus = (value: unknown): InvoiceStatus => {
+  if (typeof value !== 'string') {
+    return 'draft';
+  }
+
+  const normalized = value.trim().toLowerCase();
+  switch (normalized) {
+    case 'draft':
+    case 'borrador':
+      return 'draft';
+    case 'issued':
+    case 'emitido':
+    case 'emitida':
+      return 'issued';
+    case 'paid':
+    case 'pagado':
+    case 'pagada':
+      return 'paid';
+    case 'canceled':
+    case 'cancelled':
+    case 'cancelado':
+    case 'cancelada':
+    case 'void':
+    case 'anulado':
+    case 'anulada':
+      return 'canceled';
+    default:
+      return normalized as InvoiceStatus;
+  }
+};
+
 const parseInvoice = (raw: Record<string, unknown>): Invoice => {
   const jobIds = parseJobIds(
     raw.job_ids ?? raw.jobs ?? raw.related_jobs ?? raw.job_references ?? raw.linked_jobs ?? [],
@@ -281,12 +312,7 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
 
   return {
     id: toNumber(raw.id ?? raw.invoice_id ?? raw.identifier ?? 0),
-    status:
-      typeof raw.status === 'string'
-        ? (raw.status as InvoiceStatus)
-        : typeof raw.invoice_status === 'string'
-        ? (raw.invoice_status as InvoiceStatus)
-        : 'draft',
+    status: normalizeInvoiceStatus(raw.status ?? raw.invoice_status ?? 'draft'),
     client_id: toNullableNumber(raw.client_id ?? raw.customer_id ?? null),
     job_ids: jobIds,
     invoice_number:
@@ -803,12 +829,12 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           } else if ('data' in data && data.data && typeof data.data === 'object') {
             raw = data.data as Record<string, unknown>;
           } else {
-            raw = { id, status: 'void', voided_at: new Date().toISOString() };
+            raw = { id, status: 'canceled', voided_at: new Date().toISOString() };
           }
         }
 
         if (!raw && response.ok) {
-          raw = { id, status: 'void', voided_at: new Date().toISOString() };
+          raw = { id, status: 'canceled', voided_at: new Date().toISOString() };
         }
 
         if (raw) {

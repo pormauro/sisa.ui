@@ -32,14 +32,19 @@ type InvoiceListItem = Invoice & {
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
   issued: 'Emitida',
-  void: 'Anulada',
+  paid: 'Pagado',
+  canceled: 'Cancelado',
+  void: 'Cancelado',
 };
 
 const resolveStatusColor = (status: string, tintColor: string): string => {
   const normalized = status.toLowerCase();
   switch (normalized) {
     case 'issued':
+      return '#0a84ff';
+    case 'paid':
       return '#34c759';
+    case 'canceled':
     case 'void':
       return '#ff3b30';
     case 'draft':
@@ -167,8 +172,9 @@ export default function InvoicesScreen() {
       const total = typeof invoice.total_amount === 'number' ? invoice.total_amount : null;
       const formattedTotal =
         total !== null && Number.isFinite(total) ? formatCurrency(total) : 'Importe no disponible';
-      const statusLabel = STATUS_LABELS[invoice.status] ?? invoice.status ?? 'Sin estado';
-      const statusColor = resolveStatusColor(invoice.status ?? 'draft', tintColor);
+      const normalizedStatus = invoice.status ? invoice.status.toLowerCase() : 'draft';
+      const statusLabel = STATUS_LABELS[normalizedStatus] ?? invoice.status ?? 'Sin estado';
+      const statusColor = resolveStatusColor(normalizedStatus, tintColor);
       const itemsCount = Array.isArray(invoice.items) ? invoice.items.length : 0;
       const conceptsLabel = itemsCount > 0 ? `${itemsCount} ítem${itemsCount === 1 ? '' : 's'}` : 'Sin ítems';
       return {
@@ -213,7 +219,8 @@ export default function InvoicesScreen() {
 
   const requestVoid = useCallback(
     (invoice: Invoice) => {
-      if (!canVoid || invoice.status?.toLowerCase() === 'void') {
+      const normalizedStatus = invoice.status ? invoice.status.toLowerCase() : '';
+      if (!canVoid || normalizedStatus === 'void' || normalizedStatus === 'canceled') {
         return;
       }
 
@@ -271,7 +278,7 @@ export default function InvoicesScreen() {
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Conceptos</ThemedText>
           <ThemedText style={styles.cardValue}>{item.conceptsLabel}</ThemedText>
 
-          {canVoid && item.status.toLowerCase() !== 'void' && (
+          {canVoid && !['void', 'canceled'].includes(item.status ? item.status.toLowerCase() : '') && (
             <TouchableOpacity
               style={[styles.voidButton, { backgroundColor: dangerColor }]}
               onPress={() => requestVoid(item)}

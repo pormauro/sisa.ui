@@ -16,6 +16,7 @@ import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { ThemedText } from '@/components/ThemedText';
+import FileGallery from '@/components/FileGallery';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import {
@@ -25,6 +26,7 @@ import {
   calculateInvoiceItemsTotal,
   hasInvoiceItemData,
   prepareInvoiceItemPayloads,
+  parseInvoiceDecimalInput,
 } from '@/utils/invoiceItems';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
@@ -173,6 +175,7 @@ export default function CreateInvoiceScreen() {
   const [itemsPrefilled, setItemsPrefilled] = useState(false);
   const [clientsInitialized, setClientsInitialized] = useState(false);
   const initialClientsRef = useRef(clients);
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -217,7 +220,8 @@ export default function CreateInvoiceScreen() {
     const base = [
       { label: 'Borrador', value: 'draft' },
       { label: 'Emitida', value: 'issued' },
-      { label: 'Anulada', value: 'void' },
+      { label: 'Pagado', value: 'paid' },
+      { label: 'Cancelado', value: 'canceled' },
     ];
     if (formState.status && !base.some(item => item.value === formState.status)) {
       base.push({ label: formState.status, value: formState.status });
@@ -362,8 +366,26 @@ export default function CreateInvoiceScreen() {
   }, [itemsPrefilled, jobIdsFromParams, jobs, tariffAmountById]);
 
   const subtotal = useMemo(() => calculateInvoiceItemsSubtotal(items), [items]);
-  const taxes = useMemo(() => calculateInvoiceItemsTax(items), [items]);
-  const total = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
+  const parsedTaxPercentage = useMemo(() => {
+    if (!formState.taxPercentage.trim()) {
+      return null;
+    }
+    const normalized = formState.taxPercentage.replace('%', '');
+    return parseInvoiceDecimalInput(normalized);
+  }, [formState.taxPercentage]);
+  const taxes = useMemo(() => {
+    if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
+      return Math.max(0, subtotal * (parsedTaxPercentage / 100));
+    }
+    return calculateInvoiceItemsTax(items);
+  }, [items, subtotal, parsedTaxPercentage]);
+  const total = useMemo(() => {
+    if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
+      const computedTaxes = Math.max(0, subtotal * (parsedTaxPercentage / 100));
+      return Math.max(0, subtotal + computedTaxes);
+    }
+    return calculateInvoiceItemsTotal(items);
+  }, [items, subtotal, parsedTaxPercentage]);
 
   const formattedSubtotal = useMemo(() => formatCurrency(subtotal), [subtotal]);
   const formattedTaxes = useMemo(() => formatCurrency(taxes), [taxes]);
@@ -443,6 +465,7 @@ export default function CreateInvoiceScreen() {
       tax_amount: Number.isFinite(taxes) ? taxes : null,
       total_amount: Number.isFinite(total) ? total : null,
       items: payloadItems,
+      attached_files: attachedFiles || null,
     };
 
     const invoiceNumber = formState.invoiceNumber.trim();
@@ -463,13 +486,9 @@ export default function CreateInvoiceScreen() {
       metadata.notes = notes;
     }
 
-    const taxPercentageValue = formState.taxPercentage.trim().replace(',', '.');
-    if (taxPercentageValue) {
-      const parsedPercentage = Number(taxPercentageValue);
-      if (Number.isFinite(parsedPercentage)) {
-        metadata.total_tax_percentage = parsedPercentage;
-        metadata.tax_percentage = parsedPercentage;
-      }
+    if (parsedTaxPercentage !== null) {
+      metadata.total_tax_percentage = parsedTaxPercentage;
+      metadata.tax_percentage = parsedTaxPercentage;
     }
 
     if (Object.keys(metadata).length > 0) {
@@ -573,16 +592,6 @@ export default function CreateInvoiceScreen() {
             }}
             placeholder="Seleccioná una moneda"
             showSearch={false}
-          />
-
-          <ThemedText style={styles.label}>Empresa</ThemedText>
-          <TextInput
-            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="ID de empresa"
-            placeholderTextColor={placeholderColor}
-            value={formState.companyId}
-            onChangeText={handleChange('companyId')}
-            keyboardType="numeric"
           />
 
           <ThemedText style={styles.label}>Estado</ThemedText>
@@ -775,6 +784,9 @@ export default function CreateInvoiceScreen() {
           <ThemedText style={styles.costValue}>{formattedTotal}</ThemedText>
         </View>
       </View>
+
+      <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
+      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
 
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}

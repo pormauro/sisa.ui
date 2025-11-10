@@ -15,6 +15,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import FileGallery from '@/components/FileGallery';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import {
@@ -27,6 +28,7 @@ import {
   hasInvoiceItemData,
   mapInvoiceItemToFormValue,
   prepareInvoiceItemPayloads,
+  parseInvoiceDecimalInput,
 } from '@/utils/invoiceItems';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
@@ -132,6 +134,7 @@ export default function EditInvoiceScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<string>('');
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -152,7 +155,19 @@ export default function EditInvoiceScreen() {
   );
 
   const hasSubtotalData = useMemo(() => invoiceItemsProvideSubtotalData(items), [items]);
-  const hasTaxData = useMemo(() => invoiceItemsProvideTaxData(items), [items]);
+  const parsedTaxPercentage = useMemo(() => {
+    if (!formState.taxPercentage.trim()) {
+      return null;
+    }
+    const normalized = formState.taxPercentage.replace('%', '');
+    return parseInvoiceDecimalInput(normalized);
+  }, [formState.taxPercentage]);
+  const hasTaxData = useMemo(() => {
+    if (parsedTaxPercentage !== null) {
+      return true;
+    }
+    return invoiceItemsProvideTaxData(items);
+  }, [items, parsedTaxPercentage]);
 
   const subtotal = useMemo(() => {
     const derivedSubtotal = calculateInvoiceItemsSubtotal(items);
@@ -167,6 +182,10 @@ export default function EditInvoiceScreen() {
   }, [currentInvoice, hasSubtotalData, items]);
 
   const taxes = useMemo(() => {
+    if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
+      return Math.max(0, subtotal * (parsedTaxPercentage / 100));
+    }
+
     const derivedTaxes = calculateInvoiceItemsTax(items);
     if (hasTaxData) {
       return derivedTaxes;
@@ -176,8 +195,23 @@ export default function EditInvoiceScreen() {
     return typeof existingTaxes === 'number' && Number.isFinite(existingTaxes)
       ? existingTaxes
       : derivedTaxes;
-  }, [currentInvoice, hasTaxData, items]);
-  const total = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
+  }, [currentInvoice, hasTaxData, items, parsedTaxPercentage, subtotal]);
+  const total = useMemo(() => {
+    if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
+      const computedTaxes = Math.max(0, subtotal * (parsedTaxPercentage / 100));
+      return Math.max(0, subtotal + computedTaxes);
+    }
+
+    const derivedTotal = calculateInvoiceItemsTotal(items);
+    if (hasSubtotalData || hasTaxData) {
+      return derivedTotal;
+    }
+
+    const existingTotal = currentInvoice?.total_amount;
+    return typeof existingTotal === 'number' && Number.isFinite(existingTotal)
+      ? existingTotal
+      : derivedTotal;
+  }, [currentInvoice, hasSubtotalData, hasTaxData, items, parsedTaxPercentage, subtotal]);
 
   const formattedSubtotal = useMemo(() => formatCurrency(subtotal), [subtotal]);
   const formattedTaxes = useMemo(() => formatCurrency(taxes), [taxes]);
@@ -207,7 +241,8 @@ export default function EditInvoiceScreen() {
     const base = [
       { label: 'Borrador', value: 'draft' },
       { label: 'Emitida', value: 'issued' },
-      { label: 'Anulada', value: 'void' },
+      { label: 'Pagado', value: 'paid' },
+      { label: 'Cancelado', value: 'canceled' },
     ];
     if (formState.status && !base.some(item => item.value === formState.status)) {
       base.push({ label: formState.status, value: formState.status });
@@ -241,11 +276,32 @@ export default function EditInvoiceScreen() {
       const mappedItems = (currentInvoice.items ?? []).map(mapInvoiceItemToFormValue);
       setItems(mappedItems.length > 0 ? mappedItems : [createEmptyItem()]);
       setExpandedItems({});
+      if (Array.isArray(currentInvoice.attached_files)) {
+        const normalized = currentInvoice.attached_files
+          .map(fileId => (typeof fileId === 'number' ? fileId : Number(fileId)))
+          .filter(value => Number.isFinite(value));
+        setAttachedFiles(normalized.length > 0 ? JSON.stringify(normalized) : '');
+      } else if (typeof currentInvoice.attached_files === 'string') {
+        try {
+          const parsed = JSON.parse(currentInvoice.attached_files);
+          if (Array.isArray(parsed)) {
+            const normalized = parsed
+              .map(fileId => (typeof fileId === 'number' ? fileId : Number(fileId)))
+              .filter(value => Number.isFinite(value));
+            setAttachedFiles(normalized.length > 0 ? JSON.stringify(normalized) : '');
+          } else {
+            setAttachedFiles('');
+          }
+        } catch {
+          setAttachedFiles('');
+        }
+      } else {
+        setAttachedFiles('');
+      }
       const shouldExpandMetadata =
         (typeof currentInvoice.invoice_number === 'string' &&
           currentInvoice.invoice_number.trim().length > 0) ||
         (typeof currentInvoice.currency === 'string' && currentInvoice.currency.trim().length > 0) ||
-        (typeof currentInvoice.company_id === 'number' && Number.isFinite(currentInvoice.company_id)) ||
         (typeof currentInvoice.status === 'string' && currentInvoice.status !== 'draft') ||
         extractTaxPercentage(currentInvoice).trim().length > 0;
       setExpandedMetadata(shouldExpandMetadata);
@@ -352,6 +408,7 @@ export default function EditInvoiceScreen() {
       currency_code: formState.currencyCode.trim() || null,
       status: formState.status.trim() || 'draft',
       items: payloadItems,
+      attached_files: attachedFiles || null,
     };
 
     const invoiceNumber = formState.invoiceNumber.trim();
@@ -398,16 +455,9 @@ export default function EditInvoiceScreen() {
       delete metadata.notes;
     }
 
-    const taxPercentageValue = formState.taxPercentage.trim().replace(',', '.');
-    if (taxPercentageValue) {
-      const parsedPercentage = Number(taxPercentageValue);
-      if (Number.isFinite(parsedPercentage)) {
-        metadata.total_tax_percentage = parsedPercentage;
-        metadata.tax_percentage = parsedPercentage;
-      } else {
-        delete metadata.total_tax_percentage;
-        delete metadata.tax_percentage;
-      }
+    if (parsedTaxPercentage !== null) {
+      metadata.total_tax_percentage = parsedTaxPercentage;
+      metadata.tax_percentage = parsedTaxPercentage;
     } else {
       delete metadata.total_tax_percentage;
       delete metadata.tax_percentage;
@@ -554,16 +604,6 @@ export default function EditInvoiceScreen() {
             }}
             placeholder="Seleccioná una moneda"
             showSearch={false}
-          />
-
-          <ThemedText style={styles.label}>Empresa</ThemedText>
-          <TextInput
-            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="ID de empresa"
-            placeholderTextColor={placeholderColor}
-            value={formState.companyId}
-            onChangeText={handleChange('companyId')}
-            keyboardType="numeric"
           />
 
           <ThemedText style={styles.label}>Estado</ThemedText>
@@ -756,6 +796,13 @@ export default function EditInvoiceScreen() {
           <ThemedText style={styles.costValue}>{formattedTotal}</ThemedText>
         </View>
       </View>
+
+      <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
+      <FileGallery
+        filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable={canUpdate}
+      />
 
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}
