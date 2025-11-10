@@ -97,6 +97,10 @@ const getJobItemAmount = (job: Job, tariffAmountById: Map<number, number>): numb
   return 0;
 };
 
+const formatNumberForInput = (value: number): string => {
+  return value.toFixed(2).replace('.', ',');
+};
+
 interface InvoiceFormState {
   id: string;
   invoiceDate: string;
@@ -274,13 +278,32 @@ export default function CreateInvoiceScreen() {
       return;
     }
 
-    const invoiceItems = selectedJobs.map((job, index) => {
-      const totalValue = getJobItemAmount(job, tariffAmountById);
-      const unitPriceText = totalValue.toFixed(2);
+    const jobsWithTotals = selectedJobs.map(job => ({
+      job,
+      total: getJobItemAmount(job, tariffAmountById),
+    }));
+
+    const waitingForTariffs = jobsWithTotals.some(({ job, total }) => {
+      if (total > 0) {
+        return false;
+      }
+      if (job.tariff_id == null) {
+        return false;
+      }
+      const tariffAmount = tariffAmountById.get(job.tariff_id);
+      return typeof tariffAmount !== 'number' || !Number.isFinite(tariffAmount) || tariffAmount <= 0;
+    });
+
+    if (waitingForTariffs) {
+      return;
+    }
+
+    const invoiceItems = jobsWithTotals.map(({ job, total }, index) => {
+      const unitPriceText = formatNumberForInput(total);
       const descriptionParts = [
         getJobDateLabel(job),
         job.description?.trim() || 'Trabajo sin descripción',
-        formatCurrency(totalValue),
+        formatCurrency(total),
       ].filter(Boolean);
 
       return {
