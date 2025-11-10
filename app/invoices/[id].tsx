@@ -86,7 +86,7 @@ export default function EditInvoiceScreen() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [params.id]);
 
-  const { invoices, loadInvoices, updateInvoice } = useContext(InvoicesContext);
+  const { invoices, loadInvoices, updateInvoice, deleteInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
 
   const [formState, setFormState] = useState<InvoiceFormState>(buildInitialState(undefined));
@@ -96,6 +96,7 @@ export default function EditInvoiceScreen() {
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -104,9 +105,11 @@ export default function EditInvoiceScreen() {
   const placeholderColor = useThemeColor({ light: '#888888', dark: '#AAAAAA' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+  const dangerColor = useThemeColor({ light: '#ff4d4f', dark: '#ff7072' }, 'button');
   const secondaryText = useThemeColor({ light: '#6B7280', dark: '#94A3B8' }, 'text');
 
   const canUpdate = permissions.includes('updateInvoice');
+  const canDelete = permissions.includes('deleteInvoice');
 
   const currentInvoice = useMemo(
     () => invoices.find(invoice => invoice.id === invoiceId),
@@ -224,7 +227,7 @@ export default function EditInvoiceScreen() {
       client_id: clientId,
       invoice_date: formState.invoiceDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
-      currency: formState.currencyCode.trim() || null,
+      currency_code: formState.currencyCode.trim() || null,
       status: formState.status.trim() || 'draft',
       subtotal_amount: Number.isFinite(subtotal) ? subtotal : null,
       tax_amount: Number.isFinite(taxes) ? taxes : null,
@@ -256,9 +259,43 @@ export default function EditInvoiceScreen() {
     Alert.alert('Error', 'No fue posible actualizar la factura. Intenta nuevamente.');
   };
 
+  const requestDelete = () => {
+    if (!canDelete) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para eliminar facturas.');
+      return;
+    }
+    if (!invoiceId) {
+      Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura eliminar.');
+      return;
+    }
+
+    Alert.alert(
+      'Eliminar factura',
+      '¿Confirmás que querés eliminar este comprobante? La operación no se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const success = await deleteInvoice(invoiceId);
+            setDeleting(false);
+            if (success) {
+              Alert.alert('Factura eliminada', 'El comprobante se eliminó correctamente.');
+              router.replace('/invoices');
+            } else {
+              Alert.alert('Error', 'No fue posible eliminar la factura.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (isLoading) {
     return (
-      <ThemedView style={[styles.loaderContainer, { backgroundColor: background }]}>
+      <ThemedView style={[styles.loaderContainer, { backgroundColor: background }]}> 
         <ActivityIndicator />
       </ThemedView>
     );
@@ -550,6 +587,20 @@ export default function EditInvoiceScreen() {
           )}
         </TouchableOpacity>
       ) : null}
+
+      {canDelete ? (
+        <TouchableOpacity
+          style={[styles.deleteButton, { backgroundColor: dangerColor }]}
+          onPress={requestDelete}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <ThemedText style={[styles.submitButtonText, { color: '#FFFFFF' }]}>Eliminar factura</ThemedText>
+          )}
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 }
@@ -699,5 +750,11 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  deleteButton: {
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
   },
 });

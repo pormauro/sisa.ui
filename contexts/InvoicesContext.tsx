@@ -61,6 +61,7 @@ export type InvoicePayload = Record<string, unknown> & {
   subtotal_amount?: number | string | null;
   tax_amount?: number | string | null;
   currency?: string | null;
+  currency_code?: string | null;
   company_id?: number | string | null;
   issue_date?: string | null;
   due_date?: string | null;
@@ -75,6 +76,7 @@ interface InvoicesContextValue {
   loadInvoices: () => Promise<void>;
   addInvoice: (payload: InvoicePayload) => Promise<Invoice | null>;
   updateInvoice: (id: number, payload: InvoicePayload) => Promise<boolean>;
+  deleteInvoice: (id: number) => Promise<boolean>;
   voidInvoice: (id: number, reason?: string | null) => Promise<boolean>;
 }
 
@@ -83,6 +85,7 @@ const defaultContext: InvoicesContextValue = {
   loadInvoices: async () => {},
   addInvoice: async () => null,
   updateInvoice: async () => false,
+  deleteInvoice: async () => false,
   voidInvoice: async () => false,
 };
 
@@ -444,6 +447,22 @@ const prepareInvoicePayload = (payload: InvoicePayload): Record<string, unknown>
     normalized.tax_amount = toNullableNumber(normalized.tax_amount ?? null);
   }
 
+  if ('currency' in normalized && !('currency_code' in normalized)) {
+    const value = normalized.currency;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      normalized.currency_code = trimmed ? trimmed : null;
+    } else {
+      normalized.currency_code = null;
+    }
+    delete normalized.currency;
+  }
+
+  if ('currency_code' in normalized) {
+    const value = normalized.currency_code;
+    normalized.currency_code = typeof value === 'string' ? value.trim() || null : null;
+  }
+
   if ('job_ids' in normalized) {
     const ids = parseJobIds(normalized.job_ids);
     normalized.job_ids = ids;
@@ -639,6 +658,50 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [loadInvoices, setInvoices, token],
   );
 
+  const deleteInvoice = useCallback(
+    async (id: number): Promise<boolean> => {
+      if (!token) {
+        return false;
+      }
+
+      try {
+        const response = await fetch(`${BASE_URL}/invoices/${id}`, {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        await ensureAuthResponse(response);
+
+        if (response.ok) {
+          // Consume cuerpo JSON opcional sin fallar cuando la respuesta es 204.
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            try {
+              await response.json();
+            } catch (error) {
+              // respuestas vacías: ignorar
+            }
+          }
+
+          setInvoices(prev => prev.filter(invoice => invoice.id !== id));
+          await loadInvoices();
+          return true;
+        }
+      } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al eliminar una factura, se solicitará uno nuevo.');
+          return false;
+        }
+        console.error('Error deleting invoice:', error);
+      }
+
+      return false;
+    },
+    [loadInvoices, setInvoices, token],
+  );
+
   const voidInvoice = useCallback(
     async (id: number, reason?: string | null): Promise<boolean> => {
       if (!token) {
@@ -708,7 +771,9 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
   }, [loadInvoices, token]);
 
   return (
-    <InvoicesContext.Provider value={{ invoices, loadInvoices, addInvoice, updateInvoice, voidInvoice }}>
+    <InvoicesContext.Provider
+      value={{ invoices, loadInvoices, addInvoice, updateInvoice, deleteInvoice, voidInvoice }}
+    >
       {children}
     </InvoicesContext.Provider>
   );
