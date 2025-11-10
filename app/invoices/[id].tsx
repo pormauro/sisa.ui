@@ -11,8 +11,10 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { InvoicesContext, type Invoice, type InvoicePayload } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { SearchableSelect } from '@/components/SearchableSelect';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import {
@@ -26,6 +28,8 @@ import {
   mapInvoiceItemToFormValue,
   prepareInvoiceItemPayloads,
 } from '@/utils/invoiceItems';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 interface InvoiceFormState {
   id: string;
@@ -75,6 +79,8 @@ const buildInitialState = (invoice: Invoice | undefined): InvoiceFormState => ({
   notes: extractNotes(invoice),
 });
 
+const NEW_CLIENT_VALUE = '__new_client__';
+
 export default function EditInvoiceScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
@@ -90,6 +96,8 @@ export default function EditInvoiceScreen() {
 
   const { invoices, loadInvoices, updateInvoice, deleteInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { clients } = useContext(ClientsContext);
+  const { beginSelection, consumeSelection, pendingSelections, cancelSelection } = usePendingSelection();
 
   const [formState, setFormState] = useState<InvoiceFormState>(buildInitialState(undefined));
   const [items, setItems] = useState<InvoiceItemFormValue[]>([createEmptyItem()]);
@@ -150,12 +158,31 @@ export default function EditInvoiceScreen() {
   const formattedTaxes = useMemo(() => formatCurrency(taxes), [taxes]);
   const formattedTotal = useMemo(() => formatCurrency(total), [total]);
 
+  const clientItems = useMemo(
+    () => [
+      { label: '-- Selecciona un cliente --', value: '' },
+      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+      ...clients.map(client => ({
+        label: client.business_name,
+        value: client.id.toString(),
+      })),
+    ],
+    [clients],
+  );
+
   useEffect(() => {
     if (!canUpdate && !canDelete) {
       Alert.alert('Acceso denegado', 'No tienes permiso para editar o eliminar facturas.');
       router.back();
     }
   }, [canDelete, canUpdate, router]);
+
+  useEffect(
+    () => () => {
+      cancelSelection();
+    },
+    [cancelSelection],
+  );
 
   useEffect(() => {
     if (!invoiceId) {
@@ -179,6 +206,26 @@ export default function EditInvoiceScreen() {
       setIsLoading(false);
     });
   }, [currentInvoice, invoiceId, loadInvoices, router]);
+
+  useEffect(() => {
+    if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.invoices.client)) {
+      return;
+    }
+    const pendingClientId = consumeSelection<string>(SELECTION_KEYS.invoices.client);
+    if (pendingClientId) {
+      setFormState(current => ({ ...current, clientId: pendingClientId.toString() }));
+    }
+  }, [pendingSelections, consumeSelection]);
+
+  useEffect(() => {
+    if (!formState.clientId) {
+      return;
+    }
+    const exists = clients.some(client => client.id.toString() === formState.clientId);
+    if (!exists) {
+      setFormState(current => ({ ...current, clientId: '' }));
+    }
+  }, [clients, formState.clientId]);
 
   const isValid = useMemo(() => {
     if (!formState.invoiceNumber.trim()) {
@@ -367,13 +414,29 @@ export default function EditInvoiceScreen() {
       />
 
       <ThemedText style={styles.label}>Cliente</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="ID del cliente"
-        placeholderTextColor={placeholderColor}
-        value={formState.clientId}
-        onChangeText={handleChange('clientId')}
-        keyboardType="numeric"
+      <SearchableSelect
+        style={styles.select}
+        items={clientItems}
+        selectedValue={formState.clientId}
+        onValueChange={value => {
+          const stringValue = value?.toString() ?? '';
+          if (stringValue === NEW_CLIENT_VALUE) {
+            setFormState(current => ({ ...current, clientId: '' }));
+            beginSelection(SELECTION_KEYS.invoices.client);
+            router.push('/clients/create');
+            return;
+          }
+          setFormState(current => ({ ...current, clientId: stringValue }));
+        }}
+        placeholder="-- Selecciona un cliente --"
+        onItemLongPress={item => {
+          const value = String(item.value ?? '');
+          if (!value || value === NEW_CLIENT_VALUE) {
+            return;
+          }
+          beginSelection(SELECTION_KEYS.invoices.client);
+          router.push(`/clients/${value}`);
+        }}
       />
 
       <TouchableOpacity
@@ -681,6 +744,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  select: {
+    marginBottom: 12,
   },
   textarea: {
     borderWidth: 1,

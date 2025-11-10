@@ -144,8 +144,16 @@ export const prepareInvoiceItemPayloads = (
       }
 
       const totalAmount = parseInvoiceDecimalInput(item.totalAmount);
-      if (totalAmount !== null) {
-        payload.total_amount = totalAmount;
+      const derivedTotal = deriveInvoiceItemTotal(item);
+      const hasAmountData =
+        quantity !== null ||
+        unitPrice !== null ||
+        discountAmount !== null ||
+        taxAmount !== null ||
+        totalAmount !== null;
+
+      if (hasAmountData && Number.isFinite(derivedTotal)) {
+        payload.total_amount = derivedTotal;
       }
 
       if (item.productId.trim()) {
@@ -170,26 +178,30 @@ export const prepareInvoiceItemPayloads = (
     })
     .filter(payload => Object.keys(payload).length > 0);
 
-const computeItemTotal = (item: InvoiceItemFormValue): number => {
-  const explicitTotal = parseInvoiceDecimalInput(item.totalAmount);
-  if (explicitTotal !== null) {
-    return explicitTotal;
-  }
-
-  const quantity = parseInvoiceDecimalInput(item.quantity) ?? 0;
-  const unitPrice = parseInvoiceDecimalInput(item.unitPrice) ?? 0;
+export const deriveInvoiceItemTotal = (item: InvoiceItemFormValue): number => {
+  const quantity = parseInvoiceDecimalInput(item.quantity);
+  const unitPrice = parseInvoiceDecimalInput(item.unitPrice);
   const discountAmount = parseInvoiceDecimalInput(item.discountAmount) ?? 0;
   const taxAmount = parseInvoiceDecimalInput(item.taxAmount) ?? 0;
 
-  if (quantity <= 0 || unitPrice <= 0) {
+  if (quantity !== null && quantity > 0 && unitPrice !== null && unitPrice > 0) {
+    return Math.max(0, quantity * unitPrice - discountAmount + taxAmount);
+  }
+
+  const explicitTotal = parseInvoiceDecimalInput(item.totalAmount);
+  if (explicitTotal !== null) {
+    return Math.max(0, explicitTotal);
+  }
+
+  if (taxAmount !== 0 || discountAmount !== 0) {
     return Math.max(0, taxAmount - discountAmount);
   }
 
-  return Math.max(0, quantity * unitPrice - discountAmount + taxAmount);
+  return 0;
 };
 
 export const calculateInvoiceItemsTotal = (items: InvoiceItemFormValue[]): number =>
-  items.reduce((total, item) => total + computeItemTotal(item), 0);
+  items.reduce((total, item) => total + deriveInvoiceItemTotal(item), 0);
 
 export const calculateInvoiceItemsSubtotal = (items: InvoiceItemFormValue[]): number =>
   items.reduce((total, item) => {
