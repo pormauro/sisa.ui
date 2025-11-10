@@ -17,11 +17,11 @@ Cuando se cree una nueva sección en la app que consuma estos endpoints, debe ag
 
 ## Endpoints principales
 ### Listado y detalle
-- `GET /invoices`: retorna la colección paginada de facturas con filtros por estado (`draft`, `issued`, `void`) y rangos de fechas. Incluye referencias a clientes y trabajos mediante sus identificadores internos.
+- `GET /invoices`: retorna la colección paginada de facturas con filtros por estado (`draft`, `issued`, `paid`, `canceled`) y rangos de fechas. Incluye referencias a clientes y trabajos mediante sus identificadores internos.
 - `GET /invoices/{id}`: provee el detalle completo del comprobante, incluyendo ítems normalizados, impuestos calculados y metadatos de emisión.
 
 ### Operaciones de emisión y actualización
-- `POST /invoices`: crea una factura en estado `draft`, validando que los ítems incluyan montos, impuestos y referencias opcionales a productos, trabajos o clientes mediante sus IDs (sin constraints en la base).
+- `POST /invoices`: crea una factura en estado `draft`, validando que los ítems incluyan montos y referencias opcionales a productos, trabajos o clientes mediante sus IDs (sin constraints en la base). El campo `attached_files` acepta un arreglo de IDs de archivos ya cargados y los impuestos (`tax_amount`) pueden calcularse automáticamente en la app a partir de un porcentaje global.
 - `PUT /invoices/{id}`: actualiza datos de encabezado, ítems o totales siempre que la factura siga en `draft`.
 - `POST /invoices/{id}/issue`: cambia el estado a `issued`, registra el número fiscal definitivo y emite el comprobante electrónico asociado.
 
@@ -34,7 +34,7 @@ Cuando se cree una nueva sección en la app que consuma estos endpoints, debe ag
 - La colección de Postman incorpora ejemplos listos para usar en la carpeta **Facturación**, con cuerpos de ejemplo y encabezados Bearer preconfigurados.
 
 ### Anulación y regeneración de archivos
-- `POST /invoices/{id}/void`: marca la factura como anulada conservando el historial y dejando constancia del usuario responsable.
+- `POST /invoices/{id}/void`: marca la factura como cancelada conservando el historial y dejando constancia del usuario responsable.
 - `POST /invoices/{id}/regenerate_pdf`: fuerza la reconstrucción del PDF en caso de modificaciones sobre datos auxiliares permitidos tras la emisión.
 
 Todas las operaciones anteriores deben ejecutarse con el encabezado Bearer activo. Los payloads aceptan arrays de ítems y referencias por identificador; la integridad referencial se valida mediante reglas de negocio, nunca mediante claves foráneas en la base de datos.
@@ -46,7 +46,7 @@ Todas las operaciones anteriores deben ejecutarse con el encabezado Bearer activ
 Los eventos almacenan la huella completa del request (incluyendo encabezados relevantes, valores previos y cambios aplicados) para simplificar inspecciones posteriores. Al no contar con claves foráneas, la API adjunta copias de los identificadores originales y una instantánea de los datos principales de cliente y trabajo al momento del evento, garantizando que el historial se mantenga consistente aunque se eliminen registros relacionados.
 
 ## Consideraciones de auditoría y registros complementarios
-- Cada factura guarda metadatos `created_by`, `updated_by`, `issued_by` y `voided_by` con los identificadores de usuario que originaron la acción. La aplicación debe enviar siempre esos identificadores en el payload o permitir que el backend los infiera desde el token Bearer.
+- Cada factura guarda metadatos `created_by`, `updated_by`, `issued_by` y `voided_by` (o `canceled_by`) con los identificadores de usuario que originaron la acción. La aplicación debe enviar siempre esos identificadores en el payload o permitir que el backend los infiera desde el token Bearer.
 - Los adjuntos (XML, PDF, recibos) se vinculan mediante rutas absolutas entregadas por el servicio de archivos. Al no existir claves foráneas, la API almacena únicamente los IDs de adjunto y el hash del archivo para validar integridad.
 - Se recomienda consumir el endpoint de historial en revisiones periódicas y registrar los resultados en la colección de Postman del servidor cuando se actualicen flujos o se agreguen nuevos eventos.
 
