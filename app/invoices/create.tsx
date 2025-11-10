@@ -206,7 +206,11 @@ export default function CreateInvoiceScreen() {
   };
 
   return (
-    <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
+    <ScrollView
+      style={{ backgroundColor: background }}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <ThemedText style={styles.sectionTitle}>Factura</ThemedText>
 
       <ThemedText style={styles.label}>Fecha de emisión</ThemedText>
