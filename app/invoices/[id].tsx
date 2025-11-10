@@ -41,6 +41,7 @@ interface InvoiceFormState {
   companyId: string;
   status: string;
   notes: string;
+  taxPercentage: string;
 }
 
 const createEmptyItem = (): InvoiceItemFormValue => ({
@@ -63,6 +64,29 @@ const extractNotes = (invoice: Invoice | undefined): string => {
   return typeof value === 'string' ? value : '';
 };
 
+const extractTaxPercentage = (invoice: Invoice | undefined): string => {
+  if (!invoice?.metadata || typeof invoice.metadata !== 'object') {
+    return '';
+  }
+  const metadata = invoice.metadata as Record<string, unknown>;
+  const rawValue =
+    metadata.total_tax_percentage ??
+    metadata.tax_percentage ??
+    metadata.taxPercent ??
+    metadata.totalTaxPercentage ??
+    null;
+
+  if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+    return rawValue.toString();
+  }
+
+  if (typeof rawValue === 'string') {
+    return rawValue;
+  }
+
+  return '';
+};
+
 const buildInitialState = (invoice: Invoice | undefined): InvoiceFormState => ({
   id: invoice ? invoice.id.toString() : '',
   invoiceDate: invoice?.invoice_date ?? invoice?.issue_date ?? '',
@@ -77,6 +101,7 @@ const buildInitialState = (invoice: Invoice | undefined): InvoiceFormState => ({
     : '',
   status: invoice?.status ?? 'draft',
   notes: extractNotes(invoice),
+  taxPercentage: extractTaxPercentage(invoice),
 });
 
 const NEW_CLIENT_VALUE = '__new_client__';
@@ -170,6 +195,26 @@ export default function EditInvoiceScreen() {
     [clients],
   );
 
+  const currencyItems = useMemo(
+    () => [
+      { label: '🇦🇷 ARS (Peso argentino)', value: 'ARS' },
+      { label: '🇺🇸 USA (USD)', value: 'USD' },
+    ],
+    [],
+  );
+
+  const statusItems = useMemo(() => {
+    const base = [
+      { label: 'Borrador', value: 'draft' },
+      { label: 'Emitida', value: 'issued' },
+      { label: 'Anulada', value: 'void' },
+    ];
+    if (formState.status && !base.some(item => item.value === formState.status)) {
+      base.push({ label: formState.status, value: formState.status });
+    }
+    return base;
+  }, [formState.status]);
+
   useEffect(() => {
     if (!canUpdate && !canDelete) {
       Alert.alert('Acceso denegado', 'No tienes permiso para editar o eliminar facturas.');
@@ -196,6 +241,14 @@ export default function EditInvoiceScreen() {
       const mappedItems = (currentInvoice.items ?? []).map(mapInvoiceItemToFormValue);
       setItems(mappedItems.length > 0 ? mappedItems : [createEmptyItem()]);
       setExpandedItems({});
+      const shouldExpandMetadata =
+        (typeof currentInvoice.invoice_number === 'string' &&
+          currentInvoice.invoice_number.trim().length > 0) ||
+        (typeof currentInvoice.currency === 'string' && currentInvoice.currency.trim().length > 0) ||
+        (typeof currentInvoice.company_id === 'number' && Number.isFinite(currentInvoice.company_id)) ||
+        (typeof currentInvoice.status === 'string' && currentInvoice.status !== 'draft') ||
+        extractTaxPercentage(currentInvoice).trim().length > 0;
+      setExpandedMetadata(shouldExpandMetadata);
       setExpandedNotes(extractNotes(currentInvoice).trim().length > 0);
       setIsLoading(false);
       return;
@@ -228,9 +281,6 @@ export default function EditInvoiceScreen() {
   }, [clients, formState.clientId]);
 
   const isValid = useMemo(() => {
-    if (!formState.invoiceNumber.trim()) {
-      return false;
-    }
     if (!formState.clientId.trim()) {
       return false;
     }
@@ -238,7 +288,7 @@ export default function EditInvoiceScreen() {
       return false;
     }
     return true;
-  }, [formState.clientId, formState.invoiceNumber, items]);
+  }, [formState.clientId, items]);
 
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
@@ -279,7 +329,7 @@ export default function EditInvoiceScreen() {
       return;
     }
     if (!isValid) {
-      Alert.alert('Datos incompletos', 'Completá el número de factura, el cliente y al menos un ítem válido.');
+      Alert.alert('Datos incompletos', 'Seleccioná un cliente y agregá al menos un ítem válido.');
       return;
     }
 
@@ -296,7 +346,6 @@ export default function EditInvoiceScreen() {
     }
 
     const payload: InvoicePayload = {
-      invoice_number: formState.invoiceNumber.trim(),
       client_id: clientId,
       invoice_date: formState.invoiceDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
@@ -304,6 +353,11 @@ export default function EditInvoiceScreen() {
       status: formState.status.trim() || 'draft',
       items: payloadItems,
     };
+
+    const invoiceNumber = formState.invoiceNumber.trim();
+    if (invoiceNumber) {
+      payload.invoice_number = invoiceNumber;
+    }
 
     payload.total_amount = Number.isFinite(total) ? total : null;
 
@@ -332,8 +386,37 @@ export default function EditInvoiceScreen() {
       }
     }
 
-    if (formState.notes.trim()) {
-      payload.metadata = { notes: formState.notes.trim() };
+    const metadata: Record<string, unknown> =
+      currentInvoice?.metadata && typeof currentInvoice.metadata === 'object'
+        ? { ...(currentInvoice.metadata as Record<string, unknown>) }
+        : {};
+
+    const notes = formState.notes.trim();
+    if (notes) {
+      metadata.notes = notes;
+    } else {
+      delete metadata.notes;
+    }
+
+    const taxPercentageValue = formState.taxPercentage.trim().replace(',', '.');
+    if (taxPercentageValue) {
+      const parsedPercentage = Number(taxPercentageValue);
+      if (Number.isFinite(parsedPercentage)) {
+        metadata.total_tax_percentage = parsedPercentage;
+        metadata.tax_percentage = parsedPercentage;
+      } else {
+        delete metadata.total_tax_percentage;
+        delete metadata.tax_percentage;
+      }
+    } else {
+      delete metadata.total_tax_percentage;
+      delete metadata.tax_percentage;
+    }
+
+    if (Object.keys(metadata).length > 0) {
+      payload.metadata = metadata;
+    } else {
+      payload.metadata = null;
     }
 
     setSubmitting(true);
@@ -461,14 +544,16 @@ export default function EditInvoiceScreen() {
           />
 
           <ThemedText style={styles.label}>Moneda</ThemedText>
-          <TextInput
-            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="ARS"
-            placeholderTextColor={placeholderColor}
-            value={formState.currencyCode}
-            onChangeText={handleChange('currencyCode')}
-            autoCapitalize="characters"
-            maxLength={5}
+          <SearchableSelect
+            style={styles.select}
+            items={currencyItems}
+            selectedValue={formState.currencyCode}
+            onValueChange={value => {
+              const stringValue = typeof value === 'number' ? value.toString() : (value ?? '').toString();
+              setFormState(current => ({ ...current, currencyCode: stringValue || 'ARS' }));
+            }}
+            placeholder="Seleccioná una moneda"
+            showSearch={false}
           />
 
           <ThemedText style={styles.label}>Empresa</ThemedText>
@@ -482,13 +567,26 @@ export default function EditInvoiceScreen() {
           />
 
           <ThemedText style={styles.label}>Estado</ThemedText>
+          <SearchableSelect
+            style={styles.select}
+            items={statusItems}
+            selectedValue={formState.status}
+            onValueChange={value => {
+              const stringValue = typeof value === 'number' ? value.toString() : (value ?? '').toString();
+              setFormState(current => ({ ...current, status: stringValue || 'draft' }));
+            }}
+            placeholder="Seleccioná un estado"
+            showSearch={false}
+          />
+
+          <ThemedText style={styles.label}>Porcentaje de impuestos (total)</ThemedText>
           <TextInput
             style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="draft"
+            placeholder="0"
             placeholderTextColor={placeholderColor}
-            value={formState.status}
-            onChangeText={handleChange('status')}
-            autoCapitalize="none"
+            value={formState.taxPercentage}
+            onChangeText={handleChange('taxPercentage')}
+            keyboardType="decimal-pad"
           />
         </View>
       ) : null}
