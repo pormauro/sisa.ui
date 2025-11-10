@@ -8,9 +8,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { InvoicesContext, type InvoicePayload } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { JobsContext, type Job } from '@/contexts/JobsContext';
+import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
@@ -22,6 +24,74 @@ import {
   hasInvoiceItemData,
   prepareInvoiceItemPayloads,
 } from '@/utils/invoiceItems';
+import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
+
+type InvoiceRouteParams = {
+  jobIds?: string | string[];
+  clientId?: string | string[];
+};
+
+const extractDatePart = (value?: string | null): string => {
+  if (!value) {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.includes(' ')) {
+    const [datePart] = trimmed.split(' ');
+    return datePart ?? '';
+  }
+
+  if (trimmed.includes('T')) {
+    const [datePart] = trimmed.split('T');
+    return datePart ?? '';
+  }
+
+  return trimmed;
+};
+
+const getJobDateLabel = (job: Job): string => {
+  const candidates = [job.job_date, job.created_at, job.updated_at];
+  for (const candidate of candidates) {
+    const normalized = extractDatePart(candidate ?? undefined);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return '';
+};
+
+const getJobItemAmount = (job: Job, tariffAmountById: Map<number, number>): number => {
+  const computedTotal = calculateJobTotal(job, tariffAmountById);
+  if (Number.isFinite(computedTotal) && (computedTotal as number) > 0) {
+    return computedTotal as number;
+  }
+
+  const manualAmount = typeof job.manual_amount === 'number' ? job.manual_amount : undefined;
+  if (typeof manualAmount === 'number' && Number.isFinite(manualAmount) && manualAmount > 0) {
+    return manualAmount;
+  }
+
+  if (typeof job.manual_amount === 'string') {
+    const parsedManual = Number(job.manual_amount.trim());
+    if (Number.isFinite(parsedManual) && parsedManual > 0) {
+      return parsedManual;
+    }
+  }
+
+  if (job.tariff_id != null) {
+    const tariffAmount = tariffAmountById.get(job.tariff_id);
+    if (typeof tariffAmount === 'number' && Number.isFinite(tariffAmount) && tariffAmount > 0) {
+      return tariffAmount;
+    }
+  }
+
+  return 0;
+};
 
 interface InvoiceFormState {
   id: string;
@@ -65,8 +135,19 @@ const DEFAULT_FORM_STATE: InvoiceFormState = {
 
 export default function CreateInvoiceScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<InvoiceRouteParams>();
   const { addInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { jobs, loadJobs } = useContext(JobsContext);
+  const { tariffs, loadTariffs } = useContext(TariffsContext);
+
+  const jobIdsFromParams = useMemo(() => parseJobIdsParam(params.jobIds), [params.jobIds]);
+  const jobIdsKey = useMemo(() => jobIdsFromParams.join(','), [jobIdsFromParams]);
+  const clientIdFromParams = useMemo(() => {
+    const raw = params.clientId;
+    const normalized = Array.isArray(raw) ? raw[0] : raw;
+    return normalized ? normalized.toString() : undefined;
+  }, [params.clientId]);
 
   const [formState, setFormState] = useState<InvoiceFormState>(DEFAULT_FORM_STATE);
   const [items, setItems] = useState<InvoiceItemFormValue[]>([createEmptyItem()]);
@@ -74,6 +155,8 @@ export default function CreateInvoiceScreen() {
   const [expandedNotes, setExpandedNotes] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [clientPrefilled, setClientPrefilled] = useState(false);
+  const [itemsPrefilled, setItemsPrefilled] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -86,12 +169,89 @@ export default function CreateInvoiceScreen() {
 
   const canCreate = permissions.includes('addInvoice');
 
+  const tariffAmountById = useMemo(() => {
+    const map = new Map<number, number>();
+    tariffs.forEach((tariff: Tariff) => {
+      map.set(tariff.id, tariff.amount);
+    });
+    return map;
+  }, [tariffs]);
+
+  useEffect(() => {
+    setItemsPrefilled(false);
+  }, [jobIdsKey]);
+
+  useEffect(() => {
+    if (jobIdsFromParams.length > 0) {
+      void loadJobs();
+      void loadTariffs();
+    }
+  }, [jobIdsFromParams, loadJobs, loadTariffs]);
+
   useEffect(() => {
     if (!canCreate) {
       Alert.alert('Acceso denegado', 'No tienes permiso para crear facturas.');
       router.back();
     }
   }, [canCreate, router]);
+
+  useEffect(() => {
+    setClientPrefilled(false);
+  }, [clientIdFromParams]);
+
+  useEffect(() => {
+    if (clientPrefilled) {
+      return;
+    }
+    if (!clientIdFromParams) {
+      return;
+    }
+
+    setFormState(current => ({ ...current, clientId: clientIdFromParams }));
+    setClientPrefilled(true);
+  }, [clientIdFromParams, clientPrefilled]);
+
+  useEffect(() => {
+    if (itemsPrefilled) {
+      return;
+    }
+    if (jobIdsFromParams.length === 0) {
+      return;
+    }
+
+    const selectedJobs = jobIdsFromParams
+      .map(id => jobs.find(job => job.id === id))
+      .filter((job): job is Job => Boolean(job));
+
+    if (selectedJobs.length === 0) {
+      return;
+    }
+
+    const invoiceItems = selectedJobs.map((job, index) => {
+      const totalValue = getJobItemAmount(job, tariffAmountById);
+      const unitPriceText = totalValue.toFixed(2);
+      const descriptionParts = [
+        getJobDateLabel(job),
+        job.description?.trim() || 'Trabajo sin descripción',
+        formatCurrency(totalValue),
+      ].filter(Boolean);
+
+      return {
+        description: descriptionParts.join(' - '),
+        quantity: '1',
+        unitPrice: unitPriceText,
+        productId: '',
+        discountAmount: '0',
+        taxAmount: '0',
+        totalAmount: unitPriceText,
+        orderIndex: (index + 1).toString(),
+      } satisfies InvoiceItemFormValue;
+    });
+
+    setItems(invoiceItems);
+    setExpandedItems({});
+    setItemsPrefilled(true);
+  }, [itemsPrefilled, jobIdsFromParams, jobs, tariffAmountById]);
 
   const subtotal = useMemo(() => calculateInvoiceItemsSubtotal(items), [items]);
   const taxes = useMemo(() => calculateInvoiceItemsTax(items), [items]);
