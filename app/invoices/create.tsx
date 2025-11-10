@@ -237,6 +237,16 @@ export default function CreateInvoiceScreen() {
         keyboardType="numeric"
       />
 
+      <ThemedText style={styles.label}>Número de factura</ThemedText>
+      <TextInput
+        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+        placeholder="Número interno"
+        placeholderTextColor={placeholderColor}
+        value={formState.invoiceNumber}
+        onChangeText={handleChange('invoiceNumber')}
+        autoCapitalize="characters"
+      />
+
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}
         onPress={() => setExpandedMetadata(value => !value)}
@@ -248,16 +258,6 @@ export default function CreateInvoiceScreen() {
 
       {expandedMetadata ? (
         <View style={[styles.metadataContainer, { borderColor }]}>
-          <ThemedText style={styles.label}>Número de factura</ThemedText>
-          <TextInput
-            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="Número interno"
-            placeholderTextColor={placeholderColor}
-            value={formState.invoiceNumber}
-            onChangeText={handleChange('invoiceNumber')}
-            autoCapitalize="characters"
-          />
-
           <ThemedText style={styles.label}>Moneda</ThemedText>
           <TextInput
             style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}

@@ -19,7 +19,7 @@ Este documento describe cómo la aplicación Expo sincroniza el módulo de Factu
 
 ## Consumo en la interfaz
 - El listado de `/invoices` usa el contexto para refrescar al hacer pull-to-refresh, validar permisos (`listInvoices`, `voidInvoice`) y mostrar acciones inmediatas de anulación, manteniendo oculto el FAB cuando falta `addInvoice`. También prioriza la `invoice_date` al mostrar la fecha formateada.【F:app/invoices/index.tsx†L59-L212】
-- La pantalla de creación verifica `addInvoice`, solicita mínimo el número de factura, cliente y un ítem válido, permite desplegar secciones colapsables para metadatos y notas, y calcula subtotal, impuestos y total en vivo antes de invocar al contexto.【F:app/invoices/create.tsx†L1-L310】
+- La pantalla de creación verifica `addInvoice`, solicita mínimo el número de factura, cliente y un ítem válido, expone el campo de número de factura directamente en el encabezado y mantiene secciones colapsables sólo para metadatos y notas adicionales, calculando subtotal, impuestos y total en vivo antes de invocar al contexto.【F:app/invoices/create.tsx†L1-L310】
 - El formulario de edición comprueba `updateInvoice`, precarga encabezado, ítems y notas, habilita los mismos bloques colapsables y persiste los cambios mediante `updateInvoice`, manteniendo el resumen de costos sincronizado con los valores ingresados. También habilita la eliminación cuando el perfil cuenta con `deleteInvoice` y confirma el resultado antes de volver al listado.【F:app/invoices/[id].tsx†L1-L596】
 
 ## Permisos y colección de Postman
