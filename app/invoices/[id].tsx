@@ -20,6 +20,8 @@ import {
   calculateInvoiceItemsSubtotal,
   calculateInvoiceItemsTax,
   calculateInvoiceItemsTotal,
+  invoiceItemsProvideSubtotalData,
+  invoiceItemsProvideTaxData,
   hasInvoiceItemData,
   mapInvoiceItemToFormValue,
   prepareInvoiceItemPayloads,
@@ -116,8 +118,32 @@ export default function EditInvoiceScreen() {
     [invoiceId, invoices],
   );
 
-  const subtotal = useMemo(() => calculateInvoiceItemsSubtotal(items), [items]);
-  const taxes = useMemo(() => calculateInvoiceItemsTax(items), [items]);
+  const hasSubtotalData = useMemo(() => invoiceItemsProvideSubtotalData(items), [items]);
+  const hasTaxData = useMemo(() => invoiceItemsProvideTaxData(items), [items]);
+
+  const subtotal = useMemo(() => {
+    const derivedSubtotal = calculateInvoiceItemsSubtotal(items);
+    if (hasSubtotalData) {
+      return derivedSubtotal;
+    }
+
+    const existingSubtotal = currentInvoice?.subtotal_amount;
+    return typeof existingSubtotal === 'number' && Number.isFinite(existingSubtotal)
+      ? existingSubtotal
+      : derivedSubtotal;
+  }, [currentInvoice, hasSubtotalData, items]);
+
+  const taxes = useMemo(() => {
+    const derivedTaxes = calculateInvoiceItemsTax(items);
+    if (hasTaxData) {
+      return derivedTaxes;
+    }
+
+    const existingTaxes = currentInvoice?.tax_amount;
+    return typeof existingTaxes === 'number' && Number.isFinite(existingTaxes)
+      ? existingTaxes
+      : derivedTaxes;
+  }, [currentInvoice, hasTaxData, items]);
   const total = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
 
   const formattedSubtotal = useMemo(() => formatCurrency(subtotal), [subtotal]);
@@ -229,11 +255,28 @@ export default function EditInvoiceScreen() {
       due_date: formState.dueDate.trim() || null,
       currency_code: formState.currencyCode.trim() || null,
       status: formState.status.trim() || 'draft',
-      subtotal_amount: Number.isFinite(subtotal) ? subtotal : null,
-      tax_amount: Number.isFinite(taxes) ? taxes : null,
-      total_amount: Number.isFinite(total) ? total : null,
       items: payloadItems,
     };
+
+    payload.total_amount = Number.isFinite(total) ? total : null;
+
+    const shouldIncludeSubtotal =
+      hasSubtotalData ||
+      (typeof currentInvoice?.subtotal_amount === 'number' && Number.isFinite(currentInvoice.subtotal_amount));
+    if (shouldIncludeSubtotal) {
+      const normalizedSubtotal = Number.isFinite(subtotal)
+        ? subtotal
+        : currentInvoice?.subtotal_amount ?? null;
+      payload.subtotal_amount = normalizedSubtotal;
+    }
+
+    const shouldIncludeTax =
+      hasTaxData ||
+      (typeof currentInvoice?.tax_amount === 'number' && Number.isFinite(currentInvoice.tax_amount));
+    if (shouldIncludeTax) {
+      const normalizedTax = Number.isFinite(taxes) ? taxes : currentInvoice?.tax_amount ?? null;
+      payload.tax_amount = normalizedTax;
+    }
 
     if (formState.companyId.trim()) {
       const parsedCompanyId = Number(formState.companyId.trim());
