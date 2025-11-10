@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -171,6 +171,8 @@ export default function CreateInvoiceScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [clientPrefilled, setClientPrefilled] = useState(false);
   const [itemsPrefilled, setItemsPrefilled] = useState(false);
+  const [clientsInitialized, setClientsInitialized] = useState(false);
+  const initialClientsRef = useRef(clients);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -253,6 +255,16 @@ export default function CreateInvoiceScreen() {
   }, [clientIdFromParams]);
 
   useEffect(() => {
+    if (clientsInitialized) {
+      return;
+    }
+
+    if (clients.length > 0 || clients !== initialClientsRef.current) {
+      setClientsInitialized(true);
+    }
+  }, [clients, clientsInitialized]);
+
+  useEffect(() => {
     if (clientPrefilled) {
       return;
     }
@@ -275,6 +287,10 @@ export default function CreateInvoiceScreen() {
   }, [pendingSelections, consumeSelection]);
 
   useEffect(() => {
+    if (!clientsInitialized) {
+      return;
+    }
+
     if (!formState.clientId) {
       return;
     }
@@ -282,7 +298,7 @@ export default function CreateInvoiceScreen() {
     if (!exists) {
       setFormState(current => ({ ...current, clientId: '' }));
     }
-  }, [clients, formState.clientId]);
+  }, [clients, clientsInitialized, formState.clientId]);
 
   useEffect(() => {
     if (itemsPrefilled) {
