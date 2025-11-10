@@ -111,6 +111,7 @@ interface InvoiceFormState {
   companyId: string;
   status: string;
   notes: string;
+  taxPercentage: string;
 }
 
 const getToday = (): string => {
@@ -139,6 +140,7 @@ const DEFAULT_FORM_STATE: InvoiceFormState = {
   companyId: '',
   status: 'draft',
   notes: '',
+  taxPercentage: '',
 };
 
 const NEW_CLIENT_VALUE = '__new_client__';
@@ -200,6 +202,26 @@ export default function CreateInvoiceScreen() {
     ],
     [clients],
   );
+
+  const currencyItems = useMemo(
+    () => [
+      { label: '🇦🇷 ARS (Peso argentino)', value: 'ARS' },
+      { label: '🇺🇸 USA (USD)', value: 'USD' },
+    ],
+    [],
+  );
+
+  const statusItems = useMemo(() => {
+    const base = [
+      { label: 'Borrador', value: 'draft' },
+      { label: 'Emitida', value: 'issued' },
+      { label: 'Anulada', value: 'void' },
+    ];
+    if (formState.status && !base.some(item => item.value === formState.status)) {
+      base.push({ label: formState.status, value: formState.status });
+    }
+    return base;
+  }, [formState.status]);
 
   useEffect(() => {
     setItemsPrefilled(false);
@@ -332,9 +354,6 @@ export default function CreateInvoiceScreen() {
   const formattedTotal = useMemo(() => formatCurrency(total), [total]);
 
   const isValid = useMemo(() => {
-    if (!formState.invoiceNumber.trim()) {
-      return false;
-    }
     if (!formState.clientId.trim()) {
       return false;
     }
@@ -342,7 +361,7 @@ export default function CreateInvoiceScreen() {
       return false;
     }
     return true;
-  }, [formState.clientId, formState.invoiceNumber, items]);
+  }, [formState.clientId, items]);
 
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
@@ -381,7 +400,7 @@ export default function CreateInvoiceScreen() {
     if (!isValid) {
       Alert.alert(
         'Datos incompletos',
-        'Completá el número de factura, el cliente y al menos un ítem con información válida.',
+        'Seleccioná un cliente y agregá al menos un ítem con información válida.',
       );
       return;
     }
@@ -399,7 +418,6 @@ export default function CreateInvoiceScreen() {
     }
 
     const payload: InvoicePayload = {
-      invoice_number: formState.invoiceNumber.trim(),
       client_id: clientId,
       invoice_date: formState.invoiceDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
@@ -411,6 +429,11 @@ export default function CreateInvoiceScreen() {
       items: payloadItems,
     };
 
+    const invoiceNumber = formState.invoiceNumber.trim();
+    if (invoiceNumber) {
+      payload.invoice_number = invoiceNumber;
+    }
+
     if (formState.companyId.trim()) {
       const parsedCompanyId = Number(formState.companyId.trim());
       if (Number.isFinite(parsedCompanyId)) {
@@ -418,8 +441,23 @@ export default function CreateInvoiceScreen() {
       }
     }
 
-    if (formState.notes.trim()) {
-      payload.metadata = { notes: formState.notes.trim() };
+    const metadata: Record<string, unknown> = {};
+    const notes = formState.notes.trim();
+    if (notes) {
+      metadata.notes = notes;
+    }
+
+    const taxPercentageValue = formState.taxPercentage.trim().replace(',', '.');
+    if (taxPercentageValue) {
+      const parsedPercentage = Number(taxPercentageValue);
+      if (Number.isFinite(parsedPercentage)) {
+        metadata.total_tax_percentage = parsedPercentage;
+        metadata.tax_percentage = parsedPercentage;
+      }
+    }
+
+    if (Object.keys(metadata).length > 0) {
+      payload.metadata = metadata;
     }
 
     setSubmitting(true);
@@ -487,16 +525,6 @@ export default function CreateInvoiceScreen() {
         }}
       />
 
-      <ThemedText style={styles.label}>Número de factura</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="Número interno"
-        placeholderTextColor={placeholderColor}
-        value={formState.invoiceNumber}
-        onChangeText={handleChange('invoiceNumber')}
-        autoCapitalize="characters"
-      />
-
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}
         onPress={() => setExpandedMetadata(value => !value)}
@@ -508,15 +536,27 @@ export default function CreateInvoiceScreen() {
 
       {expandedMetadata ? (
         <View style={[styles.metadataContainer, { borderColor }]}>
-          <ThemedText style={styles.label}>Moneda</ThemedText>
+          <ThemedText style={styles.label}>Número de factura</ThemedText>
           <TextInput
             style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="ARS"
+            placeholder="Número interno"
             placeholderTextColor={placeholderColor}
-            value={formState.currencyCode}
-            onChangeText={handleChange('currencyCode')}
+            value={formState.invoiceNumber}
+            onChangeText={handleChange('invoiceNumber')}
             autoCapitalize="characters"
-            maxLength={5}
+          />
+
+          <ThemedText style={styles.label}>Moneda</ThemedText>
+          <SearchableSelect
+            style={styles.select}
+            items={currencyItems}
+            selectedValue={formState.currencyCode}
+            onValueChange={value => {
+              const stringValue = typeof value === 'number' ? value.toString() : (value ?? '').toString();
+              setFormState(current => ({ ...current, currencyCode: stringValue || 'ARS' }));
+            }}
+            placeholder="Seleccioná una moneda"
+            showSearch={false}
           />
 
           <ThemedText style={styles.label}>Empresa</ThemedText>
@@ -530,13 +570,26 @@ export default function CreateInvoiceScreen() {
           />
 
           <ThemedText style={styles.label}>Estado</ThemedText>
+          <SearchableSelect
+            style={styles.select}
+            items={statusItems}
+            selectedValue={formState.status}
+            onValueChange={value => {
+              const stringValue = typeof value === 'number' ? value.toString() : (value ?? '').toString();
+              setFormState(current => ({ ...current, status: stringValue || 'draft' }));
+            }}
+            placeholder="Seleccioná un estado"
+            showSearch={false}
+          />
+
+          <ThemedText style={styles.label}>Porcentaje de impuestos (total)</ThemedText>
           <TextInput
             style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="draft"
+            placeholder="0"
             placeholderTextColor={placeholderColor}
-            value={formState.status}
-            onChangeText={handleChange('status')}
-            autoCapitalize="none"
+            value={formState.taxPercentage}
+            onChangeText={handleChange('taxPercentage')}
+            keyboardType="decimal-pad"
           />
         </View>
       ) : null}
