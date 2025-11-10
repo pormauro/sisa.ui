@@ -32,6 +32,7 @@ const PERMISSION_GROUPS = [
       'getInvoice',
       'addInvoice',
       'updateInvoice',
+      'deleteInvoice',
       'voidInvoice',
       'issueInvoice',
       'downloadInvoicePdf',

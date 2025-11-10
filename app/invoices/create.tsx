@@ -173,7 +173,7 @@ export default function CreateInvoiceScreen() {
       client_id: clientId,
       invoice_date: formState.invoiceDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
-      currency: formState.currencyCode.trim() || null,
+      currency_code: formState.currencyCode.trim() || null,
       status: formState.status.trim() || 'draft',
       subtotal_amount: Number.isFinite(subtotal) ? subtotal : null,
       tax_amount: Number.isFinite(taxes) ? taxes : null,
