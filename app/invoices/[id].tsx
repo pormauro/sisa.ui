@@ -1,173 +1,101 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { InvoicesContext, type Invoice, type InvoicePayload } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { JobsContext } from '@/contexts/JobsContext';
-import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
-import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 import {
   InvoiceItemFormValue,
+  calculateInvoiceItemsSubtotal,
+  calculateInvoiceItemsTax,
   calculateInvoiceItemsTotal,
-  createInvoiceItemsFromJobs,
-  mapInvoiceConceptToFormValue,
-  mergeInvoiceItemsWithJobs,
-  prepareInvoiceConceptPayloads,
+  hasInvoiceItemData,
+  mapInvoiceItemToFormValue,
+  prepareInvoiceItemPayloads,
 } from '@/utils/invoiceItems';
 
 interface InvoiceFormState {
-  invoiceNumber: string;
-  clientId: string;
-  jobIds: string;
-  issueDate: string;
+  id: string;
+  invoiceDate: string;
   dueDate: string;
-  currency: string;
+  clientId: string;
+  invoiceNumber: string;
+  currencyCode: string;
+  companyId: string;
   status: string;
   notes: string;
 }
 
-const parseJobIdsInput = (value: string): number[] => {
-  if (!value.trim()) {
-    return [];
-  }
-  return value
-    .split(',')
-    .map(item => item.trim())
-    .filter(Boolean)
-    .map(item => Number(item))
-    .filter(item => Number.isFinite(item));
-};
+const createEmptyItem = (): InvoiceItemFormValue => ({
+  description: '',
+  quantity: '1',
+  unitPrice: '',
+  productId: '',
+  discountAmount: '0',
+  taxAmount: '0',
+  totalAmount: '',
+  orderIndex: '',
+});
 
-const getInitialState = (invoice: Invoice | undefined): InvoiceFormState => {
-  if (!invoice) {
-    return {
-      invoiceNumber: '',
-      clientId: '',
-      jobIds: '',
-      issueDate: '',
-      dueDate: '',
-      currency: 'ARS',
-      status: 'draft',
-      notes: '',
-    };
-  }
-
-  const notesFromMetadata = (() => {
-    if (invoice.metadata && typeof invoice.metadata === 'object') {
-      const metadata = invoice.metadata as Record<string, unknown>;
-      const direct = metadata.notes ?? metadata.note ?? metadata.comment ?? metadata.observations;
-      if (typeof direct === 'string') {
-        return direct;
-      }
-    }
+const extractNotes = (invoice: Invoice | undefined): string => {
+  if (!invoice?.metadata || typeof invoice.metadata !== 'object') {
     return '';
-  })();
-
-  return {
-    invoiceNumber: invoice.invoice_number ?? '',
-    clientId: invoice.client_id !== null ? invoice.client_id.toString() : '',
-    jobIds: invoice.job_ids.join(', '),
-    issueDate: invoice.issue_date ?? '',
-    dueDate: invoice.due_date ?? '',
-    currency: invoice.currency ?? 'ARS',
-    status: invoice.status ?? 'draft',
-    notes: notesFromMetadata,
-  };
+  }
+  const metadata = invoice.metadata as Record<string, unknown>;
+  const value = metadata.notes ?? metadata.note ?? metadata.comment ?? metadata.observations;
+  return typeof value === 'string' ? value : '';
 };
+
+const buildInitialState = (invoice: Invoice | undefined): InvoiceFormState => ({
+  id: invoice ? invoice.id.toString() : '',
+  invoiceDate: invoice?.invoice_date ?? invoice?.issue_date ?? '',
+  dueDate: invoice?.due_date ?? '',
+  clientId: invoice?.client_id !== null && typeof invoice?.client_id !== 'undefined'
+    ? invoice.client_id.toString()
+    : '',
+  invoiceNumber: invoice?.invoice_number ?? '',
+  currencyCode: invoice?.currency ?? 'ARS',
+  companyId: typeof invoice?.company_id === 'number' && Number.isFinite(invoice.company_id)
+    ? invoice.company_id.toString()
+    : '',
+  status: invoice?.status ?? 'draft',
+  notes: extractNotes(invoice),
+});
 
 export default function EditInvoiceScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id?: string; jobIds?: string | string[] }>();
+  const params = useLocalSearchParams<{ id?: string }>();
   const invoiceId = useMemo(() => {
-    if (!params.id) {
+    const rawId = params.id;
+    const normalized = Array.isArray(rawId) ? rawId[0] : rawId;
+    if (!normalized) {
       return null;
     }
-    const normalized = Array.isArray(params.id) ? params.id[0] : params.id;
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : null;
   }, [params.id]);
 
   const { invoices, loadInvoices, updateInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
-  const { jobs, loadJobs } = useContext(JobsContext);
-  const { tariffs } = useContext(TariffsContext);
 
-  const canUpdate = permissions.includes('updateInvoice');
-
-  const currentInvoice = useMemo(
-    () => invoices.find(invoice => invoice.id === invoiceId) ?? undefined,
-    [invoiceId, invoices],
-  );
-
-  const selectedJobIds = useMemo(() => new Set(parseJobIdsParam(params.jobIds)), [params.jobIds]);
-
-  const tariffAmountById = useMemo(() => {
-    const amountById = new Map<number, number>();
-    tariffs.forEach((tariff: Tariff) => {
-      amountById.set(tariff.id, tariff.amount);
-    });
-    return amountById;
-  }, [tariffs]);
-
-  const selectedJobs = useMemo(() => {
-    if (selectedJobIds.size === 0) {
-      return [];
-    }
-    return jobs.filter(job => selectedJobIds.has(job.id));
-  }, [jobs, selectedJobIds]);
-
-  const selectedJobsTotal = useMemo(() => {
-    if (selectedJobs.length === 0) {
-      return 0;
-    }
-    return selectedJobs.reduce((total, job) => {
-      const jobTotal = calculateJobTotal(job, tariffAmountById);
-      if (!Number.isFinite(jobTotal) || jobTotal <= 0) {
-        return total;
-      }
-      return total + jobTotal;
-    }, 0);
-  }, [selectedJobs, tariffAmountById]);
-
-  const formattedSelectedJobsTotal = useMemo(
-    () => formatCurrency(selectedJobsTotal),
-    [selectedJobsTotal],
-  );
-
-  const selectedJobsCount = selectedJobs.length;
-
-  const mergedJobIdsString = useMemo(() => {
-    const merged = new Set<number>();
-    if (currentInvoice) {
-      currentInvoice.job_ids.forEach(id => merged.add(id));
-    }
-    selectedJobIds.forEach(id => merged.add(id));
-    if (merged.size === 0) {
-      return '';
-    }
-    return Array.from(merged.values())
-      .sort((a, b) => a - b)
-      .map(id => id.toString())
-      .join(', ');
-  }, [currentInvoice, selectedJobIds]);
-
-  const baseInvoiceJobIdsString = useMemo(() => {
-    if (!currentInvoice) {
-      return '';
-    }
-    return currentInvoice.job_ids.join(', ');
-  }, [currentInvoice]);
-
-  const [formState, setFormState] = useState<InvoiceFormState>(getInitialState(currentInvoice));
-  const [items, setItems] = useState<InvoiceItemFormValue[]>([]);
+  const [formState, setFormState] = useState<InvoiceFormState>(buildInitialState(undefined));
+  const [items, setItems] = useState<InvoiceItemFormValue[]>([createEmptyItem()]);
+  const [expandedMetadata, setExpandedMetadata] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(!currentInvoice);
-  const lastPrefillJobIds = useRef<string>('');
-  const itemsTouchedManually = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -176,11 +104,22 @@ export default function EditInvoiceScreen() {
   const placeholderColor = useThemeColor({ light: '#888888', dark: '#AAAAAA' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
-  const highlightBackground = useThemeColor({ light: '#F1F5F9', dark: '#1F2937' }, 'background');
-  const highlightBorder = useThemeColor({ light: '#CBD5F5', dark: '#334155' }, 'background');
+  const secondaryText = useThemeColor({ light: '#6B7280', dark: '#94A3B8' }, 'text');
 
-  const itemsTotal = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
-  const formattedItemsTotal = useMemo(() => formatCurrency(itemsTotal), [itemsTotal]);
+  const canUpdate = permissions.includes('updateInvoice');
+
+  const currentInvoice = useMemo(
+    () => invoices.find(invoice => invoice.id === invoiceId),
+    [invoiceId, invoices],
+  );
+
+  const subtotal = useMemo(() => calculateInvoiceItemsSubtotal(items), [items]);
+  const taxes = useMemo(() => calculateInvoiceItemsTax(items), [items]);
+  const total = useMemo(() => calculateInvoiceItemsTotal(items), [items]);
+
+  const formattedSubtotal = useMemo(() => formatCurrency(subtotal), [subtotal]);
+  const formattedTaxes = useMemo(() => formatCurrency(taxes), [taxes]);
+  const formattedTotal = useMemo(() => formatCurrency(total), [total]);
 
   useEffect(() => {
     if (!canUpdate) {
@@ -190,67 +129,46 @@ export default function EditInvoiceScreen() {
   }, [canUpdate, router]);
 
   useEffect(() => {
-    if (selectedJobIds.size > 0) {
-      void loadJobs();
-    }
-  }, [loadJobs, selectedJobIds.size]);
-
-  useEffect(() => {
     if (!invoiceId) {
       Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura editar.');
-      router.back();
+      router.replace('/invoices');
       return;
     }
 
-    if (!currentInvoice) {
-      setIsLoading(true);
-      void loadInvoices().finally(() => {
-        setIsLoading(false);
-      });
+    if (currentInvoice) {
+      setFormState(buildInitialState(currentInvoice));
+      const mappedItems = (currentInvoice.items ?? []).map(mapInvoiceItemToFormValue);
+      setItems(mappedItems.length > 0 ? mappedItems : [createEmptyItem()]);
+      setExpandedItems({});
+      setExpandedNotes(extractNotes(currentInvoice).trim().length > 0);
+      setIsLoading(false);
+      return;
     }
+
+    setIsLoading(true);
+    void loadInvoices().then(() => {
+      setIsLoading(false);
+    });
   }, [currentInvoice, invoiceId, loadInvoices, router]);
 
-  useEffect(() => {
-    if (currentInvoice) {
-      setFormState(getInitialState(currentInvoice));
-      const mappedItems = (currentInvoice.concepts ?? []).map(mapInvoiceConceptToFormValue);
-      setItems(mappedItems);
-      itemsTouchedManually.current = false;
-      setIsLoading(false);
+  const isValid = useMemo(() => {
+    if (!formState.invoiceNumber.trim()) {
+      return false;
     }
-  }, [currentInvoice]);
-
-  useEffect(() => {
-    lastPrefillJobIds.current = baseInvoiceJobIdsString;
-  }, [baseInvoiceJobIdsString]);
-
-  useEffect(() => {
-    if (!mergedJobIdsString) {
-      return;
+    if (!formState.clientId.trim()) {
+      return false;
     }
-
-    setFormState(current => {
-      if (current.jobIds.trim().length === 0 || current.jobIds === lastPrefillJobIds.current) {
-        lastPrefillJobIds.current = mergedJobIdsString;
-        return { ...current, jobIds: mergedJobIdsString };
-      }
-      return current;
-    });
-  }, [mergedJobIdsString]);
-
-  useEffect(() => {
-    if (selectedJobs.length === 0) {
-      return;
+    if (!items.some(item => hasInvoiceItemData(item))) {
+      return false;
     }
-    setItems(current => mergeInvoiceItemsWithJobs(current, selectedJobs, tariffAmountById));
-  }, [selectedJobs, tariffAmountById]);
+    return true;
+  }, [formState.clientId, formState.invoiceNumber, items]);
 
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
   };
 
   const handleItemChange = (index: number, key: keyof InvoiceItemFormValue) => (value: string) => {
-    itemsTouchedManually.current = true;
     setItems(current => {
       const next = [...current];
       next[index] = { ...next[index], [key]: value };
@@ -259,321 +177,365 @@ export default function EditInvoiceScreen() {
   };
 
   const handleAddItem = () => {
-    itemsTouchedManually.current = true;
-    setItems(current => [
-      ...current,
-      { conceptCode: '', description: '', quantity: '1', unitPrice: '', jobId: '' },
-    ]);
+    setItems(current => [...current, createEmptyItem()]);
   };
 
   const handleRemoveItem = (index: number) => {
-    itemsTouchedManually.current = true;
     setItems(current => current.filter((_, itemIndex) => itemIndex !== index));
-  };
-
-  const handleGenerateItemsFromJobs = () => {
-    if (!currentInvoice && selectedJobs.length === 0) {
-      Alert.alert('Sin trabajos seleccionados', 'No hay trabajos asociados para importar conceptos.');
-      return;
-    }
-    const jobsToProcess = selectedJobs.length > 0 ? selectedJobs : jobs.filter(job => currentInvoice?.job_ids.includes(job.id));
-    if (jobsToProcess.length === 0) {
-      Alert.alert('Sin trabajos asociados', 'La factura no tiene trabajos vinculados para generar conceptos.');
-      return;
-    }
-    const generated = createInvoiceItemsFromJobs(jobsToProcess, tariffAmountById);
-    setItems(current => {
-      if (!itemsTouchedManually.current) {
-        return generated;
-      }
-      return mergeInvoiceItemsWithJobs(current, jobsToProcess, tariffAmountById);
+    setExpandedItems(current => {
+      const next = { ...current };
+      delete next[index];
+      return next;
     });
   };
 
-  const handleSubmit = useCallback(async () => {
+  const handleToggleItemDetails = (index: number) => {
+    setExpandedItems(current => ({ ...current, [index]: !current[index] }));
+  };
+
+  const handleSubmit = async () => {
     if (!canUpdate) {
       Alert.alert('Acceso denegado', 'No tienes permiso para editar facturas.');
       return;
     }
     if (!invoiceId) {
-      Alert.alert('Error', 'No se reconoce el comprobante a actualizar.');
+      Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura actualizar.');
       return;
     }
-
-    if (!formState.invoiceNumber.trim()) {
-      Alert.alert('Datos incompletos', 'Completá el número de la factura.');
+    if (!isValid) {
+      Alert.alert('Datos incompletos', 'Completá el número de factura, el cliente y al menos un ítem válido.');
       return;
     }
 
     const clientId = Number(formState.clientId.trim());
     if (!Number.isFinite(clientId)) {
-      Alert.alert('Cliente inválido', 'Ingresá un identificador de cliente válido.');
+      Alert.alert('Cliente inválido', 'Seleccioná un cliente válido.');
       return;
     }
 
-    const concepts = prepareInvoiceConceptPayloads(items);
-    if (concepts.length === 0) {
-      Alert.alert('Conceptos incompletos', 'Agregá al menos un concepto válido antes de guardar.');
+    const payloadItems = prepareInvoiceItemPayloads(items);
+    if (payloadItems.length === 0) {
+      Alert.alert('Ítems incompletos', 'Agregá al menos un ítem válido antes de guardar.');
       return;
     }
-
-    setSubmitting(true);
 
     const payload: InvoicePayload = {
       invoice_number: formState.invoiceNumber.trim(),
       client_id: clientId,
-      job_ids: parseJobIdsInput(formState.jobIds),
-      issue_date: formState.issueDate.trim() || null,
+      invoice_date: formState.invoiceDate.trim() || null,
       due_date: formState.dueDate.trim() || null,
-      total_amount: itemsTotal || null,
-      currency: formState.currency.trim() || null,
+      currency: formState.currencyCode.trim() || null,
       status: formState.status.trim() || 'draft',
-      concepts,
+      subtotal_amount: Number.isFinite(subtotal) ? subtotal : null,
+      tax_amount: Number.isFinite(taxes) ? taxes : null,
+      total_amount: Number.isFinite(total) ? total : null,
+      items: payloadItems,
     };
+
+    if (formState.companyId.trim()) {
+      const parsedCompanyId = Number(formState.companyId.trim());
+      if (Number.isFinite(parsedCompanyId)) {
+        payload.company_id = parsedCompanyId;
+      }
+    }
 
     if (formState.notes.trim()) {
       payload.metadata = { notes: formState.notes.trim() };
     }
 
-    const updated = await updateInvoice(invoiceId, payload);
+    setSubmitting(true);
+    const success = await updateInvoice(invoiceId, payload);
     setSubmitting(false);
 
-    if (updated) {
+    if (success) {
       Alert.alert('Factura actualizada', 'Los cambios se guardaron correctamente.');
-      router.back();
-    } else {
-      Alert.alert('Error', 'No fue posible actualizar la factura. Intentá nuevamente.');
+      router.replace('/invoices');
+      return;
     }
-  }, [canUpdate, formState, invoiceId, items, itemsTotal, router, updateInvoice]);
 
-  if (!invoiceId) {
-    return null;
-  }
+    Alert.alert('Error', 'No fue posible actualizar la factura. Intenta nuevamente.');
+  };
 
   if (isLoading) {
     return (
-      <ThemedView style={[styles.loadingContainer, { backgroundColor: background }]}
-      >
+      <ThemedView style={[styles.loaderContainer, { backgroundColor: background }]}>
         <ActivityIndicator />
       </ThemedView>
     );
   }
 
-  if (!currentInvoice) {
-    return (
-      <ThemedView style={[styles.loadingContainer, { backgroundColor: background }]}
-      >
-        <ThemedText>No encontramos la factura solicitada.</ThemedText>
-      </ThemedView>
-    );
-  }
-
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      contentContainerStyle={[styles.container, { backgroundColor: background }]}
-    >
-      {selectedJobsCount > 0 ? (
-        <View
-          style={[
-            styles.selectionSummary,
-            { borderColor: highlightBorder, backgroundColor: highlightBackground },
-          ]}
-        >
-          <ThemedText style={styles.selectionSummaryTitle}>
-            Trabajos preseleccionados: {selectedJobsCount}
-          </ThemedText>
-          <ThemedText style={styles.selectionSummaryBody}>
-            Total estimado por trabajos: {formattedSelectedJobsTotal}
-          </ThemedText>
-          <ThemedText style={styles.selectionSummaryNote}>
-            Se agregaron los trabajos seleccionados a la lista vinculada. Verificá los conceptos antes de guardar.
-          </ThemedText>
-        </View>
-      ) : null}
+    <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
+      <ThemedText style={styles.sectionTitle}>Factura #{formState.id || invoiceId}</ThemedText>
 
-      <ThemedText style={styles.sectionTitle}>Datos principales</ThemedText>
-
-      <ThemedText style={styles.label}>Número de factura</ThemedText>
+      <ThemedText style={styles.label}>Fecha de emisión</ThemedText>
       <TextInput
         style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="Número fiscal"
+        placeholder="AAAA-MM-DD"
         placeholderTextColor={placeholderColor}
-        value={formState.invoiceNumber}
-        onChangeText={handleChange('invoiceNumber')}
-        autoCapitalize="characters"
+        value={formState.invoiceDate}
+        onChangeText={handleChange('invoiceDate')}
       />
 
-      <ThemedText style={styles.label}>Cliente (ID)</ThemedText>
+      <ThemedText style={styles.label}>Fecha de vencimiento</ThemedText>
       <TextInput
         style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="Identificador numérico"
+        placeholder="AAAA-MM-DD"
+        placeholderTextColor={placeholderColor}
+        value={formState.dueDate}
+        onChangeText={handleChange('dueDate')}
+      />
+
+      <ThemedText style={styles.label}>Cliente</ThemedText>
+      <TextInput
+        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+        placeholder="ID del cliente"
         placeholderTextColor={placeholderColor}
         value={formState.clientId}
         onChangeText={handleChange('clientId')}
         keyboardType="numeric"
       />
 
-      <ThemedText style={styles.label}>Estado</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="draft | issued | void"
-        placeholderTextColor={placeholderColor}
-        value={formState.status}
-        onChangeText={handleChange('status')}
-        autoCapitalize="none"
-      />
+      <TouchableOpacity
+        style={[styles.collapseTrigger, { borderColor }]}
+        onPress={() => setExpandedMetadata(value => !value)}
+      >
+        <ThemedText style={styles.collapseTriggerText}>
+          {expandedMetadata ? 'Ocultar detalles adicionales' : 'Mostrar detalles adicionales'}
+        </ThemedText>
+      </TouchableOpacity>
 
-      <ThemedText style={styles.label}>Trabajos vinculados</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="IDs separados por coma"
-        placeholderTextColor={placeholderColor}
-        value={formState.jobIds}
-        onChangeText={handleChange('jobIds')}
-        autoCapitalize="none"
-      />
-
-      <ThemedText style={styles.sectionTitle}>Fechas y totales</ThemedText>
-
-      <ThemedText style={styles.label}>Fecha de emisión</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={placeholderColor}
-        value={formState.issueDate}
-        onChangeText={handleChange('issueDate')}
-        autoCapitalize="none"
-      />
-
-      <ThemedText style={styles.label}>Fecha de vencimiento</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="YYYY-MM-DD"
-        placeholderTextColor={placeholderColor}
-        value={formState.dueDate}
-        onChangeText={handleChange('dueDate')}
-        autoCapitalize="none"
-      />
-
-      <ThemedText style={styles.label}>Moneda</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="ARS"
-        placeholderTextColor={placeholderColor}
-        value={formState.currency}
-        onChangeText={handleChange('currency')}
-        autoCapitalize="characters"
-        maxLength={5}
-      />
-
-      <View style={styles.sectionHeader}>
-        <ThemedText style={styles.sectionTitle}>Conceptos facturados</ThemedText>
-        <View style={styles.sectionActions}>
-          <TouchableOpacity style={[styles.sectionActionButton, { backgroundColor: buttonColor }]} onPress={handleAddItem}>
-            <ThemedText style={[styles.sectionActionText, { color: buttonTextColor }]}>Agregar concepto</ThemedText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.sectionActionButtonSecondary, { borderColor: buttonColor }]}
-            onPress={handleGenerateItemsFromJobs}
-          >
-            <ThemedText style={[styles.sectionActionSecondaryText, { color: buttonColor }]}>Desde trabajos</ThemedText>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {items.length === 0 ? (
-        <View style={[styles.emptyItems, { borderColor }]}
-        >
-          <ThemedText style={styles.emptyItemsText}>
-            Agregá los conceptos facturados para este comprobante. Podés importarlos desde los trabajos vinculados.
-          </ThemedText>
-        </View>
-      ) : null}
-
-      {items.map((item, index) => (
-        <View key={`invoice-item-${index}`} style={[styles.itemContainer, { borderColor }]}
-        >
-          <View style={styles.itemHeader}>
-            <ThemedText style={styles.itemTitle}>Concepto #{index + 1}</ThemedText>
-            <TouchableOpacity onPress={() => handleRemoveItem(index)}>
-              <ThemedText style={styles.removeItemText}>Quitar</ThemedText>
-            </TouchableOpacity>
-          </View>
-
-          <ThemedText style={styles.label}>Código (opcional)</ThemedText>
+      {expandedMetadata ? (
+        <View style={[styles.metadataContainer, { borderColor }]}>
+          <ThemedText style={styles.label}>Número de factura</ThemedText>
           <TextInput
-            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="Ej: SERV-001"
+            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="Número interno"
             placeholderTextColor={placeholderColor}
-            value={item.conceptCode}
-            onChangeText={handleItemChange(index, 'conceptCode')}
+            value={formState.invoiceNumber}
+            onChangeText={handleChange('invoiceNumber')}
             autoCapitalize="characters"
           />
 
-          <ThemedText style={styles.label}>Descripción</ThemedText>
+          <ThemedText style={styles.label}>Moneda</ThemedText>
           <TextInput
-            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="Detalle del servicio"
+            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="ARS"
             placeholderTextColor={placeholderColor}
-            value={item.description}
-            onChangeText={handleItemChange(index, 'description')}
+            value={formState.currencyCode}
+            onChangeText={handleChange('currencyCode')}
+            autoCapitalize="characters"
+            maxLength={5}
           />
 
-          <View style={styles.itemRow}>
-            <View style={styles.itemColumn}>
-              <ThemedText style={styles.label}>Cantidad</ThemedText>
-              <TextInput
-                style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-                placeholder="Ej: 1"
-                placeholderTextColor={placeholderColor}
-                value={item.quantity}
-                onChangeText={handleItemChange(index, 'quantity')}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View style={styles.itemColumn}>
-              <ThemedText style={styles.label}>Precio unitario</ThemedText>
-              <TextInput
-                style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-                placeholder="Ej: 1500"
-                placeholderTextColor={placeholderColor}
-                value={item.unitPrice}
-                onChangeText={handleItemChange(index, 'unitPrice')}
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          <ThemedText style={styles.label}>Trabajo vinculado (ID opcional)</ThemedText>
+          <ThemedText style={styles.label}>Empresa</ThemedText>
           <TextInput
-            style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-            placeholder="Ej: 42"
+            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="ID de empresa"
             placeholderTextColor={placeholderColor}
-            value={item.jobId}
-            onChangeText={handleItemChange(index, 'jobId')}
+            value={formState.companyId}
+            onChangeText={handleChange('companyId')}
             keyboardType="numeric"
           />
-        </View>
-      ))}
 
-      <View style={[styles.itemsTotalContainer, { borderColor }]}
-      >
-        <ThemedText style={styles.itemsTotalLabel}>Total calculado por conceptos</ThemedText>
-        <ThemedText style={styles.itemsTotalValue}>{formattedItemsTotal}</ThemedText>
+          <ThemedText style={styles.label}>Estado</ThemedText>
+          <TextInput
+            style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+            placeholder="draft"
+            placeholderTextColor={placeholderColor}
+            value={formState.status}
+            onChangeText={handleChange('status')}
+            autoCapitalize="none"
+          />
+        </View>
+      ) : null}
+
+      <View style={styles.sectionHeader}>
+        <ThemedText style={styles.sectionSubtitle}>Ítems de la factura</ThemedText>
+        <TouchableOpacity style={[styles.addButton, { backgroundColor: buttonColor }]} onPress={handleAddItem}>
+          <ThemedText style={[styles.addButtonText, { color: buttonTextColor }]}>Agregar ítem</ThemedText>
+        </TouchableOpacity>
       </View>
 
-      <ThemedText style={styles.sectionTitle}>Notas internas</ThemedText>
-      <TextInput
-        style={[styles.textarea, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="Comentarios visibles solo para el equipo interno"
-        placeholderTextColor={placeholderColor}
-        value={formState.notes}
-        onChangeText={handleChange('notes')}
-        multiline
-        numberOfLines={5}
-      />
+      {items.length === 0 ? (
+        <View style={[styles.emptyItems, { borderColor }]}>
+          <ThemedText style={[styles.emptyItemsText, { color: secondaryText }]}>Agregá los ítems a facturar.</ThemedText>
+        </View>
+      ) : null}
+
+      {items.map((item, index) => {
+        const isExpanded = expandedItems[index] ?? false;
+        return (
+          <View key={`invoice-item-${index}`} style={[styles.itemContainer, { borderColor }]}>
+            <View style={styles.itemHeader}>
+              <ThemedText style={styles.itemTitle}>Ítem #{index + 1}</ThemedText>
+              <View style={styles.itemActions}>
+                <TouchableOpacity onPress={() => handleToggleItemDetails(index)}>
+                  <ThemedText style={styles.itemActionText}>
+                    {isExpanded ? 'Ocultar campos' : 'Campos avanzados'}
+                  </ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+                  <ThemedText style={styles.removeItemText}>Quitar</ThemedText>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <ThemedText style={styles.label}>Descripción</ThemedText>
+            <TextInput
+              style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+              placeholder="Detalle del producto o servicio"
+              placeholderTextColor={placeholderColor}
+              value={item.description}
+              onChangeText={handleItemChange(index, 'description')}
+            />
+
+            <View style={styles.itemRow}>
+              <View style={styles.itemColumn}>
+                <ThemedText style={styles.label}>Cantidad</ThemedText>
+                <TextInput
+                  style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                  placeholder="1"
+                  placeholderTextColor={placeholderColor}
+                  value={item.quantity}
+                  onChangeText={handleItemChange(index, 'quantity')}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={styles.itemColumn}>
+                <ThemedText style={styles.label}>Precio unitario</ThemedText>
+                <TextInput
+                  style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                  placeholder="0.00"
+                  placeholderTextColor={placeholderColor}
+                  value={item.unitPrice}
+                  onChangeText={handleItemChange(index, 'unitPrice')}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
+            {isExpanded ? (
+              <View style={styles.advancedItemContainer}>
+                <ThemedText style={styles.advancedLabel}>ID ítem (interno)</ThemedText>
+                <TextInput
+                  style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                  placeholder="Autogenerado"
+                  placeholderTextColor={placeholderColor}
+                  value={item.id ? item.id.toString() : ''}
+                  editable={false}
+                />
+
+                <ThemedText style={styles.advancedLabel}>Factura asociada</ThemedText>
+                <TextInput
+                  style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                  placeholder="ID de factura"
+                  placeholderTextColor={placeholderColor}
+                  value={item.invoiceId ? item.invoiceId.toString() : ''}
+                  editable={false}
+                />
+
+                <ThemedText style={styles.advancedLabel}>Producto / Servicio</ThemedText>
+                <TextInput
+                  style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                  placeholder="ID del catálogo"
+                  placeholderTextColor={placeholderColor}
+                  value={item.productId}
+                  onChangeText={handleItemChange(index, 'productId')}
+                  keyboardType="numeric"
+                />
+
+                <View style={styles.itemRow}>
+                  <View style={styles.itemColumn}>
+                    <ThemedText style={styles.advancedLabel}>Descuento (%)</ThemedText>
+                    <TextInput
+                      style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                      placeholder="0"
+                      placeholderTextColor={placeholderColor}
+                      value={item.discountAmount}
+                      onChangeText={handleItemChange(index, 'discountAmount')}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <View style={styles.itemColumn}>
+                    <ThemedText style={styles.advancedLabel}>Impuesto (%)</ThemedText>
+                    <TextInput
+                      style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                      placeholder="0"
+                      placeholderTextColor={placeholderColor}
+                      value={item.taxAmount}
+                      onChangeText={handleItemChange(index, 'taxAmount')}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.itemRow}>
+                  <View style={styles.itemColumn}>
+                    <ThemedText style={styles.advancedLabel}>Total ítem</ThemedText>
+                    <TextInput
+                      style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                      placeholder="Calculado automáticamente"
+                      placeholderTextColor={placeholderColor}
+                      value={item.totalAmount}
+                      onChangeText={handleItemChange(index, 'totalAmount')}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <View style={styles.itemColumn}>
+                    <ThemedText style={styles.advancedLabel}>Orden</ThemedText>
+                    <TextInput
+                      style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+                      placeholder={`${index + 1}`}
+                      placeholderTextColor={placeholderColor}
+                      value={item.orderIndex}
+                      onChangeText={handleItemChange(index, 'orderIndex')}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+
+      <View style={[styles.costSummary, { borderColor }]}>
+        <ThemedText style={styles.sectionSubtitle}>Costo</ThemedText>
+        <View style={styles.costRow}>
+          <ThemedText style={styles.costLabel}>Subtotal</ThemedText>
+          <ThemedText style={styles.costValue}>{formattedSubtotal}</ThemedText>
+        </View>
+        <View style={styles.costRow}>
+          <ThemedText style={styles.costLabel}>Impuestos</ThemedText>
+          <ThemedText style={styles.costValue}>{formattedTaxes}</ThemedText>
+        </View>
+        <View style={styles.costRow}>
+          <ThemedText style={styles.costLabel}>Total</ThemedText>
+          <ThemedText style={styles.costValue}>{formattedTotal}</ThemedText>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={[styles.collapseTrigger, { borderColor }]}
+        onPress={() => setExpandedNotes(value => !value)}
+      >
+        <ThemedText style={styles.collapseTriggerText}>
+          {expandedNotes ? 'Ocultar notas' : 'Agregar notas internas'}
+        </ThemedText>
+      </TouchableOpacity>
+
+      {expandedNotes ? (
+        <TextInput
+          style={[styles.textarea, { borderColor, backgroundColor: inputBackground, color: textColor }]}
+          placeholder="Agregar comentarios internos"
+          placeholderTextColor={placeholderColor}
+          value={formState.notes}
+          onChangeText={handleChange('notes')}
+          multiline
+          numberOfLines={4}
+        />
+      ) : null}
 
       {canUpdate ? (
         <TouchableOpacity
@@ -594,85 +556,82 @@ export default function EditInvoiceScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    paddingBottom: 160,
+    padding: 16,
     gap: 16,
   },
-  selectionSummary: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    gap: 8,
-  },
-  selectionSummaryTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  selectionSummaryBody: {
-    fontSize: 14,
-  },
-  selectionSummaryNote: {
-    fontSize: 12,
-    color: '#6B7280',
+  loaderContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  sectionSubtitle: {
     fontSize: 18,
     fontWeight: '600',
   },
   label: {
     fontSize: 14,
-    marginTop: 16,
-    marginBottom: 6,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  advancedLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
   },
   textarea: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: 8,
+    padding: 12,
     minHeight: 120,
     textAlignVertical: 'top',
   },
-  sectionHeader: {
-    marginTop: 16,
-    gap: 12,
+  collapseTrigger: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
   },
-  sectionActions: {
-    flexDirection: 'row',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  sectionActionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  sectionActionText: {
+  collapseTriggerText: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  sectionActionButtonSecondary: {
+  metadataContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
-    borderWidth: 1,
   },
-  sectionActionSecondaryText: {
+  addButtonText: {
     fontWeight: '600',
   },
   emptyItems: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 16,
   },
   emptyItemsText: {
     fontSize: 14,
-    color: '#6B7280',
   },
   itemContainer: {
     borderWidth: 1,
@@ -689,6 +648,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  itemActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  itemActionText: {
+    fontWeight: '600',
+  },
   removeItemText: {
     color: '#DC2626',
     fontWeight: '600',
@@ -703,36 +669,35 @@ const styles = StyleSheet.create({
   itemColumn: {
     flex: 1,
   },
-  itemsTotalContainer: {
+  advancedItemContainer: {
+    gap: 12,
+  },
+  costSummary: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
+    gap: 12,
+  },
+  costRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  itemsTotalLabel: {
+  costLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  costValue: {
     fontSize: 16,
     fontWeight: '600',
   },
-  itemsTotalValue: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
   submitButton: {
-    marginTop: 32,
-    paddingVertical: 16,
+    marginTop: 8,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
   },
 });

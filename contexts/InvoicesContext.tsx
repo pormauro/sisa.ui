@@ -13,13 +13,19 @@ import { ensureSortedByNewest, sortByNewest, SortableDate } from '@/utils/sort';
 
 export type InvoiceStatus = 'draft' | 'issued' | 'void' | (string & {});
 
-export interface InvoiceConcept {
+export interface InvoiceItem {
   id?: number;
   concept_code?: string | null;
   description?: string | null;
   quantity?: number | null;
   unit_price?: number | null;
   job_id?: number | null;
+  product_id?: number | null;
+  invoice_id?: number | null;
+  discount_amount?: number | null;
+  tax_amount?: number | null;
+  total_amount?: number | null;
+  order_index?: number | null;
   metadata?: Record<string, unknown> | null;
 }
 
@@ -30,14 +36,18 @@ export interface Invoice {
   job_ids: number[];
   invoice_number?: string | null;
   total_amount?: number | null;
+  subtotal_amount?: number | null;
+  tax_amount?: number | null;
   currency?: string | null;
+  company_id?: number | null;
+  invoice_date?: string | null;
   issue_date?: string | null;
   due_date?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   voided_at?: string | null;
   metadata?: Record<string, unknown> | null;
-  concepts?: InvoiceConcept[];
+  items?: InvoiceItem[];
   attached_files?: number[] | string | null;
 }
 
@@ -46,11 +56,16 @@ export type InvoicePayload = Record<string, unknown> & {
   status?: InvoiceStatus;
   job_ids?: unknown;
   invoice_number?: string | null;
+  invoice_date?: string | null;
   total_amount?: number | string | null;
+  subtotal_amount?: number | string | null;
+  tax_amount?: number | string | null;
   currency?: string | null;
+  company_id?: number | string | null;
   issue_date?: string | null;
   due_date?: string | null;
   metadata?: Record<string, unknown> | null;
+  items?: unknown;
   concepts?: unknown;
   attached_files?: unknown;
 };
@@ -155,31 +170,38 @@ const parseJobIds = (value: unknown): number[] => {
   return [];
 };
 
-const parseConcepts = (value: unknown): InvoiceConcept[] => {
-  const ensureConcept = (input: unknown): InvoiceConcept => {
+const parseInvoiceItems = (value: unknown): InvoiceItem[] => {
+  const ensureItem = (input: unknown): InvoiceItem => {
     if (!input || typeof input !== 'object') {
       return {};
     }
 
-    const concept = input as Record<string, unknown>;
+    const item = input as Record<string, unknown>;
     return {
-      id: toNullableNumber(concept.id ?? concept.concept_id ?? concept.identifier ?? null) ?? undefined,
-      concept_code: typeof concept.concept_code === 'string'
-        ? concept.concept_code
-        : typeof concept.code === 'string'
-        ? concept.code
-        : null,
-      description: typeof concept.description === 'string' ? concept.description : null,
-      quantity: toNullableNumber(concept.quantity ?? concept.qty ?? null),
-      unit_price: toNullableNumber(concept.unit_price ?? concept.price ?? concept.amount ?? null),
-      job_id: toNullableNumber(concept.job_id ?? concept.related_job_id ?? null),
+      id: toNullableNumber(item.id ?? item.concept_id ?? item.identifier ?? null) ?? undefined,
+      concept_code:
+        typeof item.concept_code === 'string'
+          ? item.concept_code
+          : typeof item.code === 'string'
+          ? item.code
+          : null,
+      description: typeof item.description === 'string' ? item.description : null,
+      quantity: toNullableNumber(item.quantity ?? item.qty ?? null),
+      unit_price: toNullableNumber(item.unit_price ?? item.price ?? item.amount ?? null),
+      job_id: toNullableNumber(item.job_id ?? item.related_job_id ?? null),
+      product_id: toNullableNumber(item.product_id ?? item.service_id ?? null) ?? undefined,
+      invoice_id: toNullableNumber(item.invoice_id ?? null) ?? undefined,
+      discount_amount: toNullableNumber(item.discount_amount ?? item.discount ?? null),
+      tax_amount: toNullableNumber(item.tax_amount ?? item.tax ?? null),
+      total_amount: toNullableNumber(item.total_amount ?? item.total ?? null),
+      order_index: toNullableNumber(item.order_index ?? item.sort_order ?? null),
       metadata:
-        concept.metadata && typeof concept.metadata === 'object' ? (concept.metadata as Record<string, unknown>) : null,
+        item.metadata && typeof item.metadata === 'object' ? (item.metadata as Record<string, unknown>) : null,
     };
   };
 
   if (Array.isArray(value)) {
-    return value.map(item => ensureConcept(item));
+    return value.map(item => ensureItem(item));
   }
 
   if (typeof value === 'string') {
@@ -190,7 +212,7 @@ const parseConcepts = (value: unknown): InvoiceConcept[] => {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
-        return parsed.map(item => ensureConcept(item));
+        return parsed.map(item => ensureItem(item));
       }
     } catch (error) {
       // ignore parsing errors and return empty list
@@ -203,7 +225,10 @@ const parseConcepts = (value: unknown): InvoiceConcept[] => {
 
   const record = value as Record<string, unknown>;
   if (Array.isArray(record.items)) {
-    return record.items.map(item => ensureConcept(item));
+    return record.items.map(item => ensureItem(item));
+  }
+  if (Array.isArray(record.concepts)) {
+    return record.concepts.map(item => ensureItem(item));
   }
 
   return [];
@@ -249,7 +274,7 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
   const jobIds = parseJobIds(
     raw.job_ids ?? raw.jobs ?? raw.related_jobs ?? raw.job_references ?? raw.linked_jobs ?? [],
   );
-  const concepts = parseConcepts(raw.concepts ?? raw.items ?? raw.lines ?? []);
+  const items = parseInvoiceItems(raw.items ?? raw.concepts ?? raw.lines ?? []);
 
   return {
     id: toNumber(raw.id ?? raw.invoice_id ?? raw.identifier ?? 0),
@@ -274,6 +299,14 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
         : typeof raw.currency_code === 'string'
         ? raw.currency_code
         : null,
+    invoice_date:
+      typeof raw.invoice_date === 'string'
+        ? raw.invoice_date
+        : typeof raw.issue_date === 'string'
+        ? raw.issue_date
+        : typeof raw.issued_at === 'string'
+        ? raw.issued_at
+        : null,
     issue_date:
       typeof raw.issue_date === 'string'
         ? raw.issue_date
@@ -294,18 +327,24 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
         : typeof raw.cancelled_at === 'string'
         ? raw.cancelled_at
         : null,
+    subtotal_amount: toNullableNumber(raw.subtotal_amount ?? raw.subtotal ?? null),
+    tax_amount: toNullableNumber(raw.tax_amount ?? raw.taxes ?? null),
+    company_id: toNullableNumber(raw.company_id ?? raw.organization_id ?? null),
     metadata:
       raw.metadata && typeof raw.metadata === 'object'
         ? (raw.metadata as Record<string, unknown>)
         : raw.meta && typeof raw.meta === 'object'
         ? (raw.meta as Record<string, unknown>)
         : null,
-    concepts,
+    items,
     attached_files: parseAttachedFiles(raw.attached_files ?? raw.attachments ?? null),
   };
 };
 
 const getInvoiceSortValue = (invoice: Invoice): SortableDate => {
+  if (invoice.invoice_date) {
+    return invoice.invoice_date;
+  }
   if (invoice.issue_date) {
     return invoice.issue_date;
   }
@@ -330,8 +369,8 @@ const serializeAttachedFiles = (value: number[] | string | null | undefined) => 
   return JSON.stringify(value);
 };
 
-const sanitizeConceptForPayload = (concept: InvoiceConcept | Record<string, unknown>): Record<string, unknown> => {
-  const raw = concept as Record<string, unknown>;
+const sanitizeInvoiceItemForPayload = (item: InvoiceItem | Record<string, unknown>): Record<string, unknown> => {
+  const raw = item as Record<string, unknown>;
   const base: Record<string, unknown> = {
     concept_code:
       typeof raw.concept_code === 'string'
@@ -343,6 +382,12 @@ const sanitizeConceptForPayload = (concept: InvoiceConcept | Record<string, unkn
     quantity: toNullableNumber(raw.quantity ?? raw.qty ?? null),
     unit_price: toNullableNumber(raw.unit_price ?? raw.price ?? raw.amount ?? null),
     job_id: toNullableNumber(raw.job_id ?? raw.related_job_id ?? null),
+    product_id: toNullableNumber(raw.product_id ?? raw.service_id ?? null),
+    invoice_id: toNullableNumber(raw.invoice_id ?? null),
+    discount_amount: toNullableNumber(raw.discount_amount ?? raw.discount ?? null),
+    tax_amount: toNullableNumber(raw.tax_amount ?? raw.tax ?? null),
+    total_amount: toNullableNumber(raw.total_amount ?? raw.total ?? null),
+    order_index: toNullableNumber(raw.order_index ?? raw.sort_order ?? null),
   };
 
   if (raw.id) {
@@ -371,8 +416,32 @@ const prepareInvoicePayload = (payload: InvoicePayload): Record<string, unknown>
     normalized.client_id = toNullableNumber(normalized.client_id ?? null);
   }
 
+  if ('company_id' in normalized) {
+    normalized.company_id = toNullableNumber(normalized.company_id ?? null);
+  }
+
+  if ('invoice_date' in normalized) {
+    normalized.invoice_date = typeof normalized.invoice_date === 'string'
+      ? normalized.invoice_date
+      : null;
+  }
+
+  if ('issue_date' in normalized) {
+    normalized.issue_date = typeof normalized.issue_date === 'string'
+      ? normalized.issue_date
+      : null;
+  }
+
   if ('total_amount' in normalized) {
     normalized.total_amount = toNullableNumber(normalized.total_amount ?? null);
+  }
+
+  if ('subtotal_amount' in normalized) {
+    normalized.subtotal_amount = toNullableNumber(normalized.subtotal_amount ?? null);
+  }
+
+  if ('tax_amount' in normalized) {
+    normalized.tax_amount = toNullableNumber(normalized.tax_amount ?? null);
   }
 
   if ('job_ids' in normalized) {
@@ -380,9 +449,14 @@ const prepareInvoicePayload = (payload: InvoicePayload): Record<string, unknown>
     normalized.job_ids = ids;
   }
 
+  if ('items' in normalized) {
+    const items = parseInvoiceItems(normalized.items);
+    normalized.items = items.map(item => sanitizeInvoiceItemForPayload(item));
+  }
+
   if ('concepts' in normalized) {
-    const concepts = parseConcepts(normalized.concepts);
-    normalized.concepts = concepts.map(item => sanitizeConceptForPayload(item));
+    const concepts = parseInvoiceItems(normalized.concepts);
+    normalized.concepts = concepts.map(item => sanitizeInvoiceItemForPayload(item));
   }
 
   if ('attached_files' in normalized) {
