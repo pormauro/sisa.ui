@@ -13,7 +13,7 @@ export interface InvoiceItemFormValue {
   orderIndex: string;
 }
 
-const parseDecimalInput = (value: string): number | null => {
+export const parseInvoiceDecimalInput = (value: string): number | null => {
   if (!value) {
     return null;
   }
@@ -46,19 +46,19 @@ export const hasInvoiceItemData = (item: InvoiceItemFormValue): boolean => {
   if (item.description.trim().length > 0) {
     return true;
   }
-  if (parseDecimalInput(item.quantity) !== null) {
+  if (parseInvoiceDecimalInput(item.quantity) !== null) {
     return true;
   }
-  if (parseDecimalInput(item.unitPrice) !== null) {
+  if (parseInvoiceDecimalInput(item.unitPrice) !== null) {
     return true;
   }
-  if (parseDecimalInput(item.discountAmount) !== null) {
+  if (parseInvoiceDecimalInput(item.discountAmount) !== null) {
     return true;
   }
-  if (parseDecimalInput(item.taxAmount) !== null) {
+  if (parseInvoiceDecimalInput(item.taxAmount) !== null) {
     return true;
   }
-  if (parseDecimalInput(item.totalAmount) !== null) {
+  if (parseInvoiceDecimalInput(item.totalAmount) !== null) {
     return true;
   }
   if (item.productId.trim().length > 0) {
@@ -123,27 +123,27 @@ export const prepareInvoiceItemPayloads = (
         payload.description = item.description.trim();
       }
 
-      const quantity = parseDecimalInput(item.quantity);
+      const quantity = parseInvoiceDecimalInput(item.quantity);
       if (quantity !== null) {
         payload.quantity = quantity;
       }
 
-      const unitPrice = parseDecimalInput(item.unitPrice);
+      const unitPrice = parseInvoiceDecimalInput(item.unitPrice);
       if (unitPrice !== null) {
         payload.unit_price = unitPrice;
       }
 
-      const discountAmount = parseDecimalInput(item.discountAmount);
+      const discountAmount = parseInvoiceDecimalInput(item.discountAmount);
       if (discountAmount !== null) {
         payload.discount_amount = discountAmount;
       }
 
-      const taxAmount = parseDecimalInput(item.taxAmount);
+      const taxAmount = parseInvoiceDecimalInput(item.taxAmount);
       if (taxAmount !== null) {
         payload.tax_amount = taxAmount;
       }
 
-      const totalAmount = parseDecimalInput(item.totalAmount);
+      const totalAmount = parseInvoiceDecimalInput(item.totalAmount);
       if (totalAmount !== null) {
         payload.total_amount = totalAmount;
       }
@@ -171,15 +171,15 @@ export const prepareInvoiceItemPayloads = (
     .filter(payload => Object.keys(payload).length > 0);
 
 const computeItemTotal = (item: InvoiceItemFormValue): number => {
-  const explicitTotal = parseDecimalInput(item.totalAmount);
+  const explicitTotal = parseInvoiceDecimalInput(item.totalAmount);
   if (explicitTotal !== null) {
     return explicitTotal;
   }
 
-  const quantity = parseDecimalInput(item.quantity) ?? 0;
-  const unitPrice = parseDecimalInput(item.unitPrice) ?? 0;
-  const discountAmount = parseDecimalInput(item.discountAmount) ?? 0;
-  const taxAmount = parseDecimalInput(item.taxAmount) ?? 0;
+  const quantity = parseInvoiceDecimalInput(item.quantity) ?? 0;
+  const unitPrice = parseInvoiceDecimalInput(item.unitPrice) ?? 0;
+  const discountAmount = parseInvoiceDecimalInput(item.discountAmount) ?? 0;
+  const taxAmount = parseInvoiceDecimalInput(item.taxAmount) ?? 0;
 
   if (quantity <= 0 || unitPrice <= 0) {
     return Math.max(0, taxAmount - discountAmount);
@@ -193,15 +193,80 @@ export const calculateInvoiceItemsTotal = (items: InvoiceItemFormValue[]): numbe
 
 export const calculateInvoiceItemsSubtotal = (items: InvoiceItemFormValue[]): number =>
   items.reduce((total, item) => {
-    const quantity = parseDecimalInput(item.quantity) ?? 0;
-    const unitPrice = parseDecimalInput(item.unitPrice) ?? 0;
-    const discountAmount = parseDecimalInput(item.discountAmount) ?? 0;
-    if (quantity <= 0 || unitPrice <= 0) {
-      return total;
+    const quantity = parseInvoiceDecimalInput(item.quantity);
+    const unitPrice = parseInvoiceDecimalInput(item.unitPrice);
+    const discountAmount = parseInvoiceDecimalInput(item.discountAmount) ?? 0;
+    const totalAmount = parseInvoiceDecimalInput(item.totalAmount);
+    const taxAmount = parseInvoiceDecimalInput(item.taxAmount);
+
+    if (quantity !== null && quantity > 0 && unitPrice !== null && unitPrice > 0) {
+      const subtotal = Math.max(0, quantity * unitPrice - discountAmount);
+      return total + subtotal;
     }
-    const subtotal = Math.max(0, quantity * unitPrice - discountAmount);
-    return total + subtotal;
+
+    if (totalAmount !== null) {
+      const derivedSubtotal = Math.max(0, totalAmount - (taxAmount ?? 0));
+      return total + derivedSubtotal;
+    }
+
+    return total;
   }, 0);
 
 export const calculateInvoiceItemsTax = (items: InvoiceItemFormValue[]): number =>
-  items.reduce((total, item) => total + (parseDecimalInput(item.taxAmount) ?? 0), 0);
+  items.reduce((total, item) => {
+    const taxAmount = parseInvoiceDecimalInput(item.taxAmount);
+    if (taxAmount !== null) {
+      return total + Math.max(0, taxAmount);
+    }
+
+    const totalAmount = parseInvoiceDecimalInput(item.totalAmount);
+    const quantity = parseInvoiceDecimalInput(item.quantity);
+    const unitPrice = parseInvoiceDecimalInput(item.unitPrice);
+    const discountAmount = parseInvoiceDecimalInput(item.discountAmount) ?? 0;
+
+    if (
+      totalAmount !== null &&
+      quantity !== null &&
+      quantity > 0 &&
+      unitPrice !== null &&
+      unitPrice > 0
+    ) {
+      const subtotal = Math.max(0, quantity * unitPrice - discountAmount);
+      const derivedTax = Math.max(0, totalAmount - subtotal);
+      return total + derivedTax;
+    }
+
+    return total;
+  }, 0);
+
+export const invoiceItemsProvideSubtotalData = (items: InvoiceItemFormValue[]): boolean =>
+  items.some(item => {
+    const quantity = parseInvoiceDecimalInput(item.quantity);
+    const unitPrice = parseInvoiceDecimalInput(item.unitPrice);
+    const totalAmount = parseInvoiceDecimalInput(item.totalAmount);
+
+    if (quantity !== null && quantity > 0 && unitPrice !== null && unitPrice > 0) {
+      return true;
+    }
+
+    return totalAmount !== null;
+  });
+
+export const invoiceItemsProvideTaxData = (items: InvoiceItemFormValue[]): boolean =>
+  items.some(item => {
+    if (parseInvoiceDecimalInput(item.taxAmount) !== null) {
+      return true;
+    }
+
+    const totalAmount = parseInvoiceDecimalInput(item.totalAmount);
+    const quantity = parseInvoiceDecimalInput(item.quantity);
+    const unitPrice = parseInvoiceDecimalInput(item.unitPrice);
+
+    return (
+      totalAmount !== null &&
+      quantity !== null &&
+      quantity > 0 &&
+      unitPrice !== null &&
+      unitPrice > 0
+    );
+  });
