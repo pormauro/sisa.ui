@@ -151,11 +151,11 @@ export default function EditInvoiceScreen() {
   const formattedTotal = useMemo(() => formatCurrency(total), [total]);
 
   useEffect(() => {
-    if (!canUpdate) {
-      Alert.alert('Acceso denegado', 'No tienes permiso para editar facturas.');
+    if (!canUpdate && !canDelete) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para editar o eliminar facturas.');
       router.back();
     }
-  }, [canUpdate, router]);
+  }, [canDelete, canUpdate, router]);
 
   useEffect(() => {
     if (!invoiceId) {
