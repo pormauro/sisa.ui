@@ -7,10 +7,10 @@ Este documento describe cómo la aplicación Expo sincroniza el módulo de Factu
 - El método `loadInvoices()` ejecuta `GET /invoices` con encabezado `Authorization: Bearer`, valida la sesión mediante `ensureAuthResponse` y sobrescribe la caché con la respuesta ordenada del backend.【F:contexts/InvoicesContext.tsx†L405-L438】
 
 ## Operaciones expuestas
-- `addInvoice(payload)` serializa IDs numéricos, adjuntos e ítems antes de llamar a `POST /invoices`. Además persiste montos parciales (`subtotal_amount`, `tax_amount`, `total_amount`) y fechas (`invoice_date`, `due_date`), normalizando el campo `currency_code` para respetar el contrato del backend. Ante respuestas parciales vuelve a consultar el listado para mantener la caché alineada con la base sin claves foráneas.【F:contexts/InvoicesContext.tsx†L440-L514】
-- `updateInvoice(id, payload)` reutiliza la normalización anterior y acepta respuestas que sólo confirman la actualización. Después de cada cambio refresca el listado remoto para evitar divergencias en montos, estados o secuencias de ítems.【F:contexts/InvoicesContext.tsx†L516-L583】
-- `deleteInvoice(id)` ejecuta `DELETE /invoices/{id}` filtrando la factura local y re-sincronizando el listado. Consume el cuerpo opcional sólo si la respuesta es JSON y maneja expiraciones del token sin interrumpir la navegación.【F:contexts/InvoicesContext.tsx†L585-L628】
-- `voidInvoice(id, reason)` invoca `POST /invoices/{id}/void`, interpreta respuestas con o sin objeto `invoice` y actualiza el estado local a `void` antes de volver a sincronizarse.【F:contexts/InvoicesContext.tsx†L630-L699】
+- `addInvoice(payload)` serializa IDs numéricos, adjuntos e ítems antes de llamar a `POST /invoices`. Además normaliza montos (`subtotal_amount`, `tax_amount`, `total_amount`) y fechas (`invoice_date`, `due_date`), interpreta respuestas sin cuerpo JSON mediante `parseJsonSafely`, reutiliza encabezados `Location`/`invoice_id` y vuelve a consultar el listado para mantener la caché alineada con la base sin claves foráneas.【F:contexts/InvoicesContext.tsx†L603-L651】
+- `updateInvoice(id, payload)` reutiliza la normalización anterior, admite respuestas mínimas generando un fallback con los datos enviados y siempre refresca el listado remoto para evitar divergencias en montos, estados o secuencias de ítems.【F:contexts/InvoicesContext.tsx†L665-L716】
+- `deleteInvoice(id)` ejecuta `DELETE /invoices/{id}` filtrando la factura local y re-sincronizando el listado. Consume el cuerpo opcional sólo si la respuesta es JSON y maneja expiraciones del token sin interrumpir la navegación.【F:contexts/InvoicesContext.tsx†L730-L770】
+- `voidInvoice(id, reason)` invoca `POST /invoices/{id}/void`, interpreta respuestas con o sin objeto `invoice`, genera un fallback cuando el backend sólo confirma el cambio y actualiza el estado local a `void` antes de volver a sincronizarse.【F:contexts/InvoicesContext.tsx†L775-L829】
 
 ## Normalización sin claves foráneas
 - El parser interno convierte arreglos, cadenas JSON y listados separados por coma en un array de `job_ids` numéricos para mantener compatibilidad con integraciones previas, aun cuando los formularios ya no generan ítems desde trabajos seleccionados.【F:contexts/InvoicesContext.tsx†L76-L156】
@@ -24,4 +24,4 @@ Este documento describe cómo la aplicación Expo sincroniza el módulo de Factu
 
 ## Permisos y colección de Postman
 - El grupo "Invoices" en la pantalla de permisos permite asignar `listInvoices`, `addInvoice`, `updateInvoice`, `deleteInvoice`, `voidInvoice`, `issueInvoice`, `downloadInvoicePdf` y `listInvoiceHistory`, manteniendo coherencia con la colección compartida de Postman para auditorías.【F:app/permission/PermissionScreen.tsx†L20-L45】
-- Cada petición al backend se ejecuta con token Bearer activo, en línea con las políticas globales documentadas para `sisa.api`.【F:contexts/InvoicesContext.tsx†L411-L628】
+- Cada petición al backend se ejecuta con token Bearer activo, en línea con las políticas globales documentadas para `sisa.api`.【F:contexts/InvoicesContext.tsx†L562-L829】

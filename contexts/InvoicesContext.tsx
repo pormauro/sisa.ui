@@ -372,6 +372,70 @@ const serializeAttachedFiles = (value: number[] | string | null | undefined) => 
   return JSON.stringify(value);
 };
 
+const parseJsonSafely = async (response: Response): Promise<unknown> => {
+  try {
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    console.warn('No se pudo interpretar la respuesta JSON del endpoint de facturas.', error);
+    return null;
+  }
+};
+
+const getIdFromLocationHeader = (response: Response): number | null => {
+  const location = response.headers.get('Location') ?? response.headers.get('location');
+  if (!location) {
+    return null;
+  }
+  const match = /\/(\d+)(?:\D*$|$)/.exec(location);
+  if (!match) {
+    return null;
+  }
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const extractInvoiceId = (data: unknown): number | null => {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const id = extractInvoiceId(item);
+      if (id !== null) {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  const record = data as Record<string, unknown>;
+  const directKeys = ['invoice_id', 'invoiceId', 'id'];
+  for (const key of directKeys) {
+    if (key in record) {
+      const candidate = toNullableNumber(record[key]);
+      if (candidate !== null) {
+        return candidate;
+      }
+    }
+  }
+
+  const nestedKeys = ['invoice', 'data', 'result'];
+  for (const nestedKey of nestedKeys) {
+    const nested = record[nestedKey];
+    const nestedId = extractInvoiceId(nested);
+    if (nestedId !== null) {
+      return nestedId;
+    }
+  }
+
+  return null;
+};
+
 const sanitizeInvoiceItemForPayload = (item: InvoiceItem | Record<string, unknown>): Record<string, unknown> => {
   const raw = item as Record<string, unknown>;
   const base: Record<string, unknown> = {
@@ -548,25 +612,25 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify(body),
         });
         await ensureAuthResponse(response);
-        const data = await response.json();
+        const data = await parseJsonSafely(response);
+        const fallbackId = extractInvoiceId(data) ?? getIdFromLocationHeader(response);
 
-        const createdRaw: Record<string, unknown> | null = (() => {
-          if (data && typeof data === 'object') {
-            if ('invoice' in data && data.invoice) {
-              return data.invoice as Record<string, unknown>;
-            }
-            if ('data' in data && data.data && typeof data.data === 'object') {
-              return data.data as Record<string, unknown>;
-            }
-            if ('invoice_id' in data) {
-              return { ...body, id: (data as any).invoice_id } as Record<string, unknown>;
-            }
-            if ('id' in data) {
-              return { ...body, id: (data as any).id } as Record<string, unknown>;
-            }
+        let createdRaw: Record<string, unknown> | null = null;
+        if (data && typeof data === 'object') {
+          if ('invoice' in data && data.invoice) {
+            createdRaw = data.invoice as Record<string, unknown>;
+          } else if ('data' in data && data.data && typeof data.data === 'object') {
+            createdRaw = data.data as Record<string, unknown>;
+          } else if ('invoice_id' in data) {
+            createdRaw = { ...body, id: (data as any).invoice_id } as Record<string, unknown>;
+          } else if ('id' in data) {
+            createdRaw = { ...body, id: (data as any).id } as Record<string, unknown>;
           }
-          return null;
-        })();
+        }
+
+        if (!createdRaw && fallbackId !== null) {
+          createdRaw = { ...body, id: fallbackId };
+        }
 
         if (createdRaw) {
           const createdInvoice = parseInvoice(createdRaw);
@@ -581,7 +645,10 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           return createdInvoice;
         }
 
-        await loadInvoices();
+        if (response.ok) {
+          await loadInvoices();
+          return parseInvoice({ ...body, id: fallbackId ?? 0 });
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al crear una factura, se solicitará uno nuevo.');
@@ -613,22 +680,22 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify(body),
         });
         await ensureAuthResponse(response);
-        const data = await response.json();
+        const data = await parseJsonSafely(response);
 
-        const updatedRaw: Record<string, unknown> | null = (() => {
-          if (data && typeof data === 'object') {
-            if ('invoice' in data && data.invoice) {
-              return data.invoice as Record<string, unknown>;
-            }
-            if ('data' in data && data.data && typeof data.data === 'object') {
-              return data.data as Record<string, unknown>;
-            }
-            if ('message' in data) {
-              return { ...body, id } as Record<string, unknown>;
-            }
+        let updatedRaw: Record<string, unknown> | null = null;
+        if (data && typeof data === 'object') {
+          if ('invoice' in data && data.invoice) {
+            updatedRaw = data.invoice as Record<string, unknown>;
+          } else if ('data' in data && data.data && typeof data.data === 'object') {
+            updatedRaw = data.data as Record<string, unknown>;
+          } else if ('message' in data) {
+            updatedRaw = { ...body, id } as Record<string, unknown>;
           }
-          return null;
-        })();
+        }
+
+        if (!updatedRaw && response.ok) {
+          updatedRaw = { ...body, id };
+        }
 
         if (updatedRaw) {
           const updatedInvoice = parseInvoice(updatedRaw);
@@ -643,8 +710,10 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           return true;
         }
 
-        await loadInvoices();
-        return true;
+        if (response.ok) {
+          await loadInvoices();
+          return true;
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al actualizar una factura, se solicitará uno nuevo.');
@@ -725,31 +794,39 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
           ),
         });
         await ensureAuthResponse(response);
-        const data = await response.json();
+        const data = await parseJsonSafely(response);
 
+        let raw: Record<string, unknown> | null = null;
         if (data && typeof data === 'object') {
-          const raw: Record<string, unknown> | null = (() => {
-            if ('invoice' in data && data.invoice) {
-              return data.invoice as Record<string, unknown>;
-            }
-            if ('data' in data && data.data && typeof data.data === 'object') {
-              return data.data as Record<string, unknown>;
-            }
-            return { id, status: 'void', voided_at: new Date().toISOString() };
-          })();
-
-          if (raw) {
-            const parsed = parseInvoice(raw);
-            setInvoices(prev =>
-              ensureSortedByNewest(
-                prev.map(invoice => (invoice.id === parsed.id ? parsed : invoice)),
-                getInvoiceSortValue,
-                invoice => invoice.id,
-              ),
-            );
-            await loadInvoices();
-            return true;
+          if ('invoice' in data && data.invoice) {
+            raw = data.invoice as Record<string, unknown>;
+          } else if ('data' in data && data.data && typeof data.data === 'object') {
+            raw = data.data as Record<string, unknown>;
+          } else {
+            raw = { id, status: 'void', voided_at: new Date().toISOString() };
           }
+        }
+
+        if (!raw && response.ok) {
+          raw = { id, status: 'void', voided_at: new Date().toISOString() };
+        }
+
+        if (raw) {
+          const parsed = parseInvoice(raw);
+          setInvoices(prev =>
+            ensureSortedByNewest(
+              prev.map(invoice => (invoice.id === parsed.id ? parsed : invoice)),
+              getInvoiceSortValue,
+              invoice => invoice.id,
+            ),
+          );
+          await loadInvoices();
+          return true;
+        }
+
+        if (response.ok) {
+          await loadInvoices();
+          return true;
         }
       } catch (error) {
         if (isTokenExpiredError(error)) {
