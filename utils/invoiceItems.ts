@@ -26,6 +26,19 @@ export const parseInvoiceDecimalInput = (value: string): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+export const parseInvoicePercentageInput = (value: string): number | null => {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const normalized = trimmed.replace(/\s+/g, '').replace(/%/g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const toStringValue = (value: unknown): string => {
   if (value === null || typeof value === 'undefined') {
     return '';
