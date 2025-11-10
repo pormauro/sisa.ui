@@ -117,6 +117,7 @@ export default function ClientFinalizedJobsScreen() {
   const statusById = useMemo(() => getStatusById(statuses), [statuses]);
 
   const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
+  const [showPendingJobs, setShowPendingJobs] = useState(true);
 
   const client = useMemo(() => {
     if (!isValidClientId) {
@@ -125,12 +126,21 @@ export default function ClientFinalizedJobsScreen() {
     return clients.find(item => item.id === clientId);
   }, [clients, clientId, isValidClientId]);
 
+  const clientJobs = useMemo(() => {
+    if (!isValidClientId) {
+      return [] as Job[];
+    }
+
+    const filtered = jobs.filter(job => job && job.client_id === clientId);
+    return sortByNewest(filtered, getJobSortValue, job => job.id);
+  }, [clientId, isValidClientId, jobs]);
+
   const finalizedJobs = useMemo(() => {
     if (!isValidClientId) {
       return [] as Job[];
     }
 
-    const filtered = jobs.filter(job => {
+    const filtered = clientJobs.filter(job => {
       if (!job || job.client_id !== clientId) {
         return false;
       }
@@ -142,12 +152,36 @@ export default function ClientFinalizedJobsScreen() {
     });
 
     return sortByNewest(filtered, getJobSortValue, job => job.id);
-  }, [clientId, isValidClientId, jobs, statusById]);
+  }, [clientId, clientJobs, isValidClientId, statusById]);
+
+  const nonFinalizedJobs = useMemo(() => {
+    if (!isValidClientId) {
+      return [] as Job[];
+    }
+
+    return clientJobs.filter(job => {
+      if (!job || job.client_id !== clientId) {
+        return false;
+      }
+      const status = job.status_id != null ? statusById.get(job.status_id) : undefined;
+      return !isStatusFinalized(status) && job.status_id !== FINALIZED_STATUS_ID;
+    });
+  }, [clientId, clientJobs, isValidClientId, statusById]);
 
   const allFinalizedJobIds = useMemo(
     () => finalizedJobs.map(job => job.id),
     [finalizedJobs]
   );
+
+  const finalizedJobIdsSet = useMemo(() => new Set(allFinalizedJobIds), [allFinalizedJobIds]);
+
+  const jobsToDisplay = useMemo(() => {
+    if (!showPendingJobs) {
+      return finalizedJobs;
+    }
+
+    return [...finalizedJobs, ...nonFinalizedJobs];
+  }, [finalizedJobs, nonFinalizedJobs, showPendingJobs]);
 
   useEffect(() => {
     setSelectedJobIds(prev => {
@@ -239,7 +273,8 @@ export default function ClientFinalizedJobsScreen() {
     const start = extractTime(item.start_time);
     const end = extractTime(item.end_time);
     const interval = formatTimeInterval(start, end);
-    const isSelected = selectedJobIds.has(item.id);
+    const isFinalizedJob = finalizedJobIdsSet.has(item.id);
+    const isSelected = isFinalizedJob && selectedJobIds.has(item.id);
     const jobTotal = calculateJobTotal(item, tariffAmountById);
     const formattedJobTotal =
       Number.isFinite(jobTotal) && jobTotal > 0 ? formatCurrency(jobTotal) : '—';
@@ -250,17 +285,29 @@ export default function ClientFinalizedJobsScreen() {
           styles.card,
           { backgroundColor: cardBackground, borderColor },
           isSelected ? { borderColor: selectionAccent, borderWidth: 2 } : null,
+          !isFinalizedJob ? styles.cardDisabled : null,
         ]}
-        onPress={() => toggleJobSelection(item.id)}
+        onPress={() => {
+          if (!isFinalizedJob) {
+            return;
+          }
+          toggleJobSelection(item.id);
+        }}
         onLongPress={() => router.push(`/jobs/viewModal?id=${item.id}`)}
         activeOpacity={0.85}
       >
         <View style={styles.cardHeader}>
           <ExpoCheckbox
             value={isSelected}
-            onValueChange={() => toggleJobSelection(item.id)}
+            onValueChange={() => {
+              if (!isFinalizedJob) {
+                return;
+              }
+              toggleJobSelection(item.id);
+            }}
             color={isSelected ? selectionAccent : undefined}
             style={styles.checkbox}
+            disabled={!isFinalizedJob}
           />
           <ThemedText style={[styles.cardTitle, { color: textColor }]}>{item.description || 'Trabajo sin descripción'}</ThemedText>
           {status ? (
@@ -313,13 +360,35 @@ export default function ClientFinalizedJobsScreen() {
         <ThemedText style={styles.headerTitle}>
           {client?.business_name ?? 'Cliente sin nombre'}
         </ThemedText>
-        <ThemedText style={styles.headerSubtitle}>Trabajos finalizados</ThemedText>
         <ThemedText style={styles.headerCount}>
           {finalizedJobs.length === 1
-            ? '1 trabajo encontrado'
-            : `${finalizedJobs.length} trabajos encontrados`}
+            ? '1 trabajo finalizado'
+            : `${finalizedJobs.length} trabajos finalizados`}
+          {nonFinalizedJobs.length > 0
+            ? ` · ${
+                nonFinalizedJobs.length === 1
+                  ? '1 trabajo pendiente'
+                  : `${nonFinalizedJobs.length} trabajos pendientes`
+              }`
+            : ''}
         </ThemedText>
       </View>
+      {nonFinalizedJobs.length > 0 ? (
+        <TouchableOpacity
+          style={[styles.pendingToggleButton, { borderColor: accentColor }]}
+          onPress={() => setShowPendingJobs(value => !value)}
+        >
+          <Ionicons
+            name={showPendingJobs ? 'eye-off-outline' : 'eye-outline'}
+            size={16}
+            color={accentColor}
+            style={styles.pendingToggleIcon}
+          />
+          <ThemedText style={[styles.pendingToggleText, { color: accentColor }]}> 
+            {showPendingJobs ? 'Ocultar trabajos pendientes' : 'Mostrar trabajos pendientes'}
+          </ThemedText>
+        </TouchableOpacity>
+      ) : null}
       {finalizedJobs.length > 0 ? (
         <View
           style={[styles.selectionBar, { borderColor, backgroundColor: cardBackground }]}
@@ -335,14 +404,14 @@ export default function ClientFinalizedJobsScreen() {
               onPress={selectAllJobs}
             >
               <Ionicons name="checkbox-outline" size={18} color={accentColor} style={styles.selectionButtonIcon} />
-              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Seleccionar todo</ThemedText>
+              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Todo</ThemedText>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.selectionButton, styles.selectionButtonSpacing, { borderColor: accentColor }]}
               onPress={clearSelectedJobs}
             >
               <Ionicons name="remove-circle-outline" size={18} color={accentColor} style={styles.selectionButtonIcon} />
-              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Limpiar selección</ThemedText>
+              <ThemedText style={[styles.selectionButtonText, { color: accentColor }]}>Ninguno</ThemedText>
             </TouchableOpacity>
           </View>
         </View>
@@ -373,14 +442,14 @@ export default function ClientFinalizedJobsScreen() {
         </View>
       ) : null}
       <FlatList
-        data={finalizedJobs}
+        data={jobsToDisplay}
         keyExtractor={item => item.id.toString()}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        extraData={Array.from(selectedJobIds)}
+        extraData={[Array.from(selectedJobIds), showPendingJobs]}
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>
-            No hay trabajos finalizados para este cliente
+            No hay trabajos para mostrar con la configuración actual
           </ThemedText>
         }
         ListFooterComponent={
@@ -418,10 +487,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   headerCount: {
     marginTop: 4,
     fontSize: 12,
@@ -435,6 +500,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
     marginBottom: 12,
+  },
+  cardDisabled: {
+    opacity: 0.65,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -504,12 +572,13 @@ const styles = StyleSheet.create({
   selectionButton: {
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    flex: 0,
+    minWidth: 120,
   },
   selectionButtonSpacing: {
     marginLeft: 12,
@@ -591,6 +660,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  pendingToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderRadius: 999,
+    marginBottom: 12,
+  },
+  pendingToggleIcon: {
+    marginRight: 6,
+  },
+  pendingToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 
