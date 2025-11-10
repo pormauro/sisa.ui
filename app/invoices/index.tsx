@@ -169,13 +169,13 @@ export default function InvoicesScreen() {
         total !== null && Number.isFinite(total) ? formatCurrency(total) : 'Importe no disponible';
       const statusLabel = STATUS_LABELS[invoice.status] ?? invoice.status ?? 'Sin estado';
       const statusColor = resolveStatusColor(invoice.status ?? 'draft', tintColor);
-      const conceptsCount = Array.isArray(invoice.concepts) ? invoice.concepts.length : 0;
-      const conceptsLabel = conceptsCount > 0 ? `${conceptsCount} concepto${conceptsCount === 1 ? '' : 's'}` : 'Sin conceptos';
+      const itemsCount = Array.isArray(invoice.items) ? invoice.items.length : 0;
+      const conceptsLabel = itemsCount > 0 ? `${itemsCount} ítem${itemsCount === 1 ? '' : 's'}` : 'Sin ítems';
       return {
         ...invoice,
         jobReferences,
         formattedTotal,
-        formattedIssueDate: formatDate(invoice.issue_date ?? invoice.created_at ?? null),
+        formattedIssueDate: formatDate(invoice.invoice_date ?? invoice.issue_date ?? invoice.created_at ?? null),
         statusLabel,
         statusColor,
         conceptsLabel,

@@ -1,14 +1,16 @@
-import { type InvoiceConcept } from '@/contexts/InvoicesContext';
-import { type Job } from '@/contexts/JobsContext';
-import { calculateJobTotal, getJobDurationHours, getJobHourlyRate } from '@/utils/jobTotals';
+import { type InvoiceItem } from '@/contexts/InvoicesContext';
 
 export interface InvoiceItemFormValue {
   id?: number;
-  conceptCode: string;
+  invoiceId?: number;
   description: string;
   quantity: string;
   unitPrice: string;
-  jobId: string;
+  productId: string;
+  discountAmount: string;
+  taxAmount: string;
+  totalAmount: string;
+  orderIndex: string;
 }
 
 const parseDecimalInput = (value: string): number | null => {
@@ -37,20 +39,9 @@ const toStringValue = (value: unknown): string => {
   return String(value);
 };
 
-const cleanJobId = (value: string): number | null => {
-  if (!value.trim()) {
-    return null;
-  }
-  const parsed = Number(value.trim());
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 export const hasInvoiceItemData = (item: InvoiceItemFormValue): boolean => {
   if (!item) {
     return false;
-  }
-  if (item.conceptCode.trim().length > 0) {
-    return true;
   }
   if (item.description.trim().length > 0) {
     return true;
@@ -61,31 +52,62 @@ export const hasInvoiceItemData = (item: InvoiceItemFormValue): boolean => {
   if (parseDecimalInput(item.unitPrice) !== null) {
     return true;
   }
-  if (cleanJobId(item.jobId) !== null) {
+  if (parseDecimalInput(item.discountAmount) !== null) {
+    return true;
+  }
+  if (parseDecimalInput(item.taxAmount) !== null) {
+    return true;
+  }
+  if (parseDecimalInput(item.totalAmount) !== null) {
+    return true;
+  }
+  if (item.productId.trim().length > 0) {
+    return true;
+  }
+  if (item.orderIndex.trim().length > 0) {
     return true;
   }
   return false;
 };
 
-export const mapInvoiceConceptToFormValue = (concept: InvoiceConcept): InvoiceItemFormValue => ({
-  id: concept.id,
-  conceptCode: toStringValue(concept.concept_code ?? ''),
-  description: toStringValue(concept.description ?? ''),
+export const mapInvoiceItemToFormValue = (item: InvoiceItem): InvoiceItemFormValue => ({
+  id: item.id,
+  invoiceId:
+    typeof item.invoice_id === 'number' && Number.isFinite(item.invoice_id)
+      ? item.invoice_id
+      : undefined,
+  description: toStringValue(item.description ?? ''),
   quantity:
-    typeof concept.quantity === 'number' && Number.isFinite(concept.quantity)
-      ? concept.quantity.toString()
+    typeof item.quantity === 'number' && Number.isFinite(item.quantity)
+      ? item.quantity.toString()
       : '',
   unitPrice:
-    typeof concept.unit_price === 'number' && Number.isFinite(concept.unit_price)
-      ? concept.unit_price.toString()
+    typeof item.unit_price === 'number' && Number.isFinite(item.unit_price)
+      ? item.unit_price.toString()
       : '',
-  jobId:
-    typeof concept.job_id === 'number' && Number.isFinite(concept.job_id)
-      ? concept.job_id.toString()
+  productId:
+    typeof item.product_id === 'number' && Number.isFinite(item.product_id)
+      ? item.product_id.toString()
+      : '',
+  discountAmount:
+    typeof item.discount_amount === 'number' && Number.isFinite(item.discount_amount)
+      ? item.discount_amount.toString()
+      : '',
+  taxAmount:
+    typeof item.tax_amount === 'number' && Number.isFinite(item.tax_amount)
+      ? item.tax_amount.toString()
+      : '',
+  totalAmount:
+    typeof item.total_amount === 'number' && Number.isFinite(item.total_amount)
+      ? item.total_amount.toString()
+      : '',
+  orderIndex:
+    typeof item.order_index === 'number' && Number.isFinite(item.order_index)
+      ? item.order_index.toString()
       : '',
 });
 
-export const prepareInvoiceConceptPayloads = (
+export const prepareInvoiceItemPayloads = (
   items: InvoiceItemFormValue[],
 ): Record<string, unknown>[] =>
   items
@@ -95,10 +117,6 @@ export const prepareInvoiceConceptPayloads = (
 
       if (typeof item.id === 'number' && Number.isFinite(item.id)) {
         payload.id = item.id;
-      }
-
-      if (item.conceptCode.trim()) {
-        payload.concept_code = item.conceptCode.trim();
       }
 
       if (item.description.trim()) {
@@ -115,69 +133,75 @@ export const prepareInvoiceConceptPayloads = (
         payload.unit_price = unitPrice;
       }
 
-      const jobId = cleanJobId(item.jobId);
-      if (jobId !== null) {
-        payload.job_id = jobId;
+      const discountAmount = parseDecimalInput(item.discountAmount);
+      if (discountAmount !== null) {
+        payload.discount_amount = discountAmount;
+      }
+
+      const taxAmount = parseDecimalInput(item.taxAmount);
+      if (taxAmount !== null) {
+        payload.tax_amount = taxAmount;
+      }
+
+      const totalAmount = parseDecimalInput(item.totalAmount);
+      if (totalAmount !== null) {
+        payload.total_amount = totalAmount;
+      }
+
+      if (item.productId.trim()) {
+        const parsedProductId = Number(item.productId.trim());
+        if (Number.isFinite(parsedProductId)) {
+          payload.product_id = parsedProductId;
+        }
+      }
+
+      if (item.orderIndex.trim()) {
+        const parsedOrder = Number(item.orderIndex.trim());
+        if (Number.isFinite(parsedOrder)) {
+          payload.order_index = parsedOrder;
+        }
+      }
+
+      if (typeof item.invoiceId === 'number' && Number.isFinite(item.invoiceId)) {
+        payload.invoice_id = item.invoiceId;
       }
 
       return payload;
     })
     .filter(payload => Object.keys(payload).length > 0);
 
+const computeItemTotal = (item: InvoiceItemFormValue): number => {
+  const explicitTotal = parseDecimalInput(item.totalAmount);
+  if (explicitTotal !== null) {
+    return explicitTotal;
+  }
+
+  const quantity = parseDecimalInput(item.quantity) ?? 0;
+  const unitPrice = parseDecimalInput(item.unitPrice) ?? 0;
+  const discountAmount = parseDecimalInput(item.discountAmount) ?? 0;
+  const taxAmount = parseDecimalInput(item.taxAmount) ?? 0;
+
+  if (quantity <= 0 || unitPrice <= 0) {
+    return Math.max(0, taxAmount - discountAmount);
+  }
+
+  return Math.max(0, quantity * unitPrice - discountAmount + taxAmount);
+};
+
 export const calculateInvoiceItemsTotal = (items: InvoiceItemFormValue[]): number =>
+  items.reduce((total, item) => total + computeItemTotal(item), 0);
+
+export const calculateInvoiceItemsSubtotal = (items: InvoiceItemFormValue[]): number =>
   items.reduce((total, item) => {
     const quantity = parseDecimalInput(item.quantity) ?? 0;
     const unitPrice = parseDecimalInput(item.unitPrice) ?? 0;
+    const discountAmount = parseDecimalInput(item.discountAmount) ?? 0;
     if (quantity <= 0 || unitPrice <= 0) {
       return total;
     }
-    return total + quantity * unitPrice;
+    const subtotal = Math.max(0, quantity * unitPrice - discountAmount);
+    return total + subtotal;
   }, 0);
 
-const toFixedString = (value: number): string => {
-  if (!Number.isFinite(value)) {
-    return '';
-  }
-  const rounded = Number(value.toFixed(2));
-  return Number.isInteger(rounded) ? rounded.toString() : rounded.toFixed(2);
-};
-
-export const createInvoiceItemsFromJobs = (
-  jobs: Job[],
-  tariffAmountById: Map<number, number>,
-): InvoiceItemFormValue[] =>
-  jobs.map(job => {
-    const hours = getJobDurationHours(job);
-    const hourlyRate = getJobHourlyRate(job, tariffAmountById);
-    const jobTotal = calculateJobTotal(job, tariffAmountById);
-
-    const quantity = hours > 0 ? toFixedString(hours) : '1';
-    const unitPrice = hourlyRate > 0 ? toFixedString(hourlyRate) : toFixedString(jobTotal);
-
-    return {
-      conceptCode: job.type_of_work ? job.type_of_work.toString() : '',
-      description: job.description ? job.description.toString() : `Trabajo #${job.id}`,
-      quantity,
-      unitPrice: unitPrice || (jobTotal > 0 ? toFixedString(jobTotal) : ''),
-      jobId: job.id.toString(),
-    };
-  });
-
-export const mergeInvoiceItemsWithJobs = (
-  currentItems: InvoiceItemFormValue[],
-  jobs: Job[],
-  tariffAmountById: Map<number, number>,
-): InvoiceItemFormValue[] => {
-  const generated = createInvoiceItemsFromJobs(jobs, tariffAmountById);
-  const existingJobIds = new Set(
-    currentItems
-      .map(item => item.jobId.trim())
-      .filter(jobId => jobId.length > 0),
-  );
-
-  const toAdd = generated.filter(item => !existingJobIds.has(item.jobId.trim()));
-  if (toAdd.length === 0) {
-    return currentItems;
-  }
-  return [...currentItems, ...toAdd];
-};
+export const calculateInvoiceItemsTax = (items: InvoiceItemFormValue[]): number =>
+  items.reduce((total, item) => total + (parseDecimalInput(item.taxAmount) ?? 0), 0);

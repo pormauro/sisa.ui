@@ -293,7 +293,7 @@
     },
     {
       "name": "Facturación",
-      "description": "Endpoints para gestionar facturas y conceptos individuales con token Bearer obligatorio.",
+      "description": "Endpoints para gestionar facturas y ítems individuales con token Bearer obligatorio.",
       "item": [
         {
           "name": "Listar facturas",
@@ -319,12 +319,12 @@
                 "invoices"
               ]
             },
-            "description": "Devuelve la lista paginada de facturas incluyendo conceptos e importes calculados cuando están disponibles."
+            "description": "Devuelve la lista paginada de facturas incluyendo ítems e importes calculados cuando están disponibles."
           },
           "response": []
         },
         {
-          "name": "Crear factura con conceptos",
+          "name": "Crear factura con ítems",
           "request": {
             "method": "POST",
             "header": [
@@ -355,12 +355,12 @@
                 "invoices"
               ]
             },
-            "description": "Crea una factura en estado borrador enviando los conceptos normalizados."
+            "description": "Crea una factura en estado borrador enviando los ítems normalizados."
           },
           "response": []
         },
         {
-          "name": "Actualizar factura y conceptos",
+          "name": "Actualizar factura y ítems",
           "request": {
             "method": "PUT",
             "header": [
@@ -392,12 +392,12 @@
                 "{{invoiceId}}"
               ]
             },
-            "description": "Actualiza encabezado y lista completa de conceptos de la factura indicada."
+            "description": "Actualiza encabezado y lista completa de ítems de la factura indicada."
           },
           "response": []
         },
         {
-          "name": "Agregar concepto a factura",
+          "name": "Agregar ítem a factura",
           "request": {
             "method": "POST",
             "header": [
