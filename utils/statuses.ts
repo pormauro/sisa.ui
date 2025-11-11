@@ -25,6 +25,8 @@ const tokenizeNormalizedStatusLabel = (normalizedLabel: string): string[] =>
 
 const NEGATIVE_STATUS_KEYWORDS = new Set(['no', 'sin', 'not', 'non', 'without']);
 
+const NEGATIVE_LOOKBACK_WINDOW = 5;
+
 export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolean => {
   if (!status || typeof status.label !== 'string') {
     return false;
@@ -46,13 +48,22 @@ export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolea
       continue;
     }
 
-    // Only treat negative words that appear immediately before the billing keyword
-    // as blockers. This avoids unrelated negative terms earlier in the label from
-    // preventing a facturado classification.
-    const immediatePrecedingWord = words[index - 1];
-    const hasNegativePrefix =
-      immediatePrecedingWord !== undefined &&
-      NEGATIVE_STATUS_KEYWORDS.has(immediatePrecedingWord);
+    // Treat negative keywords that appear shortly before the billing keyword as blockers.
+    // This prevents phrases such as "no facturado" or "no está facturado" from being
+    // classified as invoiced, while still allowing positive contexts like
+    // "facturado (no pagado)" where the negative term appears after the keyword.
+    let hasNegativePrefix = false;
+    for (let offset = 1; offset <= NEGATIVE_LOOKBACK_WINDOW; offset += 1) {
+      const precedingWord = words[index - offset];
+      if (precedingWord === undefined) {
+        break;
+      }
+
+      if (NEGATIVE_STATUS_KEYWORDS.has(precedingWord)) {
+        hasNegativePrefix = true;
+        break;
+      }
+    }
 
     if (!hasNegativePrefix) {
       return true;
