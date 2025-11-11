@@ -38,6 +38,7 @@ export interface Invoice {
   total_amount?: number | null;
   subtotal_amount?: number | null;
   tax_amount?: number | null;
+  tax_percentage?: number | null;
   currency?: string | null;
   company_id?: number | null;
   invoice_date?: string | null;
@@ -65,6 +66,7 @@ export type InvoicePayload = Record<string, unknown> & {
   company_id?: number | string | null;
   issue_date?: string | null;
   due_date?: string | null;
+  tax_percentage?: number | string | null;
   metadata?: Record<string, unknown> | null;
   items?: unknown;
   concepts?: unknown;
@@ -309,6 +311,26 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
     raw.job_ids ?? raw.jobs ?? raw.related_jobs ?? raw.job_references ?? raw.linked_jobs ?? [],
   );
   const items = parseInvoiceItems(raw.items ?? raw.concepts ?? raw.lines ?? []);
+  const metadata =
+    raw.metadata && typeof raw.metadata === 'object'
+      ? (raw.metadata as Record<string, unknown>)
+      : raw.meta && typeof raw.meta === 'object'
+      ? (raw.meta as Record<string, unknown>)
+      : null;
+  const metadataTaxCandidate = metadata
+    ? metadata['total_tax_percentage'] ??
+      metadata['tax_percentage'] ??
+      metadata['taxPercent'] ??
+      metadata['totalTaxPercentage'] ??
+      null
+    : null;
+  const taxPercentage = toNullableNumber(
+    raw.tax_percentage ??
+      raw.taxPercent ??
+      raw.total_tax_percentage ??
+      metadataTaxCandidate ??
+      null,
+  );
 
   return {
     id: toNumber(raw.id ?? raw.invoice_id ?? raw.identifier ?? 0),
@@ -358,13 +380,9 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
         : null,
     subtotal_amount: toNullableNumber(raw.subtotal_amount ?? raw.subtotal ?? null),
     tax_amount: toNullableNumber(raw.tax_amount ?? raw.taxes ?? null),
+    tax_percentage: taxPercentage,
     company_id: toNullableNumber(raw.company_id ?? raw.organization_id ?? null),
-    metadata:
-      raw.metadata && typeof raw.metadata === 'object'
-        ? (raw.metadata as Record<string, unknown>)
-        : raw.meta && typeof raw.meta === 'object'
-        ? (raw.meta as Record<string, unknown>)
-        : null,
+    metadata,
     items,
     attached_files: parseAttachedFiles(raw.attached_files ?? raw.attachments ?? null),
   };
@@ -535,6 +553,10 @@ const prepareInvoicePayload = (payload: InvoicePayload): Record<string, unknown>
 
   if ('tax_amount' in normalized) {
     normalized.tax_amount = toNullableNumber(normalized.tax_amount ?? null);
+  }
+
+  if ('tax_percentage' in normalized) {
+    normalized.tax_percentage = toNullableNumber(normalized.tax_percentage ?? null);
   }
 
   if ('currency' in normalized && !('currency_code' in normalized)) {
