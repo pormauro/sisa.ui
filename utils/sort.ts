@@ -2,7 +2,7 @@ export type SortableDate = string | number | Date | null | undefined;
 
 const MIN_COMPARABLE_VALUE = Number.NEGATIVE_INFINITY;
 
-const toComparableNumber = (value: SortableDate): number => {
+export const toComparableNumber = (value: SortableDate): number => {
   if (value instanceof Date) {
     const time = value.getTime();
     return Number.isNaN(time) ? MIN_COMPARABLE_VALUE : time;

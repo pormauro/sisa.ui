@@ -10,7 +10,12 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
-import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import {
+  ensureSortedByNewest,
+  getDefaultSortValue,
+  sortByNewest,
+  toComparableNumber,
+} from '@/utils/sort';
 
 type CategoryType = 'income' | 'expense';
 
@@ -102,6 +107,45 @@ const normalizeCategory = (raw: unknown): Category | null => {
   };
 };
 
+const getCategoryKey = (category: Category): string =>
+  `${category.type}:${category.name.trim().toLowerCase()}`;
+
+const preferCategory = (current: Category, candidate: Category): Category => {
+  const currentHasUser = current.user_id !== null && current.user_id !== undefined;
+  const candidateHasUser = candidate.user_id !== null && candidate.user_id !== undefined;
+
+  if (currentHasUser !== candidateHasUser) {
+    return candidateHasUser ? candidate : current;
+  }
+
+  const currentSortValue = toComparableNumber(getDefaultSortValue(current));
+  const candidateSortValue = toComparableNumber(getDefaultSortValue(candidate));
+
+  if (candidateSortValue !== currentSortValue) {
+    return candidateSortValue > currentSortValue ? candidate : current;
+  }
+
+  return candidate.id > current.id ? candidate : current;
+};
+
+const dedupeCategories = (items: Category[]): Category[] => {
+  const map = new Map<string, Category>();
+
+  for (const item of items) {
+    const key = getCategoryKey(item);
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, item);
+      continue;
+    }
+
+    map.set(key, preferCategory(existing, item));
+  }
+
+  return Array.from(map.values());
+};
+
 const toCategoryArray = (payload: unknown): Category[] => {
   const sourceArray: unknown[] | null = (() => {
     if (Array.isArray(payload)) {
@@ -132,9 +176,11 @@ const toCategoryArray = (payload: unknown): Category[] => {
     return [];
   }
 
-  return sourceArray
+  const normalized = sourceArray
     .map(normalizeCategory)
     .filter((item): item is Category => item !== null);
+
+  return dedupeCategories(normalized);
 };
 
 export type DefaultCategoryDefinition = Omit<Category, 'id'>;
