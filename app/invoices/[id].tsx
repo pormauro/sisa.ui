@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,10 +28,13 @@ import {
   hasInvoiceItemData,
   mapInvoiceItemToFormValue,
   prepareInvoiceItemPayloads,
+  parseInvoiceDecimalInput,
   parseInvoicePercentageInput,
 } from '@/utils/invoiceItems';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+
+const formatNumberForInput = (value: number): string => value.toFixed(2).replace('.', ',');
 
 interface InvoiceFormState {
   id: string;
@@ -44,6 +47,7 @@ interface InvoiceFormState {
   status: string;
   notes: string;
   taxPercentage: string;
+  taxAmount: string;
 }
 
 const createEmptyItem = (): InvoiceItemFormValue => ({
@@ -67,6 +71,11 @@ const extractNotes = (invoice: Invoice | undefined): string => {
 };
 
 const extractTaxPercentage = (invoice: Invoice | undefined): string => {
+  const direct = invoice?.tax_percentage;
+  if (typeof direct === 'number' && Number.isFinite(direct)) {
+    return direct.toString();
+  }
+
   if (!invoice?.metadata || typeof invoice.metadata !== 'object') {
     return '';
   }
@@ -89,6 +98,14 @@ const extractTaxPercentage = (invoice: Invoice | undefined): string => {
   return '';
 };
 
+const extractTaxAmount = (invoice: Invoice | undefined): string => {
+  const amount = invoice?.tax_amount;
+  if (typeof amount === 'number' && Number.isFinite(amount)) {
+    return formatNumberForInput(amount);
+  }
+  return '';
+};
+
 const buildInitialState = (invoice: Invoice | undefined): InvoiceFormState => ({
   id: invoice ? invoice.id.toString() : '',
   invoiceDate: invoice?.invoice_date ?? invoice?.issue_date ?? '',
@@ -104,6 +121,7 @@ const buildInitialState = (invoice: Invoice | undefined): InvoiceFormState => ({
   status: invoice?.status ?? 'draft',
   notes: extractNotes(invoice),
   taxPercentage: extractTaxPercentage(invoice),
+  taxAmount: extractTaxAmount(invoice),
 });
 
 const NEW_CLIENT_VALUE = '__new_client__';
@@ -161,12 +179,19 @@ export default function EditInvoiceScreen() {
     }
     return parseInvoicePercentageInput(formState.taxPercentage);
   }, [formState.taxPercentage]);
+  const manualTaxAmount = useMemo(
+    () => parseInvoiceDecimalInput(formState.taxAmount),
+    [formState.taxAmount],
+  );
   const hasTaxData = useMemo(() => {
+    if (manualTaxAmount !== null) {
+      return true;
+    }
     if (parsedTaxPercentage !== null) {
       return true;
     }
     return invoiceItemsProvideTaxData(items);
-  }, [items, parsedTaxPercentage]);
+  }, [items, manualTaxAmount, parsedTaxPercentage]);
 
   const subtotal = useMemo(() => {
     const derivedSubtotal = calculateInvoiceItemsSubtotal(items);
@@ -181,6 +206,10 @@ export default function EditInvoiceScreen() {
   }, [currentInvoice, hasSubtotalData, items]);
 
   const taxes = useMemo(() => {
+    if (manualTaxAmount !== null) {
+      return Math.max(0, manualTaxAmount);
+    }
+
     if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
       return Math.max(0, subtotal * (parsedTaxPercentage / 100));
     }
@@ -194,8 +223,12 @@ export default function EditInvoiceScreen() {
     return typeof existingTaxes === 'number' && Number.isFinite(existingTaxes)
       ? existingTaxes
       : derivedTaxes;
-  }, [currentInvoice, hasTaxData, items, parsedTaxPercentage, subtotal]);
+  }, [currentInvoice, hasTaxData, items, manualTaxAmount, parsedTaxPercentage, subtotal]);
   const total = useMemo(() => {
+    if (manualTaxAmount !== null && Number.isFinite(subtotal)) {
+      return Math.max(0, subtotal + Math.max(0, manualTaxAmount));
+    }
+
     if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
       const computedTaxes = Math.max(0, subtotal * (parsedTaxPercentage / 100));
       return Math.max(0, subtotal + computedTaxes);
@@ -210,11 +243,20 @@ export default function EditInvoiceScreen() {
     return typeof existingTotal === 'number' && Number.isFinite(existingTotal)
       ? existingTotal
       : derivedTotal;
-  }, [currentInvoice, hasSubtotalData, hasTaxData, items, parsedTaxPercentage, subtotal]);
+  }, [currentInvoice, hasSubtotalData, hasTaxData, items, manualTaxAmount, parsedTaxPercentage, subtotal]);
 
   const formattedSubtotal = useMemo(() => formatCurrency(subtotal), [subtotal]);
   const formattedTaxes = useMemo(() => formatCurrency(taxes), [taxes]);
   const formattedTotal = useMemo(() => formatCurrency(total), [total]);
+
+  const computeSuggestedTaxAmount = useCallback((): number | null => {
+    if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
+      return Math.max(0, subtotal * (parsedTaxPercentage / 100));
+    }
+
+    const derived = calculateInvoiceItemsTax(items);
+    return Number.isFinite(derived) && derived >= 0 ? derived : null;
+  }, [items, parsedTaxPercentage, subtotal]);
 
   const clientItems = useMemo(
     () => [
@@ -349,6 +391,20 @@ export default function EditInvoiceScreen() {
     setFormState(current => ({ ...current, [key]: value }));
   };
 
+  const handleFillTaxAmount = useCallback(() => {
+    const suggested = computeSuggestedTaxAmount();
+    if (suggested === null) {
+      Alert.alert(
+        'Sin datos suficientes',
+        'Ingresá un porcentaje de impuestos o completá los ítems con montos para calcular el IVA.',
+      );
+      return;
+    }
+
+    const formatted = formatNumberForInput(suggested);
+    setFormState(current => ({ ...current, taxAmount: formatted }));
+  }, [computeSuggestedTaxAmount]);
+
   const handleItemChange = (index: number, key: keyof InvoiceItemFormValue) => (value: string) => {
     setItems(current => {
       const next = [...current];
@@ -406,6 +462,7 @@ export default function EditInvoiceScreen() {
       due_date: formState.dueDate.trim() || null,
       currency_code: formState.currencyCode.trim() || null,
       status: formState.status.trim() || 'draft',
+      tax_percentage: parsedTaxPercentage !== null ? parsedTaxPercentage : null,
       items: payloadItems,
       attached_files: attachedFiles || null,
     };
@@ -431,7 +488,12 @@ export default function EditInvoiceScreen() {
       hasTaxData ||
       (typeof currentInvoice?.tax_amount === 'number' && Number.isFinite(currentInvoice.tax_amount));
     if (shouldIncludeTax) {
-      const normalizedTax = Number.isFinite(taxes) ? taxes : currentInvoice?.tax_amount ?? null;
+      const normalizedTax =
+        manualTaxAmount !== null
+          ? Math.max(0, manualTaxAmount)
+          : Number.isFinite(taxes)
+          ? taxes
+          : currentInvoice?.tax_amount ?? null;
       payload.tax_amount = normalizedTax;
     }
 
@@ -627,6 +689,28 @@ export default function EditInvoiceScreen() {
             onChangeText={handleChange('taxPercentage')}
             keyboardType="decimal-pad"
           />
+
+          <ThemedText style={styles.label}>Impuestos (monto total)</ThemedText>
+          <View style={styles.taxRow}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.taxInput,
+                { borderColor, backgroundColor: inputBackground, color: textColor },
+              ]}
+              placeholder="0,00"
+              placeholderTextColor={placeholderColor}
+              value={formState.taxAmount}
+              onChangeText={handleChange('taxAmount')}
+              keyboardType="decimal-pad"
+            />
+            <TouchableOpacity
+              style={[styles.taxButton, { backgroundColor: buttonColor }]}
+              onPress={handleFillTaxAmount}
+            >
+              <ThemedText style={[styles.taxButtonText, { color: buttonTextColor }]}>Calcular IVA</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : null}
 
@@ -914,6 +998,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     gap: 12,
+  },
+  taxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taxInput: {
+    flex: 1,
+    marginRight: 12,
+  },
+  taxButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  taxButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   sectionHeader: {
     flexDirection: 'row',

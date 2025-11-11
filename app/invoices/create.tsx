@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { JobsContext, type Job } from '@/contexts/JobsContext';
 import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import { StatusesContext } from '@/contexts/StatusesContext';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { ThemedText } from '@/components/ThemedText';
 import FileGallery from '@/components/FileGallery';
@@ -26,6 +27,7 @@ import {
   calculateInvoiceItemsTotal,
   hasInvoiceItemData,
   prepareInvoiceItemPayloads,
+  parseInvoiceDecimalInput,
   parseInvoicePercentageInput,
 } from '@/utils/invoiceItems';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
@@ -35,6 +37,34 @@ import { SELECTION_KEYS } from '@/constants/selectionKeys';
 type InvoiceRouteParams = {
   jobIds?: string | string[];
   clientId?: string | string[];
+};
+
+const FACTURADO_KEYWORDS = ['facturado', 'facturada', 'facturados', 'facturadas', 'invoiced', 'billed'];
+
+const normalizeStatusLabel = (label: string): string =>
+  label
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+
+const isFacturadoStatus = (label?: string | null): boolean => {
+  if (!label) {
+    return false;
+  }
+  const normalized = normalizeStatusLabel(label);
+  if (!normalized) {
+    return false;
+  }
+  return FACTURADO_KEYWORDS.some(keyword => normalized.includes(keyword));
+};
+
+type JobStatusUpdateResult = {
+  total: number;
+  updated: number;
+  skipped: number;
+  missing: number;
+  statusFound: boolean;
 };
 
 const extractDatePart = (value?: string | null): string => {
@@ -114,6 +144,7 @@ interface InvoiceFormState {
   status: string;
   notes: string;
   taxPercentage: string;
+  taxAmount: string;
 }
 
 const getToday = (): string => {
@@ -143,6 +174,7 @@ const DEFAULT_FORM_STATE: InvoiceFormState = {
   status: 'draft',
   notes: '',
   taxPercentage: '',
+  taxAmount: '',
 };
 
 const NEW_CLIENT_VALUE = '__new_client__';
@@ -152,9 +184,10 @@ export default function CreateInvoiceScreen() {
   const params = useLocalSearchParams<InvoiceRouteParams>();
   const { addInvoice } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
-  const { jobs, loadJobs } = useContext(JobsContext);
+  const { jobs, loadJobs, updateJob } = useContext(JobsContext);
   const { tariffs, loadTariffs } = useContext(TariffsContext);
   const { clients } = useContext(ClientsContext);
+  const { statuses } = useContext(StatusesContext);
   const { beginSelection, consumeSelection, pendingSelections, cancelSelection } = usePendingSelection();
 
   const jobIdsFromParams = useMemo(() => parseJobIdsParam(params.jobIds), [params.jobIds]);
@@ -195,6 +228,15 @@ export default function CreateInvoiceScreen() {
     });
     return map;
   }, [tariffs]);
+
+  const facturadoStatusId = useMemo(() => {
+    for (const status of statuses) {
+      if (isFacturadoStatus(status.label)) {
+        return status.id;
+      }
+    }
+    return null;
+  }, [statuses]);
 
   const clientItems = useMemo(
     () => [
@@ -365,6 +407,8 @@ export default function CreateInvoiceScreen() {
     setItemsPrefilled(true);
   }, [itemsPrefilled, jobIdsFromParams, jobs, tariffAmountById]);
 
+  const manualTaxAmount = useMemo(() => parseInvoiceDecimalInput(formState.taxAmount), [formState.taxAmount]);
+
   const subtotal = useMemo(() => calculateInvoiceItemsSubtotal(items), [items]);
   const parsedTaxPercentage = useMemo(() => {
     if (!formState.taxPercentage.trim()) {
@@ -373,22 +417,37 @@ export default function CreateInvoiceScreen() {
     return parseInvoicePercentageInput(formState.taxPercentage);
   }, [formState.taxPercentage]);
   const taxes = useMemo(() => {
+    if (manualTaxAmount !== null) {
+      return Math.max(0, manualTaxAmount);
+    }
     if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
       return Math.max(0, subtotal * (parsedTaxPercentage / 100));
     }
     return calculateInvoiceItemsTax(items);
-  }, [items, subtotal, parsedTaxPercentage]);
+  }, [items, manualTaxAmount, parsedTaxPercentage, subtotal]);
   const total = useMemo(() => {
+    if (manualTaxAmount !== null && Number.isFinite(subtotal)) {
+      return Math.max(0, subtotal + Math.max(0, manualTaxAmount));
+    }
     if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
       const computedTaxes = Math.max(0, subtotal * (parsedTaxPercentage / 100));
       return Math.max(0, subtotal + computedTaxes);
     }
     return calculateInvoiceItemsTotal(items);
-  }, [items, subtotal, parsedTaxPercentage]);
+  }, [items, manualTaxAmount, parsedTaxPercentage, subtotal]);
 
   const formattedSubtotal = useMemo(() => formatCurrency(subtotal), [subtotal]);
   const formattedTaxes = useMemo(() => formatCurrency(taxes), [taxes]);
   const formattedTotal = useMemo(() => formatCurrency(total), [total]);
+
+  const computeSuggestedTaxAmount = useCallback((): number | null => {
+    if (parsedTaxPercentage !== null && Number.isFinite(subtotal)) {
+      return Math.max(0, subtotal * (parsedTaxPercentage / 100));
+    }
+
+    const derived = calculateInvoiceItemsTax(items);
+    return Number.isFinite(derived) && derived >= 0 ? derived : null;
+  }, [items, parsedTaxPercentage, subtotal]);
 
   const isValid = useMemo(() => {
     if (!formState.clientId.trim()) {
@@ -403,6 +462,77 @@ export default function CreateInvoiceScreen() {
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
   };
+
+  const handleFillTaxAmount = useCallback(() => {
+    const suggested = computeSuggestedTaxAmount();
+    if (suggested === null) {
+      Alert.alert(
+        'Sin datos suficientes',
+        'Ingresá un porcentaje de impuestos o completa los montos de los ítems para calcular el IVA.',
+      );
+      return;
+    }
+
+    const formatted = formatNumberForInput(suggested);
+    setFormState(current => ({ ...current, taxAmount: formatted }));
+  }, [computeSuggestedTaxAmount]);
+
+  const markJobsAsInvoiced = useCallback(async (): Promise<JobStatusUpdateResult> => {
+    if (jobIdsFromParams.length === 0) {
+      return { total: 0, updated: 0, skipped: 0, missing: 0, statusFound: true };
+    }
+
+    if (facturadoStatusId === null) {
+      return {
+        total: 0,
+        updated: 0,
+        skipped: 0,
+        missing: jobIdsFromParams.length,
+        statusFound: false,
+      };
+    }
+
+    const jobsToUpdate = jobIdsFromParams
+      .map(id => jobs.find(job => job.id === id))
+      .filter((job): job is Job => Boolean(job));
+
+    let updated = 0;
+    let skipped = 0;
+
+    for (const job of jobsToUpdate) {
+      if (job.status_id === facturadoStatusId) {
+        skipped += 1;
+        continue;
+      }
+
+      const {
+        id: jobId,
+        user_id: _userId,
+        created_at: _createdAt,
+        updated_at: _updatedAt,
+        voided_at: _voidedAt,
+        ...jobData
+      } = job;
+
+      const payload: Omit<Job, 'id' | 'user_id'> = {
+        ...jobData,
+        status_id: facturadoStatusId,
+      };
+
+      const success = await updateJob(jobId, payload);
+      if (success) {
+        updated += 1;
+      }
+    }
+
+    return {
+      total: jobsToUpdate.length,
+      updated,
+      skipped,
+      missing: jobIdsFromParams.length - jobsToUpdate.length,
+      statusFound: true,
+    };
+  }, [facturadoStatusId, jobIdsFromParams, jobs, updateJob]);
 
   const handleItemChange = (index: number, key: keyof InvoiceItemFormValue) => (value: string) => {
     setItems(current => {
@@ -462,6 +592,7 @@ export default function CreateInvoiceScreen() {
       status: formState.status.trim() || 'draft',
       subtotal_amount: Number.isFinite(subtotal) ? subtotal : null,
       tax_amount: Number.isFinite(taxes) ? taxes : null,
+      tax_percentage: parsedTaxPercentage !== null ? parsedTaxPercentage : null,
       total_amount: Number.isFinite(total) ? total : null,
       items: payloadItems,
       attached_files: attachedFiles || null,
@@ -477,6 +608,10 @@ export default function CreateInvoiceScreen() {
       if (Number.isFinite(parsedCompanyId)) {
         payload.company_id = parsedCompanyId;
       }
+    }
+
+    if (jobIdsFromParams.length > 0) {
+      payload.job_ids = jobIdsFromParams;
     }
 
     const metadata: Record<string, unknown> = {};
@@ -499,7 +634,46 @@ export default function CreateInvoiceScreen() {
     setSubmitting(false);
 
     if (created) {
-      Alert.alert('Factura creada', 'El comprobante quedó en estado borrador.');
+      const messageLines = ['El comprobante quedó en estado borrador.'];
+
+      if (jobIdsFromParams.length > 0) {
+        const result = await markJobsAsInvoiced();
+
+        if (!result.statusFound) {
+          messageLines.push(
+            'No se encontró un estado "Facturado" para actualizar los trabajos seleccionados.',
+          );
+        } else if (result.total === 0) {
+          if (result.missing > 0) {
+            messageLines.push(
+              'No se encontraron los trabajos seleccionados para actualizar su estado.',
+            );
+          }
+        } else {
+          if (result.updated > 0) {
+            messageLines.push('Los trabajos seleccionados se marcaron como facturados.');
+          }
+
+          const failedUpdates = result.total - result.updated - result.skipped;
+          if (failedUpdates > 0) {
+            messageLines.push(
+              'Algunos trabajos no se pudieron marcar como facturados. Revisalos manualmente.',
+            );
+          }
+
+          if (result.skipped > 0) {
+            messageLines.push('Los trabajos que ya estaban facturados se omitieron automáticamente.');
+          }
+
+          if (result.missing > 0) {
+            messageLines.push(
+              'Algunos trabajos ya no estaban disponibles para actualizar su estado.',
+            );
+          }
+        }
+      }
+
+      Alert.alert('Factura creada', messageLines.join('\n'));
       router.replace('/invoices');
       return;
     }
@@ -615,6 +789,28 @@ export default function CreateInvoiceScreen() {
             onChangeText={handleChange('taxPercentage')}
             keyboardType="decimal-pad"
           />
+
+          <ThemedText style={styles.label}>Impuestos (monto total)</ThemedText>
+          <View style={styles.taxRow}>
+            <TextInput
+              style={[
+                styles.input,
+                styles.taxInput,
+                { borderColor, backgroundColor: inputBackground, color: textColor },
+              ]}
+              placeholder="0,00"
+              placeholderTextColor={placeholderColor}
+              value={formState.taxAmount}
+              onChangeText={handleChange('taxAmount')}
+              keyboardType="decimal-pad"
+            />
+            <TouchableOpacity
+              style={[styles.taxButton, { backgroundColor: buttonColor }]}
+              onPress={handleFillTaxAmount}
+            >
+              <ThemedText style={[styles.taxButtonText, { color: buttonTextColor }]}>Calcular IVA</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : null}
 
@@ -879,6 +1075,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     gap: 12,
+  },
+  taxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  taxInput: {
+    flex: 1,
+    marginRight: 12,
+  },
+  taxButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  taxButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   sectionHeader: {
     flexDirection: 'row',
