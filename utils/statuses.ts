@@ -46,10 +46,13 @@ export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolea
       continue;
     }
 
-    const precedingWords = words.slice(0, index);
-    const hasNegativePrefix = precedingWords.some(precedingWord =>
-      NEGATIVE_STATUS_KEYWORDS.has(precedingWord),
-    );
+    // Only treat negative words that appear immediately before the billing keyword
+    // as blockers. This avoids unrelated negative terms earlier in the label from
+    // preventing a facturado classification.
+    const immediatePrecedingWord = words[index - 1];
+    const hasNegativePrefix =
+      immediatePrecedingWord !== undefined &&
+      NEGATIVE_STATUS_KEYWORDS.has(immediatePrecedingWord);
 
     if (!hasNegativePrefix) {
       return true;
