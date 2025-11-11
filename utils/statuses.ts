@@ -8,6 +8,7 @@ const FACTURADO_KEYWORDS = [
   'invoiced',
   'billed',
 ];
+const FACTURADO_KEYWORD_SET = new Set(FACTURADO_KEYWORDS);
 
 const normalizeStatusLabel = (label: string): string =>
   label
@@ -39,9 +40,10 @@ export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolea
     return false;
   }
 
-  return words.some((word, index) => {
-    if (!FACTURADO_KEYWORDS.includes(word)) {
-      return false;
+  for (let index = 0; index < words.length; index += 1) {
+    const currentWord = words[index];
+    if (!FACTURADO_KEYWORD_SET.has(currentWord)) {
+      continue;
     }
 
     const precedingWords = words.slice(0, index);
@@ -49,8 +51,12 @@ export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolea
       NEGATIVE_STATUS_KEYWORDS.has(precedingWord),
     );
 
-    return !hasNegativePrefix;
-  });
+    if (!hasNegativePrefix) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 export const buildFacturadoStatusIdSet = (statuses: Status[]): Set<number> => {
