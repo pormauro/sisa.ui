@@ -24,6 +24,7 @@ export default function ViewClientModal() {
   const tariff = tariffs.find(t => t.id === client?.tariff_id);
   const finalizedJobsTotal = getTotalForClient(client?.id);
   const canViewJobs = permissions.includes('listJobs');
+  const canViewInvoices = permissions.includes('listInvoices');
 
   const background = useThemeColor({}, 'background');
   const linkColor = useThemeColor({}, 'tint');
@@ -92,12 +93,27 @@ export default function ViewClientModal() {
             {formatCurrency(finalizedJobsTotal)}
           </ThemedText>
         </TouchableOpacity>
-        <View style={styles.sectionRow}>
-          <ThemedText style={styles.sectionLabel}>Facturas impagas</ThemedText>
+        <TouchableOpacity
+          style={[styles.sectionRow, !canViewInvoices && styles.sectionRowDisabled]}
+          onPress={() =>
+            router.push(`/clients/unpaidInvoices?id=${client.id}`)
+          }
+          activeOpacity={0.7}
+          disabled={!canViewInvoices}
+          accessibilityRole="button"
+        >
+          <ThemedText
+            style={[
+              styles.sectionLabel,
+              canViewInvoices ? { color: linkColor, textDecorationLine: 'underline' } : null,
+            ]}
+          >
+            Facturas impagas
+          </ThemedText>
           <ThemedText style={styles.sectionValue}>
             {formatCurrency(client.unpaid_invoices_total)}
           </ThemedText>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {tariff ? (

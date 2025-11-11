@@ -33,30 +33,11 @@ import {
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { isStatusFacturado } from '@/utils/statuses';
 
 type InvoiceRouteParams = {
   jobIds?: string | string[];
   clientId?: string | string[];
-};
-
-const FACTURADO_KEYWORDS = ['facturado', 'facturada', 'facturados', 'facturadas', 'invoiced', 'billed'];
-
-const normalizeStatusLabel = (label: string): string =>
-  label
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
-
-const isFacturadoStatus = (label?: string | null): boolean => {
-  if (!label) {
-    return false;
-  }
-  const normalized = normalizeStatusLabel(label);
-  if (!normalized) {
-    return false;
-  }
-  return FACTURADO_KEYWORDS.some(keyword => normalized.includes(keyword));
 };
 
 type JobStatusUpdateResult = {
@@ -231,7 +212,7 @@ export default function CreateInvoiceScreen() {
 
   const facturadoStatusId = useMemo(() => {
     for (const status of statuses) {
-      if (isFacturadoStatus(status.label)) {
+      if (isStatusFacturado(status)) {
         return status.id;
       }
     }

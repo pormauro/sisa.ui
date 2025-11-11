@@ -31,6 +31,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/clients/create.tsx` — formulario de alta con selección de tarifa.【F:app/clients/create.tsx†L1-L120】
 - `app/clients/[id].tsx` — edición y eliminación condicionadas por permisos.【F:app/clients/[id].tsx†L1-L160】
 - `app/clients/viewModal.tsx` — modal de lectura rápida.【F:app/clients/viewModal.tsx†L1-L100】
+- `app/clients/unpaidInvoices.tsx` — listado de facturas en borrador o emitidas para un cliente, excluyendo pagos/cancelaciones.【F:app/clients/unpaidInvoices.tsx†L1-L211】
 
 ## Empresas (`CompaniesContext`)
 ### Modelo
