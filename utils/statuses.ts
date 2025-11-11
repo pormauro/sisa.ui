@@ -16,6 +16,14 @@ const normalizeStatusLabel = (label: string): string =>
     .toLowerCase()
     .trim();
 
+const tokenizeNormalizedStatusLabel = (normalizedLabel: string): string[] =>
+  normalizedLabel
+    .split(/[^a-z0-9]+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+const NEGATIVE_STATUS_KEYWORDS = new Set(['no', 'sin', 'not', 'non', 'without']);
+
 export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolean => {
   if (!status || typeof status.label !== 'string') {
     return false;
@@ -26,7 +34,23 @@ export const isStatusFacturado = (status?: Pick<Status, 'label'> | null): boolea
     return false;
   }
 
-  return FACTURADO_KEYWORDS.some(keyword => normalized.includes(keyword));
+  const words = tokenizeNormalizedStatusLabel(normalized);
+  if (words.length === 0) {
+    return false;
+  }
+
+  return words.some((word, index) => {
+    if (!FACTURADO_KEYWORDS.includes(word)) {
+      return false;
+    }
+
+    const precedingWords = words.slice(0, index);
+    const hasNegativePrefix = precedingWords.some(precedingWord =>
+      NEGATIVE_STATUS_KEYWORDS.has(precedingWord),
+    );
+
+    return !hasNegativePrefix;
+  });
 };
 
 export const buildFacturadoStatusIdSet = (statuses: Status[]): Set<number> => {
