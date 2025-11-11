@@ -2,6 +2,7 @@ import { useCallback, useContext, useMemo } from 'react';
 import { JobsContext, Job } from '@/contexts/JobsContext';
 import { StatusesContext, Status } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
+import { isStatusFacturado } from '@/utils/statuses';
 
 const FINALIZED_KEYWORDS = new Set([
   'finalizado',
@@ -141,9 +142,10 @@ export const useClientFinalizedJobTotals = () => {
 
       const status = job.status_id != null ? statusById.get(job.status_id) : undefined;
       const isFinalizedByStatus = isStatusFinalized(status);
+      const isFacturado = isStatusFacturado(status);
       const isFinalizedById = job.status_id != null && FINALIZED_STATUS_IDS.has(job.status_id);
 
-      if (!isFinalizedByStatus && !isFinalizedById) {
+      if ((!isFinalizedByStatus && !isFinalizedById) || isFacturado) {
         return;
       }
 

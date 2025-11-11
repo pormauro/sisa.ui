@@ -28,6 +28,7 @@ import {
   calculateJobsTotal,
   formatJobIdsParam,
 } from '@/utils/jobTotals';
+import { buildFacturadoStatusIdSet, isStatusFacturado } from '@/utils/statuses';
 
 type Params = {
   id?: string;
@@ -115,6 +116,10 @@ export default function ClientFinalizedJobsScreen() {
   );
 
   const statusById = useMemo(() => getStatusById(statuses), [statuses]);
+  const facturadoStatusIds = useMemo(
+    () => buildFacturadoStatusIdSet(statuses),
+    [statuses],
+  );
 
   const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
   const [showPendingJobs, setShowPendingJobs] = useState(true);
@@ -145,6 +150,12 @@ export default function ClientFinalizedJobsScreen() {
         return false;
       }
       const status = job.status_id != null ? statusById.get(job.status_id) : undefined;
+      if (
+        (job.status_id != null && facturadoStatusIds.has(job.status_id)) ||
+        isStatusFacturado(status)
+      ) {
+        return false;
+      }
       if (job.status_id === FINALIZED_STATUS_ID) {
         return true;
       }
@@ -152,7 +163,7 @@ export default function ClientFinalizedJobsScreen() {
     });
 
     return sortByNewest(filtered, getJobSortValue, job => job.id);
-  }, [clientId, clientJobs, isValidClientId, statusById]);
+  }, [clientId, clientJobs, facturadoStatusIds, isValidClientId, statusById]);
 
   const nonFinalizedJobs = useMemo(() => {
     if (!isValidClientId) {
@@ -164,9 +175,15 @@ export default function ClientFinalizedJobsScreen() {
         return false;
       }
       const status = job.status_id != null ? statusById.get(job.status_id) : undefined;
+      if (
+        (job.status_id != null && facturadoStatusIds.has(job.status_id)) ||
+        isStatusFacturado(status)
+      ) {
+        return false;
+      }
       return !isStatusFinalized(status) && job.status_id !== FINALIZED_STATUS_ID;
     });
-  }, [clientId, clientJobs, isValidClientId, statusById]);
+  }, [clientId, clientJobs, facturadoStatusIds, isValidClientId, statusById]);
 
   const allFinalizedJobIds = useMemo(
     () => finalizedJobs.map(job => job.id),
