@@ -21,7 +21,7 @@ Cuando se cree una nueva sección en la app que consuma estos endpoints, debe ag
 - `GET /invoices/{id}`: provee el detalle completo del comprobante, incluyendo ítems normalizados, impuestos calculados y metadatos de emisión.
 
 ### Operaciones de emisión y actualización
-- `POST /invoices`: crea una factura en estado `draft`, validando que los ítems incluyan montos y referencias opcionales a productos, trabajos o clientes mediante sus IDs (sin constraints en la base). El campo `attached_files` acepta un arreglo de IDs de archivos ya cargados y los impuestos (`tax_amount`) pueden calcularse automáticamente en la app a partir de un porcentaje global.
+- `POST /invoices`: crea una factura en estado `draft`, validando que los ítems incluyan montos y referencias opcionales a productos, trabajos o clientes mediante sus IDs (sin constraints en la base). El campo `attached_files` acepta un arreglo de IDs de archivos ya cargados y los impuestos (`tax_amount`/`tax_percentage`) pueden calcularse automáticamente en la app a partir de un porcentaje global, además de vincular los `job_ids` seleccionados para actualizar sus estados.
 - `PUT /invoices/{id}`: actualiza datos de encabezado, ítems o totales siempre que la factura siga en `draft`.
 - `POST /invoices/{id}/issue`: cambia el estado a `issued`, registra el número fiscal definitivo y emite el comprobante electrónico asociado.
 
