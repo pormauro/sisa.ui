@@ -99,6 +99,7 @@ export default function ClientFinalizedJobsScreen() {
   const textColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'tint');
   const selectionAccent = useThemeColor({}, 'button');
+  const selectionTextColor = useThemeColor({}, 'buttonText');
   const metricLabelColor = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
 
   const canListJobs = permissions.includes('listJobs');
@@ -276,14 +277,6 @@ export default function ClientFinalizedJobsScreen() {
     });
   }, [clientIdParam, jobIdsParam, router, showInvoiceActions]);
 
-  const handleLinkExistingInvoice = useCallback(() => {
-    if (!showInvoiceActions || !jobIdsParam) {
-      return;
-    }
-
-    router.push({ pathname: '/invoices', params: { jobIds: jobIdsParam } });
-  }, [jobIdsParam, router, showInvoiceActions]);
-
   const renderItem = ({ item }: { item: Job }) => {
     const status = item.status_id != null ? statusById.get(item.status_id) : undefined;
     const date = extractDate(item.job_date);
@@ -434,25 +427,21 @@ export default function ClientFinalizedJobsScreen() {
         </View>
       ) : null}
       {showInvoiceActions ? (
-        <View style={[styles.invoiceActionsContainer, { backgroundColor: cardBackground, borderColor }]}> 
+        <View style={[styles.invoiceActionsContainer, { backgroundColor: cardBackground, borderColor }]}>
           <ThemedText style={styles.invoiceActionsTitle}>Acciones con trabajos seleccionados</ThemedText>
           <View style={styles.invoiceActionsButtons}>
             <TouchableOpacity
               style={[styles.invoiceActionButton, { backgroundColor: selectionAccent }]}
               onPress={handleCreateInvoice}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={styles.invoiceActionIcon} />
-              <ThemedText style={styles.invoiceActionText} lightColor="#FFFFFF" darkColor="#FFFFFF">
+              <Ionicons
+                name="add-circle-outline"
+                size={20}
+                color={selectionTextColor}
+                style={styles.invoiceActionIcon}
+              />
+              <ThemedText style={[styles.invoiceActionText, { color: selectionTextColor }]}>
                 Crear factura
-              </ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.invoiceActionButtonOutline, { borderColor: selectionAccent }]}
-              onPress={handleLinkExistingInvoice}
-            >
-              <Ionicons name="link-outline" size={20} color={selectionAccent} style={styles.invoiceActionIcon} />
-              <ThemedText style={[styles.invoiceActionOutlineText, { color: selectionAccent }]}>
-                Vincular trabajos existentes
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -644,7 +633,7 @@ const styles = StyleSheet.create({
   invoiceActionsButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   invoiceActionButton: {
     flexDirection: 'row',
@@ -655,28 +644,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flex: 1,
   },
-  invoiceActionButtonOutline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    flex: 1,
-    marginLeft: 12,
-  },
   invoiceActionIcon: {
     marginRight: 8,
   },
   invoiceActionText: {
     fontSize: 14,
     fontWeight: '600',
-  },
-  invoiceActionOutlineText: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
   },
   pendingToggleButton: {
     flexDirection: 'row',

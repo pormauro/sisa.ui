@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
@@ -15,6 +16,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { InvoicesContext, type Invoice } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { formatCurrency } from '@/utils/currency';
 import { sortByNewest } from '@/utils/sort';
 
@@ -72,6 +75,7 @@ export default function ClientUnpaidInvoicesScreen() {
   const { invoices, loadInvoices } = useContext(InvoicesContext);
   const { clients } = useContext(ClientsContext);
   const { permissions } = useContext(PermissionsContext);
+  const { beginSelection, completeSelection } = usePendingSelection();
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -80,8 +84,11 @@ export default function ClientUnpaidInvoicesScreen() {
   const borderColor = useThemeColor({ light: '#E5E7EB', dark: '#1F2937' }, 'background');
   const secondaryText = useThemeColor({ light: '#6B7280', dark: '#9CA3AF' }, 'text');
   const accentColor = useThemeColor({}, 'tint');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canListInvoices = permissions.includes('listInvoices');
+  const canAddReceipt = permissions.includes('addReceipt');
 
   useFocusEffect(
     useCallback(() => {
@@ -117,6 +124,31 @@ export default function ClientUnpaidInvoicesScreen() {
 
     return sortByNewest(filtered, getInvoiceSortValue, invoice => invoice.id);
   }, [clientId, invoices, isValidClientId]);
+
+  const outstandingTotal = useMemo(() => {
+    if (!canListInvoices) {
+      return 0;
+    }
+
+    return unpaidInvoices.reduce((sum, invoice) => {
+      const totalAmount = invoice?.total_amount;
+      if (typeof totalAmount === 'number' && Number.isFinite(totalAmount)) {
+        return sum + totalAmount;
+      }
+      if (typeof totalAmount === 'string') {
+        const parsed = Number(totalAmount.trim());
+        if (!Number.isNaN(parsed)) {
+          return sum + parsed;
+        }
+      }
+      return sum;
+    }, 0);
+  }, [canListInvoices, unpaidInvoices]);
+
+  const formattedOutstandingTotal = useMemo(
+    () => formatCurrency(outstandingTotal ?? 0),
+    [outstandingTotal],
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -163,6 +195,16 @@ export default function ClientUnpaidInvoicesScreen() {
     [accentColor, borderColor, cardBackground, handlePressInvoice, secondaryText]
   );
 
+  const handleCreateReceipt = useCallback(() => {
+    if (!canAddReceipt || !isValidClientId) {
+      return;
+    }
+
+    beginSelection(SELECTION_KEYS.receipts.payerClient);
+    completeSelection(clientId.toString());
+    router.push('/receipts/create');
+  }, [beginSelection, canAddReceipt, clientId, completeSelection, isValidClientId, router]);
+
   if (!isValidClientId) {
     return (
       <ThemedView style={[styles.container, { backgroundColor: background }]}>
@@ -174,10 +216,32 @@ export default function ClientUnpaidInvoicesScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <View style={styles.header}>
-        <ThemedText style={styles.headerTitle}>
-          {client?.business_name ?? 'Cliente sin nombre'}
-        </ThemedText>
-        <ThemedText style={[styles.headerSubtitle, { color: secondaryText }]}>Facturas impagas</ThemedText>
+        <View style={styles.headerContent}>
+          <ThemedText style={styles.headerTitle}>
+            {client?.business_name ?? 'Cliente sin nombre'}
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: secondaryText }]}>Facturas impagas</ThemedText>
+          {canListInvoices ? (
+            <ThemedText style={[styles.headerTotal, { color: accentColor }]}>
+              Total adeudado: {formattedOutstandingTotal}
+            </ThemedText>
+          ) : null}
+        </View>
+        {canAddReceipt ? (
+          <TouchableOpacity
+            style={[styles.receiptButton, { backgroundColor: buttonColor }]}
+            onPress={handleCreateReceipt}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="receipt-outline"
+              size={18}
+              color={buttonTextColor}
+              style={styles.receiptButtonIcon}
+            />
+            <ThemedText style={[styles.receiptButtonText, { color: buttonTextColor }]}>Crear recibo</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </View>
       <FlatList
         data={unpaidInvoices}
@@ -203,7 +267,15 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     marginBottom: 16,
+  },
+  headerContent: {
+    flex: 1,
+    marginRight: 12,
   },
   headerTitle: {
     fontSize: 20,
@@ -213,6 +285,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 14,
   },
+  headerTotal: {
+    marginTop: 8,
+    fontSize: 16,
+    fontWeight: '600',
+  },
   listContent: {
     paddingBottom: 24,
   },
@@ -221,6 +298,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
+  },
+  receiptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    marginTop: 8,
+  },
+  receiptButtonIcon: {
+    marginRight: 6,
+  },
+  receiptButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   card: {
     borderRadius: 12,
