@@ -13,6 +13,17 @@ import { ensureSortedByNewest, sortByNewest, SortableDate } from '@/utils/sort';
 
 export type InvoiceStatus = 'draft' | 'issued' | 'paid' | 'canceled' | (string & {});
 
+export interface InvoiceHistoryEntry {
+  id: number;
+  invoice_id: number;
+  event_type: string | null;
+  description: string | null;
+  payload: Record<string, unknown> | null;
+  created_at: string | null;
+  user_id?: number | null;
+  username?: string | null;
+}
+
 export interface InvoiceItem {
   id?: number;
   concept_code?: string | null;
@@ -80,6 +91,8 @@ interface InvoicesContextValue {
   updateInvoice: (id: number, payload: InvoicePayload) => Promise<boolean>;
   deleteInvoice: (id: number) => Promise<boolean>;
   voidInvoice: (id: number, reason?: string | null) => Promise<boolean>;
+  issueInvoice: (id: number, payload?: Record<string, unknown> | null) => Promise<boolean>;
+  getInvoiceHistory: (id: number) => Promise<InvoiceHistoryEntry[]>;
 }
 
 const defaultContext: InvoicesContextValue = {
@@ -89,6 +102,8 @@ const defaultContext: InvoicesContextValue = {
   updateInvoice: async () => false,
   deleteInvoice: async () => false,
   voidInvoice: async () => false,
+  issueInvoice: async () => false,
+  getInvoiceHistory: async () => [],
 };
 
 export const InvoicesContext = createContext<InvoicesContextValue>(defaultContext);
@@ -427,6 +442,91 @@ const parseJsonSafely = async (response: Response): Promise<unknown> => {
     console.warn('No se pudo interpretar la respuesta JSON del endpoint de facturas.', error);
     return null;
   }
+};
+
+const extractHistoryArray = (data: unknown): unknown[] => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (!data || typeof data !== 'object') {
+    return [];
+  }
+
+  const record = data as Record<string, unknown>;
+  const candidates = ['history', 'data', 'items', 'results'];
+  for (const key of candidates) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return [];
+};
+
+const parseInvoiceHistoryEntry = (raw: Record<string, unknown>): InvoiceHistoryEntry => ({
+  id: toNumber(raw.id ?? raw.history_id ?? raw.identifier ?? 0),
+  invoice_id: toNumber(raw.invoice_id ?? raw.parent_id ?? raw.record_id ?? 0),
+  event_type:
+    typeof raw.event_type === 'string'
+      ? raw.event_type
+      : typeof raw.type === 'string'
+      ? raw.type
+      : typeof raw.action === 'string'
+      ? raw.action
+      : null,
+  description:
+    typeof raw.description === 'string'
+      ? raw.description
+      : typeof raw.detail === 'string'
+      ? raw.detail
+      : typeof raw.message === 'string'
+      ? raw.message
+      : null,
+  payload:
+    raw.payload && typeof raw.payload === 'object'
+      ? (raw.payload as Record<string, unknown>)
+      : raw.changes && typeof raw.changes === 'object'
+      ? (raw.changes as Record<string, unknown>)
+      : null,
+  created_at:
+    typeof raw.created_at === 'string'
+      ? raw.created_at
+      : typeof raw.timestamp === 'string'
+      ? raw.timestamp
+      : typeof raw.date === 'string'
+      ? raw.date
+      : null,
+  user_id: toNullableNumber(raw.user_id ?? raw.author_id ?? raw.updated_by ?? null),
+  username:
+    typeof raw.username === 'string'
+      ? raw.username
+      : typeof raw.user_name === 'string'
+      ? raw.user_name
+      : typeof raw.user === 'string'
+      ? raw.user
+      : null,
+});
+
+const sortHistoryEntries = (entries: InvoiceHistoryEntry[]): InvoiceHistoryEntry[] => {
+  return [...entries].sort((a, b) => {
+    const getTime = (value: string | null | undefined): number => {
+      if (!value) {
+        return 0;
+      }
+      const normalized = value.includes('T') || value.includes(' ')
+        ? value.replace(' ', 'T')
+        : `${value}T00:00:00`;
+      const time = new Date(normalized).getTime();
+      if (Number.isNaN(time)) {
+        return 0;
+      }
+      return time;
+    };
+
+    return getTime(b.created_at) - getTime(a.created_at);
+  });
 };
 
 const getIdFromLocationHeader = (response: Response): number | null => {
@@ -889,6 +989,106 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [loadInvoices, setInvoices, token],
   );
 
+  const issueInvoice = useCallback(
+    async (id: number, payload?: Record<string, unknown> | null): Promise<boolean> => {
+      if (!token) {
+        return false;
+      }
+
+      try {
+        const body = payload && Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined;
+        const response = await fetch(`${BASE_URL}/invoices/${id}/issue`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(body ? { 'Content-Type': 'application/json' } : {}),
+          },
+          body,
+        });
+        await ensureAuthResponse(response);
+        const data = await parseJsonSafely(response);
+
+        let raw: Record<string, unknown> | null = null;
+        if (data && typeof data === 'object') {
+          if ('invoice' in data && data.invoice) {
+            raw = data.invoice as Record<string, unknown>;
+          } else if ('data' in data && data.data && typeof data.data === 'object') {
+            raw = data.data as Record<string, unknown>;
+          } else {
+            raw = data as Record<string, unknown>;
+          }
+        }
+
+        if (!raw && response.ok) {
+          raw = { id, status: 'issued', issue_date: new Date().toISOString() };
+        }
+
+        if (raw) {
+          const parsed = parseInvoice(raw);
+          setInvoices(prev =>
+            ensureSortedByNewest(
+              prev.map(invoice => (invoice.id === parsed.id ? parsed : invoice)),
+              getInvoiceSortValue,
+              invoice => invoice.id,
+            ),
+          );
+          await loadInvoices();
+          return true;
+        }
+
+        if (response.ok) {
+          await loadInvoices();
+          return true;
+        }
+      } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al emitir una factura, se solicitará uno nuevo.');
+          return false;
+        }
+        console.error('Error issuing invoice:', error);
+      }
+
+      return false;
+    },
+    [loadInvoices, setInvoices, token],
+  );
+
+  const getInvoiceHistory = useCallback(
+    async (id: number): Promise<InvoiceHistoryEntry[]> => {
+      if (!token) {
+        return [];
+      }
+
+      try {
+        const response = await fetch(`${BASE_URL}/invoices/${id}/history`, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        await ensureAuthResponse(response);
+        const data = await parseJsonSafely(response);
+        const entries = extractHistoryArray(data)
+          .map(item => (item && typeof item === 'object' ? (item as Record<string, unknown>) : null))
+          .filter((record): record is Record<string, unknown> => record !== null)
+          .map(record => parseInvoiceHistoryEntry(record));
+
+        return sortHistoryEntries(entries);
+      } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al listar el historial de una factura, se solicitará uno nuevo.');
+          return [];
+        }
+        console.error('Error loading invoice history:', error);
+      }
+
+      return [];
+    },
+    [token],
+  );
+
   useEffect(() => {
     if (token) {
       void loadInvoices();
@@ -897,7 +1097,16 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <InvoicesContext.Provider
-      value={{ invoices, loadInvoices, addInvoice, updateInvoice, deleteInvoice, voidInvoice }}
+      value={{
+        invoices,
+        loadInvoices,
+        addInvoice,
+        updateInvoice,
+        deleteInvoice,
+        voidInvoice,
+        issueInvoice,
+        getInvoiceHistory,
+      }}
     >
       {children}
     </InvoicesContext.Provider>

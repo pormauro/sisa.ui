@@ -237,6 +237,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Permisos esperados (`listInvoices`, `addInvoice`, `updateInvoice`, `deleteInvoice`, `voidInvoice`, `downloadInvoicePdf`) deben registrarse en la pantalla de permisos al habilitar nuevas secciones vinculadas al módulo.
 - El historial expuesto por `/invoices/{id}/history` y `/invoices/history` soporta auditorías financieras y debe incluirse en la colección de Postman cuando se actualicen flujos.
 - Los formularios de alta y edición mantienen los campos fiscales sensibles dentro de "Mostrar detalles adicionales": el número de factura es opcional, la moneda se elige con un selector que muestra 🇦🇷 ARS y 🇺🇸 USA, el estado se presenta con etiquetas en español y se incorpora un campo para registrar el porcentaje total de impuestos.【F:app/invoices/create.tsx†L470-L542】【F:app/invoices/[id].tsx†L474-L546】
+- La edición incorpora acciones directas para **emitir** facturas en borrador (`issueInvoice`) y para **consultar el historial** (`listInvoiceHistory`), mostrando un modal con eventos y payloads normalizados que consumen los endpoints `/invoices/{id}/issue` y `/invoices/{id}/history`.【F:app/invoices/[id].tsx†L678-L940】【F:contexts/InvoicesContext.tsx†L830-L915】
 
 ## Recibos (`ReceiptsContext`)
 ### Modelo

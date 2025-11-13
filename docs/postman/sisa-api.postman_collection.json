@@ -503,6 +503,143 @@
             "description": "Elimina el concepto indicado dejando registro en el historial de la factura."
           },
           "response": []
+        },
+        {
+          "name": "Emitir factura",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoice_number\": \"A-0001-00004567\",\n  \"issue_date\": \"2024-05-12\",\n  \"notes\": \"Confirmada por el cliente\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/issue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "issue"
+              ]
+            },
+            "description": "Confirma una factura borrador y la marca como emitida. El cuerpo es opcional; si se envía, permite actualizar campos como `invoice_number` o `issue_date` justo antes de la emisión definitiva."
+          },
+          "response": []
+        },
+        {
+          "name": "Historial de factura",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "history"
+              ]
+            },
+            "description": "Devuelve la lista de eventos (creación, ediciones, emisión, anulaciones, regeneraciones) asociados a una factura específica. Es el endpoint que alimenta el modal de historial en la app."
+          },
+          "response": []
+        },
+        {
+          "name": "Historial global de facturas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/history?event=issued&user_id=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "event",
+                  "value": "issued"
+                },
+                {
+                  "key": "user_id",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Feed global filtrable por tipo de evento (`event`), usuario (`user_id`) o rangos temporales (`from`, `to`). Útil para auditorías masivas y conciliaciones."
+          },
+          "response": []
+        },
+        {
+          "name": "Regenerar PDF de factura",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/invoices/{{invoiceId}}/regenerate_pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "invoices",
+                "{{invoiceId}}",
+                "regenerate_pdf"
+              ]
+            },
+            "description": "Solicita al backend que vuelva a generar el PDF asociado a la factura cuando se actualizan metadatos permitidos tras la emisión (por ejemplo, notas internas o datos fiscales secundarios)."
+          },
+          "response": []
         }
       ]
     }
