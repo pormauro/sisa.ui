@@ -24,6 +24,7 @@ Cuando se cree una nueva sección en la app que consuma estos endpoints, debe ag
 - `POST /invoices`: crea una factura en estado `draft`, validando que los ítems incluyan montos y referencias opcionales a productos, trabajos o clientes mediante sus IDs (sin constraints en la base). El campo `attached_files` acepta un arreglo de IDs de archivos ya cargados y los impuestos (`tax_amount`/`tax_percentage`) pueden calcularse automáticamente en la app a partir de un porcentaje global, además de vincular los `job_ids` seleccionados para actualizar sus estados.
 - `PUT /invoices/{id}`: actualiza datos de encabezado, ítems o totales siempre que la factura siga en `draft`.
 - `POST /invoices/{id}/issue`: cambia el estado a `issued`, registra el número fiscal definitivo y emite el comprobante electrónico asociado.
+- La pantalla de edición de facturas en la app móvil expone un botón "Emitir factura" que confirma la acción con el usuario y luego llama a este endpoint con los campos opcionales `invoice_number` y `issue_date` que estuvieran cargados.【F:app/invoices/[id].tsx†L678-L940】
 
 ### Manejo directo de ítems
 - Cada payload acepta la clave `items` (o `concepts`, para compatibilidad retroactiva) con objetos `{ description, quantity, unit_price, discount_amount, tax_amount, product_id, order_index }`. La UI normaliza las cifras antes de enviarlas, manteniendo la compatibilidad con APIs que esperan enteros o strings numéricas.
@@ -41,6 +42,7 @@ Todas las operaciones anteriores deben ejecutarse con el encabezado Bearer activ
 
 ## Historial y auditoría
 - `GET /invoices/{id}/history`: devuelve la secuencia cronológica de eventos (creación, ediciones, emisión, anulaciones, regeneraciones), cada uno con `timestamp`, usuario y payload asociado.
+- El historial se muestra en un modal dentro de la app reutilizando este endpoint, por lo que es importante mantener la compatibilidad con respuestas `history`, `data` o arreglos planos para que el parser pueda normalizarlas.【F:app/invoices/[id].tsx†L678-L940】【F:contexts/InvoicesContext.tsx†L883-L915】
 - `GET /invoices/history`: expone un feed global filtrable por usuario, rango temporal o tipo de evento, útil para auditorías cruzadas con otros módulos financieros.
 
 Los eventos almacenan la huella completa del request (incluyendo encabezados relevantes, valores previos y cambios aplicados) para simplificar inspecciones posteriores. Al no contar con claves foráneas, la API adjunta copias de los identificadores originales y una instantánea de los datos principales de cliente y trabajo al momento del evento, garantizando que el historial se mantenga consistente aunque se eliminen registros relacionados.
