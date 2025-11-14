@@ -203,6 +203,14 @@ export default function ClientUnpaidInvoicesScreen() {
   );
   const formattedIssuedTotal = useMemo(() => formatCurrency(issuedInvoicesTotal), [issuedInvoicesTotal]);
   const formattedDraftTotal = useMemo(() => formatCurrency(draftInvoicesTotal), [draftInvoicesTotal]);
+  const invoicesGrandTotal = useMemo(
+    () => issuedInvoicesTotal + draftInvoicesTotal,
+    [draftInvoicesTotal, issuedInvoicesTotal]
+  );
+  const formattedInvoicesGrandTotal = useMemo(
+    () => formatCurrency(invoicesGrandTotal),
+    [invoicesGrandTotal]
+  );
   const issuedInvoicesCount = useMemo(
     () => unpaidInvoices.filter(invoice => normalizeStatus(invoice.status) === 'issued').length,
     [unpaidInvoices]
@@ -367,7 +375,12 @@ export default function ClientUnpaidInvoicesScreen() {
     return (
       <View style={styles.summaryContainer}>
         <View style={styles.summaryGrid}>
-          <View style={[styles.summaryCard, { borderColor }]}> 
+          <View style={[styles.summaryCard, styles.summaryCardWide, { borderColor }]}>
+            <ThemedText style={styles.summaryLabel}>Total facturas</ThemedText>
+            <ThemedText style={styles.summaryValue}>{formattedInvoicesGrandTotal}</ThemedText>
+            <ThemedText style={[styles.summaryMeta, { color: secondaryText }]}>Emitidas + borradores</ThemedText>
+          </View>
+          <View style={[styles.summaryCard, { borderColor }]}>
             <ThemedText style={styles.summaryLabel}>Emitidas</ThemedText>
             <ThemedText style={styles.summaryValue}>{formattedIssuedTotal}</ThemedText>
             <ThemedText style={[styles.summaryMeta, { color: secondaryText }]}>
@@ -415,6 +428,7 @@ export default function ClientUnpaidInvoicesScreen() {
     clearSelection,
     draftInvoicesCount,
     formattedDraftTotal,
+    formattedInvoicesGrandTotal,
     formattedIssuedTotal,
     formattedSelectedTotal,
     issuedInvoicesCount,
@@ -634,6 +648,9 @@ const styles = StyleSheet.create({
     margin: 4,
     flexGrow: 1,
     minWidth: 140,
+  },
+  summaryCardWide: {
+    width: '100%',
   },
   summaryLabel: {
     fontSize: 14,

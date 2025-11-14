@@ -94,13 +94,14 @@ export default function ClientCalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const background = useThemeColor({}, 'background');
-  const cardBackground = useThemeColor({ light: '#fff', dark: '#3b314d' }, 'background');
   const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#444' }, 'background');
   const textColor = useThemeColor({}, 'text');
   const mutedTextColor = useThemeColor({ light: '#6c6c6c', dark: '#bbb' }, 'text');
   const tintColor = useThemeColor({}, 'tint');
   const appointmentDotColor = useThemeColor({ light: '#00897B', dark: '#4DB6AC' }, 'tint');
   const jobDotColor = useThemeColor({ light: '#F9A825', dark: '#FFD54F' }, 'tint');
+  const jobCardBackground = useThemeColor({ light: '#FFF6E0', dark: '#3D2A14' }, 'background');
+  const appointmentCardBackground = useThemeColor({ light: '#E0F7F4', dark: '#102A2F' }, 'background');
   const addAppointmentButtonColor = useThemeColor({ light: '#00796B', dark: '#26A69A' }, 'button');
   const addJobButtonColor = useThemeColor({ light: '#E65100', dark: '#FFB74D' }, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
@@ -294,7 +295,9 @@ export default function ClientCalendarScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <ThemedText style={styles.title}>Calendario de {client.business_name}</ThemedText>
+      <ThemedText style={styles.title} numberOfLines={1}>
+        {client.business_name || 'Calendario del cliente'}
+      </ThemedText>
       <Calendar
         markingType="multi-dot"
         markedDates={markedDates}
@@ -317,17 +320,53 @@ export default function ClientCalendarScreen() {
           <ActivityIndicator color={tintColor} />
         </View>
       ) : null}
+      {(canCreateAppointment || canCreateJob) && (
+        <View style={styles.calendarActionRow}>
+          {canCreateAppointment ? (
+            <TouchableOpacity
+              style={[styles.calendarActionButton, { backgroundColor: addAppointmentButtonColor }]}
+              onPress={handleAddAppointment}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="person-add-outline" size={18} color={addButtonTextColor} />
+              <ThemedText style={[styles.calendarActionText, { color: addButtonTextColor }]}>Turno</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+          {canCreateJob ? (
+            <TouchableOpacity
+              style={[styles.calendarActionButton, { backgroundColor: addJobButtonColor }]}
+              onPress={handleAddJob}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="hammer-outline" size={18} color={addButtonTextColor} />
+              <ThemedText style={[styles.calendarActionText, { color: addButtonTextColor }]}>Trabajo</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      )}
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.eventDot, styles.legendDot, { backgroundColor: jobDotColor }]} />
+          <ThemedText style={styles.legendLabel}>Trabajos</ThemedText>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.eventDot, styles.legendDot, { backgroundColor: appointmentDotColor }]} />
+          <ThemedText style={styles.legendLabel}>Turnos</ThemedText>
+        </View>
+      </View>
       <FlatList
         data={combinedEvents}
         keyExtractor={item => `${item.type}-${item.item.id}`}
         renderItem={({ item }) => {
           const eventColor = item.type === 'job' ? jobDotColor : appointmentDotColor;
+          const tintedBackground =
+            item.type === 'job' ? jobCardBackground : appointmentCardBackground;
           return (
             <TouchableOpacity
               style={[
                 styles.eventCard,
                 {
-                  backgroundColor: cardBackground,
+                  backgroundColor: tintedBackground,
                   borderColor,
                   borderLeftColor: eventColor,
                 },
@@ -377,30 +416,6 @@ export default function ClientCalendarScreen() {
         refreshing={refreshing}
         onRefresh={onRefresh}
       />
-      {(canCreateAppointment || canCreateJob) && (
-        <View style={styles.actionRow}>
-          {canCreateAppointment ? (
-            <TouchableOpacity
-              style={[styles.smallActionButton, { backgroundColor: addAppointmentButtonColor }]}
-              onPress={handleAddAppointment}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="person-add-outline" size={18} color={addButtonTextColor} />
-              <ThemedText style={[styles.smallActionText, { color: addButtonTextColor }]}>Turno</ThemedText>
-            </TouchableOpacity>
-          ) : null}
-          {canCreateJob ? (
-            <TouchableOpacity
-              style={[styles.smallActionButton, { backgroundColor: addJobButtonColor }]}
-              onPress={handleAddJob}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="hammer-outline" size={18} color={addButtonTextColor} />
-              <ThemedText style={[styles.smallActionText, { color: addButtonTextColor }]}>Trabajo</ThemedText>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      )}
     </ThemedView>
   );
 }
@@ -496,23 +511,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  actionRow: {
+  calendarActionRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
+    flexWrap: 'wrap',
+    marginBottom: 8,
   },
-  smallActionButton: {
+  calendarActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingVertical: 10,
-    marginHorizontal: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 999,
+    marginRight: 8,
+    marginBottom: 8,
   },
-  smallActionText: {
+  calendarActionText: {
     marginLeft: 6,
     fontSize: 14,
     fontWeight: '600',
+  },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  legendLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8,
   },
 });

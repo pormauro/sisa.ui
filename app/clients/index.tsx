@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ClientsContext, Client } from '@/contexts/ClientsContext';
+import { InvoicesContext } from '@/contexts/InvoicesContext';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -22,6 +23,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
+import { useClientInvoiceSummary } from '@/hooks/useClientInvoiceSummary';
 
 type ClientSortOption =
   | 'name'
@@ -38,7 +40,9 @@ const SORT_OPTIONS: { label: string; value: ClientSortOption }[] = [
 
 export default function ClientsListPage() {
   const { clients, loadClients, deleteClient } = useContext(ClientsContext);
+  const { loadInvoices } = useContext(InvoicesContext);
   const { getTotalForClient, hasFinalizedJobs } = useClientFinalizedJobTotals();
+  const { getSummary: getInvoiceSummary } = useClientInvoiceSummary();
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,11 +69,21 @@ export default function ClientsListPage() {
   const canDeleteClient = permissions.includes('deleteClient');
   const canEditClient = permissions.includes('updateClient');
   const canViewJobs = permissions.includes('listJobs');
+  const canViewInvoices = permissions.includes('listInvoices');
 
   useFocusEffect(
     useCallback(() => {
       void loadClients();
     }, [loadClients])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!canViewInvoices) {
+        return;
+      }
+      void loadInvoices();
+    }, [canViewInvoices, loadInvoices])
   );
 
   const clientsWithComputedTotals = useMemo(
@@ -222,9 +236,93 @@ export default function ClientsListPage() {
 
     const unbilledTotal = getSafeTotal(item.unbilled_total);
     const finalizedJobsAvailable = hasFinalizedJobs(item.id);
+    const invoiceSummary = canViewInvoices ? getInvoiceSummary(item.id) : null;
+    const issuedTotal = invoiceSummary?.issuedTotal ?? 0;
+    const draftTotal = invoiceSummary?.draftTotal ?? 0;
+    const issuedCount = invoiceSummary?.issuedCount ?? 0;
+    const draftCount = invoiceSummary?.draftCount ?? 0;
 
     const shouldShowUnbilledCard = finalizedJobsAvailable || unbilledTotal > 0;
-    const shouldShowMetricsRow = shouldShowUnbilledCard;
+    const shouldShowInvoiceMetrics = canViewInvoices && (issuedCount > 0 || draftCount > 0);
+
+    const handleOpenInvoices = () => {
+      if (!canViewInvoices) {
+        Alert.alert('Acceso denegado', 'No tienes permiso para ver las facturas.');
+        return;
+      }
+      router.push(`/clients/unpaidInvoices?id=${item.id}`);
+    };
+
+    const metricCards: React.ReactNode[] = [];
+
+    if (shouldShowUnbilledCard) {
+      metricCards.push(
+        <TouchableOpacity
+          key="unbilled"
+          style={[
+            styles.metricCard,
+            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+            !canViewJobs && styles.metricCardDisabled,
+          ]}
+          activeOpacity={0.75}
+          onPress={() => {
+            if (!canViewJobs) {
+              Alert.alert('Acceso denegado', 'No tienes permiso para ver trabajos.');
+              return;
+            }
+            router.push(`/clients/finalizedJobs?id=${item.id}`);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Ver trabajos finalizados del cliente"
+        >
+          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
+          <ThemedText style={styles.metricValue}>{formatCurrency(unbilledTotal)}</ThemedText>
+        </TouchableOpacity>
+      );
+    }
+
+    if (shouldShowInvoiceMetrics) {
+      metricCards.push(
+        <TouchableOpacity
+          key="issued"
+          style={[
+            styles.metricCard,
+            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+          ]}
+          activeOpacity={0.75}
+          onPress={handleOpenInvoices}
+          accessibilityRole="button"
+          accessibilityLabel="Ver facturas emitidas del cliente"
+        >
+          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Emitidas</ThemedText>
+          <ThemedText style={styles.metricValue}>{formatCurrency(issuedTotal)}</ThemedText>
+          <ThemedText style={[styles.metricMeta, { color: metricLabelColor }]}>
+            {issuedCount} {issuedCount === 1 ? 'comprobante' : 'comprobantes'}
+          </ThemedText>
+        </TouchableOpacity>
+      );
+      metricCards.push(
+        <TouchableOpacity
+          key="draft"
+          style={[
+            styles.metricCard,
+            { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
+          ]}
+          activeOpacity={0.75}
+          onPress={handleOpenInvoices}
+          accessibilityRole="button"
+          accessibilityLabel="Ver facturas en borrador del cliente"
+        >
+          <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Borradores</ThemedText>
+          <ThemedText style={styles.metricValue}>{formatCurrency(draftTotal)}</ThemedText>
+          <ThemedText style={[styles.metricMeta, { color: metricLabelColor }]}>
+            {draftCount} {draftCount === 1 ? 'borrador' : 'borradores'}
+          </ThemedText>
+        </TouchableOpacity>
+      );
+    }
+
+    const shouldShowMetricsRow = metricCards.length > 0;
 
     return (
       <TouchableOpacity
@@ -265,32 +363,7 @@ export default function ClientsListPage() {
           )}
         </View>
 
-        {shouldShowMetricsRow ? (
-          <View style={styles.metricsRow}>
-            {shouldShowUnbilledCard ? (
-              <TouchableOpacity
-                style={[
-                  styles.metricCard,
-                  { backgroundColor: metricCardBackground, borderColor: metricCardBorder },
-                  !canViewJobs && styles.metricCardDisabled,
-                ]}
-                activeOpacity={0.75}
-                onPress={() => {
-                  if (!canViewJobs) {
-                    Alert.alert('Acceso denegado', 'No tienes permiso para ver trabajos.');
-                    return;
-                  }
-                  router.push(`/clients/finalizedJobs?id=${item.id}`);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Ver trabajos finalizados del cliente"
-              >
-                <ThemedText style={[styles.metricLabel, { color: metricLabelColor }]}>Trabajos</ThemedText>
-                <ThemedText style={styles.metricValue}>{formatCurrency(unbilledTotal)}</ThemedText>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ) : null}
+        {shouldShowMetricsRow ? <View style={styles.metricsRow}>{metricCards}</View> : null}
       </TouchableOpacity>
     );
   };
@@ -465,16 +538,20 @@ const styles = StyleSheet.create({
   itemSubtitle: { fontSize: 14, marginTop: 2 },
   metricsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 12,
+    marginHorizontal: -4,
     width: '100%',
   },
   metricCard: {
-    flex: 1,
+    flexGrow: 1,
     borderWidth: 1,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
     minHeight: 72,
+    marginHorizontal: 4,
+    marginBottom: 8,
   },
   metricCardDisabled: {
     opacity: 0.6,
@@ -490,6 +567,11 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  metricMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '600',
   },
   actionsContainer: {
     flexDirection: 'row',
