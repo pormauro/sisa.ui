@@ -37,17 +37,21 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Empresas (`CompaniesContext`)
 ### Modelo
-- `Company`: agrupa razón social, datos de contacto y arrays embebidos para identidad fiscal, direcciones y contactos comerciales.【F:contexts/CompaniesContext.tsx†L48-L66】
-- `TaxIdentity`, `CompanyAddress`, `CompanyContact`: describen cada elemento de los bloques anidados consumidos por las pantallas de Expo.【F:contexts/CompaniesContext.tsx†L14-L45】
+- `Company`: agrupa razón social, datos de contacto y arrays embebidos para identidad fiscal, direcciones, contactos comerciales y canales externos de comunicación.【F:contexts/CompaniesContext.tsx†L14-L76】
+- `TaxIdentity`, `CompanyAddress`, `CompanyContact`, `CommunicationChannel`: describen cada bloque anidado, incluyendo etiquetas, banderas de principal/verificado y referencias cruzadas con las tablas dedicadas `company_*` y `contact_*`.【F:contexts/CompaniesContext.tsx†L14-L76】
 
 ### Métodos del contexto
-- `loadCompanies()`: lee `/companies`, normaliza la respuesta y la ordena por fecha antes de hidratar el estado compartido.【F:contexts/CompaniesContext.tsx†L229-L245】
+- `loadCompanies()`: lee `/companies`, complementa la información con `/company-addresses`, `/contacts`, `/company-contacts`, `/company-channels` y `/contact-channels`, fusiona duplicados y ordena por fecha antes de hidratar el estado compartido.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `addCompany(company)`: serializa los bloques anidados, envía el `POST /companies` y fuerza un refresco posterior para mantener la caché alineada.【F:contexts/CompaniesContext.tsx†L251-L278】
 - `updateCompany(id, company)`: ejecuta `PUT /companies/{id}`, fusiona el resultado con el estado local y vuelve a consultar el listado.【F:contexts/CompaniesContext.tsx†L287-L324】
 - `deleteCompany(id)`: llama a `DELETE /companies/{id}` y depura la empresa eliminada del store local.【F:contexts/CompaniesContext.tsx†L333-L351】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/companies` — listado completo con identidades fiscales, direcciones y contactos embebidos.【F:contexts/CompaniesContext.tsx†L229-L245】
+- `GET ${BASE_URL}/companies` — listado principal que dispara la hidratación del contexto.【F:contexts/CompaniesContext.tsx†L606-L748】
+- `GET ${BASE_URL}/company-addresses` — domicilios normalizados vinculados por `empresa_id`.【F:contexts/CompaniesContext.tsx†L606-L748】
+- `GET ${BASE_URL}/contacts` — catálogo maestro de contactos reutilizado en los pivotes de empresa.【F:contexts/CompaniesContext.tsx†L606-L748】
+- `GET ${BASE_URL}/company-contacts` — relaciones empresa-contacto con departamento, notas y bandera principal.【F:contexts/CompaniesContext.tsx†L606-L748】
+- `GET ${BASE_URL}/company-channels` y `GET ${BASE_URL}/contact-channels` — canales (teléfono, email, redes) con etiquetas, verificación y prioridad.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `POST ${BASE_URL}/companies` — creación de empresa con payload serializado para arrays anidados.【F:contexts/CompaniesContext.tsx†L251-L278】
 - `PUT ${BASE_URL}/companies/{id}` — actualización del registro y sincronización local.【F:contexts/CompaniesContext.tsx†L287-L324】
 - `DELETE ${BASE_URL}/companies/{id}` — baja lógica y limpieza de caché.【F:contexts/CompaniesContext.tsx†L333-L351】
@@ -65,7 +69,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/companies/viewModal.tsx` — modal de lectura que expone identidades fiscales, direcciones y contactos cargados por la API.【F:app/companies/viewModal.tsx†L1-L160】
 
 ### Consumo de identidad fiscal, direcciones y contactos
-- El `GET /companies` retorna las colecciones `tax_identities`, `addresses` y `contacts`; `parseCompany` las transforma en estructuras tipadas que el frontend muestra directamente en las pantallas de Expo.【F:contexts/CompaniesContext.tsx†L160-L188】【F:app/companies/viewModal.tsx†L107-L160】
+- El `GET /companies` retorna las colecciones `tax_identities`, `addresses` y `contacts`; el contexto cruza esa respuesta con los listados independientes de direcciones, contactos y canales para que cada empresa muestre datos actualizados aunque residan en tablas específicas (`company-addresses`, `company-contacts`, `company-channels`, `contacts`, `contact-channels`).【F:contexts/CompaniesContext.tsx†L160-L188】【F:contexts/CompaniesContext.tsx†L606-L748】【F:app/companies/viewModal.tsx†L330-L420】
 - Las operaciones de alta y edición serializan los bloques anidados antes de invocar la API, manteniendo la compatibilidad con la base `sisa.api`, que continúa sin claves foráneas según lo acordado a nivel backend.【F:contexts/CompaniesContext.tsx†L205-L218】【F:docs/setup-and-configuration.md†L21-L26】
 - Durante la serialización, direcciones y contactos se duplican automáticamente en los alias `domicilios`, `direcciones`, `contactos`, `personas_contacto`, etc., para que los controladores legacy del backend sigan recibiendo los campos históricos y puedan guardar/recuperar esos datos sin cambios adicionales.【F:contexts/CompaniesContext.tsx†L359-L413】【F:contexts/CompaniesContext.tsx†L519-L552】
 - Cada dirección admite latitud y longitud: los formularios de alta/edición incorporan un selector de mapa que envía las coordenadas numéricas dentro del JSON serializado, y la vista modal muestra los puntos cargados. Además, el selector ahora incluye un botón "Usar mi ubicación" que solicita permisos de GPS y centra el mapa en la posición actual del dispositivo para agilizar el alta de coordenadas reales.【F:components/AddressLocationPicker.tsx†L1-L260】【F:app/companies/create.tsx†L520-L820】【F:app/companies/[id].tsx†L520-L880】【F:app/companies/viewModal.tsx†L300-L340】
