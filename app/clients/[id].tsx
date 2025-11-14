@@ -3,7 +3,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { ClientsContext } from '@/contexts/ClientsContext';
-import CircleImagePicker from '@/components/CircleImagePicker';
+import type { ClientCompanySummary } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { ThemedText } from '@/components/ThemedText';
@@ -11,6 +11,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
 
 
 export default function ClientDetailPage() {
@@ -24,6 +25,7 @@ export default function ClientDetailPage() {
   const clientId = Number(id);
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
+  const { companies, loadCompanies } = useContext(CompaniesContext);
   const {
     beginSelection,
     completeSelection,
@@ -46,12 +48,9 @@ export default function ClientDetailPage() {
   const deleteButtonColor = useThemeColor({ light: '#dc3545', dark: '#92272f' }, 'background');
   const deleteButtonTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
 
-  const [businessName, setBusinessName] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [email, setEmail] = useState('');
+  const [companyId, setCompanyId] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [brandFileId, setBrandFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
@@ -66,12 +65,42 @@ export default function ClientDetailPage() {
     [tariffs]
   );
 
+  const companyItems = useMemo(() => {
+    const formatter = (company: Company) => {
+      const commercial = (company.name ?? '').trim();
+      const legal = (company.legal_name ?? '').trim();
+      return commercial || legal || `Empresa #${company.id}`;
+    };
+    return companies
+      .map(company => ({ label: formatter(company), value: company.id.toString() }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+  }, [companies]);
+
+  const selectedCompany = useMemo<Company | ClientCompanySummary | null>(() => {
+    if (companyId) {
+      const numeric = Number(companyId);
+      if (Number.isFinite(numeric)) {
+        const existing = companies.find(company => company.id === numeric);
+        if (existing) {
+          return existing;
+        }
+      }
+    }
+    return client?.company ?? null;
+  }, [client?.company, companies, companyId]);
+
   useEffect(() => {
     if (!canEditClient && !canDeleteClient) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este cliente.');
       router.back();
     }
   }, [permissions]);
+
+  useEffect(() => {
+    if (!companies.length) {
+      loadCompanies();
+    }
+  }, [companies.length, loadCompanies]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -102,12 +131,9 @@ export default function ClientDetailPage() {
       if (isFetchingItem) {
         setIsFetchingItem(false);
       }
-      setBusinessName(client.business_name);
-      setTaxId(client.tax_id);
-      setEmail(client.email);
-      setPhone(client.phone);
-      setAddress(client.address);
-      setBrandFileId(client.brand_file_id);
+      setCompanyId(client.company_id ? client.company_id.toString() : '');
+      setPhone(client.phone ?? '');
+      setAddress(client.address ?? '');
       setTariffId(client.tariff_id ? client.tariff_id.toString() : '');
       return;
     }
@@ -151,12 +177,9 @@ export default function ClientDetailPage() {
           onPress: async () => {
             setLoading(true);
             const success = await updateClient(clientId, {
-              business_name: businessName,
-              tax_id: taxId,
-              email,
+              company_id: companyId ? parseInt(companyId, 10) : undefined,
               phone,
               address,
-              brand_file_id: brandFileId,
               tariff_id: tariffId ? parseInt(tariffId, 10) : null,
             });
             setLoading(false);
@@ -203,40 +226,60 @@ export default function ClientDetailPage() {
       keyboardDismissMode="on-drag"
       contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
     >
-      <ThemedText style={styles.label}>Imagen del Cliente</ThemedText>
-      <CircleImagePicker
-        fileId={brandFileId}
-        editable={true}
-        size={200}
-        onImageChange={(newFileId) => setBrandFileId(newFileId)}
+      <ThemedText style={styles.label}>Empresa</ThemedText>
+      <SearchableSelect
+        style={styles.select}
+        items={[
+          { label: '-- Selecciona una empresa --', value: '' },
+          ...companyItems,
+        ]}
+        selectedValue={companyId}
+        onValueChange={(value) => setCompanyId(value?.toString() ?? '')}
+        placeholder="-- Selecciona una empresa --"
+        disabled={!canEditClient}
+        onItemLongPress={(item) => {
+          const value = String(item.value ?? '');
+          if (!value) return;
+          router.push(`/companies/${value}`);
+        }}
       />
+      <View style={styles.companyActions}>
+        <TouchableOpacity
+          style={[styles.secondaryButton, { borderColor }]}
+          onPress={() => router.push('/companies/create')}
+        >
+          <ThemedText style={{ color: inputTextColor }}>Crear empresa</ThemedText>
+        </TouchableOpacity>
+        {companyId ? (
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor }]}
+            onPress={() => router.push(`/companies/${companyId}`)}
+          >
+            <ThemedText style={{ color: inputTextColor }}>Ver empresa</ThemedText>
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
-      <ThemedText style={styles.label}>Nombre del Negocio</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Nombre del negocio"
-        value={businessName}
-        onChangeText={setBusinessName}
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>CUIT</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="CUIT"
-        value={taxId}
-        onChangeText={setTaxId}
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Email</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        placeholderTextColor={placeholderColor}
-      />
+      {selectedCompany ? (
+        <View style={[styles.companySummary, { borderColor }]}> 
+          <ThemedText style={[styles.summaryTitle, { color: inputTextColor }]}>Resumen</ThemedText>
+          <ThemedText style={styles.summaryText}>
+            {'name' in selectedCompany && selectedCompany.name
+              ? selectedCompany.name
+              : 'legal_name' in selectedCompany && selectedCompany.legal_name
+              ? selectedCompany.legal_name
+              : 'business_name' in selectedCompany && selectedCompany.business_name
+              ? selectedCompany.business_name
+              : 'Empresa seleccionada'}
+          </ThemedText>
+          {'tax_id' in selectedCompany && selectedCompany.tax_id ? (
+            <ThemedText style={styles.summaryMeta}>CUIT: {selectedCompany.tax_id}</ThemedText>
+          ) : null}
+          {'email' in selectedCompany && selectedCompany.email ? (
+            <ThemedText style={styles.summaryMeta}>{selectedCompany.email}</ThemedText>
+          ) : null}
+        </View>
+      ) : null}
 
       <ThemedText style={styles.label}>Teléfono</ThemedText>
       <TextInput
@@ -328,6 +371,35 @@ const styles = StyleSheet.create({
   },
   select: {
     marginBottom: 8,
+  },
+  companySummary: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  summaryTitle: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  summaryText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  summaryMeta: {
+    fontSize: 14,
+  },
+  companyActions: {
+    flexDirection: 'row',
+    columnGap: 8,
+    marginBottom: 12,
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    padding: 10,
   },
   calendarButton: {
     marginTop: 8,

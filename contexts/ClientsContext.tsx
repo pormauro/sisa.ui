@@ -11,23 +11,17 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { toNumericValue } from '@/utils/currency';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
+import {
+  CompanySummary,
+  coerceToNumber,
+  getCompanyDisplayName,
+  normalizeNullableStringValue,
+  normalizeOptionalStringValue,
+  parseCompanySummary,
+} from '@/utils/companySummary';
+import { normalizeTaxId } from '@/utils/tax';
 
-const normalizeTaxId = (value: unknown): string => {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    // Algunas respuestas del servidor pueden exponer "1" o espacios vacíos
-    // cuando no existe número de documento. En ese caso debemos mostrar el
-    // campo vacío en la UI.
-    return trimmed && trimmed !== '1' ? trimmed : '';
-  }
-
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const normalized = String(value).trim();
-    return normalized && normalized !== '1' ? normalized : '';
-  }
-
-  return '';
-};
+export type ClientCompanySummary = CompanySummary;
 
 export interface Client {
   id: number;
@@ -39,26 +33,48 @@ export interface Client {
   address: string;
   tariff_id: number | null;
   version: number;
+  company_id: number | null;
+  company: ClientCompanySummary | null;
   unbilled_total?: number;
   unpaid_invoices_total?: number;
   created_at?: string;
   updated_at?: string;
 }
 
-type ClientApiResponse = Omit<Client, 'unbilled_total' | 'unpaid_invoices_total'> & {
+type ClientApiResponse = {
+  id: number | string;
+  user_id?: number | string;
+  empresa_id?: number | string;
+  brand_file_id?: number | string | null;
+  tariff_id?: number | string | null;
+  phone?: string | null;
+  address?: string | null;
+  version?: number | string;
+  created_at?: string;
+  updated_at?: string;
+  company?: Record<string, any> | null;
+  business_name?: string | null;
+  tax_id?: string | number | null;
+  email?: string | null;
   finalized_jobs_total?: number | string | null;
   unbilled_total?: number | string | null;
   unpaid_invoices_total?: number | string | null;
 };
 
+export interface ClientPayload {
+  company_id: number;
+  tariff_id?: number | null;
+  phone?: string;
+  address?: string;
+}
+
+export type ClientUpdatePayload = Partial<ClientPayload>;
+
 interface ClientsContextValue {
   clients: Client[];
   loadClients: () => void;
-  addClient: (client: Omit<Client, 'id' | 'version'>) => Promise<Client | null>;
-  updateClient: (
-    id: number,
-    client: Omit<Client, 'id' | 'version'>
-  ) => Promise<boolean>;
+  addClient: (client: ClientPayload) => Promise<number | null>;
+  updateClient: (id: number, client: ClientUpdatePayload) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
 }
 
@@ -91,14 +107,33 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       await ensureAuthResponse(res);
       const data = await res.json();
       if (Array.isArray(data.clients)) {
-        const fetchedClients = (data.clients as ClientApiResponse[]).map(client => ({
-          ...client,
-          tax_id: normalizeTaxId(client.tax_id),
-          unbilled_total: toNumericValue(
-            client.finalized_jobs_total ?? client.unbilled_total
-          ),
-          unpaid_invoices_total: toNumericValue(client.unpaid_invoices_total),
-        }));
+        const fetchedClients = (data.clients as ClientApiResponse[]).map(client => {
+          const company = parseCompanySummary(client.company);
+          const companyId = company?.id ?? coerceToNumber(client.empresa_id);
+          const normalizedPhone = normalizeOptionalStringValue(client.phone);
+          const normalizedAddress = normalizeOptionalStringValue(client.address);
+          const brandFileId =
+            company?.profile_file_id ?? normalizeNullableStringValue(client.brand_file_id);
+
+          return {
+            id: coerceToNumber(client.id) ?? 0,
+            business_name:
+              getCompanyDisplayName(company) || normalizeOptionalStringValue(client.business_name),
+            tax_id: normalizeTaxId(company?.tax_id ?? client.tax_id),
+            email: company?.email ?? normalizeOptionalStringValue(client.email),
+            brand_file_id: brandFileId,
+            phone: normalizedPhone,
+            address: normalizedAddress,
+            tariff_id: coerceToNumber(client.tariff_id),
+            version: coerceToNumber(client.version) ?? 1,
+            company_id: companyId,
+            company: company,
+            unbilled_total: toNumericValue(client.finalized_jobs_total ?? client.unbilled_total),
+            unpaid_invoices_total: toNumericValue(client.unpaid_invoices_total),
+            created_at: client.created_at,
+            updated_at: client.updated_at,
+          } as Client;
+        });
         setClients(sortByNewest(fetchedClients, getDefaultSortValue));
       }
     } catch (err) {
@@ -111,12 +146,15 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   }, [setClients, token]);
 
   const addClient = useCallback(
-    async (
-      clientData: Omit<Client, 'id' | 'version'>
-    ): Promise<Client | null> => {
-      const payload: Omit<Client, 'id' | 'version'> = {
-        ...clientData,
-        tax_id: normalizeTaxId(clientData.tax_id),
+    async (clientData: ClientPayload): Promise<number | null> => {
+      const body = {
+        company_id: clientData.company_id,
+        tariff_id:
+          typeof clientData.tariff_id === 'number' && Number.isFinite(clientData.tariff_id)
+            ? clientData.tariff_id
+            : null,
+        phone: normalizeOptionalStringValue(clientData.phone),
+        address: normalizeOptionalStringValue(clientData.address),
       };
       try {
         const res = await fetch(`${BASE_URL}/clients`, {
@@ -125,19 +163,13 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
         });
         await ensureAuthResponse(res);
         const data = await res.json();
         if (data.client_id) {
-          const newClient: Client = {
-            id: parseInt(data.client_id, 10),
-            version: 1,
-            ...payload,
-          };
-          setClients(prev => ensureSortedByNewest([...prev, newClient], getDefaultSortValue));
           await loadClients();
-          return newClient;
+          return parseInt(data.client_id, 10);
         }
       } catch (err) {
         if (isTokenExpiredError(err)) {
@@ -148,18 +180,28 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [loadClients, setClients, token]
+    [loadClients, token]
   );
 
   const updateClient = useCallback(
-    async (
-      id: number,
-      clientData: Omit<Client, 'id' | 'version'>
-    ): Promise<boolean> => {
-      const payload: Omit<Client, 'id' | 'version'> = {
-        ...clientData,
-        tax_id: normalizeTaxId(clientData.tax_id),
-      };
+    async (id: number, clientData: ClientUpdatePayload): Promise<boolean> => {
+      const body: Record<string, unknown> = {};
+      if (typeof clientData.company_id === 'number') {
+        body.company_id = clientData.company_id;
+      }
+      if ('tariff_id' in clientData) {
+        const tariffId =
+          typeof clientData.tariff_id === 'number' && Number.isFinite(clientData.tariff_id)
+            ? clientData.tariff_id
+            : null;
+        body.tariff_id = tariffId;
+      }
+      if ('phone' in clientData) {
+        body.phone = normalizeOptionalStringValue(clientData.phone);
+      }
+      if ('address' in clientData) {
+        body.address = normalizeOptionalStringValue(clientData.address);
+      }
       try {
         const res = await fetch(`${BASE_URL}/clients/${id}`, {
           method: 'PUT',
@@ -167,16 +209,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(body),
         });
         await ensureAuthResponse(res);
         if (res.ok) {
-          setClients(prev =>
-            ensureSortedByNewest(
-              prev.map(c => (c.id === id ? { ...c, ...payload } : c)),
-              getDefaultSortValue
-            )
-          );
           await loadClients();
           return true;
         }
@@ -189,7 +225,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [loadClients, setClients, token]
+    [loadClients, token]
   );
 
   const deleteClient = useCallback(async (id: number): Promise<boolean> => {
