@@ -219,6 +219,11 @@ export default function ClientUnpaidInvoicesScreen() {
     () => unpaidInvoices.filter(invoice => normalizeStatus(invoice.status) === 'draft').length,
     [unpaidInvoices]
   );
+  const outstandingInvoicesCount = useMemo(() => unpaidInvoices.length, [unpaidInvoices]);
+  const outstandingCountLabel = useMemo(() => {
+    const noun = outstandingInvoicesCount === 1 ? 'factura' : 'facturas';
+    return `${outstandingInvoicesCount} ${noun}`;
+  }, [outstandingInvoicesCount]);
   const selectedInvoices = useMemo(
     () => unpaidInvoices.filter(invoice => selectedInvoiceIds.has(invoice.id)),
     [selectedInvoiceIds, unpaidInvoices]
@@ -447,17 +452,7 @@ export default function ClientUnpaidInvoicesScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <ThemedText style={styles.headerTitle}>
-            {client?.business_name ?? 'Cliente sin nombre'}
-          </ThemedText>
-          <ThemedText style={[styles.headerSubtitle, { color: secondaryText }]}>Facturas impagas</ThemedText>
-          {canListInvoices ? (
-            <ThemedText style={[styles.headerTotal, { color: accentColor }]}>
-              Total adeudado: {formattedOutstandingTotal}
-            </ThemedText>
-          ) : null}
-        </View>
+        <ThemedText style={styles.headerTitle}>Facturas impagas</ThemedText>
         <View style={styles.headerActions}>
           {canViewAccounting ? (
             <TouchableOpacity
@@ -490,6 +485,22 @@ export default function ClientUnpaidInvoicesScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
+        <View style={styles.headerInfo}>
+          <ThemedText style={styles.headerClientName}>
+            {client?.business_name ?? 'Cliente sin nombre'}
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: secondaryText }]}>Facturas impagas</ThemedText>
+          {canListInvoices ? (
+            <>
+              <ThemedText style={[styles.headerTotal, { color: accentColor }]}>
+                Total adeudado: {formattedOutstandingTotal}
+              </ThemedText>
+              <ThemedText style={[styles.headerCount, { color: secondaryText }]}>
+                Cantidad adeudada: {outstandingCountLabel}
+              </ThemedText>
+            </>
+          ) : null}
+        </View>
       </View>
       <FlatList
         data={unpaidInvoices}
@@ -516,39 +527,40 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
     marginBottom: 16,
-  },
-  headerContent: {
-    flex: 1,
-    marginRight: 12,
-    alignItems: 'flex-start',
-    gap: 4,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    justifyContent: 'flex-end',
+    marginTop: 12,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  headerInfo: {
+    marginTop: 12,
+    gap: 4,
+  },
+  headerClientName: {
+    fontSize: 18,
     fontWeight: '600',
   },
   headerSubtitle: {
-    marginTop: 4,
     fontSize: 14,
     alignSelf: 'flex-start',
     textAlign: 'left',
   },
   headerTotal: {
-    marginTop: 8,
+    marginTop: 4,
     fontSize: 16,
     fontWeight: '600',
     alignSelf: 'flex-start',
+  },
+  headerCount: {
+    fontSize: 14,
+    marginTop: 2,
   },
   listContent: {
     paddingBottom: 24,
@@ -566,8 +578,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 999,
-    marginTop: 8,
-    marginLeft: 8,
+    marginRight: 12,
+    marginBottom: 8,
   },
   receiptButtonIcon: {
     marginRight: 6,
