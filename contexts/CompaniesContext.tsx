@@ -358,14 +358,21 @@ const parseCompany = (raw: any): Company => {
     });
   }
 
-  const addresses = coalesceNestedArray(raw?.addresses, raw?.domicilios, raw?.address_list, raw?.direcciones).map(
+  const addresses = coalesceNestedArray(
+    raw?.addresses,
+    raw?.domicilios,
+    raw?.address_list,
+    raw?.direcciones,
+    raw?.company_addresses
+  ).map(
     parseAddress
   );
   const contacts = coalesceNestedArray(
     raw?.contacts,
     raw?.contactos,
     raw?.contact_list,
-    raw?.personas_contacto
+    raw?.personas_contacto,
+    raw?.company_contacts
   ).map(parseContact);
 
   const administratorIds = parseAdministratorIdsValue(
@@ -534,11 +541,21 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   }
 
   if (hasAddresses) {
-    nested.addresses = serializeNestedArray(addresses ?? []);
+    const serializedAddresses = serializeNestedArray(addresses ?? []);
+    nested.addresses = serializedAddresses;
+    nested.domicilios = serializedAddresses;
+    nested.address_list = serializedAddresses;
+    nested.direcciones = serializedAddresses;
+    nested.company_addresses = serializedAddresses;
   }
 
   if (hasContacts) {
-    nested.contacts = serializeNestedArray(contacts ?? []);
+    const serializedContacts = serializeNestedArray(contacts ?? []);
+    nested.contacts = serializedContacts;
+    nested.contactos = serializedContacts;
+    nested.contact_list = serializedContacts;
+    nested.personas_contacto = serializedContacts;
+    nested.company_contacts = serializedContacts;
   }
 
   return {
