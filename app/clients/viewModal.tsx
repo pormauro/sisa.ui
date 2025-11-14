@@ -25,6 +25,7 @@ export default function ViewClientModal() {
   const finalizedJobsTotal = getTotalForClient(client?.id);
   const canViewJobs = permissions.includes('listJobs');
   const canViewInvoices = permissions.includes('listInvoices');
+  const canViewClientCalendar = permissions.includes('listAppointments') || canViewJobs;
 
   const background = useThemeColor({}, 'background');
   const linkColor = useThemeColor({}, 'tint');
@@ -149,6 +150,14 @@ export default function ViewClientModal() {
         <View style={styles.actionButton}>
           <Button title="Editar" onPress={() => router.push(`/clients/${client.id}`)} />
         </View>
+        {canViewClientCalendar ? (
+          <View style={styles.actionButton}>
+            <Button
+              title="Calendario A"
+              onPress={() => router.push(`/clients/calendar?id=${client.id}`)}
+            />
+          </View>
+        ) : null}
         {canViewJobs ? (
           <View style={styles.actionButton}>
             <Button

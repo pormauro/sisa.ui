@@ -2,7 +2,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { ClientsContext, Client } from '@/contexts/ClientsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
@@ -17,6 +17,7 @@ export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
   const canEditClient = permissions.includes('updateClient');
   const canDeleteClient = permissions.includes('deleteClient');
+  const canViewClientCalendar = permissions.includes('listAppointments') || permissions.includes('listJobs');
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
@@ -279,6 +280,14 @@ export default function ClientDetailPage() {
           router.push(`/tariffs/${value}`);
         }}
       />
+      {canViewClientCalendar && (
+        <TouchableOpacity
+          style={[styles.calendarButton, { backgroundColor: buttonColor }]}
+          onPress={() => router.push({ pathname: '/clients/calendar', params: { id: client.id.toString() } })}
+        >
+          <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Abrir Calendario A</ThemedText>
+        </TouchableOpacity>
+      )}
       {canEditClient && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -319,6 +328,16 @@ const styles = StyleSheet.create({
   },
   select: {
     marginBottom: 8,
+  },
+  calendarButton: {
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  calendarButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   submitButton: {
     marginTop: 16,

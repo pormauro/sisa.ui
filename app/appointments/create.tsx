@@ -41,10 +41,16 @@ export default function CreateAppointmentScreen() {
   const { jobs } = useContext(JobsContext);
   const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
-  const { date } = useLocalSearchParams<{ date?: string }>();
+  const { date, client_id } = useLocalSearchParams<{ date?: string; client_id?: string | string[] }>();
   const initialDateParam = Array.isArray(date) ? date[0] : date;
+  const initialClientParam = useMemo(() => {
+    if (!client_id) {
+      return '';
+    }
+    return Array.isArray(client_id) ? client_id[0] ?? '' : client_id;
+  }, [client_id]);
 
-  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedClient, setSelectedClient] = useState(initialClientParam);
   const [selectedJob, setSelectedJob] = useState('');
   const pendingJobSelectionRef = useRef<string | null>(null);
   const [dateTime, setDateTime] = useState<Date>(() => {
@@ -76,6 +82,12 @@ export default function CreateAppointmentScreen() {
   const placeholderColor = useThemeColor({ light: '#666', dark: '#bbb' }, 'text');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+
+  useEffect(() => {
+    if (!selectedClient && initialClientParam) {
+      setSelectedClient(initialClientParam);
+    }
+  }, [initialClientParam, selectedClient]);
 
   useEffect(() => {
     if (!permissions.includes('addAppointment')) {
@@ -409,3 +421,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
