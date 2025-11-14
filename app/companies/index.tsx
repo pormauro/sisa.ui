@@ -52,7 +52,6 @@ export default function CompaniesListPage() {
 
   const canList = permissions.includes('listCompanies');
   const canCreate = permissions.includes('addCompany');
-  const baseCanEdit = permissions.includes('updateCompany');
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -170,14 +169,8 @@ export default function CompaniesListPage() {
   );
 
   const canEditCompany = useCallback(
-    (company: Company) => {
-      const hasPermission = baseCanEdit || isSuperAdministrator;
-      if (!hasPermission) {
-        return false;
-      }
-      return actorCanAdministrate(company);
-    },
-    [actorCanAdministrate, baseCanEdit, isSuperAdministrator]
+    (company: Company) => actorCanAdministrate(company),
+    [actorCanAdministrate]
   );
 
   const renderItem = ({ item }: { item: Company }) => {

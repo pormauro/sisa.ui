@@ -10,6 +10,8 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import { parseAdministratorIdsValue } from '@/utils/administratorIds';
+import { toNumericCoordinate } from '@/utils/coordinates';
 
 export interface TaxIdentity {
   id?: number;
@@ -31,6 +33,8 @@ export interface CompanyAddress {
   country?: string | null;
   postal_code?: string | null;
   notes?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   version?: number;
 }
 
@@ -161,83 +165,6 @@ const coalesceNestedArray = (...candidates: unknown[]): any[] => {
   return [];
 };
 
-const parseAdministratorIds = (raw: unknown): string[] => {
-  const collected = new Set<string>();
-
-  const visit = (value: unknown) => {
-    if (value === null || value === undefined) {
-      return;
-    }
-
-    if (Array.isArray(value)) {
-      value.forEach(visit);
-      return;
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      collected.add(String(Math.trunc(value)));
-      return;
-    }
-
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          visit(parsed);
-          return;
-        } catch (error) {
-          // Ignore JSON parse errors and continue with fallback parsing
-        }
-      }
-      if (trimmed.includes(',')) {
-        trimmed
-          .split(',')
-          .map(segment => segment.trim())
-          .filter(Boolean)
-          .forEach(visit);
-        return;
-      }
-      collected.add(trimmed);
-      return;
-    }
-
-    if (typeof value === 'object') {
-      const directArray =
-        (value as any)?.ids ??
-        (value as any)?.values ??
-        (value as any)?.items ??
-        (value as any)?.administrators ??
-        (value as any)?.users;
-
-      if (Array.isArray(directArray)) {
-        visit(directArray);
-        return;
-      }
-
-      const candidate =
-        (value as any)?.id ??
-        (value as any)?.user_id ??
-        (value as any)?.userId ??
-        (value as any)?.value ??
-        (value as any)?.identifier ??
-        (value as any)?.uid;
-
-      if (candidate !== undefined) {
-        visit(candidate);
-        return;
-      }
-    }
-  };
-
-  visit(raw);
-
-  return Array.from(collected);
-};
-
 const parseTaxIdentity = (raw: any): TaxIdentity => {
   const type = pickString(raw?.type, raw?.tipo, raw?.name) ?? '';
   const typeKey = type.trim().toUpperCase();
@@ -270,6 +197,19 @@ const parseAddress = (raw: any): CompanyAddress => ({
   country: pickString(raw?.country, raw?.pais) ?? null,
   postal_code: pickString(raw?.postal_code, raw?.zip, raw?.codigo_postal) ?? null,
   notes: pickString(raw?.notes, raw?.notas) ?? null,
+  latitude: toNumericCoordinate(
+    raw?.latitude ?? raw?.lat ?? raw?.latitud ?? raw?.gps_latitude ?? raw?.gps_lat ?? raw?.gps?.lat
+  ),
+  longitude: toNumericCoordinate(
+    raw?.longitude ??
+      raw?.lng ??
+      raw?.longitud ??
+      raw?.gps_longitude ??
+      raw?.gps_lng ??
+      raw?.gps_lon ??
+      raw?.gps?.lng ??
+      raw?.gps?.lon
+  ),
   version:
     typeof raw?.version === 'number'
       ? raw.version
@@ -428,7 +368,7 @@ const parseCompany = (raw: any): Company => {
     raw?.personas_contacto
   ).map(parseContact);
 
-  const administratorIds = parseAdministratorIds(
+  const administratorIds = parseAdministratorIdsValue(
     raw?.administrator_ids ??
       raw?.admin_ids ??
       raw?.administrator_id ??
