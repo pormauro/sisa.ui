@@ -296,7 +296,7 @@ const parseCompany = (raw: any): Company => {
   const notes = pickString(raw?.notes, raw?.notas, raw?.observaciones);
 
   const profileFileSource =
-    raw?.profile_file_id ?? raw?.brand_file_id ?? raw?.brandFileId ?? raw?.logo_id;
+    raw?.profile_file_id ?? raw?.file_profile_id ?? raw?.brand_file_id ?? raw?.brandFileId ?? raw?.logo_id;
   const attachedFilesSource = raw?.attached_files ?? raw?.archivos_adjuntos ?? raw?.adjuntos;
 
   const parsedTaxIdentities = coalesceNestedArray(
@@ -497,6 +497,7 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
 
     if (normalizedProfileFileId !== undefined) {
       base.profile_file_id = normalizedProfileFileId;
+      base.file_profile_id = normalizedProfileFileId;
       base.brand_file_id = normalizedProfileFileId;
     }
   }
@@ -568,19 +569,24 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setCompanies(prev => {
       const normalized = prev.map(company => {
-        const withLegacy = company as Company & { brand_file_id?: unknown };
-        const { brand_file_id: legacyBrandFileId, ...rest } = withLegacy;
+        const withLegacy = company as Company & { brand_file_id?: unknown; file_profile_id?: unknown };
+        const {
+          brand_file_id: legacyBrandFileId,
+          file_profile_id: legacyFileProfileId,
+          ...rest
+        } = withLegacy;
 
         if (rest.profile_file_id !== undefined) {
           return ensureProfileType(rest as Company);
         }
 
         const normalizedProfileId = (() => {
-          if (legacyBrandFileId === null || legacyBrandFileId === undefined) {
+          const fallbackSource = legacyFileProfileId ?? legacyBrandFileId;
+          if (fallbackSource === null || fallbackSource === undefined) {
             return null;
           }
-          if (typeof legacyBrandFileId === 'number' || typeof legacyBrandFileId === 'string') {
-            const trimmed = String(legacyBrandFileId).trim();
+          if (typeof fallbackSource === 'number' || typeof fallbackSource === 'string') {
+            const trimmed = String(fallbackSource).trim();
             return trimmed.length ? trimmed : null;
           }
           return null;
