@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "0b0c1de5-4a9b-4a1f-9dd9-plantillas",
     "name": "SISA API",
-    "description": "Colección de endpoints protegidos por token Bearer para pagos y plantillas de pago.",
+    "description": "Colección de endpoints protegidos por token Bearer para pagos, plantillas de pago y empresas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -638,6 +638,1817 @@
               ]
             },
             "description": "Solicita al backend que vuelva a generar el PDF asociado a la factura cuando se actualizan metadatos permitidos tras la emisión (por ejemplo, notas internas o datos fiscales secundarios)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Companies",
+      "item": [
+        {
+          "name": "List Companies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "**GET {baseUrl}/companies**\n\nDescripción: Endpoint `List Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Companies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}"
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{{company_id}}**\n\nDescripción: Endpoint `Get Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Companies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razon_social\": \"Empresa Ejemplo SA\",\n  \"id_tipo_doc\": 80,\n  \"nro_doc\": 20111222333,\n  \"id_condicion_iva\": 1,\n  \"nombre_fantasia\": \"Marca Ejemplo\",\n  \"iibb\": \"123-456789-0\",\n  \"inicio_actividad\": \"2021-01-01\",\n  \"profile_file_id\": null,\n  \"activo\": 1,\n  \"timestamp\": \"{{company_timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies**\n\nDescripción: Endpoint `Create Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = new Date();",
+                  "const offsetMs = now.getTimezoneOffset() * 60000;",
+                  "const local = new Date(now.getTime() - offsetMs);",
+                  "const formatted = local.toISOString().slice(0, 19).replace('T', ' ');",
+                  "pm.collectionVariables.set('company_timestamp', formatted);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.id) {",
+                  "    pm.collectionVariables.set('company_id', jsonData.id);",
+                  "}",
+                  "pm.collectionVariables.set('company_history_expected', 1);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Companies (duplicate timestamp)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "const expectedId = Number(pm.collectionVariables.get('company_id'));",
+                  "pm.test('Duplicate creation reused company id', function () {",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(Number(jsonData.id)).to.eql(expectedId);",
+                  "});",
+                  "pm.collectionVariables.set('company_history_expected', 1);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razon_social\": \"Empresa Ejemplo SA\",\n  \"id_tipo_doc\": 80,\n  \"nro_doc\": 20111222333,\n  \"id_condicion_iva\": 1,\n  \"nombre_fantasia\": \"Marca Ejemplo\",\n  \"iibb\": \"123-456789-0\",\n  \"inicio_actividad\": \"2021-01-01\",\n  \"profile_file_id\": null,\n  \"activo\": 1,\n  \"timestamp\": \"{{company_timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies**\n\nDescripción: Endpoint `Create Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Companies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Marca Renovada\",\n  \"profile_file_id\": 42,\n  \"activo\": 1,\n  \"timestamp\": \"{{company_update_timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}"
+              ]
+            },
+            "description": "**PUT {baseUrl}/companies/{{company_id}}**\n\nDescripción: Endpoint `Update Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = new Date();",
+                  "const offsetMs = now.getTimezoneOffset() * 60000;",
+                  "const local = new Date(now.getTime() - offsetMs);",
+                  "const formatted = local.toISOString().slice(0, 19).replace('T', ' ');",
+                  "pm.collectionVariables.set('company_update_timestamp', formatted);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "pm.test('Update operation succeeded', function () {",
+                  "    pm.expect(jsonData).to.have.property('message', 'Company updated');",
+                  "});",
+                  "pm.collectionVariables.set('company_history_expected', 2);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Companies (duplicate timestamp)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "pm.test('Duplicate update acknowledged', function () {",
+                  "    pm.expect(jsonData).to.have.property('message', 'Company updated');",
+                  "});",
+                  "pm.collectionVariables.set('company_history_expected', 2);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_fantasia\": \"Marca Renovada\",\n  \"profile_file_id\": 42,\n  \"activo\": 1,\n  \"timestamp\": \"{{company_update_timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}"
+              ]
+            },
+            "description": "**PUT {baseUrl}/companies/{{company_id}}**\n\nDescripción: Endpoint `Update Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Companies",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"{{company_delete_timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/companies/{{company_id}}**\n\nDescripción: Endpoint `Delete Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const now = new Date();",
+                  "const offsetMs = now.getTimezoneOffset() * 60000;",
+                  "const local = new Date(now.getTime() - offsetMs);",
+                  "const formatted = local.toISOString().slice(0, 19).replace('T', ' ');",
+                  "pm.collectionVariables.set('company_delete_timestamp', formatted);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "pm.test('Delete operation succeeded', function () {",
+                  "    pm.expect(jsonData).to.have.property('message', 'Company deleted');",
+                  "});",
+                  "pm.collectionVariables.set('company_history_expected', 3);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Companies (duplicate timestamp)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "pm.test('Duplicate deletion acknowledged', function () {",
+                  "    pm.expect(jsonData).to.have.property('message', 'Company deleted');",
+                  "});",
+                  "pm.collectionVariables.set('company_history_expected', 3);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"{{company_delete_timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/companies/{{company_id}}**\n\nDescripción: Endpoint `Delete Companies` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Company History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{{company_id}}/history**\n\nDescripción: Endpoint `Company History` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "const records = (jsonData && jsonData.data) ? jsonData.data : [];",
+                  "const expected = Number(pm.collectionVariables.get('company_history_expected') || 0);",
+                  "pm.test('History count matches expectation', function () {",
+                  "    pm.expect(records.length).to.eql(expected);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Company Addresses",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-addresses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-addresses"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-addresses**\n\nDescripción: Endpoint `List Company Addresses` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Company Addresses",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-addresses/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-addresses",
+                "1"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-addresses/1**\n\nDescripción: Endpoint `Get Company Addresses` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Company Addresses",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"empresa_id\": 1,\n  \"etiqueta\": \"Oficina Central\",\n  \"pais\": \"Argentina\",\n  \"provincia\": \"Buenos Aires\",\n  \"ciudad\": \"La Plata\",\n  \"calle\": \"Calle 50\",\n  \"numero\": \"123\",\n  \"es_principal\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-addresses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-addresses"
+              ]
+            },
+            "description": "**POST {baseUrl}/company-addresses**\n\nDescripción: Endpoint `Create Company Addresses` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Company Addresses",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ciudad\": \"Buenos Aires\",\n  \"es_principal\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-addresses/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-addresses",
+                "1"
+              ]
+            },
+            "description": "**PUT {baseUrl}/company-addresses/1**\n\nDescripción: Endpoint `Update Company Addresses` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Company Addresses",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2024-01-01 00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-addresses/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-addresses",
+                "1"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/company-addresses/1**\n\nDescripción: Endpoint `Delete Company Addresses` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Company Address History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-addresses/1/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-addresses",
+                "1",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-addresses/1/history**\n\nDescripción: Endpoint `Company Address History` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "List Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "description": "**GET {baseUrl}/contacts**\n\nDescripción: Endpoint `List Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "1"
+              ]
+            },
+            "description": "**GET {baseUrl}/contacts/1**\n\nDescripción: Endpoint `Get Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"María\",\n  \"apellido\": \"Pérez\",\n  \"cargo\": \"Gerente\",\n  \"notas\": \"Contacto principal\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "description": "**POST {baseUrl}/contacts**\n\nDescripción: Endpoint `Create Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cargo\": \"Directora Comercial\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contacts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "1"
+              ]
+            },
+            "description": "**PUT {baseUrl}/contacts/1**\n\nDescripción: Endpoint `Update Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2024-01-01 00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contacts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "1"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/contacts/1**\n\nDescripción: Endpoint `Delete Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Contact History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/1/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "1",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/contacts/1/history**\n\nDescripción: Endpoint `Contact History` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "List Company Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-contacts"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-contacts**\n\nDescripción: Endpoint `List Company Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Company Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-contacts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-contacts",
+                "1"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-contacts/1**\n\nDescripción: Endpoint `Get Company Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Company Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"empresa_id\": 1,\n  \"contacto_id\": 1,\n  \"departamento\": \"Ventas\",\n  \"es_principal\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-contacts"
+              ]
+            },
+            "description": "**POST {baseUrl}/company-contacts**\n\nDescripción: Endpoint `Create Company Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Company Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"departamento\": \"Soporte\",\n  \"es_principal\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-contacts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-contacts",
+                "1"
+              ]
+            },
+            "description": "**PUT {baseUrl}/company-contacts/1**\n\nDescripción: Endpoint `Update Company Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Company Contacts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2024-01-01 00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-contacts/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-contacts",
+                "1"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/company-contacts/1**\n\nDescripción: Endpoint `Delete Company Contacts` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Company Contact History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-contacts/1/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-contacts",
+                "1",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-contacts/1/history**\n\nDescripción: Endpoint `Company Contact History` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "List Company Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-channels",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-channels"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-channels**\n\nDescripción: Endpoint `List Company Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Company Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-channels/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-channels",
+                "1"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-channels/1**\n\nDescripción: Endpoint `Get Company Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Company Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"empresa_id\": 1,\n  \"tipo\": \"email\",\n  \"valor\": \"contacto@empresa.com\",\n  \"etiqueta\": \"Atención\",\n  \"es_principal\": 1,\n  \"verificado\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-channels",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-channels"
+              ]
+            },
+            "description": "**POST {baseUrl}/company-channels**\n\nDescripción: Endpoint `Create Company Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Company Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"valor\": \"ventas@empresa.com\",\n  \"etiqueta\": \"Ventas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-channels/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-channels",
+                "1"
+              ]
+            },
+            "description": "**PUT {baseUrl}/company-channels/1**\n\nDescripción: Endpoint `Update Company Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Company Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2024-01-01 00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/company-channels/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-channels",
+                "1"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/company-channels/1**\n\nDescripción: Endpoint `Delete Company Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Company Channel History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/company-channels/1/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "company-channels",
+                "1",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/company-channels/1/history**\n\nDescripción: Endpoint `Company Channel History` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "List Contact Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contact-channels",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contact-channels"
+              ]
+            },
+            "description": "**GET {baseUrl}/contact-channels**\n\nDescripción: Endpoint `List Contact Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Contact Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contact-channels/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contact-channels",
+                "1"
+              ]
+            },
+            "description": "**GET {baseUrl}/contact-channels/1**\n\nDescripción: Endpoint `Get Contact Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Contact Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contacto_id\": 1,\n  \"tipo\": \"telefono\",\n  \"valor\": \"+54 11 1234 5678\",\n  \"etiqueta\": \"Celular\",\n  \"es_principal\": 1,\n  \"verificado\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contact-channels",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contact-channels"
+              ]
+            },
+            "description": "**POST {baseUrl}/contact-channels**\n\nDescripción: Endpoint `Create Contact Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Contact Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"valor\": \"+54 11 9999 8888\",\n  \"verificado\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contact-channels/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contact-channels",
+                "1"
+              ]
+            },
+            "description": "**PUT {baseUrl}/contact-channels/1**\n\nDescripción: Endpoint `Update Contact Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Contact Channels",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timestamp\": \"2024-01-01 00:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/contact-channels/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contact-channels",
+                "1"
+              ]
+            },
+            "description": "**DELETE {baseUrl}/contact-channels/1**\n\nDescripción: Endpoint `Delete Contact Channels` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Contact Channel History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contact-channels/1/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contact-channels",
+                "1",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/contact-channels/1/history**\n\nDescripción: Endpoint `Contact Channel History` dentro de Companies.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {auth_token}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Search Companies (by name or document)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies/search?q={{search_text}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "{{search_text}}",
+                  "description": "Texto a buscar en razón social o nombre fantasia"
+                },
+                {
+                  "key": "doc",
+                  "value": "",
+                  "description": "Opcional: número de documento exacto"
+                }
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/search**\n\nDescripción: Busca compañías utilizando coincidencias parciales en razón social o nombre de fantasía y opcionalmente por documento.\n\n> Comentario: Requiere token Bearer en Authorization."
+          },
+          "response": []
+        },
+        {
+          "name": "Request Company Membership",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Quisiera sumarme al equipo.\",\n  \"role\": \"member\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Envia una solicitud para unirse a la empresa especificada.\n\n> Comentario: Requiere token Bearer en Authorization. El cuerpo permite adjuntar un mensaje opcional y el rol deseado."
+          },
+          "response": []
+        },
+        {
+          "name": "List Company Memberships",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships?status=pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending",
+                  "description": "Filtra por estado: pending, approved o rejected"
+                }
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Lista miembros y solicitudes de la empresa, permitiendo filtrar por estado.\n\n> Comentario: Requiere token Bearer en Authorization."
+          },
+          "response": []
+        },
+        {
+          "name": "Approve Company Membership",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"member\",\n  \"notes\": \"Bienvenido al equipo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "approve"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/approve**\n\nDescripción: Aprueba una solicitud de membresía y opcionalmente asigna el rol operativo.\n\n> Comentario: Requiere token Bearer en Authorization."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject Company Membership",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"La empresa no admite nuevos miembros por ahora.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "reject"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/reject**\n\nDescripción: Rechaza una solicitud de membresía especificando un motivo.\n\n> Comentario: Requiere token Bearer en Authorization."
           },
           "response": []
         }

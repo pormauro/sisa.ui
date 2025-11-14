@@ -51,6 +51,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `POST ${BASE_URL}/companies` — creación de empresa con payload serializado para arrays anidados.【F:contexts/CompaniesContext.tsx†L251-L278】
 - `PUT ${BASE_URL}/companies/{id}` — actualización del registro y sincronización local.【F:contexts/CompaniesContext.tsx†L287-L324】
 - `DELETE ${BASE_URL}/companies/{id}` — baja lógica y limpieza de caché.【F:contexts/CompaniesContext.tsx†L333-L351】
+- La colección de Postman `Companies` replica este flujo completo y agrega ejemplos listos para direcciones, contactos, canales y membresías con scripts de timestamp para evitar duplicados.【F:docs/postman/sisa-api.postman_collection.json†L647-L2415】
 
 ### Permisos requeridos
 - `listCompanies` habilita el listado y la navegación desde el menú principal.【F:app/companies/index.tsx†L57-L99】【F:constants/menuSections.ts†L48-L62】
