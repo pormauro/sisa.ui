@@ -360,8 +360,23 @@ export default function ViewCompanyModal() {
       const phone = contact.phone?.trim();
       const mobile = contact.mobile?.trim();
       const notes = contact.notes?.trim();
+      const channelLines = (contact.channels ?? [])
+        .map(channel => {
+          const value = channel.value?.trim();
+          if (!value) {
+            return null;
+          }
+          const labelParts = [channel.type?.trim(), channel.label?.trim()].filter(Boolean);
+          const badges = [channel.is_primary ? 'Principal' : null, channel.verified ? 'Verificado' : null]
+            .filter(Boolean)
+            .join(' · ');
+          const label = labelParts.join(' · ');
+          const suffix = [label, badges].filter(Boolean).join(' · ');
+          return suffix ? `${value} · ${suffix}` : value;
+        })
+        .filter((line): line is string => Boolean(line));
 
-      const hasContent = [name, role, email, phone, mobile, notes].some(Boolean);
+      const hasContent = [name, role, email, phone, mobile, notes, channelLines.length ? 'x' : ''].some(Boolean);
 
       if (!hasContent) {
         return null;
@@ -374,7 +389,33 @@ export default function ViewCompanyModal() {
           {email ? <ThemedText style={styles.identityExtra}>Email: {email}</ThemedText> : null}
           {phone ? <ThemedText style={styles.identityExtra}>Teléfono: {phone}</ThemedText> : null}
           {mobile ? <ThemedText style={styles.identityExtra}>Celular: {mobile}</ThemedText> : null}
+          {channelLines.map((line, channelIndex) => (
+            <ThemedText key={`contact-${index}-channel-${channelIndex}`} style={styles.identityExtra}>
+              {line}
+            </ThemedText>
+          ))}
           {notes ? <ThemedText style={styles.identityExtra}>Notas: {notes}</ThemedText> : null}
+        </View>
+      );
+    })
+    .filter((card): card is React.ReactElement => Boolean(card));
+
+  const companyChannelCards = company.channels
+    .map((channel, index) => {
+      const value = channel.value?.trim();
+      if (!value) {
+        return null;
+      }
+      const typeLabel = channel.type?.trim();
+      const friendlyLabel = channel.label?.trim();
+      const badges = [channel.is_primary ? 'Principal' : null, channel.verified ? 'Verificado' : null]
+        .filter(Boolean)
+        .join(' · ');
+      const description = [typeLabel, friendlyLabel, badges].filter(Boolean).join(' · ');
+      return (
+        <View key={`company-channel-${index}`} style={[styles.card, { borderColor: cardBorder }]}>
+          <ThemedText style={styles.value}>{value}</ThemedText>
+          {description ? <ThemedText style={styles.identityExtra}>{description}</ThemedText> : null}
         </View>
       );
     })
@@ -383,6 +424,7 @@ export default function ViewCompanyModal() {
   const hasTaxIdentities = taxIdentities.length > 0;
   const hasAddresses = addressCards.length > 0;
   const hasContacts = contactCards.length > 0;
+  const hasCompanyChannels = companyChannelCards.length > 0;
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}
@@ -532,6 +574,13 @@ export default function ViewCompanyModal() {
         <View>
           <ThemedText style={styles.sectionTitle}>Direcciones</ThemedText>
           {addressCards}
+        </View>
+      ) : null}
+
+      {hasCompanyChannels ? (
+        <View>
+          <ThemedText style={styles.sectionTitle}>Canales de contacto</ThemedText>
+          {companyChannelCards}
         </View>
       ) : null}
 

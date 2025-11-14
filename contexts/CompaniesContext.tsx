@@ -22,6 +22,18 @@ export interface TaxIdentity {
   version?: number;
 }
 
+export interface CommunicationChannel {
+  id?: number;
+  type: string;
+  value: string;
+  label?: string | null;
+  is_primary?: boolean;
+  verified?: boolean;
+  notes?: string | null;
+  company_id?: number | null;
+  contact_id?: number | null;
+}
+
 export interface CompanyAddress {
   id?: number;
   street: string;
@@ -35,17 +47,27 @@ export interface CompanyAddress {
   notes?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
+  label?: string | null;
+  is_primary?: boolean;
+  company_id?: number | null;
   version?: number;
 }
 
 export interface CompanyContact {
   id?: number;
+  contact_id?: number;
+  company_contact_id?: number;
+  company_id?: number | null;
   name: string;
+  last_name?: string | null;
+  department?: string | null;
   role?: string | null;
   email?: string | null;
   phone?: string | null;
   mobile?: string | null;
   notes?: string | null;
+  is_primary?: boolean;
+  channels?: CommunicationChannel[];
   version?: number;
 }
 
@@ -64,6 +86,7 @@ export interface Company {
   tax_identities: TaxIdentity[];
   addresses: CompanyAddress[];
   contacts: CompanyContact[];
+  channels: CommunicationChannel[];
   administrator_ids?: string[];
   version: number;
   created_at?: string | null;
@@ -165,6 +188,48 @@ const coalesceNestedArray = (...candidates: unknown[]): any[] => {
   return [];
 };
 
+const parseBooleanFlag = (value: unknown): boolean | null => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    if (value === 1) {
+      return true;
+    }
+    if (value === 0) {
+      return false;
+    }
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    if (['1', 'true', 'si', 'sí', 'yes', 'activo', 'activa', 'principal'].includes(normalized)) {
+      return true;
+    }
+    if (['0', 'false', 'no', 'inactivo', 'inactiva'].includes(normalized)) {
+      return false;
+    }
+  }
+  return null;
+};
+
+const parseNumericId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed.length) {
+      return null;
+    }
+    const parsed = parseInt(trimmed, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
 const parseTaxIdentity = (raw: any): TaxIdentity => {
   const type = pickString(raw?.type, raw?.tipo, raw?.name) ?? '';
   const typeKey = type.trim().toUpperCase();
@@ -186,55 +251,162 @@ const parseTaxIdentity = (raw: any): TaxIdentity => {
   };
 };
 
-const parseAddress = (raw: any): CompanyAddress => ({
-  id: raw?.id,
-  street: pickString(raw?.street, raw?.calle, raw?.address_line) ?? '',
-  number: pickString(raw?.number, raw?.numero) ?? null,
-  floor: pickString(raw?.floor, raw?.piso) ?? null,
-  apartment: pickString(raw?.apartment, raw?.departamento, raw?.dpto) ?? null,
-  city: pickString(raw?.city, raw?.ciudad, raw?.localidad) ?? null,
-  state: pickString(raw?.state, raw?.provincia, raw?.state_name) ?? null,
-  country: pickString(raw?.country, raw?.pais) ?? null,
-  postal_code: pickString(raw?.postal_code, raw?.zip, raw?.codigo_postal) ?? null,
-  notes: pickString(raw?.notes, raw?.notas) ?? null,
-  latitude: toNumericCoordinate(
-    raw?.latitude ?? raw?.lat ?? raw?.latitud ?? raw?.gps_latitude ?? raw?.gps_lat ?? raw?.gps?.lat
-  ),
-  longitude: toNumericCoordinate(
-    raw?.longitude ??
-      raw?.lng ??
-      raw?.longitud ??
-      raw?.gps_longitude ??
-      raw?.gps_lng ??
-      raw?.gps_lon ??
-      raw?.gps?.lng ??
-      raw?.gps?.lon
-  ),
-  version:
-    typeof raw?.version === 'number'
-      ? raw.version
-      : raw?.version
-      ? Number(raw.version) || 1
-      : undefined,
-});
+const parseAddress = (raw: any): CompanyAddress => {
+  const companyId = parseNumericId(raw?.company_id ?? raw?.empresa_id ?? raw?.companyId);
+  const isPrimary = parseBooleanFlag(raw?.is_primary ?? raw?.es_principal);
+  return {
+    id: raw?.id ?? parseNumericId(raw?.address_id ?? raw?.company_address_id) ?? undefined,
+    street: pickString(raw?.street, raw?.calle, raw?.address_line) ?? '',
+    number: pickString(raw?.number, raw?.numero) ?? null,
+    floor: pickString(raw?.floor, raw?.piso) ?? null,
+    apartment: pickString(raw?.apartment, raw?.departamento, raw?.dpto) ?? null,
+    city: pickString(raw?.city, raw?.ciudad, raw?.localidad) ?? null,
+    state: pickString(raw?.state, raw?.provincia, raw?.state_name) ?? null,
+    country: pickString(raw?.country, raw?.pais) ?? null,
+    postal_code: pickString(raw?.postal_code, raw?.zip, raw?.codigo_postal) ?? null,
+    notes: pickString(raw?.notes, raw?.notas) ?? null,
+    latitude: toNumericCoordinate(
+      raw?.latitude ?? raw?.lat ?? raw?.latitud ?? raw?.gps_latitude ?? raw?.gps_lat ?? raw?.gps?.lat
+    ),
+    longitude: toNumericCoordinate(
+      raw?.longitude ??
+        raw?.lng ??
+        raw?.longitud ??
+        raw?.gps_longitude ??
+        raw?.gps_lng ??
+        raw?.gps_lon ??
+        raw?.gps?.lng ??
+        raw?.gps?.lon
+    ),
+    label: pickString(raw?.label, raw?.etiqueta) ?? null,
+    is_primary: typeof isPrimary === 'boolean' ? isPrimary : undefined,
+    company_id: companyId,
+    version:
+      typeof raw?.version === 'number'
+        ? raw.version
+        : raw?.version
+        ? Number(raw.version) || 1
+        : undefined,
+  };
+};
 
-const parseContact = (raw: any): CompanyContact => ({
-  id: raw?.id,
-  name: pickString(raw?.name, raw?.nombre, raw?.full_name) ?? '',
-  role: pickString(raw?.role, raw?.cargo, raw?.position) ?? null,
-  email: pickString(raw?.email, raw?.correo, raw?.mail) ?? null,
-  phone: pickString(raw?.phone, raw?.telefono) ?? null,
-  mobile: pickString(raw?.mobile, raw?.celular) ?? null,
-  notes: pickString(raw?.notes, raw?.notas) ?? null,
-  version:
-    typeof raw?.version === 'number'
-      ? raw.version
-      : raw?.version
-      ? Number(raw.version) || 1
-      : undefined,
-});
+const parseContact = (raw: any): CompanyContact => {
+  const contactId = parseNumericId(raw?.contact_id ?? raw?.contacto_id ?? raw?.id);
+  const companyContactId = parseNumericId(raw?.company_contact_id ?? raw?.pivot_id ?? raw?.id);
+  const companyId = parseNumericId(raw?.company_id ?? raw?.empresa_id ?? raw?.companyId);
+  const lastName = pickString(raw?.last_name, raw?.apellido);
+  const firstName = pickString(raw?.first_name, raw?.nombre);
+  const displayName = pickString(
+    raw?.name,
+    raw?.nombre_completo,
+    raw?.full_name,
+    [firstName, lastName].filter(Boolean).join(' ')
+  );
+  const isPrimary = parseBooleanFlag(raw?.is_primary ?? raw?.es_principal ?? raw?.principal);
+  const parsedChannels = coalesceNestedArray(raw?.channels, raw?.contact_channels).map(parseChannel);
 
-const extractCompanyCollection = (payload: any): any[] => {
+  return {
+    id: contactId ?? companyContactId ?? raw?.id,
+    contact_id: contactId ?? undefined,
+    company_contact_id: companyContactId ?? undefined,
+    company_id: companyId ?? undefined,
+    name: displayName ?? firstName ?? '',
+    last_name: lastName ?? null,
+    department: pickString(raw?.department, raw?.departamento) ?? null,
+    role: pickString(raw?.role, raw?.cargo, raw?.position) ?? null,
+    email: pickString(raw?.email, raw?.correo, raw?.mail) ?? null,
+    phone: pickString(raw?.phone, raw?.telefono) ?? null,
+    mobile: pickString(raw?.mobile, raw?.celular) ?? null,
+    notes: pickString(raw?.notes, raw?.notas) ?? null,
+    is_primary: typeof isPrimary === 'boolean' ? isPrimary : undefined,
+    channels: parsedChannels.map(channel => ({
+      ...channel,
+      contact_id: channel.contact_id ?? contactId ?? undefined,
+    })),
+    version:
+      typeof raw?.version === 'number'
+        ? raw.version
+        : raw?.version
+        ? Number(raw.version) || 1
+        : undefined,
+  };
+};
+
+const parseChannel = (raw: any): CommunicationChannel => {
+  const companyId = parseNumericId(raw?.company_id ?? raw?.empresa_id ?? raw?.companyId);
+  const contactId = parseNumericId(raw?.contact_id ?? raw?.contacto_id ?? raw?.contactId);
+  const normalizedType = pickString(raw?.type, raw?.tipo, raw?.channel_type) ?? '';
+  const normalizedValue = pickString(raw?.value, raw?.valor, raw?.dato) ?? '';
+  const isPrimary = parseBooleanFlag(raw?.is_primary ?? raw?.es_principal);
+  const verified = parseBooleanFlag(raw?.verified ?? raw?.verificado);
+  return {
+    id: raw?.id ?? parseNumericId(raw?.channel_id) ?? undefined,
+    type: normalizedType,
+    value: normalizedValue,
+    label: pickString(raw?.label, raw?.etiqueta, raw?.tag) ?? null,
+    is_primary: typeof isPrimary === 'boolean' ? isPrimary : undefined,
+    verified: typeof verified === 'boolean' ? verified : undefined,
+    notes: pickString(raw?.notes, raw?.notas, raw?.observaciones) ?? null,
+    company_id: companyId,
+    contact_id: contactId,
+  };
+};
+
+const parseCompanyContactLink = (raw: any): CompanyContact => {
+  const contactId = parseNumericId(raw?.contact_id ?? raw?.contacto_id);
+  const companyContactId = parseNumericId(raw?.id ?? raw?.company_contact_id);
+  const companyId = parseNumericId(raw?.company_id ?? raw?.empresa_id);
+  const parsedChannels = coalesceNestedArray(raw?.channels).map(parseChannel);
+  const isPrimary = parseBooleanFlag(raw?.is_primary ?? raw?.es_principal);
+
+  return {
+    id: contactId ?? companyContactId ?? raw?.id,
+    contact_id: contactId ?? undefined,
+    company_contact_id: companyContactId ?? undefined,
+    company_id: companyId ?? undefined,
+    name: pickString(raw?.name, raw?.nombre) ?? '',
+    department: pickString(raw?.department, raw?.departamento) ?? null,
+    role: pickString(raw?.role, raw?.cargo) ?? null,
+    email: pickString(raw?.email, raw?.correo) ?? null,
+    phone: pickString(raw?.phone, raw?.telefono) ?? null,
+    mobile: pickString(raw?.mobile, raw?.celular) ?? null,
+    notes: pickString(raw?.notes, raw?.notas) ?? null,
+    is_primary: typeof isPrimary === 'boolean' ? isPrimary : undefined,
+    channels: parsedChannels,
+  };
+};
+
+const fetchCollectionWithParser = async (
+  token: string,
+  path: string,
+  parser: any
+): Promise<any[]> => {
+  if (!token) {
+    return [];
+  }
+  try {
+    const response = await fetch(`${BASE_URL}/${path}`, {
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const payload = await readJsonSafely(response);
+    if (payload === null) {
+      return [];
+    }
+    const collection = extractCollectionFromPayload(payload);
+    return collection.map(parser);
+  } catch (error) {
+    console.error(`Error loading ${path}:`, error);
+    return [];
+  }
+};
+
+const extractCollectionFromPayload = (payload: any): any[] => {
   if (!payload) {
     return [];
   }
@@ -269,6 +441,8 @@ const extractCompanyCollection = (payload: any): any[] => {
 
   return [];
 };
+
+const extractCompanyCollection = extractCollectionFromPayload;
 
 const parseCompany = (raw: any): Company => {
   const baseId = raw?.id ?? raw?.company_id;
@@ -374,6 +548,12 @@ const parseCompany = (raw: any): Company => {
     raw?.personas_contacto,
     raw?.company_contacts
   ).map(parseContact);
+  const channels = coalesceNestedArray(
+    raw?.channels,
+    raw?.company_channels,
+    raw?.canales,
+    raw?.communication_channels
+  ).map(parseChannel);
 
   const administratorIds = parseAdministratorIdsValue(
     raw?.administrator_ids ??
@@ -387,7 +567,7 @@ const parseCompany = (raw: any): Company => {
       raw?.admin_user_ids
   );
 
-  return {
+  return ensureCompanyCollections({
     id: typeof baseId === 'number' ? baseId : parseInt(baseId ?? '0', 10) || 0,
     name: displayName ?? '',
     legal_name: legalName ?? null,
@@ -410,12 +590,80 @@ const parseCompany = (raw: any): Company => {
     tax_identities: taxIdentities,
     addresses,
     contacts,
+    channels,
     administrator_ids: administratorIds,
     version: typeof rawVersion === 'number' ? rawVersion : parseInt(String(rawVersion ?? '1'), 10) || 1,
     created_at: pickString(raw?.created_at, raw?.creado_en, raw?.createdAt) ?? null,
     updated_at: pickString(raw?.updated_at, raw?.actualizado_en, raw?.updatedAt) ?? null,
-  };
+  });
 };
+
+const mergeRecordCollections = <T extends Record<string, any>>(
+  base: T[],
+  incoming: T[],
+  comparator: (a: T, b: T) => boolean
+): T[] => {
+  const merged = [...base];
+  incoming.forEach(candidate => {
+    const index = merged.findIndex(existing => comparator(existing, candidate));
+    if (index >= 0) {
+      merged[index] = { ...merged[index], ...candidate };
+    } else {
+      merged.push(candidate);
+    }
+  });
+  return merged;
+};
+
+const normalizeComparableString = (value?: string | null) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : '';
+
+const addressComparator = (a: CompanyAddress, b: CompanyAddress) => {
+  if (a.id && b.id && a.id === b.id) {
+    return true;
+  }
+  const sameStreet = normalizeComparableString(a.street) === normalizeComparableString(b.street);
+  const sameNumber = normalizeComparableString(a.number) === normalizeComparableString(b.number);
+  const sameCity = normalizeComparableString(a.city) === normalizeComparableString(b.city);
+  const samePostal = normalizeComparableString(a.postal_code) === normalizeComparableString(b.postal_code);
+  return sameStreet && sameNumber && sameCity && samePostal;
+};
+
+const contactComparator = (a: CompanyContact, b: CompanyContact) => {
+  if (a.company_contact_id && b.company_contact_id && a.company_contact_id === b.company_contact_id) {
+    return true;
+  }
+  if (a.contact_id && b.contact_id && a.contact_id === b.contact_id) {
+    return true;
+  }
+  if (a.id && b.id && a.id === b.id) {
+    return true;
+  }
+  const sameEmail =
+    normalizeComparableString(a.email) !== '' &&
+    normalizeComparableString(a.email) === normalizeComparableString(b.email);
+  const samePhone =
+    normalizeComparableString(a.phone) !== '' &&
+    normalizeComparableString(a.phone) === normalizeComparableString(b.phone);
+  return sameEmail || samePhone;
+};
+
+const channelComparator = (a: CommunicationChannel, b: CommunicationChannel) => {
+  if (a.id && b.id && a.id === b.id) {
+    return true;
+  }
+  const sameType = normalizeComparableString(a.type) === normalizeComparableString(b.type);
+  const sameValue = normalizeComparableString(a.value) === normalizeComparableString(b.value);
+  return sameType && sameValue;
+};
+
+const mergeChannels = (...collections: (CommunicationChannel[] | undefined)[]) =>
+  collections.reduce<CommunicationChannel[]>((acc, collection) => {
+    if (!collection?.length) {
+      return acc;
+    }
+    return mergeRecordCollections(acc, collection, channelComparator);
+  }, []);
 
 const serializeNestedArray = (value: unknown) => {
   if (typeof value === 'string') {
@@ -564,6 +812,13 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   };
 };
 
+const ensureCompanyCollections = (company: Company): Company => ({
+  ...company,
+  addresses: Array.isArray(company.addresses) ? company.addresses : [],
+  contacts: Array.isArray(company.contacts) ? company.contacts : [],
+  channels: Array.isArray(company.channels) ? company.channels : [],
+});
+
 const ensureProfileType = (company: Company): Company => {
   if (
     company.profile_file_id === null ||
@@ -594,7 +849,7 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
         } = withLegacy;
 
         if (rest.profile_file_id !== undefined) {
-          return ensureProfileType(rest as Company);
+          return ensureCompanyCollections(ensureProfileType(rest as Company));
         }
 
         const normalizedProfileId = (() => {
@@ -609,10 +864,12 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
           return null;
         })();
 
-        return ensureProfileType({
-          ...(rest as Company),
-          profile_file_id: normalizedProfileId,
-        });
+        return ensureCompanyCollections(
+          ensureProfileType({
+            ...(rest as Company),
+            profile_file_id: normalizedProfileId,
+          })
+        );
       });
 
       return ensureSortedByNewest(normalized, getDefaultSortValue);
@@ -634,13 +891,132 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const data = await readJsonSafely(response);
-      if (data !== null) {
-        const collection = extractCompanyCollection(data);
-        const parsed = collection.map(parseCompany);
-        setCompanies(sortByNewest(parsed, getDefaultSortValue));
-      } else if (response.ok) {
-        setCompanies([]);
+      if (data === null) {
+        if (response.ok) {
+          setCompanies([]);
+        }
+        return;
       }
+
+      const collection = extractCompanyCollection(data);
+      const parsedCompanies = collection.map(parseCompany);
+
+      const [addresses, contacts, companyContacts, companyChannels, contactChannels] = await Promise.all([
+        fetchCollectionWithParser(token, 'company-addresses', parseAddress),
+        fetchCollectionWithParser(token, 'contacts', parseContact),
+        fetchCollectionWithParser(token, 'company-contacts', parseCompanyContactLink),
+        fetchCollectionWithParser(token, 'company-channels', parseChannel),
+        fetchCollectionWithParser(token, 'contact-channels', parseChannel),
+      ]);
+
+      const addressesByCompany = addresses.reduce<Map<number, CompanyAddress[]>>((acc, address) => {
+        if (!address.company_id) {
+          return acc;
+        }
+        const current = acc.get(address.company_id) ?? [];
+        acc.set(address.company_id, [...current, address]);
+        return acc;
+      }, new Map());
+
+      const companyChannelsByCompany = companyChannels.reduce<Map<number, CommunicationChannel[]>>(
+        (acc, channel) => {
+          if (!channel.company_id) {
+            return acc;
+          }
+          const current = acc.get(channel.company_id) ?? [];
+          acc.set(channel.company_id, mergeRecordCollections(current, [channel], channelComparator));
+          return acc;
+        },
+        new Map()
+      );
+
+      const contactById = contacts.reduce<Map<number, CompanyContact>>((acc, contact) => {
+        if (contact.id) {
+          acc.set(contact.id, contact);
+        }
+        return acc;
+      }, new Map());
+
+      const contactChannelsByContact = contactChannels.reduce<Map<number, CommunicationChannel[]>>(
+        (acc, channel) => {
+          if (!channel.contact_id) {
+            return acc;
+          }
+          const current = acc.get(channel.contact_id) ?? [];
+          acc.set(channel.contact_id, mergeChannels(current, [channel]));
+          return acc;
+        },
+        new Map()
+      );
+
+      const companyContactsByCompany = companyContacts.reduce<Map<number, CompanyContact[]>>(
+        (acc, link) => {
+          if (!link.company_id) {
+            return acc;
+          }
+          const contactId = link.contact_id ?? link.id;
+          const baseContact = contactId ? contactById.get(contactId) : undefined;
+          const aggregatedChannels = mergeChannels(
+            baseContact?.channels,
+            link.channels,
+            contactId ? contactChannelsByContact.get(contactId) : undefined
+          );
+          const normalizedName = (() => {
+            const candidates = [
+              link.name,
+              baseContact?.name,
+              [baseContact?.name, baseContact?.last_name].filter(Boolean).join(' '),
+            ].filter(candidate => typeof candidate === 'string' && candidate.trim().length) as string[];
+            return candidates.length ? candidates[0].trim() : '';
+          })();
+          const mergedContact: CompanyContact = {
+            ...baseContact,
+            ...link,
+            id: contactId ?? link.company_contact_id ?? link.id ?? baseContact?.id,
+            contact_id: contactId ?? baseContact?.contact_id,
+            company_contact_id: link.company_contact_id ?? baseContact?.company_contact_id,
+            company_id: link.company_id,
+            name: normalizedName || baseContact?.name || '',
+            channels: aggregatedChannels,
+          };
+          const current = acc.get(link.company_id) ?? [];
+          acc.set(link.company_id, mergeRecordCollections(current, [mergedContact], contactComparator));
+          return acc;
+        },
+        new Map()
+      );
+
+      const enriched = parsedCompanies.map(company => {
+        const enrichedAddresses = mergeRecordCollections(
+          company.addresses ?? [],
+          addressesByCompany.get(company.id) ?? [],
+          addressComparator
+        );
+        const enrichedCompanyChannels = mergeChannels(company.channels ?? [], companyChannelsByCompany.get(company.id));
+        const linkedContacts = companyContactsByCompany.get(company.id) ?? [];
+        const mergedContacts = mergeRecordCollections(company.contacts ?? [], linkedContacts, contactComparator).map(
+          contact => {
+            const contactId = contact.contact_id ?? contact.id;
+            const aggregatedChannels = mergeChannels(
+              contact.channels,
+              contactId ? contactChannelsByContact.get(contactId) : undefined
+            );
+            return {
+              ...contact,
+              channels: aggregatedChannels,
+            };
+          }
+        );
+
+        return {
+          ...company,
+          addresses: enrichedAddresses,
+          channels: enrichedCompanyChannels,
+          contacts: mergedContacts,
+        };
+      });
+
+      setCompanies(sortByNewest(enriched, getDefaultSortValue));
     } catch (error) {
       console.error('Error loading companies:', error);
     }
