@@ -106,7 +106,7 @@ La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/
 ## Novedades
 - **Plantillas de pago:** funcionalidad disponible desde el menú financiero y los atajos para definir valores predeterminados de pagos. Requiere permisos `listPaymentTemplates` (navegación) y `addPaymentTemplate`/`updatePaymentTemplate`/`deletePaymentTemplate` (operaciones), además de token Bearer en todas las llamadas a `payment_templates` salvo el login.【F:app/payment_templates/index.tsx†L61-L187】【F:contexts/PaymentTemplatesContext.tsx†L271-L441】
 - **Planillas de pagos (atajo):** acceso directo (`/shortcuts/payment_templates`) que lista plantillas habilitadas para atajos, respeta `usePaymentTemplateShortcuts` y precarga `/payments/create` con la configuración contable correspondiente.【F:constants/menuSections.ts†L29-L40】【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
-- **Colección Postman actualizada:** consulta `docs/postman/sisa-api.postman_collection.json` para probar los endpoints de pagos y plantillas con autenticación Bearer.【F:docs/postman/sisa-api.postman_collection.json†L1-L206】
+- **Colección Postman actualizada:** consulta `docs/postman/sisa-api.postman_collection.json` para probar los endpoints de pagos, plantillas y empresas (incluyendo direcciones, contactos, canales y membresías) con autenticación Bearer.【F:docs/postman/sisa-api.postman_collection.json†L1-L40】【F:docs/postman/sisa-api.postman_collection.json†L647-L2415】
 
 ## Scripts y utilidades
 - `npm start` / `npx expo start`: inicia el bundler de Expo.
