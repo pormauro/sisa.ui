@@ -1,7 +1,14 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
-import { View, TouchableOpacity, Modal, StyleSheet, Platform } from 'react-native';
-// eslint-disable-next-line import/no-unresolved
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react';
+import {
+  View,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
 import MapView, { Marker, MapPressEvent } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -26,6 +33,7 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const resolvedLatitude = toNumericCoordinate(latitude);
   const resolvedLongitude = toNumericCoordinate(longitude);
   const hasCoordinate = resolvedLatitude !== null && resolvedLongitude !== null;
+  const mapRef = useRef<MapView | null>(null);
 
   const previewRegion = useMemo(
     () => ({
@@ -40,12 +48,27 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const [selectedCoordinate, setSelectedCoordinate] = useState<{ latitude: number; longitude: number } | null>(
     hasCoordinate ? { latitude: resolvedLatitude!, longitude: resolvedLongitude! } : null
   );
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (pickerVisible) {
       setSelectedCoordinate(hasCoordinate ? { latitude: resolvedLatitude!, longitude: resolvedLongitude! } : null);
     }
   }, [pickerVisible, hasCoordinate, resolvedLatitude, resolvedLongitude]);
+
+  useEffect(() => {
+    if (!pickerVisible) {
+      setLocationError(null);
+      setIsRequestingLocation(false);
+    }
+  }, [pickerVisible]);
+
+  useEffect(() => {
+    if (selectedCoordinate) {
+      setLocationError(null);
+    }
+  }, [selectedCoordinate]);
 
   const borderColor = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
@@ -54,6 +77,7 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const accentColor = useThemeColor({}, 'tint');
   const successColor = useThemeColor({ light: '#2e7d32', dark: '#66bb6a' }, 'text');
   const actionSurface = useThemeColor({ light: '#F5F9FF', dark: '#111827' }, 'background');
+  const errorColor = useThemeColor({ light: '#b91c1c', dark: '#f87171' }, 'text');
 
   const handleMapPress = useCallback((event: MapPressEvent) => {
     const { latitude: lat, longitude: lng } = event.nativeEvent.coordinate;
@@ -68,6 +92,37 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const handleClear = useCallback(() => {
     onChange(null);
   }, [onChange]);
+
+  const handleLocateMe = useCallback(async () => {
+    try {
+      setLocationError(null);
+      setIsRequestingLocation(true);
+      const existingPermission = await Location.getForegroundPermissionsAsync();
+      let status = existingPermission.status;
+      if (status !== 'granted') {
+        const permissionRequest = await Location.requestForegroundPermissionsAsync();
+        status = permissionRequest.status;
+      }
+      if (status !== 'granted') {
+        setLocationError('Necesitamos permiso para acceder al GPS.');
+        return;
+      }
+      const currentPosition = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const coords = {
+        latitude: currentPosition.coords.latitude,
+        longitude: currentPosition.coords.longitude,
+      };
+      setSelectedCoordinate(coords);
+      mapRef.current?.animateToRegion({ ...coords, ...DEFAULT_DELTA }, 600);
+    } catch (error) {
+      console.warn('Unable to fetch current location', error);
+      setLocationError('No se pudo obtener la ubicación actual.');
+    } finally {
+      setIsRequestingLocation(false);
+    }
+  }, []);
 
   return (
     <View>
@@ -132,6 +187,7 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
         <View style={[styles.modalContainer, { backgroundColor: background }]}>
           <ThemedText style={styles.modalTitle}>Seleccioná la ubicación</ThemedText>
           <MapView
+            ref={mapRef}
             style={styles.modalMap}
             initialRegion={previewRegion}
             onPress={handleMapPress}
@@ -148,6 +204,26 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
               />
             ) : null}
           </MapView>
+          <View style={styles.locateActions}>
+            <TouchableOpacity
+              style={[styles.locateButton, { borderColor: accentColor, backgroundColor: actionSurface }]}
+              onPress={handleLocateMe}
+              disabled={isRequestingLocation}
+              activeOpacity={isRequestingLocation ? 1 : 0.85}
+            >
+              {isRequestingLocation ? (
+                <ActivityIndicator size="small" color={accentColor} />
+              ) : (
+                <Ionicons name="navigate-outline" size={18} color={accentColor} />
+              )}
+              <ThemedText style={[styles.locateButtonText, { color: accentColor }]}>
+                Usar mi ubicación
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+          {locationError ? (
+            <ThemedText style={[styles.locationErrorText, { color: errorColor }]}>{locationError}</ThemedText>
+          ) : null}
           <View style={styles.modalActions}>
             <TouchableOpacity
               style={[styles.modalButton, styles.modalCancel]}
@@ -241,6 +317,25 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  locateActions: {
+    marginTop: 12,
+  },
+  locateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  locateButtonText: {
+    fontWeight: '600',
+  },
+  locationErrorText: {
+    marginTop: 8,
+    fontSize: 13,
   },
   modalActions: {
     flexDirection: 'row',
