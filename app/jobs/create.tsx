@@ -78,7 +78,10 @@ const parseManualAmountInput = (value: string): number | null | undefined => {
 
 export default function CreateJobScreen() {
   const router = useRouter();
-  const { client_id: clientIdParam } = useLocalSearchParams<{ client_id?: string | string[] }>();
+  const { client_id: clientIdParam, job_date } = useLocalSearchParams<{
+    client_id?: string | string[];
+    job_date?: string | string[];
+  }>();
   const { addJob } = useContext(JobsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
@@ -97,8 +100,20 @@ export default function CreateJobScreen() {
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_STATUS_VALUE = '__new_status__';
   const NEW_FOLDER_VALUE = '__new_folder__';
+  const initialClientFromParam = useMemo(() => {
+    if (!clientIdParam) {
+      return '';
+    }
+    return Array.isArray(clientIdParam) ? clientIdParam[0] ?? '' : clientIdParam;
+  }, [clientIdParam]);
+  const initialJobDateFromParam = useMemo(() => {
+    if (!job_date) {
+      return '';
+    }
+    return Array.isArray(job_date) ? job_date[0] ?? '' : job_date;
+  }, [job_date]);
   // Form state
-  const [selectedClient, setSelectedClient] = useState<string>('');
+  const [selectedClient, setSelectedClient] = useState<string>(initialClientFromParam);
   const [selectedFolder, setSelectedFolder] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<ModalPickerItem | null>(null);
   const [selectedTariff, setSelectedTariff] = useState<string>('');
@@ -106,7 +121,9 @@ export default function CreateJobScreen() {
   const [manualAmountTouched, setManualAmountTouched] = useState<boolean>(false);
   const [description, setDescription] = useState<string>('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
-  const [jobDate, setJobDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [jobDate, setJobDate] = useState<string>(() =>
+    initialJobDateFromParam || new Date().toISOString().split('T')[0]
+  );
   const defaultTime = useMemo(() => new Date().toTimeString().slice(0, 5), []);
   const [startTime, setStartTime] = useState<string>(defaultTime);
   const [endTime, setEndTime] = useState<string>(defaultTime);
@@ -120,6 +137,18 @@ export default function CreateJobScreen() {
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
+
+  useEffect(() => {
+    if (!selectedClient && initialClientFromParam) {
+      setSelectedClient(initialClientFromParam);
+    }
+  }, [initialClientFromParam, selectedClient]);
+
+  useEffect(() => {
+    if (initialJobDateFromParam) {
+      setJobDate(initialJobDateFromParam);
+    }
+  }, [initialJobDateFromParam]);
 
   const clientItems = useMemo(
     () => [

@@ -10,6 +10,7 @@ export default function ClientsLayout() {
       <Stack.Screen name="viewModal" options={{ title: 'Ver Cliente', presentation: 'modal' }} />
       <Stack.Screen name="finalizedJobs" options={{ title: 'Trabajos finalizados' }} />
       <Stack.Screen name="unpaidInvoices" options={{ title: 'Facturas impagas' }} />
+      <Stack.Screen name="calendar" options={{ title: 'Calendario A' }} />
     </Stack>
   );
 }
