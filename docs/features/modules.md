@@ -55,6 +55,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Permisos requeridos
 - `listCompanies` habilita el listado y la navegación desde el menú principal.【F:app/companies/index.tsx†L57-L99】【F:constants/menuSections.ts†L48-L62】
 - `addCompany`, `updateCompany`, `deleteCompany` controlan accesos a formularios de alta, edición y baja en las pantallas protegidas.【F:app/companies/create.tsx†L61-L105】【F:app/companies/[id].tsx†L136-L157】【F:app/companies/viewModal.tsx†L11-L45】
+- Los IDs listados en `administrator_ids` (y el superadministrador) habilitan el acceso al editor y al modal incluso si el usuario no posee el permiso `updateCompany`. El listado valida esta bandera antes de permitir el gesto de edición prolongado.【F:app/companies/index.tsx†L150-L210】【F:app/companies/viewModal.tsx†L37-L120】【F:app/companies/[id].tsx†L210-L270】
 
 ### Pantallas relacionadas
 - `app/companies/index.tsx` — listado con búsqueda difusa y accesos a modal/detalle.【F:app/companies/index.tsx†L1-L200】
@@ -65,6 +66,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Consumo de identidad fiscal, direcciones y contactos
 - El `GET /companies` retorna las colecciones `tax_identities`, `addresses` y `contacts`; `parseCompany` las transforma en estructuras tipadas que el frontend muestra directamente en las pantallas de Expo.【F:contexts/CompaniesContext.tsx†L160-L188】【F:app/companies/viewModal.tsx†L107-L160】
 - Las operaciones de alta y edición serializan los bloques anidados antes de invocar la API, manteniendo la compatibilidad con la base `sisa.api`, que continúa sin claves foráneas según lo acordado a nivel backend.【F:contexts/CompaniesContext.tsx†L205-L218】【F:docs/setup-and-configuration.md†L21-L26】
+- Cada dirección admite latitud y longitud: los formularios de alta/edición incorporan un selector de mapa que envía las coordenadas numéricas dentro del JSON serializado, y la vista modal muestra los puntos cargados.【F:components/AddressLocationPicker.tsx†L1-L170】【F:app/companies/create.tsx†L520-L820】【F:app/companies/[id].tsx†L520-L880】【F:app/companies/viewModal.tsx†L300-L340】
 - Todos los requests al endpoint `/companies` incluyen el encabezado `Authorization: Bearer <token>`, requisito obligatorio salvo en el flujo de login inicial.【F:contexts/CompaniesContext.tsx†L229-L344】【F:docs/setup-and-configuration.md†L14-L24】
 
 ## Membresías de empresas (`CompanyMembershipsContext`)

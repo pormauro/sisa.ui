@@ -19,6 +19,7 @@ import {
 import FileGallery from '@/components/FileGallery';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
+import { toNumericCoordinate } from '@/utils/coordinates';
 
 const normalizeMembershipStatus = (status?: string | null): string => {
   if (!status) {
@@ -77,7 +78,11 @@ export default function ViewCompanyModal() {
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const company = companies.find(item => item.id === companyId);
 
-  const canView = permissions.includes('listCompanies') || permissions.includes('updateCompany');
+  const canView =
+    permissions.includes('listCompanies') ||
+    permissions.includes('updateCompany') ||
+    isListedAdministrator ||
+    isSuperAdministrator;
   const administratorIds = useMemo(() => {
     if (!company || !Array.isArray(company.administrator_ids)) {
       return [] as string[];
@@ -95,10 +100,7 @@ export default function ViewCompanyModal() {
     }
     return administratorIds.some(adminId => adminId === normalizedUserId);
   }, [administratorIds, normalizedUserId]);
-  const canEdit =
-    Boolean(company) &&
-    (permissions.includes('updateCompany') || isSuperAdministrator) &&
-    (isSuperAdministrator || isListedAdministrator);
+  const canEdit = Boolean(company) && (isSuperAdministrator || isListedAdministrator);
 
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [respondingId, setRespondingId] = useState<number | null>(null);
@@ -324,8 +326,11 @@ export default function ViewCompanyModal() {
       ].filter(line => line && line.length);
 
       const notes = address.notes?.trim();
+      const latitude = toNumericCoordinate(address.latitude);
+      const longitude = toNumericCoordinate(address.longitude);
+      const hasCoordinates = latitude !== null && longitude !== null;
 
-      if (!lines.length && !notes) {
+      if (!lines.length && !notes && !hasCoordinates) {
         return null;
       }
 
@@ -336,6 +341,11 @@ export default function ViewCompanyModal() {
           ))}
           {notes ? (
             <ThemedText style={styles.identityExtra}>Notas: {notes}</ThemedText>
+          ) : null}
+          {hasCoordinates ? (
+            <ThemedText style={styles.identityExtra}>
+              Coordenadas: {latitude?.toFixed(6)}, {longitude?.toFixed(6)}
+            </ThemedText>
           ) : null}
         </View>
       );

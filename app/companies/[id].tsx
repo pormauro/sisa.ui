@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import CircleImagePicker from '@/components/CircleImagePicker';
+import AddressLocationPicker from '@/components/AddressLocationPicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -22,6 +23,8 @@ import {
 } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
+import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
+import { toNumericCoordinate } from '@/utils/coordinates';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -41,6 +44,8 @@ const createEmptyAddress = (): CompanyAddress => ({
   country: '',
   postal_code: '',
   notes: '',
+  latitude: null,
+  longitude: null,
 });
 
 const createEmptyContact = (): CompanyContact => ({
@@ -72,6 +77,8 @@ const identityValue = (company: Company | undefined, key: string) => {
 const sanitizeAddresses = (items: CompanyAddress[]) =>
   items
     .map(address => {
+      const latitude = toNumericCoordinate(address.latitude);
+      const longitude = toNumericCoordinate(address.longitude);
       const sanitized: CompanyAddress = {
         street: address.street.trim(),
         number: address.number?.toString().trim() || null,
@@ -82,6 +89,8 @@ const sanitizeAddresses = (items: CompanyAddress[]) =>
         country: address.country?.toString().trim() || null,
         postal_code: address.postal_code?.toString().trim() || null,
         notes: address.notes?.toString().trim() || null,
+        latitude,
+        longitude,
       };
 
       if (address.id !== undefined) {
@@ -93,7 +102,11 @@ const sanitizeAddresses = (items: CompanyAddress[]) =>
 
       return sanitized;
     })
-    .filter(address => address.street || address.city || address.country);
+    .filter(address => {
+      const hasText = address.street || address.city || address.country;
+      const hasCoordinates = typeof address.latitude === 'number' && typeof address.longitude === 'number';
+      return hasText || hasCoordinates;
+    });
 
 const sanitizeContacts = (items: CompanyContact[]) =>
   items
@@ -209,7 +222,6 @@ export default function EditCompanyPage() {
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const destructiveColor = useThemeColor({ light: '#d32f2f', dark: '#ff6b6b' }, 'button');
 
-  const baseCanEdit = permissions.includes('updateCompany');
   const baseCanDelete = permissions.includes('deleteCompany');
   const companyAdministratorIds = useMemo(() => {
     if (!company || !Array.isArray(company.administrator_ids)) {
@@ -229,9 +241,9 @@ export default function EditCompanyPage() {
     return companyAdministratorIds.some(adminId => adminId === normalizedUserId);
   }, [companyAdministratorIds, normalizedUserId]);
   const actorIsAuthorized = isSuperAdministrator || isListedAdministrator;
-  const canEdit = actorIsAuthorized && (baseCanEdit || isSuperAdministrator);
+  const canEdit = actorIsAuthorized;
   const canDelete = actorIsAuthorized && (baseCanDelete || isSuperAdministrator);
-  const canAccess = actorIsAuthorized && (baseCanEdit || baseCanDelete || isSuperAdministrator);
+  const canAccess = actorIsAuthorized;
 
   const [name, setName] = useState('');
   const [legalName, setLegalName] = useState('');
@@ -251,6 +263,11 @@ export default function EditCompanyPage() {
 
   const [addresses, setAddresses] = useState<CompanyAddress[]>([createEmptyAddress()]);
   const [contacts, setContacts] = useState<CompanyContact[]>([createEmptyContact()]);
+  const [administratorIdsJson, setAdministratorIdsJson] = useState('[]');
+  const administratorAnalysis = useMemo(
+    () => analyzeAdministratorIdsInput(administratorIdsJson),
+    [administratorIdsJson]
+  );
 
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
@@ -298,6 +315,9 @@ export default function EditCompanyPage() {
 
     setAddresses(company.addresses.length ? company.addresses.map(address => ({ ...address })) : [createEmptyAddress()]);
     setContacts(company.contacts.length ? company.contacts.map(contact => ({ ...contact })) : [createEmptyContact()]);
+    setAdministratorIdsJson(
+      company.administrator_ids?.length ? JSON.stringify(company.administrator_ids) : '[]'
+    );
   }, [canAccess, company, router]);
 
   useEffect(() => {
@@ -312,11 +332,37 @@ export default function EditCompanyPage() {
     []
   );
 
+  const coordinateInputValue = (value: string | number | null | undefined) => {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return String(value);
+    }
+    return '';
+  };
+
   const updateAddressField = (index: number, field: keyof CompanyAddress, value: string) => {
     if (!canEdit) return;
     setAddresses(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const updateAddressCoordinates = (
+    index: number,
+    coordinate: { latitude: number; longitude: number } | null,
+  ) => {
+    if (!canEdit) return;
+    setAddresses(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        latitude: coordinate ? coordinate.latitude.toString() : '',
+        longitude: coordinate ? coordinate.longitude.toString() : '',
+      };
       return updated;
     });
   };
@@ -369,6 +415,22 @@ export default function EditCompanyPage() {
     setAdditionalIdentities(prev => prev.filter((_, idx) => idx !== index));
   };
 
+  const handleAppendCurrentUser = () => {
+    if (!canEdit) {
+      return;
+    }
+    if (!normalizedUserId) {
+      Alert.alert('Usuario no disponible', 'No se pudo identificar tu usuario para agregarlo.');
+      return;
+    }
+    setAdministratorIdsJson(current => {
+      const analysis = analyzeAdministratorIdsInput(current);
+      const next = new Set(analysis.ids);
+      next.add(normalizedUserId);
+      return JSON.stringify(Array.from(next));
+    });
+  };
+
   const handleUpdate = async () => {
     if (!company || !canEdit || submittingRef.current) {
       return;
@@ -381,8 +443,15 @@ export default function EditCompanyPage() {
       return;
     }
 
+    if (!administratorAnalysis.isValid) {
+      Alert.alert('Administradores inválidos', administratorAnalysis.error ?? 'Revisá el formato JSON.');
+      submittingRef.current = false;
+      return;
+    }
+
     const payload = {
       name: name.trim(),
+      administrator_ids: administratorAnalysis.ids,
       legal_name: legalName.trim() || null,
       tax_id: taxId.trim() || null,
       website: website.trim() || null,
@@ -714,6 +783,65 @@ export default function EditCompanyPage() {
         ) : null}
       </CollapsibleSection>
 
+      <CollapsibleSection
+        title="Administradores"
+        description="IDs de usuarios autorizados a editar"
+      >
+        <ThemedText style={styles.helperText}>
+          Ingresá un array JSON con los IDs de usuario habilitados para editar esta empresa (ejemplo:
+          [&quot;12&quot;, &quot;98&quot;]).
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.input,
+            styles.multiline,
+            styles.jsonInput,
+            { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+          ]}
+          value={administratorIdsJson}
+          onChangeText={canEdit ? setAdministratorIdsJson : undefined}
+          placeholder='["12","98"]'
+          placeholderTextColor={placeholderColor}
+          editable={canEdit}
+          multiline
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+        {!administratorAnalysis.isValid && administratorAnalysis.error ? (
+          <ThemedText style={styles.errorText}>{administratorAnalysis.error}</ThemedText>
+        ) : null}
+        {administratorAnalysis.ids.length ? (
+          <View style={styles.chipContainer}>
+            {administratorAnalysis.ids.map(id => (
+              <View key={id} style={styles.chip}>
+                <ThemedText style={styles.chipText}>{id}</ThemedText>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <ThemedText style={styles.helperText}>No hay administradores cargados.</ThemedText>
+        )}
+        <TouchableOpacity
+          style={[
+            styles.secondaryButton,
+            { borderColor },
+            !canEdit ? styles.secondaryButtonDisabled : null,
+          ]}
+          onPress={handleAppendCurrentUser}
+          activeOpacity={canEdit ? 0.85 : 1}
+          disabled={!canEdit}
+        >
+          <ThemedText
+            style={[
+              styles.secondaryButtonText,
+              !canEdit ? styles.secondaryButtonTextDisabled : null,
+            ]}
+          >
+            Agregar mi usuario{normalizedUserId ? ` (${normalizedUserId})` : ''}
+          </ThemedText>
+        </TouchableOpacity>
+      </CollapsibleSection>
+
       <CollapsibleSection title="Direcciones" description="Puntos físicos de contacto">
         {addresses.map((address, index) => (
           <View key={`address-${index}`} style={[styles.card, { borderColor }]}
@@ -814,6 +942,49 @@ export default function EditCompanyPage() {
               multiline
               editable={canEdit}
             />
+
+            <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
+            <AddressLocationPicker
+              latitude={address.latitude}
+              longitude={address.longitude}
+              onChange={(coordinate) => updateAddressCoordinates(index, coordinate)}
+              editable={canEdit}
+            />
+
+            <View style={styles.coordinateInputsRow}>
+              <View style={styles.coordinateInputContainer}>
+                <ThemedText style={styles.coordinateLabel}>Latitud</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.coordinateInput,
+                    { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+                  ]}
+                  value={coordinateInputValue(address.latitude)}
+                  onChangeText={(text) => updateAddressField(index, 'latitude', text)}
+                  placeholder="-34.6037"
+                  placeholderTextColor={placeholderColor}
+                  editable={canEdit}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+              <View style={styles.coordinateInputContainer}>
+                <ThemedText style={styles.coordinateLabel}>Longitud</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.coordinateInput,
+                    { backgroundColor: inputBackground, color: inputTextColor, borderColor },
+                  ]}
+                  value={coordinateInputValue(address.longitude)}
+                  onChangeText={(text) => updateAddressField(index, 'longitude', text)}
+                  placeholder="-58.3816"
+                  placeholderTextColor={placeholderColor}
+                  editable={canEdit}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+            </View>
 
             {canEdit && addresses.length > 1 ? (
               <TouchableOpacity style={styles.removeButton} onPress={() => removeAddress(index)}>
@@ -1022,6 +1193,9 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+  jsonInput: {
+    minHeight: 120,
+  },
   addItemButton: {
     marginTop: 8,
     marginBottom: 16,
@@ -1041,6 +1215,45 @@ const styles = StyleSheet.create({
   removeButtonText: {
     color: '#d32f2f',
     fontWeight: '600',
+  },
+  errorText: {
+    marginTop: 6,
+    color: '#d32f2f',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 8,
+    rowGap: 8,
+    marginTop: 8,
+  },
+  chip: {
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  secondaryButtonText: {
+    fontWeight: '600',
+  },
+  secondaryButtonTextDisabled: {
+    opacity: 0.7,
   },
   submitButton: {
     marginTop: 24,
@@ -1062,5 +1275,22 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  coordinateInputsRow: {
+    flexDirection: 'row',
+    columnGap: 12,
+    marginTop: 12,
+  },
+  coordinateInputContainer: {
+    flex: 1,
+  },
+  coordinateInput: {
+    marginTop: 4,
+  },
+  coordinateLabel: {
+    marginTop: 12,
+    marginBottom: 4,
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
