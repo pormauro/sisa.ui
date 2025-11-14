@@ -10,24 +10,58 @@ import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
+import {
+  CompanySummary,
+  coerceToNumber,
+  getCompanyDisplayName,
+  normalizeNullableStringValue,
+  normalizeOptionalStringValue,
+  parseCompanySummary,
+} from '@/utils/companySummary';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
+import { normalizeTaxId } from '@/utils/tax';
 
 export interface Provider {
   id: number;
   business_name: string;
-  tax_id?: string;
-  email?: string;
-  brand_file_id?: string | null;
-  phone?: string;
-  address?: string;
+  tax_id: string;
+  email: string;
+  brand_file_id: string | null;
+  phone: string;
+  address: string;
   created_at?: string | null;
   updated_at?: string | null;
+  company_id: number | null;
+  company: CompanySummary | null;
 }
+
+type ProviderApiResponse = {
+  id: number | string;
+  empresa_id?: number | string;
+  brand_file_id?: number | string | null;
+  phone?: string | null;
+  address?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  company?: Record<string, any> | null;
+  business_name?: string | null;
+  tax_id?: string | number | null;
+  email?: string | null;
+};
+
+export interface ProviderPayload {
+  company_id: number;
+  phone?: string;
+  address?: string;
+}
+
+export type ProviderUpdatePayload = Partial<ProviderPayload>;
 
 interface ProvidersContextValue {
   providers: Provider[];
   loadProviders: () => void;
-  addProvider: (provider: Omit<Provider, 'id'>) => Promise<Provider | null>;
-  updateProvider: (id: number, provider: Omit<Provider, 'id'>) => Promise<boolean>;
+  addProvider: (provider: ProviderPayload) => Promise<number | null>;
+  updateProvider: (id: number, provider: ProviderUpdatePayload) => Promise<boolean>;
   deleteProvider: (id: number) => Promise<boolean>;
 }
 
@@ -47,7 +81,15 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
   const { token } = useContext(AuthContext);
 
   useEffect(() => {
-    setProviders(prev => ensureSortedByNewest(prev, getDefaultSortValue));
+    setProviders(prev =>
+      ensureSortedByNewest(
+        prev.map(provider => ({
+          ...provider,
+          tax_id: normalizeTaxId(provider.tax_id),
+        })),
+        getDefaultSortValue
+      )
+    );
   }, [setProviders]);
 
   const loadProviders = useCallback(async () => {
@@ -58,18 +100,47 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
           Authorization: `Bearer ${token}`,
         },
       });
+      await ensureAuthResponse(response);
       const data = await response.json();
       if (data.providers) {
-        const fetchedProviders = data.providers as Provider[];
+        const fetchedProviders = (data.providers as ProviderApiResponse[]).map(provider => {
+          const company = parseCompanySummary(provider.company);
+          const brandFileId =
+            company?.profile_file_id ?? normalizeNullableStringValue(provider.brand_file_id);
+
+          return {
+            id: coerceToNumber(provider.id) ?? 0,
+            business_name:
+              getCompanyDisplayName(company) || normalizeOptionalStringValue(provider.business_name),
+            tax_id: normalizeTaxId(company?.tax_id ?? provider.tax_id),
+            email: company?.email ?? normalizeOptionalStringValue(provider.email),
+            brand_file_id: brandFileId,
+            phone: normalizeOptionalStringValue(provider.phone),
+            address: normalizeOptionalStringValue(provider.address),
+            created_at: provider.created_at ?? null,
+            updated_at: provider.updated_at ?? null,
+            company_id: company?.id ?? coerceToNumber(provider.empresa_id),
+            company,
+          } as Provider;
+        });
         setProviders(sortByNewest(fetchedProviders, getDefaultSortValue));
       }
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al cargar proveedores, se solicitará uno nuevo.');
+        return;
+      }
       console.error('Error loading providers:', error);
     }
   }, [setProviders, token]);
 
   const addProvider = useCallback(
-    async (provider: Omit<Provider, 'id'>): Promise<Provider | null> => {
+    async (providerData: ProviderPayload): Promise<number | null> => {
+      const body = {
+        company_id: providerData.company_id,
+        phone: normalizeOptionalStringValue(providerData.phone),
+        address: normalizeOptionalStringValue(providerData.address),
+      };
       try {
         const response = await fetch(`${BASE_URL}/providers`, {
           method: 'POST',
@@ -77,25 +148,38 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(provider),
+          body: JSON.stringify(body),
         });
+        await ensureAuthResponse(response);
         const data = await response.json();
         if (data.provider_id) {
-          const newProvider: Provider = { id: parseInt(data.provider_id, 10), ...provider };
-          setProviders(prev => ensureSortedByNewest([...prev, newProvider], getDefaultSortValue));
           await loadProviders();
-          return newProvider;
+          return parseInt(data.provider_id, 10);
         }
       } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al agregar proveedor, se solicitará uno nuevo.');
+          return null;
+        }
         console.error('Error adding provider:', error);
       }
       return null;
     },
-    [loadProviders, setProviders, token]
+    [loadProviders, token]
   );
 
   const updateProvider = useCallback(
-    async (id: number, provider: Omit<Provider, 'id'>): Promise<boolean> => {
+    async (id: number, provider: ProviderUpdatePayload): Promise<boolean> => {
+      const body: Record<string, unknown> = {};
+      if (typeof provider.company_id === 'number') {
+        body.company_id = provider.company_id;
+      }
+      if ('phone' in provider) {
+        body.phone = normalizeOptionalStringValue(provider.phone);
+      }
+      if ('address' in provider) {
+        body.address = normalizeOptionalStringValue(provider.address);
+      }
       try {
         const response = await fetch(`${BASE_URL}/providers/${id}`, {
           method: 'PUT',
@@ -103,32 +187,24 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify(provider),
+          body: JSON.stringify(body),
         });
 
+        await ensureAuthResponse(response);
         if (response.ok) {
-          // Some endpoints may return 204 without a body. Attempt to parse JSON but ignore errors.
-          try {
-            await response.json();
-          } catch {
-            /* ignore body parsing errors */
-          }
-
-          setProviders(prev =>
-            ensureSortedByNewest(
-              prev.map(p => (p.id === id ? { id, ...provider } : p)),
-              getDefaultSortValue
-            )
-          );
           await loadProviders();
           return true;
         }
       } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al actualizar proveedor, se solicitará uno nuevo.');
+          return false;
+        }
         console.error('Error updating provider:', error);
       }
       return false;
     },
-    [loadProviders, setProviders, token]
+    [loadProviders, token]
   );
 
   const deleteProvider = useCallback(
@@ -141,14 +217,19 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             Authorization: `Bearer ${token}`,
           },
         });
-      const data = await response.json();
-      if (data.message === 'Provider deleted successfully') {
-        setProviders(prev => prev.filter(p => p.id !== id));
-        return true;
+        await ensureAuthResponse(response);
+        const data = await response.json();
+        if (data.message === 'Provider deleted successfully') {
+          setProviders(prev => prev.filter(p => p.id !== id));
+          return true;
+        }
+      } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al eliminar proveedor, se solicitará uno nuevo.');
+          return false;
+        }
+        console.error('Error deleting provider:', error);
       }
-    } catch (error) {
-      console.error('Error deleting provider:', error);
-    }
       return false;
     },
     [setProviders, token]
