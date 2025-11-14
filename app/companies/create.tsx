@@ -21,6 +21,7 @@ import {
   TaxIdentity,
 } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -62,6 +63,7 @@ export default function CreateCompanyPage() {
   const router = useRouter();
   const { addCompany } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { normalizedUserId } = useSuperAdministrator();
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -232,6 +234,10 @@ export default function CreateCompanyPage() {
       const payload: CompanyPayload = {
         name: name.trim(),
       };
+
+      if (normalizedUserId) {
+        payload.administrator_ids = [normalizedUserId];
+      }
 
       const trimmedLegalName = legalName.trim();
       if (trimmedLegalName) {

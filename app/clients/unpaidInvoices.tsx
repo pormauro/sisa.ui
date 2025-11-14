@@ -525,6 +525,8 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
     marginRight: 12,
+    alignItems: 'flex-start',
+    gap: 4,
   },
   headerActions: {
     flexDirection: 'row',
@@ -539,11 +541,14 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     marginTop: 4,
     fontSize: 14,
+    alignSelf: 'flex-start',
+    textAlign: 'left',
   },
   headerTotal: {
     marginTop: 8,
     fontSize: 16,
     fontWeight: '600',
+    alignSelf: 'flex-start',
   },
   listContent: {
     paddingBottom: 24,
