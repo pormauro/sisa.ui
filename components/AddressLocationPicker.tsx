@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import { View, TouchableOpacity, Modal, StyleSheet, Platform } from 'react-native';
+// eslint-disable-next-line import/no-unresolved
 import MapView, { Marker, MapPressEvent } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { CoordinateValue, toNumericCoordinate } from '@/utils/coordinates';
@@ -49,6 +51,9 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const background = useThemeColor({}, 'background');
+  const accentColor = useThemeColor({}, 'tint');
+  const successColor = useThemeColor({ light: '#2e7d32', dark: '#66bb6a' }, 'text');
+  const actionSurface = useThemeColor({ light: '#F5F9FF', dark: '#111827' }, 'background');
 
   const handleMapPress = useCallback((event: MapPressEvent) => {
     const { latitude: lat, longitude: lng } = event.nativeEvent.coordinate;
@@ -90,11 +95,26 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
       {editable ? (
         <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: buttonColor }]}
+            style={[
+              styles.positionButton,
+              { borderColor: hasCoordinate ? successColor : accentColor, backgroundColor: actionSurface },
+            ]}
             onPress={() => setPickerVisible(true)}
             activeOpacity={0.85}
           >
-            <ThemedText style={[styles.actionButtonText, { color: buttonTextColor }]}>Elegir en mapa</ThemedText>
+            <Ionicons
+              name={hasCoordinate ? 'location' : 'location-outline'}
+              size={20}
+              color={hasCoordinate ? successColor : accentColor}
+            />
+            <ThemedText
+              style={[
+                styles.positionButtonText,
+                { color: hasCoordinate ? successColor : accentColor },
+              ]}
+            >
+              {hasCoordinate ? 'Posición confirmada' : 'Posicionar GPS'}
+            </ThemedText>
           </TouchableOpacity>
           {hasCoordinate ? (
             <TouchableOpacity
@@ -184,7 +204,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
   },
+  positionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  positionButtonText: {
     fontSize: 15,
     fontWeight: '600',
   },

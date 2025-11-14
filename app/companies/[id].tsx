@@ -25,6 +25,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
 import { toNumericCoordinate } from '@/utils/coordinates';
+import { formatCompanyAddress } from '@/utils/address';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -944,6 +945,10 @@ export default function EditCompanyPage() {
             />
 
             <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
+            <ThemedText style={styles.helperText}>
+              Dirección para GPS:{' '}
+              {formatCompanyAddress(address) || 'Completá la dirección para posicionar el punto.'}
+            </ThemedText>
             <AddressLocationPicker
               latitude={address.latitude}
               longitude={address.longitude}
