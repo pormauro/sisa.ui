@@ -31,8 +31,9 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/clients/create.tsx` — formulario de alta con selección de tarifa.【F:app/clients/create.tsx†L1-L120】
 - `app/clients/[id].tsx` — edición y eliminación condicionadas por permisos.【F:app/clients/[id].tsx†L1-L160】
 - `app/clients/viewModal.tsx` — modal de lectura rápida.【F:app/clients/viewModal.tsx†L1-L100】
-- `app/clients/unpaidInvoices.tsx` — listado de facturas en borrador o emitidas para un cliente, excluyendo pagos/cancelaciones.【F:app/clients/unpaidInvoices.tsx†L1-L211】
+- `app/clients/unpaidInvoices.tsx` — listado de facturas en borrador o emitidas con totales por estado, selección múltiple y disparo de recibos con descripción/importe prellenados.【F:app/clients/unpaidInvoices.tsx†L1-L520】
 - `app/clients/calendar.tsx` — "Calendario A" con agenda combinada de trabajos y turnos por cliente, más accesos directos para crear nuevos registros.【F:app/clients/calendar.tsx†L1-L220】
+- `app/clients/accounting.tsx` — panel contable que cruza facturas y recibos del cliente para calcular emitidos, borradores, pagos y saldo pendiente aprovechando los permisos `listInvoices` y `listReceipts`.【F:app/clients/accounting.tsx†L1-L220】
 
 ## Empresas (`CompaniesContext`)
 ### Modelo

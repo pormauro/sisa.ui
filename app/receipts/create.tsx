@@ -208,6 +208,34 @@ export default function CreateReceipt() {
   }, [pendingSelections, categories, consumeSelection]);
 
   useEffect(() => {
+    const pendingPrefill = pendingSelections[SELECTION_KEYS.receipts.invoicePrefill];
+    if (pendingPrefill === undefined || pendingPrefill === null) {
+      return;
+    }
+    const payload = consumeSelection(SELECTION_KEYS.receipts.invoicePrefill) as
+      | {
+          description?: string | null;
+          price?: number | string | null;
+        }
+      | undefined;
+    if (!payload) {
+      return;
+    }
+    if (typeof payload.description === 'string') {
+      setDescription(payload.description);
+    }
+    if (payload.price !== undefined && payload.price !== null && payload.price !== '') {
+      if (typeof payload.price === 'number' && Number.isFinite(payload.price)) {
+        setPrice(payload.price.toString());
+        return;
+      }
+      if (typeof payload.price === 'string') {
+        setPrice(payload.price);
+      }
+    }
+  }, [consumeSelection, pendingSelections]);
+
+  useEffect(() => {
     if (!payerClientId) return;
     const exists = clients.some(client => client.id.toString() === payerClientId);
     if (exists) {
