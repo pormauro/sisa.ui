@@ -8,6 +8,7 @@ export const SELECTION_KEYS = {
     provider: 'receipts.provider',
     cashBox: 'receipts.cashBox',
     category: 'receipts.category',
+    invoicePrefill: 'receipts.invoicePrefill',
   },
   payments: {
     creditorClient: 'payments.creditorClient',

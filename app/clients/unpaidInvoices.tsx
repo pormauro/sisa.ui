@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  GestureResponderEvent,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,6 +67,29 @@ const normalizeStatus = (status?: string | null): string => {
   return status.trim().toLowerCase();
 };
 
+const getInvoiceAmount = (invoice: Invoice): number => {
+  const totalAmount = invoice?.total_amount;
+  if (typeof totalAmount === 'number' && Number.isFinite(totalAmount)) {
+    return totalAmount;
+  }
+  if (typeof totalAmount === 'string') {
+    const parsed = Number(totalAmount.trim());
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+};
+
+const sumInvoicesByStatus = (items: Invoice[], status: string): number =>
+  items.reduce((sum, invoice) => {
+    const normalized = normalizeStatus(invoice.status);
+    if (normalized !== status) {
+      return sum;
+    }
+    return sum + getInvoiceAmount(invoice);
+  }, 0);
+
 export default function ClientUnpaidInvoicesScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const clientId = Number(id);
@@ -78,6 +102,7 @@ export default function ClientUnpaidInvoicesScreen() {
   const { beginSelection, completeSelection } = usePendingSelection();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<number>>(new Set());
 
   const background = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#FFFFFF', dark: '#1F1F1F' }, 'background');
@@ -86,9 +111,13 @@ export default function ClientUnpaidInvoicesScreen() {
   const accentColor = useThemeColor({}, 'tint');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+  const secondaryButtonColor = useThemeColor({ light: '#E0F2FE', dark: '#1E3A8A' }, 'background');
+  const secondaryButtonText = useThemeColor({ light: '#0369A1', dark: '#BFDBFE' }, 'text');
 
   const canListInvoices = permissions.includes('listInvoices');
   const canAddReceipt = permissions.includes('addReceipt');
+  const canViewReceipts = permissions.includes('listReceipts');
+  const canViewAccounting = canListInvoices || canViewReceipts;
 
   useFocusEffect(
     useCallback(() => {
@@ -101,6 +130,32 @@ export default function ClientUnpaidInvoicesScreen() {
       void loadInvoices();
     }, [canListInvoices, loadInvoices, router])
   );
+
+  useEffect(() => {
+    setSelectedInvoiceIds(new Set());
+  }, [clientId]);
+
+  useEffect(() => {
+    setSelectedInvoiceIds(prev => {
+      if (prev.size === 0) {
+        return prev;
+      }
+      const allowedIds = new Set(unpaidInvoices.map(invoice => invoice.id));
+      let changed = false;
+      const next = new Set<number>();
+      prev.forEach(id => {
+        if (allowedIds.has(id)) {
+          next.add(id);
+        } else {
+          changed = true;
+        }
+      });
+      if (!changed && next.size === prev.size) {
+        return prev;
+      }
+      return next;
+    });
+  }, [unpaidInvoices]);
 
   const client = useMemo(() => {
     if (!isValidClientId) {
@@ -130,25 +185,42 @@ export default function ClientUnpaidInvoicesScreen() {
       return 0;
     }
 
-    return unpaidInvoices.reduce((sum, invoice) => {
-      const totalAmount = invoice?.total_amount;
-      if (typeof totalAmount === 'number' && Number.isFinite(totalAmount)) {
-        return sum + totalAmount;
-      }
-      if (typeof totalAmount === 'string') {
-        const parsed = Number(totalAmount.trim());
-        if (!Number.isNaN(parsed)) {
-          return sum + parsed;
-        }
-      }
-      return sum;
-    }, 0);
+    return unpaidInvoices.reduce((sum, invoice) => sum + getInvoiceAmount(invoice), 0);
   }, [canListInvoices, unpaidInvoices]);
 
   const formattedOutstandingTotal = useMemo(
     () => formatCurrency(outstandingTotal ?? 0),
     [outstandingTotal],
   );
+
+  const issuedInvoicesTotal = useMemo(
+    () => (canListInvoices ? sumInvoicesByStatus(unpaidInvoices, 'issued') : 0),
+    [canListInvoices, unpaidInvoices]
+  );
+  const draftInvoicesTotal = useMemo(
+    () => (canListInvoices ? sumInvoicesByStatus(unpaidInvoices, 'draft') : 0),
+    [canListInvoices, unpaidInvoices]
+  );
+  const formattedIssuedTotal = useMemo(() => formatCurrency(issuedInvoicesTotal), [issuedInvoicesTotal]);
+  const formattedDraftTotal = useMemo(() => formatCurrency(draftInvoicesTotal), [draftInvoicesTotal]);
+  const issuedInvoicesCount = useMemo(
+    () => unpaidInvoices.filter(invoice => normalizeStatus(invoice.status) === 'issued').length,
+    [unpaidInvoices]
+  );
+  const draftInvoicesCount = useMemo(
+    () => unpaidInvoices.filter(invoice => normalizeStatus(invoice.status) === 'draft').length,
+    [unpaidInvoices]
+  );
+  const selectedInvoices = useMemo(
+    () => unpaidInvoices.filter(invoice => selectedInvoiceIds.has(invoice.id)),
+    [selectedInvoiceIds, unpaidInvoices]
+  );
+  const selectedInvoicesTotal = useMemo(
+    () => selectedInvoices.reduce((sum, invoice) => sum + getInvoiceAmount(invoice), 0),
+    [selectedInvoices]
+  );
+  const formattedSelectedTotal = useMemo(() => formatCurrency(selectedInvoicesTotal), [selectedInvoicesTotal]);
+  const selectedInvoicesCount = selectedInvoices.length;
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -163,36 +235,93 @@ export default function ClientUnpaidInvoicesScreen() {
     [router]
   );
 
+  const toggleInvoiceSelection = useCallback((invoiceId: number) => {
+    setSelectedInvoiceIds(prev => {
+      const next = new Set(prev);
+      if (next.has(invoiceId)) {
+        next.delete(invoiceId);
+      } else {
+        next.add(invoiceId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleViewInvoiceButton = useCallback(
+    (event: GestureResponderEvent, invoiceId: number) => {
+      event.stopPropagation();
+      handlePressInvoice(invoiceId);
+    },
+    [handlePressInvoice]
+  );
+
+  const clearSelection = useCallback(() => {
+    setSelectedInvoiceIds(new Set());
+  }, []);
+
   const renderInvoiceItem = useCallback(
     ({ item }: { item: Invoice }) => {
       const status = normalizeStatus(item.status);
       const statusLabel = STATUS_LABELS[status] ?? item.status ?? 'Sin estado';
-      const total = typeof item.total_amount === 'number' ? item.total_amount : null;
-      const formattedTotal = total !== null && Number.isFinite(total) ? formatCurrency(total) : 'Importe no disponible';
+      const total = getInvoiceAmount(item);
+      const formattedTotal = Number.isFinite(total) ? formatCurrency(total) : 'Importe no disponible';
       const dateLabel = formatInvoiceDate(item);
       const subtitleParts = [statusLabel, dateLabel].filter(Boolean);
       const invoiceNumber = item.invoice_number?.trim();
+      const isSelected = selectedInvoiceIds.has(item.id);
 
       return (
         <TouchableOpacity
-          style={[styles.card, { backgroundColor: cardBackground, borderColor }]}
-          onPress={() => handlePressInvoice(item.id)}
+          style={[
+            styles.card,
+            { backgroundColor: cardBackground, borderColor },
+            isSelected ? styles.cardSelected : null,
+          ]}
+          onPress={() => toggleInvoiceSelection(item.id)}
+          onLongPress={() => handlePressInvoice(item.id)}
           activeOpacity={0.85}
         >
           <View style={styles.cardHeader}>
-            <ThemedText style={styles.cardTitle}>
-              {invoiceNumber ? `Factura ${invoiceNumber}` : `Factura #${item.id}`}
-            </ThemedText>
+            <View style={styles.cardTitleRow}>
+              <Ionicons
+                name={isSelected ? 'checkbox-outline' : 'square-outline'}
+                size={18}
+                color={isSelected ? accentColor : secondaryText}
+                style={styles.selectionIcon}
+              />
+              <ThemedText style={styles.cardTitle}>
+                {invoiceNumber ? `Factura ${invoiceNumber}` : `Factura #${item.id}`}
+              </ThemedText>
+            </View>
             <ThemedText style={[styles.cardStatus, { color: accentColor }]}>{statusLabel}</ThemedText>
           </View>
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>
             {subtitleParts.join(' · ')}
           </ThemedText>
-          <ThemedText style={[styles.cardAmount, { color: accentColor }]}>{formattedTotal}</ThemedText>
+          <View style={styles.cardFooter}>
+            <ThemedText style={[styles.cardAmount, { color: accentColor }]}>{formattedTotal}</ThemedText>
+            <TouchableOpacity
+              style={styles.cardLink}
+              onPress={(event) => handleViewInvoiceButton(event, item.id)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="open-outline" size={16} color={accentColor} />
+              <ThemedText style={[styles.cardLinkText, { color: accentColor }]}>Ver</ThemedText>
+            </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       );
     },
-    [accentColor, borderColor, cardBackground, handlePressInvoice, secondaryText]
+    [
+      accentColor,
+      borderColor,
+      cardBackground,
+      handlePressInvoice,
+      handleViewInvoiceButton,
+      secondaryText,
+      selectedInvoiceIds,
+      toggleInvoiceSelection,
+    ]
   );
 
   const handleCreateReceipt = useCallback(() => {
@@ -200,10 +329,98 @@ export default function ClientUnpaidInvoicesScreen() {
       return;
     }
 
+    if (selectedInvoices.length === 0) {
+      Alert.alert('Selecciona facturas', 'Marca al menos una factura para generar el recibo.');
+      return;
+    }
+
+    const descriptionLines = selectedInvoices.map(invoice => {
+      const invoiceLabel = invoice.invoice_number?.trim() ?? `#${invoice.id}`;
+      const dateLabel = formatInvoiceDate(invoice);
+      return `Pago de Comprobante Nro(${invoiceLabel}) - ${dateLabel}`;
+    });
+
+    const totalAmount = Number.isFinite(selectedInvoicesTotal) ? selectedInvoicesTotal : 0;
+    const pricePayload = totalAmount.toFixed(2);
+
     beginSelection(SELECTION_KEYS.receipts.payerClient);
     completeSelection(clientId.toString());
+    beginSelection(SELECTION_KEYS.receipts.invoicePrefill);
+    completeSelection({
+      description: descriptionLines.join('\n'),
+      price: pricePayload,
+    });
     router.push('/receipts/create');
-  }, [beginSelection, canAddReceipt, clientId, completeSelection, isValidClientId, router]);
+  }, [
+    beginSelection,
+    canAddReceipt,
+    clientId,
+    completeSelection,
+    isValidClientId,
+    router,
+    selectedInvoices,
+    selectedInvoicesTotal,
+  ]);
+
+  const listHeader = useMemo(() => {
+    const selectionHint = selectedInvoicesCount > 0;
+    return (
+      <View style={styles.summaryContainer}>
+        <View style={styles.summaryGrid}>
+          <View style={[styles.summaryCard, { borderColor }]}> 
+            <ThemedText style={styles.summaryLabel}>Emitidas</ThemedText>
+            <ThemedText style={styles.summaryValue}>{formattedIssuedTotal}</ThemedText>
+            <ThemedText style={[styles.summaryMeta, { color: secondaryText }]}>
+              {issuedInvoicesCount} {issuedInvoicesCount === 1 ? 'comprobante' : 'comprobantes'}
+            </ThemedText>
+          </View>
+          <View style={[styles.summaryCard, { borderColor }]}> 
+            <ThemedText style={styles.summaryLabel}>Borradores</ThemedText>
+            <ThemedText style={styles.summaryValue}>{formattedDraftTotal}</ThemedText>
+            <ThemedText style={[styles.summaryMeta, { color: secondaryText }]}>
+              {draftInvoicesCount} {draftInvoicesCount === 1 ? 'borrador' : 'borradores'}
+            </ThemedText>
+          </View>
+          {selectionHint ? (
+            <View style={[styles.summaryCard, styles.selectionCard, { borderColor: accentColor }]}> 
+              <ThemedText style={styles.summaryLabel}>Seleccionadas</ThemedText>
+              <ThemedText style={[styles.summaryValue, { color: accentColor }]}>
+                {formattedSelectedTotal}
+              </ThemedText>
+              <ThemedText style={[styles.summaryMeta, { color: secondaryText }]}>
+                {selectedInvoicesCount} {selectedInvoicesCount === 1 ? 'factura' : 'facturas'}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+        {selectionHint ? (
+          <View style={[styles.selectionSummary, { borderColor }]}> 
+            <View>
+              <ThemedText style={styles.selectionSummaryTitle}>Importe a cobrar</ThemedText>
+              <ThemedText style={[styles.selectionSummaryValue, { color: accentColor }]}>
+                {formattedSelectedTotal}
+              </ThemedText>
+            </View>
+            <TouchableOpacity style={styles.clearSelectionButton} onPress={clearSelection}>
+              <Ionicons name="close-circle" size={18} color={secondaryText} />
+              <ThemedText style={[styles.clearSelectionText, { color: secondaryText }]}>Limpiar</ThemedText>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </View>
+    );
+  }, [
+    accentColor,
+    borderColor,
+    clearSelection,
+    draftInvoicesCount,
+    formattedDraftTotal,
+    formattedIssuedTotal,
+    formattedSelectedTotal,
+    issuedInvoicesCount,
+    secondaryText,
+    selectedInvoicesCount,
+  ]);
 
   if (!isValidClientId) {
     return (
@@ -227,26 +444,44 @@ export default function ClientUnpaidInvoicesScreen() {
             </ThemedText>
           ) : null}
         </View>
-        {canAddReceipt ? (
-          <TouchableOpacity
-            style={[styles.receiptButton, { backgroundColor: buttonColor }]}
-            onPress={handleCreateReceipt}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="receipt-outline"
-              size={18}
-              color={buttonTextColor}
-              style={styles.receiptButtonIcon}
-            />
-            <ThemedText style={[styles.receiptButtonText, { color: buttonTextColor }]}>Crear recibo</ThemedText>
-          </TouchableOpacity>
-        ) : null}
+        <View style={styles.headerActions}>
+          {canViewAccounting ? (
+            <TouchableOpacity
+              style={[styles.headerButton, { backgroundColor: secondaryButtonColor }]}
+              onPress={() => router.push(`/clients/accounting?id=${clientId}`)}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="file-tray-stacked-outline"
+                size={18}
+                color={secondaryButtonText}
+                style={styles.receiptButtonIcon}
+              />
+              <ThemedText style={[styles.receiptButtonText, { color: secondaryButtonText }]}>Contabilidad</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+          {canAddReceipt ? (
+            <TouchableOpacity
+              style={[styles.headerButton, { backgroundColor: buttonColor }]}
+              onPress={handleCreateReceipt}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="receipt-outline"
+                size={18}
+                color={buttonTextColor}
+                style={styles.receiptButtonIcon}
+              />
+              <ThemedText style={[styles.receiptButtonText, { color: buttonTextColor }]}>Crear recibo</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
       <FlatList
         data={unpaidInvoices}
         keyExtractor={item => item.id.toString()}
         renderItem={renderInvoiceItem}
+        ListHeaderComponent={listHeader}
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>
             {canListInvoices
@@ -277,6 +512,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
@@ -299,14 +540,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 32,
   },
-  receiptButton: {
+  headerButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 999,
     marginTop: 8,
+    marginLeft: 8,
   },
   receiptButtonIcon: {
     marginRight: 6,
@@ -321,14 +563,30 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  cardSelected: {
+    borderWidth: 2,
+    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 8,
+    elevation: 3,
+  },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  selectionIcon: {
+    marginRight: 6,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
+    flexShrink: 1,
   },
   cardStatus: {
     fontSize: 14,
@@ -338,13 +596,85 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 14,
   },
-  cardAmount: {
+  cardFooter: {
     marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardAmount: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  cardLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardLinkText: {
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '500',
   },
   emptyText: {
     textAlign: 'center',
     fontSize: 16,
+  },
+  summaryContainer: {
+    marginBottom: 16,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  summaryCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    margin: 4,
+    flexGrow: 1,
+    minWidth: 140,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  summaryMeta: {
+    marginTop: 2,
+    fontSize: 12,
+  },
+  selectionCard: {
+    borderStyle: 'dashed',
+  },
+  selectionSummary: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectionSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  selectionSummaryValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  clearSelectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clearSelectionText: {
+    marginLeft: 4,
+    fontSize: 14,
   },
 });

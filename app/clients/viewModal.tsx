@@ -1,7 +1,9 @@
 // /app/clients/viewModal.tsx
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useContext } from 'react';
-import { ScrollView, View, StyleSheet, Button, TouchableOpacity } from 'react-native';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import React, { useContext, useEffect } from 'react';
+import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
@@ -15,6 +17,7 @@ export default function ViewClientModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientId = Number(id);
   const router = useRouter();
+  const navigation = useNavigation();
   const { clients } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const { getTotalForClient } = useClientFinalizedJobTotals();
@@ -27,8 +30,16 @@ export default function ViewClientModal() {
   const canViewInvoices = permissions.includes('listInvoices');
   const canViewClientCalendar = permissions.includes('listAppointments') || canViewJobs;
 
+  useEffect(() => {
+    const title = client?.business_name ?? 'Cliente';
+    const options: Partial<NativeStackNavigationOptions> = { title };
+    navigation.setOptions(options);
+  }, [client?.business_name, navigation]);
+
   const background = useThemeColor({}, 'background');
   const linkColor = useThemeColor({}, 'tint');
+  const actionBackground = useThemeColor({ light: '#EEF2FF', dark: '#1F2937' }, 'background');
+  const actionText = useThemeColor({ light: '#1F2937', dark: '#F3F4F6' }, 'text');
 
   if (!client) {
     return (
@@ -129,42 +140,34 @@ export default function ViewClientModal() {
         </>
       ) : null}
 
-      <ThemedText style={styles.label}>ID</ThemedText>
-      <ThemedText style={styles.value}>{client.id}</ThemedText>
-
-      {client.created_at ? (
-        <>
-          <ThemedText style={styles.label}>Fecha de creación</ThemedText>
-          <ThemedText style={styles.value}>{client.created_at}</ThemedText>
-        </>
-      ) : null}
-
-      {client.updated_at ? (
-        <>
-          <ThemedText style={styles.label}>Fecha de modificación</ThemedText>
-          <ThemedText style={styles.value}>{client.updated_at}</ThemedText>
-        </>
-      ) : null}
-
       <View style={styles.actionsContainer}>
-        <View style={styles.actionButton}>
-          <Button title="Editar" onPress={() => router.push(`/clients/${client.id}`)} />
-        </View>
+        <TouchableOpacity
+          style={[styles.iconButton, { backgroundColor: actionBackground }]}
+          onPress={() => router.push(`/clients/${client.id}`)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="create-outline" size={22} color={actionText} />
+          <ThemedText style={[styles.iconButtonLabel, { color: actionText }]}>Editar</ThemedText>
+        </TouchableOpacity>
         {canViewClientCalendar ? (
-          <View style={styles.actionButton}>
-            <Button
-              title="Calendario A"
-              onPress={() => router.push(`/clients/calendar?id=${client.id}`)}
-            />
-          </View>
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: actionBackground }]}
+            onPress={() => router.push(`/clients/calendar?id=${client.id}`)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="calendar-outline" size={22} color={actionText} />
+            <ThemedText style={[styles.iconButtonLabel, { color: actionText }]}>Calendario</ThemedText>
+          </TouchableOpacity>
         ) : null}
         {canViewJobs ? (
-          <View style={styles.actionButton}>
-            <Button
-              title="Trabajos finalizados"
-              onPress={() => router.push(`/clients/finalizedJobs?id=${client.id}`)}
-            />
-          </View>
+          <TouchableOpacity
+            style={[styles.iconButton, { backgroundColor: actionBackground }]}
+            onPress={() => router.push(`/clients/finalizedJobs?id=${client.id}`)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="checkmark-done-outline" size={22} color={actionText} />
+            <ThemedText style={[styles.iconButtonLabel, { color: actionText }]}>Finalizados</ThemedText>
+          </TouchableOpacity>
         ) : null}
       </View>
     </ScrollView>
@@ -190,9 +193,23 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 15 },
   sectionValue: { fontSize: 15, fontWeight: '600' },
   actionsContainer: {
-    marginTop: 16,
+    marginTop: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
-  actionButton: {
+  iconButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    minWidth: 100,
     marginBottom: 12,
+  },
+  iconButtonLabel: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

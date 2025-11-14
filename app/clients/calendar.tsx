@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect, useNavigation } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { Calendar, DateObject, LocaleConfig } from 'react-native-calendars';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -78,6 +80,7 @@ type CombinedEvent =
 
 export default function ClientCalendarScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const clientIdParam = normalizeParam(id);
   const clientId = Number(clientIdParam);
@@ -122,6 +125,12 @@ export default function ClientCalendarScreen() {
       router.back();
     }
   }, [client, clients.length, router]);
+
+  useEffect(() => {
+    const title = client?.business_name ?? 'Calendario';
+    const options: Partial<NativeStackNavigationOptions> = { title };
+    navigation.setOptions(options);
+  }, [client?.business_name, navigation]);
 
   useEffect(() => {
     if (!canViewAppointments && !canViewJobs) {
@@ -285,8 +294,7 @@ export default function ClientCalendarScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <ThemedText style={styles.title}>Calendario A de {client.business_name}</ThemedText>
-      <ThemedText style={[styles.subtitle, { color: mutedTextColor }]}>Consulta los trabajos y turnos registrados para este cliente.</ThemedText>
+      <ThemedText style={styles.title}>Calendario de {client.business_name}</ThemedText>
       <Calendar
         markingType="multi-dot"
         markedDates={markedDates}
@@ -312,36 +320,49 @@ export default function ClientCalendarScreen() {
       <FlatList
         data={combinedEvents}
         keyExtractor={item => `${item.type}-${item.item.id}`}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.eventCard, { backgroundColor: cardBackground, borderColor }]}
-            onPress={() => handleEventPress(item)}
-            activeOpacity={0.85}
-          >
-            <View style={styles.eventHeader}>
-              <ThemedText style={styles.eventType}>
-                {item.type === 'job' ? 'Trabajo' : 'Turno'}
-              </ThemedText>
-              <ThemedText style={[styles.eventTime, { color: mutedTextColor }]}>
+        renderItem={({ item }) => {
+          const eventColor = item.type === 'job' ? jobDotColor : appointmentDotColor;
+          return (
+            <TouchableOpacity
+              style={[
+                styles.eventCard,
+                {
+                  backgroundColor: cardBackground,
+                  borderColor,
+                  borderLeftColor: eventColor,
+                },
+              ]}
+              onPress={() => handleEventPress(item)}
+              activeOpacity={0.85}
+            >
+              <View style={styles.eventHeader}>
+                <View style={styles.eventBadge}>
+                  <View style={[styles.eventDot, { backgroundColor: eventColor }]} />
+                  <ThemedText style={styles.eventType}>
+                    {item.type === 'job' ? 'Trabajo' : 'Turno'}
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.eventTime, { color: mutedTextColor }]}>
+                  {item.type === 'job'
+                    ? getJobTimeRange(item.item)
+                    : getAppointmentTime(item.item)}
+                </ThemedText>
+              </View>
+              <ThemedText style={styles.eventTitle} numberOfLines={2}>
                 {item.type === 'job'
-                  ? getJobTimeRange(item.item)
-                  : getAppointmentTime(item.item)}
+                  ? item.item.description || 'Sin descripción'
+                  : item.item.location || 'Sin ubicación'}
               </ThemedText>
-            </View>
-            <ThemedText style={styles.eventTitle} numberOfLines={2}>
-              {item.type === 'job'
-                ? item.item.description || 'Sin descripción'
-                : item.item.location || 'Sin ubicación'}
-            </ThemedText>
-            {item.type === 'appointment' && item.item.job_id ? (
-              <ThemedText style={[styles.eventMeta, { color: mutedTextColor }]}
-                numberOfLines={1}
-              >
-                Trabajo asociado: #{item.item.job_id}
-              </ThemedText>
-            ) : null}
-          </TouchableOpacity>
-        )}
+              {item.type === 'appointment' && item.item.job_id ? (
+                <ThemedText style={[styles.eventMeta, { color: mutedTextColor }]}
+                  numberOfLines={1}
+                >
+                  Trabajo asociado: #{item.item.job_id}
+                </ThemedText>
+              ) : null}
+            </TouchableOpacity>
+          );
+        }}
         ListHeaderComponent={(
           <View style={styles.listHeader}>
             <ThemedText style={styles.listHeaderText}>{selectedDateLabel}</ThemedText>
@@ -356,24 +377,30 @@ export default function ClientCalendarScreen() {
         refreshing={refreshing}
         onRefresh={onRefresh}
       />
-      <View style={styles.actionsContainer}>
-        {canCreateAppointment && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: addAppointmentButtonColor }]}
-            onPress={handleAddAppointment}
-          >
-            <ThemedText style={[styles.actionButtonText, { color: addButtonTextColor }]}>➕ Agregar turno</ThemedText>
-          </TouchableOpacity>
-        )}
-        {canCreateJob && (
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: addJobButtonColor }]}
-            onPress={handleAddJob}
-          >
-            <ThemedText style={[styles.actionButtonText, { color: addButtonTextColor }]}>🛠️ Agregar trabajo</ThemedText>
-          </TouchableOpacity>
-        )}
-      </View>
+      {(canCreateAppointment || canCreateJob) && (
+        <View style={styles.actionRow}>
+          {canCreateAppointment ? (
+            <TouchableOpacity
+              style={[styles.smallActionButton, { backgroundColor: addAppointmentButtonColor }]}
+              onPress={handleAddAppointment}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="person-add-outline" size={18} color={addButtonTextColor} />
+              <ThemedText style={[styles.smallActionText, { color: addButtonTextColor }]}>Turno</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+          {canCreateJob ? (
+            <TouchableOpacity
+              style={[styles.smallActionButton, { backgroundColor: addJobButtonColor }]}
+              onPress={handleAddJob}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="hammer-outline" size={18} color={addButtonTextColor} />
+              <ThemedText style={[styles.smallActionText, { color: addButtonTextColor }]}>Trabajo</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      )}
     </ThemedView>
   );
 }
@@ -393,10 +420,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 16,
   },
   calendar: {
     borderWidth: 1,
@@ -419,24 +442,35 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   listContent: {
-    paddingBottom: 140,
+    paddingBottom: 32,
   },
   emptyContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingBottom: 140,
+    paddingBottom: 32,
   },
   eventCard: {
     borderWidth: 1,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderLeftWidth: 6,
   },
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  eventBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eventDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 6,
   },
   eventType: {
     fontSize: 14,
@@ -462,20 +496,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  actionsContainer: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 20,
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
   },
-  actionButton: {
-    padding: 16,
-    borderRadius: 12,
+  smallActionButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 10,
+    marginHorizontal: 4,
+    borderRadius: 999,
   },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  smallActionText: {
+    marginLeft: 6,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
