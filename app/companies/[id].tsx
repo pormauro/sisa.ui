@@ -461,20 +461,10 @@ export default function EditCompanyPage() {
 
       <CollapsibleSection
         title="Información comercial adicional"
-        description="Razón social y datos de contacto"
+        description="Datos comerciales y de contacto"
         borderColor={borderColor}
         backgroundColor={sectionBackground}
       >
-        <ThemedText style={styles.label}>Razón Social</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-          value={legalName}
-          onChangeText={canEdit ? setLegalName : undefined}
-          placeholder="Razón social"
-          placeholderTextColor={placeholderColor}
-          editable={canEdit}
-        />
-
         <ThemedText style={styles.label}>Sitio Web</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
@@ -538,10 +528,20 @@ export default function EditCompanyPage() {
 
       <CollapsibleSection
         title="Datos fiscales"
-        description="CUIT, condición IVA e identificaciones extra"
+        description="Razón social, CUIT, condición IVA e identificaciones extra"
         borderColor={borderColor}
         backgroundColor={sectionBackground}
       >
+        <ThemedText style={styles.label}>Razón Social</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={legalName}
+          onChangeText={canEdit ? setLegalName : undefined}
+          placeholder="Razón social"
+          placeholderTextColor={placeholderColor}
+          editable={canEdit}
+        />
+
         <ThemedText style={styles.label}>CUIT</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}

@@ -13,6 +13,8 @@ export const createEmptyCompanyAddress = (): CompanyAddress => ({
   notes: '',
   latitude: null,
   longitude: null,
+  label: '',
+  is_primary: undefined,
 });
 
 export const sanitizeCompanyAddressDrafts = (items: CompanyAddress[]): CompanyAddress[] =>
@@ -34,11 +36,40 @@ export const sanitizeCompanyAddressDrafts = (items: CompanyAddress[]): CompanyAd
         longitude,
       };
 
-      if (address.label !== undefined) {
-        sanitized.label = address.label;
+      const trimmedLabel = address.label?.toString().trim();
+      if (trimmedLabel) {
+        sanitized.label = trimmedLabel;
       }
-      if (address.is_primary !== undefined) {
-        sanitized.is_primary = address.is_primary;
+
+      const normalizedPrimary = (() => {
+        if (typeof address.is_primary === 'boolean') {
+          return address.is_primary;
+        }
+        if (typeof address.is_primary === 'number') {
+          if (address.is_primary === 1) {
+            return true;
+          }
+          if (address.is_primary === 0) {
+            return false;
+          }
+        }
+        if (typeof address.is_primary === 'string') {
+          const normalized = address.is_primary.trim().toLowerCase();
+          if (!normalized) {
+            return undefined;
+          }
+          if (normalized === '1' || normalized === 'true') {
+            return true;
+          }
+          if (normalized === '0' || normalized === 'false') {
+            return false;
+          }
+        }
+        return undefined;
+      })();
+
+      if (normalizedPrimary !== undefined) {
+        sanitized.is_primary = normalizedPrimary;
       }
       if (address.id !== undefined) {
         sanitized.id = address.id;
