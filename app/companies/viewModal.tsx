@@ -17,6 +17,7 @@ import {
   CompanyMembership,
 } from '@/contexts/CompanyMembershipsContext';
 import FileGallery from '@/components/FileGallery';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { toNumericCoordinate } from '@/utils/coordinates';
@@ -329,6 +330,7 @@ export default function ViewCompanyModal() {
       const latitude = toNumericCoordinate(address.latitude);
       const longitude = toNumericCoordinate(address.longitude);
       const hasCoordinates = latitude !== null && longitude !== null;
+      const title = address.label?.trim() || `Dirección #${index + 1}`;
 
       if (!lines.length && !notes && !hasCoordinates) {
         return null;
@@ -336,6 +338,14 @@ export default function ViewCompanyModal() {
 
       return (
         <View key={`address-${index}`} style={[styles.card, { borderColor: cardBorder }]}>
+          <View style={styles.addressCardHeader}>
+            <ThemedText style={styles.addressCardTitle}>{title}</ThemedText>
+            {hasCoordinates ? (
+              <View style={[styles.addressGpsBadge, { borderColor: cardBorder }]}>
+                <IconSymbol name="mappin.circle.fill" size={16} color={actionBackground} />
+              </View>
+            ) : null}
+          </View>
           {lines.map((line, lineIndex) => (
             <ThemedText key={`addr-line-${lineIndex}`} style={styles.value}>{line}</ThemedText>
           ))}
@@ -631,6 +641,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginTop: 8,
+  },
+  addressCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  addressCardTitle: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  addressGpsBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   membershipCard: {
     gap: 12,

@@ -14,6 +14,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import AddressLocationPicker from '@/components/AddressLocationPicker';
 import { CompanyAddress } from '@/contexts/CompaniesContext';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import {
   buildCompanyAddressPayload,
   coordinateInputValue,
@@ -23,6 +24,7 @@ import {
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { formatCompanyAddress } from '@/utils/address';
+import { toNumericCoordinate } from '@/utils/coordinates';
 
 type CompanyAddressesModalProps = {
   visible: boolean;
@@ -549,9 +551,17 @@ const CompanyAddressesModal: React.FC<CompanyAddressesModalProps> = ({
             ) : existingList.length ? (
               existingList.map((address, index) => (
                 <View key={`existing-summary-${address.id ?? index}`} style={[styles.existingCard, { borderColor }]}>
-                  <ThemedText style={styles.existingTitle}>
-                    {address.label?.trim() || `Dirección #${index + 1}`}
-                  </ThemedText>
+                  <View style={styles.existingHeader}>
+                    <ThemedText style={styles.existingTitle}>
+                      {address.label?.trim() || `Dirección #${index + 1}`}
+                    </ThemedText>
+                    {toNumericCoordinate(address.latitude) !== null &&
+                    toNumericCoordinate(address.longitude) !== null ? (
+                      <View style={[styles.gpsIconBadge, { borderColor }]}>
+                        <IconSymbol name="mappin.circle.fill" size={16} color={buttonColor} />
+                      </View>
+                    ) : null}
+                  </View>
                   <ThemedText style={styles.existingDescription}>
                     {formatCompanyAddress(address) || 'Sin datos completos'}
                   </ThemedText>
@@ -795,6 +805,12 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  existingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -802,7 +818,6 @@ const styles = StyleSheet.create({
   },
   existingTitle: {
     fontWeight: '600',
-    marginBottom: 4,
   },
   existingDescription: {
     fontSize: 13,
@@ -811,6 +826,13 @@ const styles = StyleSheet.create({
   existingBadge: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  gpsIconBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   helperText: {
     fontSize: 13,

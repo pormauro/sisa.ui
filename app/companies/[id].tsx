@@ -15,6 +15,7 @@ import CollapsibleSection from '@/components/CollapsibleSection';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 import { 
   CompaniesContext,
   Company,
@@ -25,6 +26,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
 import { formatCompanyAddress } from '@/utils/address';
+import { toNumericCoordinate } from '@/utils/coordinates';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -732,9 +734,17 @@ export default function EditCompanyPage() {
         {company.addresses?.length ? (
           company.addresses.map((address, index) => (
             <View key={`address-summary-${address.id ?? index}`} style={[styles.addressSummaryCard, { borderColor }]}>
-              <ThemedText style={styles.addressSummaryTitle}>
-                {address.label?.trim() || `Dirección #${index + 1}`}
-              </ThemedText>
+              <View style={styles.addressSummaryHeader}>
+                <ThemedText style={styles.addressSummaryTitle}>
+                  {address.label?.trim() || `Dirección #${index + 1}`}
+                </ThemedText>
+                {toNumericCoordinate(address.latitude) !== null &&
+                toNumericCoordinate(address.longitude) !== null ? (
+                  <View style={[styles.addressSummaryGpsBadge, { borderColor }]}>
+                    <IconSymbol name="mappin.circle.fill" size={16} color={buttonColor} />
+                  </View>
+                ) : null}
+              </View>
               <ThemedText style={styles.addressSummaryText}>
                 {formatCompanyAddress(address) || 'Sin datos suficientes'}
               </ThemedText>
@@ -937,9 +947,14 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+  addressSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
   addressSummaryTitle: {
     fontWeight: '600',
-    marginBottom: 4,
   },
   addressSummaryText: {
     fontSize: 14,
@@ -948,6 +963,13 @@ const styles = StyleSheet.create({
   addressSummaryBadge: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  addressSummaryGpsBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   jsonInput: {
     minHeight: 120,
