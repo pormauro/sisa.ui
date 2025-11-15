@@ -9,6 +9,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { JobsContext, Job } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 // Importamos el contexto de clientes
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext, Status } from '@/contexts/StatusesContext';
@@ -53,20 +54,23 @@ export default function JobsScreen() {
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
 
+  const canListJobs = permissions.includes('listJobs');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadJobs, canListJobs);
+
   useEffect(() => {
-    if (!permissions.includes('listJobs')) {
+    if (!canListJobs) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver trabajos.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canListJobs, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listJobs')) {
+      if (!canListJobs) {
         return;
       }
       void loadJobs();
-    }, [permissions, loadJobs])
+    }, [canListJobs, loadJobs])
   );
 
   const fuse = useMemo(() => new Fuse(jobs, { keys: ['description', 'type_of_work'] }), [jobs]);
@@ -316,6 +320,8 @@ export default function JobsScreen() {
         ListEmptyComponent={
           <ThemedText style={styles.empty}>No hay trabajos cargados</ThemedText>
         }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       <TouchableOpacity
         style={[styles.addButton, { backgroundColor: addButtonColor }]}

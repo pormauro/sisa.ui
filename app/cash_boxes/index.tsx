@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type CashBoxSortOption = 'name' | 'created' | 'updated';
 
@@ -64,20 +65,23 @@ export default function CashBoxesScreen() {
   const addButtonTextColor = useThemeColor({}, 'buttonText');
   const spinnerColor = useThemeColor({}, 'tint');
 
+  const canList = permissions.includes('listCashBoxes');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadCashBoxes, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listCashBoxes')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver las cajas.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listCashBoxes')) {
+      if (!canList) {
         return;
       }
       void loadCashBoxes();
-    }, [permissions, loadCashBoxes])
+    }, [canList, loadCashBoxes])
   );
 
   const fuse = useMemo(() => new Fuse(cashBoxes, { keys: ['name'] }), [cashBoxes]);
@@ -250,6 +254,8 @@ export default function CashBoxesScreen() {
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron cajas</ThemedText>
         }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       <TouchableOpacity
         style={[styles.addButton, { backgroundColor: addButtonColor }]}

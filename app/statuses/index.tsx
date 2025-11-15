@@ -8,6 +8,7 @@ import Fuse from 'fuse.js';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 export default function StatusesScreen() {
   const { statuses, loadStatuses, deleteStatus } = useContext(StatusesContext);
@@ -24,20 +25,23 @@ export default function StatusesScreen() {
   const itemBorderColor = useThemeColor({ light: '#eee', dark: '#444' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
 
+  const canList = permissions.includes('listStatuses');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadStatuses, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listStatuses')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los estados.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listStatuses')) {
+      if (!canList) {
         return;
       }
       void loadStatuses();
-    }, [permissions, loadStatuses])
+    }, [canList, loadStatuses])
   );
 
   const fuse = useMemo(() => new Fuse(statuses, { keys: ['label'] }), [statuses]);
@@ -123,6 +127,8 @@ export default function StatusesScreen() {
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>No se encontraron estados</ThemedText>
         }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       <TouchableOpacity
         style={styles.addButton}

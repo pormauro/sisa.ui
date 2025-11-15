@@ -22,6 +22,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type PaymentSortOption = 'date' | 'amount' | 'creditor' | 'description';
 
@@ -75,20 +76,23 @@ export default function PaymentsScreen() {
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
 
+  const canList = permissions.includes('listPayments');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadPayments, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listPayments')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver pagos.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listPayments')) {
+      if (!canList) {
         return;
       }
       void loadPayments();
-    }, [permissions, loadPayments])
+    }, [canList, loadPayments])
   );
 
   const paymentsWithCreditor = useMemo<PaymentListItem[]>(() => {
@@ -309,6 +313,8 @@ export default function PaymentsScreen() {
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
         ListEmptyComponent={<ThemedText style={styles.empty}>No se encontraron pagos</ThemedText>}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       {canAdd && (
         <TouchableOpacity style={[styles.addButton, { backgroundColor: addButtonColor }]} onPress={() => router.push('/payments/create')}>

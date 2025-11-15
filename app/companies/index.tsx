@@ -16,6 +16,7 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
@@ -52,6 +53,7 @@ export default function CompaniesListPage() {
 
   const canList = permissions.includes('listCompanies');
   const canCreate = permissions.includes('addCompany');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadCompanies, canList);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -270,6 +272,8 @@ export default function CompaniesListPage() {
           }
           contentContainerStyle={styles.listContent}
           ListFooterComponent={<View style={{ height: canCreate ? 120 : 0 }} />}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       ) : (
         <View style={styles.restrictedContainer}>

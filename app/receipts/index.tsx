@@ -22,6 +22,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type ReceiptSortOption = 'date' | 'amount' | 'payer' | 'description';
 
@@ -75,20 +76,23 @@ export default function ReceiptsScreen() {
   const addButtonColor = useThemeColor({}, 'button');
   const addButtonTextColor = useThemeColor({}, 'buttonText');
 
+  const canList = permissions.includes('listReceipts');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadReceipts, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listReceipts')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver recibos.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listReceipts')) {
+      if (!canList) {
         return;
       }
       void loadReceipts();
-    }, [permissions, loadReceipts])
+    }, [canList, loadReceipts])
   );
 
   const receiptsWithPayer = useMemo<ReceiptListItem[]>(() => {
@@ -279,6 +283,8 @@ export default function ReceiptsScreen() {
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
         ListEmptyComponent={<ThemedText style={styles.empty}>No se encontraron recibos</ThemedText>}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       {canAdd && (
         <TouchableOpacity style={[styles.addButton, { backgroundColor: addButtonColor }]} onPress={() => router.push('/receipts/create')}>

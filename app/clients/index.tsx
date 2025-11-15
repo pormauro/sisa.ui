@@ -24,6 +24,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
 import { useClientInvoiceSummary } from '@/hooks/useClientInvoiceSummary';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type ClientSortOption =
   | 'name'
@@ -70,6 +71,16 @@ export default function ClientsListPage() {
   const canEditClient = permissions.includes('updateClient');
   const canViewJobs = permissions.includes('listJobs');
   const canViewInvoices = permissions.includes('listInvoices');
+
+  const refreshClients = useCallback(async () => {
+    const tasks: Array<Promise<unknown>> = [Promise.resolve(loadClients())];
+    if (canViewInvoices) {
+      tasks.push(Promise.resolve(loadInvoices()));
+    }
+    await Promise.all(tasks);
+  }, [canViewInvoices, loadClients, loadInvoices]);
+
+  const { refreshing, handleRefresh } = usePullToRefresh(refreshClients);
 
   useFocusEffect(
     useCallback(() => {
@@ -416,6 +427,8 @@ export default function ClientsListPage() {
         }
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: canAddClient ? 120 : 0 }} />}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       {canAddClient && (
         <TouchableOpacity

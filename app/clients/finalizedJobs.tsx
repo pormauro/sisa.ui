@@ -14,6 +14,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { JobsContext, Job } from '@/contexts/JobsContext';
 import { StatusesContext, Status } from '@/contexts/StatusesContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
@@ -103,6 +104,7 @@ export default function ClientFinalizedJobsScreen() {
   const metricLabelColor = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
 
   const canListJobs = permissions.includes('listJobs');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadJobs, canListJobs);
 
   useFocusEffect(
     useCallback(() => {
@@ -475,6 +477,8 @@ export default function ClientFinalizedJobsScreen() {
             </View>
           ) : null
         }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
     </ThemedView>
   );
