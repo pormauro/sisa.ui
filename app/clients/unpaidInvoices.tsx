@@ -21,6 +21,7 @@ import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { formatCurrency } from '@/utils/currency';
 import { sortByNewest } from '@/utils/sort';
+import { JobsContext, type Job } from '@/contexts/JobsContext';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador',
@@ -90,6 +91,52 @@ const sumInvoicesByStatus = (items: Invoice[], status: string): number =>
     return sum + getInvoiceAmount(invoice);
   }, 0);
 
+const getInvoiceJobIds = (invoice: Invoice): number[] => {
+  const ids = new Set<number>();
+
+  const pushJobId = (rawId: unknown) => {
+    if (typeof rawId === 'number' && Number.isFinite(rawId)) {
+      ids.add(rawId);
+      return;
+    }
+    if (typeof rawId === 'string') {
+      const parsed = Number(rawId.trim());
+      if (!Number.isNaN(parsed)) {
+        ids.add(parsed);
+      }
+    }
+  };
+
+  if (Array.isArray(invoice.job_ids)) {
+    invoice.job_ids.forEach(jobId => pushJobId(jobId));
+  }
+
+  if (Array.isArray(invoice.items)) {
+    invoice.items.forEach(item => {
+      if (item) {
+        pushJobId(item.job_id);
+      }
+    });
+  }
+
+  return Array.from(ids);
+};
+
+const formatJobDate = (job: Job): string => {
+  const candidates = [job.job_date ? `${job.job_date}T00:00:00` : null, job.created_at, job.updated_at];
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    const normalized = candidate.includes('T') ? candidate : `${candidate}T00:00:00`;
+    const date = new Date(normalized);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleDateString();
+    }
+  }
+  return 'Fecha no disponible';
+};
+
 export default function ClientUnpaidInvoicesScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const clientId = Number(id);
@@ -97,6 +144,7 @@ export default function ClientUnpaidInvoicesScreen() {
 
   const router = useRouter();
   const { invoices, loadInvoices } = useContext(InvoicesContext);
+  const { jobs, loadJobs } = useContext(JobsContext);
   const { clients } = useContext(ClientsContext);
   const { permissions } = useContext(PermissionsContext);
   const { beginSelection, completeSelection } = usePendingSelection();
@@ -128,7 +176,8 @@ export default function ClientUnpaidInvoicesScreen() {
       }
 
       void loadInvoices();
-    }, [canListInvoices, loadInvoices, router])
+      loadJobs();
+    }, [canListInvoices, loadInvoices, loadJobs, router])
   );
 
   useEffect(() => {
@@ -228,6 +277,24 @@ export default function ClientUnpaidInvoicesScreen() {
     () => unpaidInvoices.filter(invoice => selectedInvoiceIds.has(invoice.id)),
     [selectedInvoiceIds, unpaidInvoices]
   );
+  const jobsById = useMemo(() => {
+    const map = new Map<number, Job>();
+    jobs.forEach(job => {
+      if (job && typeof job.id === 'number') {
+        map.set(job.id, job);
+      }
+    });
+    return map;
+  }, [jobs]);
+  const selectedJobs = useMemo(() => {
+    const jobIds = new Set<number>();
+    selectedInvoices.forEach(invoice => {
+      getInvoiceJobIds(invoice).forEach(id => jobIds.add(id));
+    });
+    return Array.from(jobIds)
+      .map(id => jobsById.get(id))
+      .filter((job): job is Job => Boolean(job));
+  }, [jobsById, selectedInvoices]);
   const selectedInvoicesTotal = useMemo(
     () => selectedInvoices.reduce((sum, invoice) => sum + getInvoiceAmount(invoice), 0),
     [selectedInvoices]
@@ -347,11 +414,32 @@ export default function ClientUnpaidInvoicesScreen() {
       return;
     }
 
-    const descriptionLines = selectedInvoices.map(invoice => {
+    const invoiceLines = selectedInvoices.map(invoice => {
       const invoiceLabel = invoice.invoice_number?.trim() ?? `#${invoice.id}`;
       const dateLabel = formatInvoiceDate(invoice);
       return `Pago de Comprobante Nro(${invoiceLabel}) - ${dateLabel}`;
     });
+
+    const jobLines = selectedJobs.map(job => {
+      const dateLabel = formatJobDate(job);
+      const jobDescription = job.description?.trim() ?? 'Trabajo sin descripción';
+      return `• ${dateLabel} — ${jobDescription}`;
+    });
+
+    const descriptionParts: string[] = [];
+    if (invoiceLines.length > 0) {
+      descriptionParts.push('Facturas relacionadas:');
+      descriptionParts.push(...invoiceLines);
+    }
+    if (jobLines.length > 0) {
+      if (descriptionParts.length > 0) {
+        descriptionParts.push('');
+      }
+      descriptionParts.push('Trabajos realizados:');
+      descriptionParts.push(...jobLines);
+    }
+
+    const descriptionPayload = descriptionParts.join('\n');
 
     const totalAmount = Number.isFinite(selectedInvoicesTotal) ? selectedInvoicesTotal : 0;
     const pricePayload = totalAmount.toFixed(2);
@@ -360,7 +448,7 @@ export default function ClientUnpaidInvoicesScreen() {
     completeSelection(clientId.toString());
     beginSelection(SELECTION_KEYS.receipts.invoicePrefill);
     completeSelection({
-      description: descriptionLines.join('\n'),
+      description: descriptionPayload,
       price: pricePayload,
     });
     router.push('/receipts/create');
@@ -372,6 +460,7 @@ export default function ClientUnpaidInvoicesScreen() {
     isValidClientId,
     router,
     selectedInvoices,
+    selectedJobs,
     selectedInvoicesTotal,
   ]);
 
