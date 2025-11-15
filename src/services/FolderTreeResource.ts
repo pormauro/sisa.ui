@@ -2,6 +2,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config/index";
 import { isAuthErrorStatus } from "@/utils/auth/tokenGuard";
+import {
+  getCompanyDisplayName,
+  normalizeNullableStringValue,
+  parseCompanySummary,
+} from "@/utils/companySummary";
 
 interface FolderTreeNode {
   id: string;
@@ -16,8 +21,9 @@ type FolderTree = FolderTreeNode[];
 
 interface RawClient {
   id: number | string;
-  business_name: string;
-  brand_file_id?: string | null;
+  business_name?: string;
+  profile_file_id?: string | number | null;
+  company?: Record<string, unknown> | null;
 }
 
 interface RawFolder {
@@ -72,14 +78,24 @@ class FolderTreeResource {
       const clients = Array.isArray(clientsData.clients)
         ? clientsData.clients
         : [];
-      const clientNodes: FolderTreeNode[] = clients.map((client) => ({
-        id: client.id.toString(),
-        type: "client",
-        parentId: null,
-        fileId: client.brand_file_id ?? null,
-        name: client.business_name,
-        children: [],
-      }));
+      const clientNodes: FolderTreeNode[] = clients.map((client) => {
+        const company = parseCompanySummary(client.company);
+        const nameFromCompany = getCompanyDisplayName(company);
+        const fallbackName = (client.business_name ?? "").trim();
+        const normalizedName = nameFromCompany || fallbackName || `Cliente #${client.id}`;
+        const normalizedFileId = normalizeNullableStringValue(
+          company?.profile_file_id ?? client.profile_file_id ?? null,
+        );
+
+        return {
+          id: client.id.toString(),
+          type: "client",
+          parentId: null,
+          fileId: normalizedFileId,
+          name: normalizedName,
+          children: [],
+        };
+      });
 
       // Obtener carpetas
       const foldersResponse = await fetch(`${BASE_URL}/folders`, {

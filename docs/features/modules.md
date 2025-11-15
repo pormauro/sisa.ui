@@ -9,6 +9,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ## Clientes (`ClientsContext`)
 ### Modelo
 - `Client`: identifica razón social, CUIT, contacto, tarifa asociada y metadatos de versión/fechas.【F:contexts/ClientsContext.tsx†L12-L23】
+- La foto/archivo que acompaña a cada cliente ahora proviene exclusivamente de la empresa asociada (`company.profile_file_id`). La lista principal, el modal de detalle y el árbol de carpetas reutilizan ese identificador, por lo que `brand_file_id` dejó de existir en el modelo y en la tabla `clients`.【F:app/clients/index.tsx†L318-L373】【F:app/clients/viewModal.tsx†L70-L139】【F:app/folders/index.tsx†L329-L373】【F:src/services/FolderTreeResource.ts†L16-L109】【F:database/clients.sql†L1-L13】
 
 ### Métodos del contexto
 - `loadClients()`: hidrata y cachea el listado desde la API.【F:contexts/ClientsContext.tsx†L49-L58】
@@ -105,6 +106,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ## Proveedores (`ProvidersContext`)
 ### Modelo
 - `Provider`: razón social, identificadores y datos de contacto opcionales.【F:contexts/ProvidersContext.tsx†L13-L21】
+- El historial y las vistas de proveedores consumen la foto desde `provider.company.profile_file_id`, reemplazando por completo al campo `brand_file_id` también eliminado del backend. Esto garantiza que la UI y la API compartan un único origen para los adjuntos de marca.【F:contexts/ProvidersContext.tsx†L13-L38】【F:app/providers/index.tsx†L180-L236】【F:app/providers/viewModal.tsx†L1-L47】【F:database/migrations/20241002010100_drop_brand_file_id_from_clients_and_providers.sql†L1-L5】
 
 ### Métodos del contexto
 - `loadProviders()` para sincronizar la caché local.【F:contexts/ProvidersContext.tsx†L46-L58】

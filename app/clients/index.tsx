@@ -335,6 +335,8 @@ export default function ClientsListPage() {
 
     const shouldShowMetricsRow = metricCards.length > 0;
 
+    const avatarFileId = item.company?.profile_file_id ?? null;
+
     return (
       <TouchableOpacity
         style={[styles.itemContainer, { borderColor: itemBorderColor }]}
@@ -344,7 +346,7 @@ export default function ClientsListPage() {
       >
         <View style={styles.itemHeader}>
           <View style={styles.itemContent}>
-            <CircleImagePicker fileId={item.brand_file_id} size={50} />
+            <CircleImagePicker fileId={avatarFileId} size={50} />
             <View style={styles.itemInfo}>
               <ThemedText style={styles.itemTitle}>
                 {item.business_name && item.business_name.trim().length > 0

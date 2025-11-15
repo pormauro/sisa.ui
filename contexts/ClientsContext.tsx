@@ -28,7 +28,6 @@ export interface Client {
   business_name: string;
   tax_id: string;
   email: string;
-  brand_file_id: string | null;
   phone: string;
   address: string;
   tariff_id: number | null;
@@ -45,7 +44,6 @@ type ClientApiResponse = {
   id: number | string;
   user_id?: number | string;
   empresa_id?: number | string;
-  brand_file_id?: number | string | null;
   tariff_id?: number | string | null;
   phone?: string | null;
   address?: string | null;
@@ -112,16 +110,12 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           const companyId = company?.id ?? coerceToNumber(client.empresa_id);
           const normalizedPhone = normalizeOptionalStringValue(client.phone);
           const normalizedAddress = normalizeOptionalStringValue(client.address);
-          const brandFileId =
-            company?.profile_file_id ?? normalizeNullableStringValue(client.brand_file_id);
-
           return {
             id: coerceToNumber(client.id) ?? 0,
             business_name:
               getCompanyDisplayName(company) || normalizeOptionalStringValue(client.business_name),
             tax_id: normalizeTaxId(company?.tax_id ?? client.tax_id),
             email: company?.email ?? normalizeOptionalStringValue(client.email),
-            brand_file_id: brandFileId,
             phone: normalizedPhone,
             address: normalizedAddress,
             tariff_id: coerceToNumber(client.tariff_id),

@@ -173,42 +173,46 @@ export default function ProvidersListPage() {
     [handleDelete]
   );
 
-  const renderItem = ({ item }: { item: Provider }) => (
-    <TouchableOpacity
-      style={[styles.itemContainer, { borderColor: itemBorderColor }]}
-      onPress={() => router.push(`/providers/viewModal?id=${item.id}`)}
-      onLongPress={() => canEdit && router.push(`/providers/${item.id}`)}
-      activeOpacity={0.85}
-    >
-      <View style={styles.itemContent}>
-        <CircleImagePicker fileId={item.brand_file_id} size={50} />
-        <View style={styles.itemInfo}>
-          <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-          {item.address ? (
-            <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
-          ) : null}
-          {item.email ? (
-            <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
-          ) : null}
-        </View>
-      </View>
+  const renderItem = ({ item }: { item: Provider }) => {
+    const avatarFileId = item.company?.profile_file_id ?? null;
 
-      {canDelete && (
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(event) => handleDeleteProvider(event, item.id)}
-          >
-            {loadingId === item.id ? (
-              <ActivityIndicator color={spinnerColor} />
-            ) : (
-              <ThemedText style={styles.actionText}>🗑️</ThemedText>
-            )}
-          </TouchableOpacity>
+    return (
+      <TouchableOpacity
+        style={[styles.itemContainer, { borderColor: itemBorderColor }]}
+        onPress={() => router.push(`/providers/viewModal?id=${item.id}`)}
+        onLongPress={() => canEdit && router.push(`/providers/${item.id}`)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.itemContent}>
+          <CircleImagePicker fileId={avatarFileId} size={50} />
+          <View style={styles.itemInfo}>
+            <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
+            {item.address ? (
+              <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
+            ) : null}
+            {item.email ? (
+              <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
+            ) : null}
+          </View>
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        {canDelete && (
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={(event) => handleDeleteProvider(event, item.id)}
+            >
+              {loadingId === item.id ? (
+                <ActivityIndicator color={spinnerColor} />
+              ) : (
+                <ThemedText style={styles.actionText}>🗑️</ThemedText>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>

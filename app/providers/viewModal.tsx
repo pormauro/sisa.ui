@@ -24,9 +24,10 @@ export default function ViewProviderModal() {
     );
   }
 
+  const avatarFileId = provider.company?.profile_file_id ?? null;
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
-      <CircleImagePicker fileId={provider.brand_file_id} size={200} editable={false} />
+      <CircleImagePicker fileId={avatarFileId} size={200} editable={false} />
 
       <ThemedText style={styles.label}>Nombre</ThemedText>
       <ThemedText style={styles.value}>{provider.business_name}</ThemedText>

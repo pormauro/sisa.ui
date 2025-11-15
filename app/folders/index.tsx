@@ -347,7 +347,7 @@ export default function FoldersPage() {
             <TouchableOpacity
               style={[styles.item, { borderColor: itemBorderColor }]}
               onPress={() => router.push({ pathname: '/folders', params: { client_id: String(item.id) } })}>
-              <CircleImagePicker fileId={item.brand_file_id} size={50} />
+              <CircleImagePicker fileId={item.company?.profile_file_id ?? null} size={50} />
               <ThemedText style={[styles.text, { color: textColor }]}>{item.business_name}</ThemedText>
             </TouchableOpacity>
           )}

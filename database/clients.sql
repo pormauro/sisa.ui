@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS clients (
     business_name VARCHAR(255) NOT NULL,
     tax_id VARCHAR(50),
     email VARCHAR(255),
-    brand_file_id BIGINT UNSIGNED,
     phone VARCHAR(50),
     address TEXT,
     tariff_id BIGINT UNSIGNED,

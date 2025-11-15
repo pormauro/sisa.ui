@@ -26,7 +26,6 @@ export interface Provider {
   business_name: string;
   tax_id: string;
   email: string;
-  brand_file_id: string | null;
   phone: string;
   address: string;
   created_at?: string | null;
@@ -38,7 +37,6 @@ export interface Provider {
 type ProviderApiResponse = {
   id: number | string;
   empresa_id?: number | string;
-  brand_file_id?: number | string | null;
   phone?: string | null;
   address?: string | null;
   created_at?: string;
@@ -105,16 +103,12 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       if (data.providers) {
         const fetchedProviders = (data.providers as ProviderApiResponse[]).map(provider => {
           const company = parseCompanySummary(provider.company);
-          const brandFileId =
-            company?.profile_file_id ?? normalizeNullableStringValue(provider.brand_file_id);
-
           return {
             id: coerceToNumber(provider.id) ?? 0,
             business_name:
               getCompanyDisplayName(company) || normalizeOptionalStringValue(provider.business_name),
             tax_id: normalizeTaxId(company?.tax_id ?? provider.tax_id),
             email: company?.email ?? normalizeOptionalStringValue(provider.email),
-            brand_file_id: brandFileId,
             phone: normalizeOptionalStringValue(provider.phone),
             address: normalizeOptionalStringValue(provider.address),
             created_at: provider.created_at ?? null,
