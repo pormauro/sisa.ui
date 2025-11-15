@@ -4,10 +4,7 @@ CREATE TABLE IF NOT EXISTS clients (
     tax_id VARCHAR(50),
     email VARCHAR(255),
     brand_file_id BIGINT UNSIGNED,
-    phone VARCHAR(50),
-    address TEXT,
     tariff_id BIGINT UNSIGNED,
-    version INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL
 );

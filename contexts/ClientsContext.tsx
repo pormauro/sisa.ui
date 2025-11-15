@@ -29,10 +29,7 @@ export interface Client {
   tax_id: string;
   email: string;
   brand_file_id: string | null;
-  phone: string;
-  address: string;
   tariff_id: number | null;
-  version: number;
   company_id: number | null;
   company: ClientCompanySummary | null;
   unbilled_total?: number;
@@ -47,9 +44,6 @@ type ClientApiResponse = {
   empresa_id?: number | string;
   brand_file_id?: number | string | null;
   tariff_id?: number | string | null;
-  phone?: string | null;
-  address?: string | null;
-  version?: number | string;
   created_at?: string;
   updated_at?: string;
   company?: Record<string, any> | null;
@@ -64,8 +58,6 @@ type ClientApiResponse = {
 export interface ClientPayload {
   company_id: number;
   tariff_id?: number | null;
-  phone?: string;
-  address?: string;
 }
 
 export type ClientUpdatePayload = Partial<ClientPayload>;
@@ -110,8 +102,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         const fetchedClients = (data.clients as ClientApiResponse[]).map(client => {
           const company = parseCompanySummary(client.company);
           const companyId = company?.id ?? coerceToNumber(client.empresa_id);
-          const normalizedPhone = normalizeOptionalStringValue(client.phone);
-          const normalizedAddress = normalizeOptionalStringValue(client.address);
           const brandFileId =
             company?.profile_file_id ?? normalizeNullableStringValue(client.brand_file_id);
 
@@ -122,10 +112,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             tax_id: normalizeTaxId(company?.tax_id ?? client.tax_id),
             email: company?.email ?? normalizeOptionalStringValue(client.email),
             brand_file_id: brandFileId,
-            phone: normalizedPhone,
-            address: normalizedAddress,
             tariff_id: coerceToNumber(client.tariff_id),
-            version: coerceToNumber(client.version) ?? 1,
             company_id: companyId,
             company: company,
             unbilled_total: toNumericValue(client.finalized_jobs_total ?? client.unbilled_total),
@@ -153,8 +140,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           typeof clientData.tariff_id === 'number' && Number.isFinite(clientData.tariff_id)
             ? clientData.tariff_id
             : null,
-        phone: normalizeOptionalStringValue(clientData.phone),
-        address: normalizeOptionalStringValue(clientData.address),
       };
       try {
         const res = await fetch(`${BASE_URL}/clients`, {
@@ -195,12 +180,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             ? clientData.tariff_id
             : null;
         body.tariff_id = tariffId;
-      }
-      if ('phone' in clientData) {
-        body.phone = normalizeOptionalStringValue(clientData.phone);
-      }
-      if ('address' in clientData) {
-        body.address = normalizeOptionalStringValue(clientData.address);
       }
       try {
         const res = await fetch(`${BASE_URL}/clients/${id}`, {

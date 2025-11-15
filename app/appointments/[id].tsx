@@ -59,14 +59,11 @@ export default function EditAppointmentScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [location, setLocation] = useState('');
-  const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const skipInitialAutoFillRef = useRef(false);
-  const originalLocationRef = useRef('');
-  const lastSelectedClientRef = useRef<string | null>(null);
+  const lastSyncedClientRef = useRef<string | null>(null);
   const pendingJobSelectionRef = useRef<string | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
@@ -92,10 +89,7 @@ export default function EditAppointmentScreen() {
     setDateTime(parseDateTime(appointment.appointment_date, appointment.appointment_time));
     const existingLocation = appointment.location || '';
     setLocation(existingLocation);
-    setLocationManuallyEdited(existingLocation.trim().length > 0);
-    originalLocationRef.current = existingLocation;
-    skipInitialAutoFillRef.current = existingLocation.trim().length > 0;
-    lastSelectedClientRef.current = null;
+    lastSyncedClientRef.current = appointment.client_id.toString();
     setAttachedFiles(appointment.attached_files || '');
   }, [appointment, loadAppointments]);
 
@@ -210,40 +204,18 @@ export default function EditAppointmentScreen() {
   };
 
   useEffect(() => {
-    if (!selectedClient) {
-      if (skipInitialAutoFillRef.current) {
-        return;
-      }
+    if (lastSyncedClientRef.current === null) {
+      lastSyncedClientRef.current = selectedClient || null;
+      return;
+    }
+    if (lastSyncedClientRef.current !== selectedClient) {
+      lastSyncedClientRef.current = selectedClient || null;
       setLocation('');
-      setLocationManuallyEdited(false);
-      lastSelectedClientRef.current = null;
-      skipInitialAutoFillRef.current = false;
-      return;
     }
-
-    const client = clients.find(item => item.id.toString() === selectedClient);
-    if (!client) return;
-
-    const previousClient = lastSelectedClientRef.current;
-    const originalLocationEmpty = originalLocationRef.current.trim().length === 0;
-    const clientChanged = previousClient !== null && previousClient !== selectedClient;
-    const shouldAutoFill = clientChanged || originalLocationEmpty;
-
-    if (!shouldAutoFill || (!clientChanged && locationManuallyEdited)) {
-      lastSelectedClientRef.current = selectedClient;
-      skipInitialAutoFillRef.current = false;
-      return;
-    }
-
-    setLocation(client.address || '');
-    setLocationManuallyEdited(false);
-    lastSelectedClientRef.current = selectedClient;
-    skipInitialAutoFillRef.current = false;
-  }, [selectedClient, clients, locationManuallyEdited]);
+  }, [selectedClient]);
 
   const handleLocationChange = (value: string) => {
     setLocation(value);
-    setLocationManuallyEdited(true);
   };
 
   const handleSave = async () => {

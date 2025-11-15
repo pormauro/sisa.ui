@@ -133,20 +133,6 @@ export default function ViewClientModal() {
         </>
       ) : null}
 
-      {client.phone ? (
-        <>
-          <ThemedText style={styles.label}>Teléfono</ThemedText>
-          <ThemedText style={styles.value}>{client.phone}</ThemedText>
-        </>
-      ) : null}
-
-      {client.address ? (
-        <>
-          <ThemedText style={styles.label}>Dirección</ThemedText>
-          <ThemedText style={styles.value}>{client.address}</ThemedText>
-        </>
-      ) : null}
-
       <View style={styles.section}>
         <ThemedText style={styles.sectionTitle}>Montos pendientes</ThemedText>
         <TouchableOpacity

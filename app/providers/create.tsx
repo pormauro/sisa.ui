@@ -1,6 +1,6 @@
 // app/providers/create.tsx
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -20,14 +20,11 @@ export default function CreateProvider() {
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
-  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const [companyId, setCompanyId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -76,8 +73,6 @@ export default function CreateProvider() {
     setLoading(true);
     const newProviderId = await addProvider({
       company_id: parseInt(companyId, 10),
-      phone,
-      address,
     });
     setLoading(false);
     if (newProviderId) {
@@ -143,24 +138,6 @@ export default function CreateProvider() {
         </View>
       ) : null}
 
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="Teléfono"
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Dirección</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={address}
-        onChangeText={setAddress}
-        placeholder="Dirección"
-        placeholderTextColor={placeholderColor}
-      />
-
       <TouchableOpacity
         style={[styles.submitButton, { backgroundColor: buttonColor }]}
         onPress={handleSubmit}
@@ -179,7 +156,6 @@ export default function CreateProvider() {
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   select: { marginBottom: 8 },
   companySummary: {
     borderWidth: 1,

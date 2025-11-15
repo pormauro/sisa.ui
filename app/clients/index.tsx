@@ -122,7 +122,7 @@ export default function ClientsListPage() {
   const fuse = useMemo(
     () =>
       new Fuse(clientsWithComputedTotals, {
-        keys: ['business_name', 'tax_id', 'email', 'address'],
+        keys: ['business_name', 'tax_id', 'email'],
         threshold: 0.3,
         ignoreLocation: true,
       }),
@@ -353,9 +353,6 @@ export default function ClientsListPage() {
               </ThemedText>
               {item.tax_id ? (
                 <ThemedText style={styles.itemSubtitle}>CUIT: {item.tax_id}</ThemedText>
-              ) : null}
-              {item.address ? (
-                <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
               ) : null}
               {item.email ? (
                 <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>

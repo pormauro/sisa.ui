@@ -1,7 +1,7 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -41,7 +41,6 @@ export default function ClientDetailPage() {
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
-  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
@@ -49,8 +48,6 @@ export default function ClientDetailPage() {
   const deleteButtonTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
 
   const [companyId, setCompanyId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
@@ -132,8 +129,6 @@ export default function ClientDetailPage() {
         setIsFetchingItem(false);
       }
       setCompanyId(client.company_id ? client.company_id.toString() : '');
-      setPhone(client.phone ?? '');
-      setAddress(client.address ?? '');
       setTariffId(client.tariff_id ? client.tariff_id.toString() : '');
       return;
     }
@@ -178,8 +173,6 @@ export default function ClientDetailPage() {
             setLoading(true);
             const success = await updateClient(clientId, {
               company_id: companyId ? parseInt(companyId, 10) : undefined,
-              phone,
-              address,
               tariff_id: tariffId ? parseInt(tariffId, 10) : null,
             });
             setLoading(false);
@@ -281,24 +274,6 @@ export default function ClientDetailPage() {
         </View>
       ) : null}
 
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Teléfono"
-        value={phone}
-        onChangeText={setPhone}
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Dirección</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Dirección"
-        value={address}
-        onChangeText={setAddress}
-        placeholderTextColor={placeholderColor}
-      />
-
       <ThemedText style={styles.label}>Tarifa</ThemedText>
       <SearchableSelect
         style={styles.select}
@@ -363,12 +338,6 @@ export default function ClientDetailPage() {
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
   select: {
     marginBottom: 8,
   },
