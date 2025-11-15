@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { MenuButton } from '@/components/MenuButton';
 import { useCachedState } from '@/hooks/useCachedState';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { toMySQLDateTime } from '@/utils/date';
 import { resolvePaymentTemplateIcon } from '@/utils/paymentTemplateIcons';
 
@@ -104,20 +105,23 @@ export default function PaymentTemplatesScreen() {
   const addButtonTextColor = useThemeColor({}, 'buttonText');
   const tintColor = useThemeColor({}, 'tint');
 
+  const canList = permissions.includes('listPaymentTemplates');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadPaymentTemplates, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listPaymentTemplates')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver las plantillas de pago.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listPaymentTemplates')) {
+      if (!canList) {
         return;
       }
       void loadPaymentTemplates();
-    }, [permissions, loadPaymentTemplates])
+    }, [canList, loadPaymentTemplates])
   );
 
   const filteredTemplates = useMemo(() => {
@@ -249,6 +253,8 @@ export default function PaymentTemplatesScreen() {
           <ThemedText style={styles.emptyText}>No se encontraron plantillas.</ThemedText>
         }
         contentContainerStyle={styles.listContent}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       {canCreate ? (
         <TouchableOpacity

@@ -21,6 +21,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { Ionicons } from '@expo/vector-icons';
 import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
 
@@ -78,6 +79,12 @@ export default function FoldersPage() {
     }
     router.push('/folders/create');
   };
+
+  const refreshLists = useCallback(async () => {
+    await Promise.all([Promise.resolve(loadFolders()), Promise.resolve(loadClients())]);
+  }, [loadFolders, loadClients]);
+
+  const { refreshing, handleRefresh } = usePullToRefresh(refreshLists);
 
   useFocusEffect(
     useCallback(() => {
@@ -329,6 +336,8 @@ export default function FoldersPage() {
           )}
           contentContainerStyle={styles.listContent}
           ListFooterComponent={<View style={{ height: canAddFolder ? 120 : 0 }} />}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       ) : (
         <FlatList
@@ -344,6 +353,8 @@ export default function FoldersPage() {
           )}
           contentContainerStyle={styles.listContent}
           ListFooterComponent={<View style={{ height: canAddFolder ? 120 : 0 }} />}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
 

@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type ProductServiceSortOption = 'description' | 'category' | 'price' | 'cost';
 
@@ -59,20 +60,23 @@ export default function ProductsServicesScreen() {
   const addButtonTextColor = useThemeColor({}, 'buttonText');
   const spinnerColor = useThemeColor({}, 'tint');
 
+  const canList = permissions.includes('listProductsServices');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadProductsServices, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listProductsServices')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver productos y servicios.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listProductsServices')) {
+      if (!canList) {
         return;
       }
       void loadProductsServices();
-    }, [permissions, loadProductsServices])
+    }, [canList, loadProductsServices])
   );
 
   const fuse = useMemo(
@@ -237,6 +241,8 @@ export default function ProductsServicesScreen() {
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: 120 }} />}
         ListEmptyComponent={<ThemedText style={styles.emptyText}>No se encontraron registros</ThemedText>}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       <TouchableOpacity
         style={[styles.addButton, { backgroundColor: addButtonColor }]}

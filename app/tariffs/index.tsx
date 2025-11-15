@@ -20,6 +20,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type TariffSortOption = 'name' | 'amount' | 'last_update';
 
@@ -54,20 +55,23 @@ export default function TariffsScreen() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [loadingId, setLoadingId] = useState<number | null>(null);
 
+  const canList = permissions.includes('listTariffs');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadTariffs, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listTariffs')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver tarifas.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listTariffs')) {
+      if (!canList) {
         return;
       }
       void loadTariffs();
-    }, [permissions, loadTariffs])
+    }, [canList, loadTariffs])
   );
 
   const fuse = useMemo(
@@ -239,6 +243,8 @@ export default function TariffsScreen() {
         ListEmptyComponent={
           <ThemedText style={styles.empty}>No se encontraron tarifas</ThemedText>
         }
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       {canAdd && (
         <ThemedButton

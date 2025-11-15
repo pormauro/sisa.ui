@@ -14,6 +14,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { CompanyMembershipsContext, CompanyMembership } from '@/contexts/CompanyMembershipsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
@@ -62,6 +63,7 @@ export default function CompanyMembershipsListPage() {
   const canCreate = permissions.includes('addCompanyMembership');
   const canEdit = permissions.includes('updateCompanyMembership');
   const canDelete = permissions.includes('deleteCompanyMembership');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadCompanyMemberships, canList);
 
   useEffect(() => {
     if (!canList) {
@@ -266,6 +268,8 @@ export default function CompanyMembershipsListPage() {
               No se encontraron membresías para los filtros aplicados.
             </ThemedText>
           }
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
 

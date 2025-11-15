@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { MenuButton } from '@/components/MenuButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { resolvePaymentTemplateIcon } from '@/utils/paymentTemplateIcons';
 
 const formatAmount = (amount?: number | null): string => {
@@ -39,6 +40,10 @@ const ShortcutPaymentTemplatesScreen = () => {
 
   const canListTemplates = permissions.includes('listPaymentTemplates');
   const canUseShortcut = permissions.includes('usePaymentTemplateShortcuts');
+  const { refreshing, handleRefresh } = usePullToRefresh(
+    loadPaymentTemplates,
+    canListTemplates && canUseShortcut,
+  );
 
   useEffect(() => {
     if (canListTemplates && canUseShortcut) {
@@ -166,6 +171,8 @@ const ShortcutPaymentTemplatesScreen = () => {
         renderItem={renderItem}
         contentContainerStyle={hasItems ? styles.listContent : styles.emptyListContent}
         ListEmptyComponent={listEmptyComponent}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
     </ThemedView>
   );

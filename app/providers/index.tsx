@@ -21,6 +21,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 
 type ProviderSortOption = 'name' | 'created' | 'updated';
 
@@ -54,20 +55,23 @@ export default function ProvidersListPage() {
   const canDelete = permissions.includes('deleteProvider');
   const canEdit = permissions.includes('updateProvider');
 
+  const canList = permissions.includes('listProviders');
+  const { refreshing, handleRefresh } = usePullToRefresh(loadProviders, canList);
+
   useEffect(() => {
-    if (!permissions.includes('listProviders')) {
+    if (!canList) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver proveedores.');
       router.back();
     }
-  }, [permissions, router]);
+  }, [canList, router]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!permissions.includes('listProviders')) {
+      if (!canList) {
         return;
       }
       void loadProviders();
-    }, [permissions, loadProviders])
+    }, [canList, loadProviders])
   );
 
   const fuse = useMemo(
@@ -254,6 +258,8 @@ export default function ProvidersListPage() {
         }
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
       />
       {canAdd && (
         <TouchableOpacity
