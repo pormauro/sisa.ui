@@ -64,8 +64,8 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Pantallas relacionadas
 - `app/companies/index.tsx` — listado con búsqueda difusa y accesos a modal/detalle.【F:app/companies/index.tsx†L1-L200】
-- `app/companies/create.tsx` — formulario de alta con constructores de identidades, direcciones y contactos.【F:app/companies/create.tsx†L1-L200】
-- `app/companies/[id].tsx` — edición avanzada que reutiliza los bloques anidados y permite bajas condicionadas por permisos.【F:app/companies/[id].tsx†L1-L157】
+- `app/companies/create.tsx` — formulario de alta con constructores de identidades, direcciones y contactos; el bloque de domicilios ya permite etiquetar cada dirección, definir la principal antes de guardar y mantiene la vista previa de coordenadas, mientras que la razón social se captura junto a los datos fiscales para alinear el flujo con la edición.【F:app/companies/create.tsx†L360-L780】
+- `app/companies/[id].tsx` — edición avanzada que reutiliza los bloques anidados, permite bajas condicionadas por permisos y agrupa la razón social con CUIT/IVA dentro del bloque fiscal para conservar la paridad con el alta.【F:app/companies/[id].tsx†L420-L720】
 - `app/companies/viewModal.tsx` — modal de lectura que expone identidades fiscales, direcciones y contactos cargados por la API.【F:app/companies/viewModal.tsx†L1-L160】
 
 ### Consumo de identidad fiscal, direcciones y contactos

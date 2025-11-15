@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   View,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -25,8 +26,12 @@ import {
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
-import { toNumericCoordinate } from '@/utils/coordinates';
 import { formatCompanyAddress } from '@/utils/address';
+import {
+  coordinateInputValue,
+  createEmptyCompanyAddress,
+  sanitizeCompanyAddressDrafts,
+} from '@/utils/companyAddressForm';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -35,20 +40,6 @@ const IVA_OPTIONS = [
   { label: 'Consumidor Final', value: 'Consumidor Final' },
   { label: 'No Responsable', value: 'No Responsable' },
 ];
-
-const createEmptyAddress = (): CompanyAddress => ({
-  street: '',
-  number: '',
-  floor: '',
-  apartment: '',
-  city: '',
-  state: '',
-  country: '',
-  postal_code: '',
-  notes: '',
-  latitude: null,
-  longitude: null,
-});
 
 const createEmptyContact = (): CompanyContact => ({
   name: '',
@@ -80,6 +71,7 @@ export default function CreateCompanyPage() {
   const sectionBackground = useThemeColor({ light: '#f8f8f8', dark: '#1a1a1a' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
+  const switchThumbColor = useThemeColor({ light: '#fff', dark: '#f4f3f4' }, 'background');
 
   const [name, setName] = useState('');
   const [legalName, setLegalName] = useState('');
@@ -97,7 +89,7 @@ export default function CreateCompanyPage() {
   const [fiscalNotes, setFiscalNotes] = useState('');
   const [additionalIdentities, setAdditionalIdentities] = useState<TaxIdentity[]>([]);
 
-  const [addresses, setAddresses] = useState<CompanyAddress[]>([createEmptyAddress()]);
+  const [addresses, setAddresses] = useState<CompanyAddress[]>([createEmptyCompanyAddress()]);
   const [contacts, setContacts] = useState<CompanyContact[]>([createEmptyContact()]);
   const [administratorIdsJson, setAdministratorIdsJson] = useState(() =>
     normalizedUserId ? JSON.stringify([normalizedUserId]) : '[]'
@@ -135,16 +127,6 @@ export default function CreateCompanyPage() {
     []
   );
 
-  const coordinateInputValue = (value: string | number | null | undefined) => {
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'number') {
-      return String(value);
-    }
-    return '';
-  };
-
   const updateAddressField = (index: number, field: keyof CompanyAddress, value: string) => {
     setAddresses(prev => {
       const updated = [...prev];
@@ -169,11 +151,25 @@ export default function CreateCompanyPage() {
   };
 
   const addAddress = () => {
-    setAddresses(prev => [...prev, createEmptyAddress()]);
+    setAddresses(prev => [...prev, createEmptyCompanyAddress()]);
   };
 
   const removeAddress = (index: number) => {
     setAddresses(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleToggleAddressPrimary = (index: number, value: boolean) => {
+    setAddresses(prev =>
+      prev.map((address, idx) => {
+        if (idx === index) {
+          return { ...address, is_primary: value };
+        }
+        if (value) {
+          return { ...address, is_primary: false };
+        }
+        return address;
+      })
+    );
   };
 
   const updateContactField = (index: number, field: keyof CompanyContact, value: string) => {
@@ -220,32 +216,6 @@ export default function CreateCompanyPage() {
       return JSON.stringify(Array.from(next));
     });
   };
-
-  const sanitizeAddresses = (items: CompanyAddress[]) =>
-    items
-      .map(address => {
-        const latitude = toNumericCoordinate(address.latitude);
-        const longitude = toNumericCoordinate(address.longitude);
-
-        return {
-          street: address.street.trim(),
-          number: address.number?.toString().trim() || null,
-          floor: address.floor?.toString().trim() || null,
-          apartment: address.apartment?.toString().trim() || null,
-          city: address.city?.toString().trim() || null,
-          state: address.state?.toString().trim() || null,
-          country: address.country?.toString().trim() || null,
-          postal_code: address.postal_code?.toString().trim() || null,
-          notes: address.notes?.toString().trim() || null,
-          latitude,
-          longitude,
-        };
-      })
-      .filter(address => {
-        const hasText = address.street || address.city || address.country;
-        const hasCoordinates = typeof address.latitude === 'number' && typeof address.longitude === 'number';
-        return hasText || hasCoordinates;
-      });
 
   const sanitizeContacts = (items: CompanyContact[]) =>
     items
@@ -310,7 +280,7 @@ export default function CreateCompanyPage() {
     setLoading(true);
     try {
       const sanitizedIdentities = sanitizeIdentities();
-      const sanitizedAddresses = sanitizeAddresses(addresses);
+      const sanitizedAddresses = sanitizeCompanyAddressDrafts(addresses);
       const sanitizedContacts = sanitizeContacts(contacts);
 
       const payload: CompanyPayload = {
@@ -412,19 +382,10 @@ export default function CreateCompanyPage() {
 
       <CollapsibleSection
         title="Información comercial adicional"
-        description="Razón social y datos de contacto"
+        description="Datos comerciales y de contacto"
         borderColor={borderColor}
         backgroundColor={sectionBackground}
       >
-        <ThemedText style={styles.label}>Razón Social</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-          value={legalName}
-          onChangeText={setLegalName}
-          placeholder="Razón social"
-          placeholderTextColor={placeholderColor}
-        />
-
         <ThemedText style={styles.label}>Sitio Web</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
@@ -483,10 +444,19 @@ export default function CreateCompanyPage() {
 
       <CollapsibleSection
         title="Datos fiscales"
-        description="CUIT, condición IVA e identificaciones extra"
+        description="Razón social, CUIT, condición IVA e identificaciones extra"
         borderColor={borderColor}
         backgroundColor={sectionBackground}
       >
+        <ThemedText style={styles.label}>Razón Social</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={legalName}
+          onChangeText={setLegalName}
+          placeholder="Razón social"
+          placeholderTextColor={placeholderColor}
+        />
+
         <ThemedText style={styles.label}>CUIT</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
@@ -653,6 +623,15 @@ export default function CreateCompanyPage() {
         {addresses.map((address, index) => (
           <View key={`address-${index}`} style={[styles.card, { borderColor }]}
           >
+            <ThemedText style={styles.label}>Etiqueta</ThemedText>
+            <TextInput
+              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+              value={address.label ?? ''}
+              onChangeText={(text) => updateAddressField(index, 'label', text)}
+              placeholder="Casa central, Sucursal, etc."
+              placeholderTextColor={placeholderColor}
+            />
+
             <ThemedText style={styles.label}>Calle</ThemedText>
             <TextInput
               style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
@@ -740,6 +719,16 @@ export default function CreateCompanyPage() {
               placeholderTextColor={placeholderColor}
               multiline
             />
+
+            <View style={styles.primaryRow}>
+              <ThemedText style={styles.primaryLabel}>¿Es la dirección principal?</ThemedText>
+              <Switch
+                value={!!address.is_primary}
+                onValueChange={(value) => handleToggleAddressPrimary(index, value)}
+                trackColor={{ false: '#767577', true: buttonColor }}
+                thumbColor={switchThumbColor}
+              />
+            </View>
 
             <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
             <ThemedText style={styles.helperText}>
@@ -913,6 +902,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.75,
     marginBottom: 16,
+  },
+  primaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  primaryLabel: {
+    flex: 1,
+    marginRight: 12,
+    fontSize: 13,
+    fontWeight: '600',
   },
   subSectionTitle: {
     fontSize: 18,
