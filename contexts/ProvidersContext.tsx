@@ -26,7 +26,7 @@ export interface Provider {
   business_name: string;
   tax_id: string;
   email: string;
-  brand_file_id: string | null;
+  profile_file_id: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   company_id: number | null;
@@ -36,7 +36,7 @@ export interface Provider {
 type ProviderApiResponse = {
   id: number | string;
   empresa_id?: number | string;
-  brand_file_id?: number | string | null;
+  profile_file_id?: number | string | null;
   created_at?: string;
   updated_at?: string;
   company?: Record<string, any> | null;
@@ -77,10 +77,25 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setProviders(prev =>
       ensureSortedByNewest(
-        prev.map(provider => ({
-          ...provider,
-          tax_id: normalizeTaxId(provider.tax_id),
-        })),
+        prev.map(provider => {
+          const legacy = provider as Provider & { brand_file_id?: string | null };
+          const normalizedProfileId = (() => {
+            if (legacy.profile_file_id) {
+              return legacy.profile_file_id;
+            }
+            if (typeof legacy.brand_file_id === 'string') {
+              const trimmed = legacy.brand_file_id.trim();
+              return trimmed.length ? trimmed : null;
+            }
+            return null;
+          })();
+
+          return {
+            ...provider,
+            profile_file_id: normalizedProfileId,
+            tax_id: normalizeTaxId(provider.tax_id),
+          };
+        }),
         getDefaultSortValue
       )
     );
@@ -99,8 +114,8 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       if (data.providers) {
         const fetchedProviders = (data.providers as ProviderApiResponse[]).map(provider => {
           const company = parseCompanySummary(provider.company);
-          const brandFileId =
-            company?.profile_file_id ?? normalizeNullableStringValue(provider.brand_file_id);
+          const profileFileId =
+            company?.profile_file_id ?? normalizeNullableStringValue(provider.profile_file_id);
 
           return {
             id: coerceToNumber(provider.id) ?? 0,
@@ -108,7 +123,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
               getCompanyDisplayName(company) || normalizeOptionalStringValue(provider.business_name),
             tax_id: normalizeTaxId(company?.tax_id ?? provider.tax_id),
             email: company?.email ?? normalizeOptionalStringValue(provider.email),
-            brand_file_id: brandFileId,
+            profile_file_id: profileFileId,
             created_at: provider.created_at ?? null,
             updated_at: provider.updated_at ?? null,
             company_id: company?.id ?? coerceToNumber(provider.empresa_id),

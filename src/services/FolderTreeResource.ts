@@ -17,7 +17,8 @@ type FolderTree = FolderTreeNode[];
 interface RawClient {
   id: number | string;
   business_name: string;
-  brand_file_id?: string | null;
+  profile_file_id?: string | null;
+  company?: { profile_file_id?: string | null } | null;
 }
 
 interface RawFolder {
@@ -76,7 +77,7 @@ class FolderTreeResource {
         id: client.id.toString(),
         type: "client",
         parentId: null,
-        fileId: client.brand_file_id ?? null,
+        fileId: client.company?.profile_file_id ?? client.profile_file_id ?? null,
         name: client.business_name,
         children: [],
       }));

@@ -9,6 +9,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ## Clientes (`ClientsContext`)
 ### Modelo
 - `Client`: identifica razón social, CUIT, contacto, tarifa asociada y metadatos de versión/fechas.【F:contexts/ClientsContext.tsx†L12-L23】
+- Los avatares de cliente ahora provienen del `profile_file_id` heredado de `CompanySummary`; se eliminó la columna `brand_file_id` y el contexto depura las cachés/historiales locales al hidratarse para evitar residuos legacy.【F:contexts/ClientsContext.tsx†L12-L142】【F:app/clients/index.tsx†L300-L380】
 
 ### Métodos del contexto
 - `loadClients()`: hidrata y cachea el listado desde la API.【F:contexts/ClientsContext.tsx†L49-L58】
@@ -105,6 +106,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ## Proveedores (`ProvidersContext`)
 ### Modelo
 - `Provider`: razón social, identificadores y datos de contacto opcionales.【F:contexts/ProvidersContext.tsx†L13-L21】
+- Los proveedores también heredan el `profile_file_id` de la empresa asociada y el contexto purga cualquier `brand_file_id` almacenado en historiales locales para mantener el esquema sin columnas obsoletas.【F:contexts/ProvidersContext.tsx†L13-L120】【F:app/providers/index.tsx†L140-L220】
 
 ### Métodos del contexto
 - `loadProviders()` para sincronizar la caché local.【F:contexts/ProvidersContext.tsx†L46-L58】

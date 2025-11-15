@@ -470,7 +470,7 @@ const parseCompany = (raw: any): Company => {
   const notes = pickString(raw?.notes, raw?.notas, raw?.observaciones);
 
   const profileFileSource =
-    raw?.profile_file_id ?? raw?.file_profile_id ?? raw?.brand_file_id ?? raw?.brandFileId ?? raw?.logo_id;
+    raw?.profile_file_id ?? raw?.file_profile_id ?? raw?.brandFileId ?? raw?.logo_id;
   const attachedFilesSource = raw?.attached_files ?? raw?.archivos_adjuntos ?? raw?.adjuntos;
 
   const parsedTaxIdentities = coalesceNestedArray(
@@ -830,7 +830,6 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
     if (normalizedProfileFileId !== undefined) {
       base.profile_file_id = normalizedProfileFileId;
       base.file_profile_id = normalizedProfileFileId;
-      base.brand_file_id = normalizedProfileFileId;
     }
   }
 
@@ -921,19 +920,15 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setCompanies(prev => {
       const normalized = prev.map(company => {
-        const withLegacy = company as Company & { brand_file_id?: unknown; file_profile_id?: unknown };
-        const {
-          brand_file_id: legacyBrandFileId,
-          file_profile_id: legacyFileProfileId,
-          ...rest
-        } = withLegacy;
+        const withLegacy = company as Company & { file_profile_id?: unknown };
+        const { file_profile_id: legacyFileProfileId, ...rest } = withLegacy;
 
         if (rest.profile_file_id !== undefined) {
           return ensureCompanyCollections(ensureProfileType(rest as Company));
         }
 
         const normalizedProfileId = (() => {
-          const fallbackSource = legacyFileProfileId ?? legacyBrandFileId;
+          const fallbackSource = legacyFileProfileId;
           if (fallbackSource === null || fallbackSource === undefined) {
             return null;
           }

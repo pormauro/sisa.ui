@@ -26,7 +26,7 @@ export default function ViewProviderModal() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
-      <CircleImagePicker fileId={provider.brand_file_id} size={200} editable={false} />
+      <CircleImagePicker fileId={provider.profile_file_id} size={200} editable={false} />
 
       <ThemedText style={styles.label}>Nombre</ThemedText>
       <ThemedText style={styles.value}>{provider.business_name}</ThemedText>
