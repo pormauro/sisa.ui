@@ -137,6 +137,54 @@ const formatJobDate = (job: Job): string => {
   return 'Fecha no disponible';
 };
 
+const parseJobIdentifier = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const findInvoiceItemDescription = (invoice: Invoice, jobId: number): string | null => {
+  if (!Array.isArray(invoice.items)) {
+    return null;
+  }
+  for (const item of invoice.items) {
+    if (!item) {
+      continue;
+    }
+    const parsedJobId = parseJobIdentifier(item.job_id);
+    if (parsedJobId !== jobId) {
+      continue;
+    }
+    const description = item.description?.trim();
+    if (description) {
+      return description;
+    }
+  }
+  return null;
+};
+
+const getInvoiceFallbackLines = (invoice: Invoice): string[] => {
+  if (!Array.isArray(invoice.items)) {
+    return [];
+  }
+  const dateLabel = formatInvoiceDate(invoice);
+  const lines: string[] = [];
+  invoice.items.forEach(item => {
+    const description = item?.description?.trim();
+    if (description) {
+      lines.push(`• ${dateLabel} — ${description}`);
+    }
+  });
+  return lines;
+};
+
 export default function ClientUnpaidInvoicesScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const clientId = Number(id);
@@ -286,15 +334,6 @@ export default function ClientUnpaidInvoicesScreen() {
     });
     return map;
   }, [jobs]);
-  const selectedJobs = useMemo(() => {
-    const jobIds = new Set<number>();
-    selectedInvoices.forEach(invoice => {
-      getInvoiceJobIds(invoice).forEach(id => jobIds.add(id));
-    });
-    return Array.from(jobIds)
-      .map(id => jobsById.get(id))
-      .filter((job): job is Job => Boolean(job));
-  }, [jobsById, selectedInvoices]);
   const selectedInvoicesTotal = useMemo(
     () => selectedInvoices.reduce((sum, invoice) => sum + getInvoiceAmount(invoice), 0),
     [selectedInvoices]
@@ -414,32 +453,45 @@ export default function ClientUnpaidInvoicesScreen() {
       return;
     }
 
-    const invoiceLines = selectedInvoices.map(invoice => {
-      const invoiceLabel = invoice.invoice_number?.trim() ?? `#${invoice.id}`;
-      const dateLabel = formatInvoiceDate(invoice);
-      return `Pago de Comprobante Nro(${invoiceLabel}) - ${dateLabel}`;
-    });
-
-    const jobLines = selectedJobs.map(job => {
-      const dateLabel = formatJobDate(job);
-      const jobDescription = job.description?.trim() ?? 'Trabajo sin descripción';
-      return `• ${dateLabel} — ${jobDescription}`;
-    });
-
-    const descriptionParts: string[] = [];
-    if (invoiceLines.length > 0) {
-      descriptionParts.push('Facturas relacionadas:');
-      descriptionParts.push(...invoiceLines);
-    }
-    if (jobLines.length > 0) {
-      if (descriptionParts.length > 0) {
-        descriptionParts.push('');
+    const jobLinesSet = new Set<string>();
+    selectedInvoices.forEach(invoice => {
+      const jobIds = getInvoiceJobIds(invoice);
+      const fallbackDateLabel = formatInvoiceDate(invoice);
+      if (jobIds.length > 0) {
+        jobIds.forEach(jobId => {
+          const job = jobsById.get(jobId);
+          const description =
+            job?.description?.trim() ??
+            findInvoiceItemDescription(invoice, jobId) ??
+            `Trabajo #${jobId}`;
+          const dateLabel = job ? formatJobDate(job) : fallbackDateLabel;
+          const line = `• ${dateLabel} — ${description}`;
+          if (!jobLinesSet.has(line)) {
+            jobLinesSet.add(line);
+          }
+        });
+        return;
       }
-      descriptionParts.push('Trabajos realizados:');
-      descriptionParts.push(...jobLines);
-    }
 
-    const descriptionPayload = descriptionParts.join('\n');
+      const fallbackLines = getInvoiceFallbackLines(invoice);
+      if (fallbackLines.length > 0) {
+        fallbackLines.forEach(line => {
+          if (!jobLinesSet.has(line)) {
+            jobLinesSet.add(line);
+          }
+        });
+        return;
+      }
+
+      jobLinesSet.add(`• ${fallbackDateLabel} — Trabajo sin descripción`);
+    });
+
+    const jobLines = Array.from(jobLinesSet);
+
+    const descriptionPayload =
+      jobLines.length > 0
+        ? ['Trabajos relacionados:', ...jobLines].join('\n')
+        : 'Trabajos relacionados con las facturas seleccionadas.';
 
     const totalAmount = Number.isFinite(selectedInvoicesTotal) ? selectedInvoicesTotal : 0;
     const pricePayload = totalAmount.toFixed(2);
@@ -459,8 +511,8 @@ export default function ClientUnpaidInvoicesScreen() {
     completeSelection,
     isValidClientId,
     router,
+    jobsById,
     selectedInvoices,
-    selectedJobs,
     selectedInvoicesTotal,
   ]);
 
