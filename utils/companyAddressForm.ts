@@ -121,5 +121,7 @@ export const buildCompanyAddressPayload = (companyId: number, address: CompanyAd
     es_principal: isPrimary ? 1 : 0,
     latitud: latitude,
     longitud: longitude,
+    lat: latitude,
+    lng: longitude,
   };
 };
