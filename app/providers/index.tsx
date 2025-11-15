@@ -77,7 +77,7 @@ export default function ProvidersListPage() {
   const fuse = useMemo(
     () =>
       new Fuse(providers, {
-        keys: ['business_name', 'tax_id', 'email', 'address'],
+        keys: ['business_name', 'tax_id', 'email'],
       }),
     [providers]
   );
@@ -184,9 +184,6 @@ export default function ProvidersListPage() {
         <CircleImagePicker fileId={item.brand_file_id} size={50} />
         <View style={styles.itemInfo}>
           <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
-          {item.address ? (
-            <ThemedText style={styles.itemSubtitle}>{item.address}</ThemedText>
-          ) : null}
           {item.email ? (
             <ThemedText style={styles.itemSubtitle}>{item.email}</ThemedText>
           ) : null}

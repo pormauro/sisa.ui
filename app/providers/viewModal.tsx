@@ -45,20 +45,6 @@ export default function ViewProviderModal() {
         </>
       ) : null}
 
-      {provider.phone ? (
-        <>
-          <ThemedText style={styles.label}>Teléfono</ThemedText>
-          <ThemedText style={styles.value}>{provider.phone}</ThemedText>
-        </>
-      ) : null}
-
-      {provider.address ? (
-        <>
-          <ThemedText style={styles.label}>Dirección</ThemedText>
-          <ThemedText style={styles.value}>{provider.address}</ThemedText>
-        </>
-      ) : null}
-
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{provider.id}</ThemedText>
 

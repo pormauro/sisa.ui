@@ -1,6 +1,6 @@
 // /app/clients/create.tsx
 import React, { useState, useContext, useEffect, useRef, useMemo } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, View } from 'react-native';
+import { TouchableOpacity, StyleSheet, ScrollView, Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -31,14 +31,11 @@ export default function CreateClientPage() {
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
-  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const [companyId, setCompanyId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
   const submittingRef = useRef(false);
@@ -115,8 +112,6 @@ export default function CreateClientPage() {
     try {
       const newClientId = await addClient({
         company_id: parseInt(companyId, 10),
-        phone,
-        address,
         tariff_id: tariffId ? parseInt(tariffId, 10) : null,
       });
       if (newClientId) {
@@ -189,24 +184,6 @@ export default function CreateClientPage() {
         </View>
       ) : null}
 
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Teléfono"
-        value={phone}
-        onChangeText={setPhone}
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Dirección</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        placeholder="Dirección"
-        value={address}
-        onChangeText={setAddress}
-        placeholderTextColor={placeholderColor}
-      />
-
       <ThemedText style={styles.label}>Tarifa</ThemedText>
       <SearchableSelect
         style={styles.select}
@@ -247,12 +224,6 @@ export default function CreateClientPage() {
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-  },
   select: {
     marginBottom: 8,
   },

@@ -27,8 +27,6 @@ export interface Provider {
   tax_id: string;
   email: string;
   brand_file_id: string | null;
-  phone: string;
-  address: string;
   created_at?: string | null;
   updated_at?: string | null;
   company_id: number | null;
@@ -39,8 +37,6 @@ type ProviderApiResponse = {
   id: number | string;
   empresa_id?: number | string;
   brand_file_id?: number | string | null;
-  phone?: string | null;
-  address?: string | null;
   created_at?: string;
   updated_at?: string;
   company?: Record<string, any> | null;
@@ -51,8 +47,6 @@ type ProviderApiResponse = {
 
 export interface ProviderPayload {
   company_id: number;
-  phone?: string;
-  address?: string;
 }
 
 export type ProviderUpdatePayload = Partial<ProviderPayload>;
@@ -115,8 +109,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
             tax_id: normalizeTaxId(company?.tax_id ?? provider.tax_id),
             email: company?.email ?? normalizeOptionalStringValue(provider.email),
             brand_file_id: brandFileId,
-            phone: normalizeOptionalStringValue(provider.phone),
-            address: normalizeOptionalStringValue(provider.address),
             created_at: provider.created_at ?? null,
             updated_at: provider.updated_at ?? null,
             company_id: company?.id ?? coerceToNumber(provider.empresa_id),
@@ -138,8 +130,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     async (providerData: ProviderPayload): Promise<number | null> => {
       const body = {
         company_id: providerData.company_id,
-        phone: normalizeOptionalStringValue(providerData.phone),
-        address: normalizeOptionalStringValue(providerData.address),
       };
       try {
         const response = await fetch(`${BASE_URL}/providers`, {
@@ -173,12 +163,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       const body: Record<string, unknown> = {};
       if (typeof provider.company_id === 'number') {
         body.company_id = provider.company_id;
-      }
-      if ('phone' in provider) {
-        body.phone = normalizeOptionalStringValue(provider.phone);
-      }
-      if ('address' in provider) {
-        body.address = normalizeOptionalStringValue(provider.address);
       }
       try {
         const response = await fetch(`${BASE_URL}/providers/${id}`, {

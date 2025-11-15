@@ -131,7 +131,7 @@ export default function FoldersPage() {
   const fuseClients = useMemo(
     () =>
       new Fuse(clientsWithComputedTotals, {
-        keys: ['business_name', 'tax_id', 'email', 'address'],
+        keys: ['business_name', 'tax_id', 'email'],
         threshold: 0.3,
         ignoreLocation: true,
       }),

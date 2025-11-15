@@ -28,7 +28,6 @@ export default function ProviderDetailPage() {
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
-  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
@@ -36,8 +35,6 @@ export default function ProviderDetailPage() {
   const deleteButtonTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
 
   const [companyId, setCompanyId] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
@@ -95,8 +92,6 @@ export default function ProviderDetailPage() {
         setIsFetchingItem(false);
       }
       setCompanyId(provider.company_id ? provider.company_id.toString() : '');
-      setPhone(provider.phone || '');
-      setAddress(provider.address || '');
       return;
     }
 
@@ -132,8 +127,6 @@ export default function ProviderDetailPage() {
           setLoading(true);
           const success = await updateProvider(providerId, {
             company_id: companyId ? parseInt(companyId, 10) : undefined,
-            phone,
-            address,
           });
           setLoading(false);
           if (success) {
@@ -230,22 +223,6 @@ export default function ProviderDetailPage() {
         </View>
       ) : null}
 
-      <ThemedText style={styles.label}>Teléfono</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={phone}
-        onChangeText={setPhone}
-        placeholderTextColor={placeholderColor}
-      />
-
-      <ThemedText style={styles.label}>Dirección</ThemedText>
-      <TextInput
-        style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-        value={address}
-        onChangeText={setAddress}
-        placeholderTextColor={placeholderColor}
-      />
-
       {canEdit && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -279,7 +256,6 @@ export default function ProviderDetailPage() {
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120 },
   label: { marginVertical: 8, fontSize: 16 },
-  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   select: { marginBottom: 8 },
   companySummary: {
     borderWidth: 1,

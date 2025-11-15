@@ -53,6 +53,7 @@ export default function CreateAppointmentScreen() {
   const [selectedClient, setSelectedClient] = useState(initialClientParam);
   const [selectedJob, setSelectedJob] = useState('');
   const pendingJobSelectionRef = useRef<string | null>(null);
+  const previousClientRef = useRef<string | null>(initialClientParam || null);
   const [dateTime, setDateTime] = useState<Date>(() => {
     const now = new Date();
     now.setSeconds(0, 0);
@@ -71,7 +72,6 @@ export default function CreateAppointmentScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [location, setLocation] = useState('');
-  const [locationManuallyEdited, setLocationManuallyEdited] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -200,25 +200,15 @@ export default function CreateAppointmentScreen() {
   };
 
   useEffect(() => {
-    if (!selectedClient) {
-      setLocation('');
-      setLocationManuallyEdited(false);
+    if (previousClientRef.current === selectedClient) {
       return;
     }
-    // Reset manual tracking when client changes to allow auto-fill with new data
-    setLocationManuallyEdited(false);
+    previousClientRef.current = selectedClient;
+    setLocation('');
   }, [selectedClient]);
-
-  useEffect(() => {
-    if (!selectedClient || locationManuallyEdited) return;
-    const client = clients.find(item => item.id.toString() === selectedClient);
-    if (!client) return;
-    setLocation(client.address || '');
-  }, [selectedClient, clients, locationManuallyEdited]);
 
   const handleLocationChange = (value: string) => {
     setLocation(value);
-    setLocationManuallyEdited(true);
   };
 
   const handleSave = async () => {
