@@ -181,7 +181,7 @@ export default function ProvidersListPage() {
       activeOpacity={0.85}
     >
       <View style={styles.itemContent}>
-        <CircleImagePicker fileId={item.brand_file_id} size={50} />
+        <CircleImagePicker fileId={item.profile_file_id} size={50} />
         <View style={styles.itemInfo}>
           <ThemedText style={styles.itemTitle}>{item.business_name}</ThemedText>
           {item.email ? (

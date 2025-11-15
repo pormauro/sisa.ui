@@ -117,7 +117,7 @@ export default function ViewClientModal() {
           ? client.business_name
           : 'Cliente sin nombre'}
       </ThemedText>
-      <CircleImagePicker fileId={client.brand_file_id} size={200} editable={false} />
+      <CircleImagePicker fileId={client.profile_file_id} size={200} editable={false} />
 
       {client.tax_id ? (
         <>

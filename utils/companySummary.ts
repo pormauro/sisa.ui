@@ -53,7 +53,7 @@ export const parseCompanySummary = (raw: any): CompanySummary | null => {
     tax_id: normalizeOptionalStringValue(raw?.tax_id ?? raw?.nro_doc),
     email: normalizeOptionalStringValue(raw?.email),
     profile_file_id: normalizeNullableStringValue(
-      raw?.profile_file_id ?? raw?.file_profile_id ?? raw?.brand_file_id
+      raw?.profile_file_id ?? raw?.file_profile_id ?? raw?.logo_id
     ),
     document_type_id: coerceToNumber(raw?.document_type_id ?? raw?.id_tipo_doc),
     iva_condition_id: coerceToNumber(raw?.iva_condition_id ?? raw?.id_condicion_iva),
