@@ -856,7 +856,7 @@ export default function EditCompanyPage() {
         companyId={companyId}
         canEdit={canEdit}
         existingAddresses={company.addresses ?? []}
-        onAddressesCreated={loadCompanies}
+        onAddressesUpdated={loadCompanies}
       />
 
       {canEdit ? (
