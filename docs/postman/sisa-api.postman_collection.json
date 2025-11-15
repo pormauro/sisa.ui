@@ -2329,7 +2329,7 @@
                 "memberships"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Envia una solicitud para unirse a la empresa especificada.\n\n> Comentario: Requiere token Bearer en Authorization. El cuerpo permite adjuntar un mensaje opcional y el rol deseado."
+            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Genera una solicitud formal para vincular a un usuario con la empresa indicada. La API registra el mensaje del solicitante y bloquea solicitudes duplicadas activas.\n\nCuerpo esperado:\n- `message` (opcional): texto corto para dar contexto al administrador.\n- `role` (obligatorio): rol operativo que tendrá el solicitante una vez aprobado (`member`, `supervisor`, etc.).\n\nErrores frecuentes:\n- `400 Bad Request` cuando falta `role` o se envía un valor inválido.\n- `401 Unauthorized` si el token Bearer no está presente o expiró.\n- `404 Not Found` si el `company_id` no existe o está inactivo."
           },
           "response": []
         },
@@ -2366,7 +2366,7 @@
                 }
               ]
             },
-            "description": "**GET {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Lista miembros y solicitudes de la empresa, permitiendo filtrar por estado.\n\n> Comentario: Requiere token Bearer en Authorization."
+            "description": "**GET {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Devuelve el conjunto de miembros y solicitudes pendientes asociados a la empresa. El resultado puede filtrarse con `status=pending|approved|rejected` y siempre incluye paginación estándar (`page`, `per_page`).\n\nErrores frecuentes:\n- `401 Unauthorized` ante tokens Bearer inválidos.\n- `404 Not Found` cuando el identificador de empresa no coincide con un registro vigente."
           },
           "response": []
         },
@@ -2407,7 +2407,7 @@
                 "approve"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/approve**\n\nDescripción: Aprueba una solicitud de membresía y opcionalmente asigna el rol operativo.\n\n> Comentario: Requiere token Bearer en Authorization."
+            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/approve**\n\nDescripción: Confirma la solicitud seleccionada, asigna el rol que recibirá el miembro dentro de la compañía y permite documentar notas internas visibles solo para administradores.\n\nCuerpo esperado:\n- `role` (opcional): si se omite se conserva el rol propuesto por el solicitante.\n- `notes` (opcional): anotaciones operativas para el historial.\n\nErrores frecuentes:\n- `400 Bad Request` si la solicitud ya fue aprobada/rechazada.\n- `401 Unauthorized` cuando falta el Bearer token.\n- `404 Not Found` si `membership_id` no pertenece a la empresa indicada."
           },
           "response": []
         },
@@ -2448,7 +2448,7 @@
                 "reject"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/reject**\n\nDescripción: Rechaza una solicitud de membresía especificando un motivo.\n\n> Comentario: Requiere token Bearer en Authorization."
+            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/reject**\n\nDescripción: Marca la solicitud como rechazada y notifica el motivo al postulante. Permite mantener un historial auditable de las decisiones tomadas.\n\nCuerpo esperado:\n- `reason` (obligatorio): justificación breve que se devuelve en las notificaciones.\n\nErrores frecuentes:\n- `400 Bad Request` si la solicitud ya estaba procesada o si falta el campo `reason`.\n- `401 Unauthorized` por problemas con el token Bearer.\n- `404 Not Found` cuando la solicitud no está asociada al `company_id` indicado."
           },
           "response": []
         }
