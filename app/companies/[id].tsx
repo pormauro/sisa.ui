@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import AddressLocationPicker from '@/components/AddressLocationPicker';
+import CollapsibleSection from '@/components/CollapsibleSection';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -528,36 +529,6 @@ export default function EditCompanyPage() {
     );
   }
 
-  const CollapsibleSection: React.FC<{
-    title: string;
-    children: React.ReactNode;
-    initiallyOpen?: boolean;
-    description?: string;
-  }> = ({ title, children, initiallyOpen = false, description }) => {
-    const [isOpen, setIsOpen] = useState(initiallyOpen);
-
-    return (
-      <View style={[styles.sectionContainer, { borderColor, backgroundColor: sectionBackground }]}>
-        <TouchableOpacity
-          style={styles.sectionHeader}
-          onPress={() => setIsOpen(prev => !prev)}
-          accessibilityRole="button"
-          accessibilityLabel={title}
-          accessibilityState={{ expanded: isOpen }}
-        >
-          <View style={styles.sectionHeaderTextContainer}>
-            <ThemedText style={styles.sectionHeaderTitle}>{title}</ThemedText>
-            {description ? (
-              <ThemedText style={styles.sectionHeaderDescription}>{description}</ThemedText>
-            ) : null}
-          </View>
-          <ThemedText style={styles.sectionHeaderIndicator}>{isOpen ? '▾' : '▸'}</ThemedText>
-        </TouchableOpacity>
-        {isOpen ? <View style={styles.sectionContent}>{children}</View> : null}
-      </View>
-    );
-  };
-
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -588,6 +559,8 @@ export default function EditCompanyPage() {
       <CollapsibleSection
         title="Información comercial adicional"
         description="Razón social y datos de contacto"
+        borderColor={borderColor}
+        backgroundColor={sectionBackground}
       >
         <ThemedText style={styles.label}>Razón Social</ThemedText>
         <TextInput
@@ -663,6 +636,8 @@ export default function EditCompanyPage() {
       <CollapsibleSection
         title="Datos fiscales"
         description="CUIT, condición IVA e identificaciones extra"
+        borderColor={borderColor}
+        backgroundColor={sectionBackground}
       >
         <ThemedText style={styles.label}>CUIT</ThemedText>
         <TextInput
@@ -787,6 +762,8 @@ export default function EditCompanyPage() {
       <CollapsibleSection
         title="Administradores"
         description="IDs de usuarios autorizados a editar"
+        borderColor={borderColor}
+        backgroundColor={sectionBackground}
       >
         <ThemedText style={styles.helperText}>
           Ingresá un array JSON con los IDs de usuario habilitados para editar esta empresa (ejemplo:
@@ -843,7 +820,12 @@ export default function EditCompanyPage() {
         </TouchableOpacity>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Direcciones" description="Puntos físicos de contacto">
+      <CollapsibleSection
+        title="Direcciones"
+        description="Puntos físicos de contacto"
+        borderColor={borderColor}
+        backgroundColor={sectionBackground}
+      >
         {addresses.map((address, index) => (
           <View key={`address-${index}`} style={[styles.card, { borderColor }]}
           >
@@ -1006,7 +988,12 @@ export default function EditCompanyPage() {
         ) : null}
       </CollapsibleSection>
 
-      <CollapsibleSection title="Contactos" description="Personas de referencia y comunicación">
+      <CollapsibleSection
+        title="Contactos"
+        description="Personas de referencia y comunicación"
+        borderColor={borderColor}
+        backgroundColor={sectionBackground}
+      >
         {contacts.map((contact, index) => (
           <View key={`contact-${index}`} style={[styles.card, { borderColor }]}
           >
@@ -1136,38 +1123,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     opacity: 0.75,
     marginBottom: 16,
-  },
-  sectionContainer: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionHeaderTextContainer: {
-    flex: 1,
-    paddingRight: 12,
-  },
-  sectionHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  sectionHeaderDescription: {
-    fontSize: 13,
-    marginTop: 4,
-    opacity: 0.7,
-  },
-  sectionHeaderIndicator: {
-    fontSize: 20,
-    marginLeft: 12,
-  },
-  sectionContent: {
-    marginTop: 16,
   },
   subSectionTitle: {
     fontSize: 18,
