@@ -158,7 +158,7 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
             activeOpacity={0.85}
           >
             <Ionicons
-              name={hasCoordinate ? 'location' : 'location-outline'}
+              name={hasCoordinate ? 'location-sharp' : 'location-outline'}
               size={20}
               color={hasCoordinate ? successColor : accentColor}
             />
@@ -177,7 +177,8 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
               onPress={handleClear}
               activeOpacity={0.85}
             >
-              <ThemedText style={[styles.actionButtonText, styles.clearButtonText]}>Limpiar</ThemedText>
+              <Ionicons name="close-circle" size={18} color={errorColor} style={styles.clearIcon} />
+              <ThemedText style={[styles.actionButtonText, styles.clearButtonText]}>Quitar punto</ThemedText>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -303,6 +304,9 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     color: '#d32f2f',
+  },
+  clearIcon: {
+    marginRight: 6,
   },
   modalContainer: {
     flex: 1,

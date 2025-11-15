@@ -123,5 +123,9 @@ export const buildCompanyAddressPayload = (companyId: number, address: CompanyAd
     longitud: longitude,
     lat: latitude,
     lng: longitude,
+    gps_latitude: latitude,
+    gps_longitude: longitude,
+    gps_lat: latitude,
+    gps_lng: longitude,
   };
 };
