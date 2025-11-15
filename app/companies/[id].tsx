@@ -10,22 +10,20 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import CircleImagePicker from '@/components/CircleImagePicker';
-import AddressLocationPicker from '@/components/AddressLocationPicker';
+import CompanyAddressesModal from '@/components/CompanyAddressesModal';
 import CollapsibleSection from '@/components/CollapsibleSection';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import {
+import { 
   CompaniesContext,
   Company,
-  CompanyAddress,
   CompanyContact,
   TaxIdentity,
 } from '@/contexts/CompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
-import { toNumericCoordinate } from '@/utils/coordinates';
 import { formatCompanyAddress } from '@/utils/address';
 
 const IVA_OPTIONS = [
@@ -35,20 +33,6 @@ const IVA_OPTIONS = [
   { label: 'Consumidor Final', value: 'Consumidor Final' },
   { label: 'No Responsable', value: 'No Responsable' },
 ];
-
-const createEmptyAddress = (): CompanyAddress => ({
-  street: '',
-  number: '',
-  floor: '',
-  apartment: '',
-  city: '',
-  state: '',
-  country: '',
-  postal_code: '',
-  notes: '',
-  latitude: null,
-  longitude: null,
-});
 
 const createEmptyContact = (): CompanyContact => ({
   name: '',
@@ -75,40 +59,6 @@ const identityValue = (company: Company | undefined, key: string) => {
   const item = company.tax_identities.find(identity => identity.type === key);
   return item?.value ?? '';
 };
-
-const sanitizeAddresses = (items: CompanyAddress[]) =>
-  items
-    .map(address => {
-      const latitude = toNumericCoordinate(address.latitude);
-      const longitude = toNumericCoordinate(address.longitude);
-      const sanitized: CompanyAddress = {
-        street: address.street.trim(),
-        number: address.number?.toString().trim() || null,
-        floor: address.floor?.toString().trim() || null,
-        apartment: address.apartment?.toString().trim() || null,
-        city: address.city?.toString().trim() || null,
-        state: address.state?.toString().trim() || null,
-        country: address.country?.toString().trim() || null,
-        postal_code: address.postal_code?.toString().trim() || null,
-        notes: address.notes?.toString().trim() || null,
-        latitude,
-        longitude,
-      };
-
-      if (address.id !== undefined) {
-        sanitized.id = address.id;
-      }
-      if (address.version !== undefined) {
-        sanitized.version = address.version;
-      }
-
-      return sanitized;
-    })
-    .filter(address => {
-      const hasText = address.street || address.city || address.country;
-      const hasCoordinates = typeof address.latitude === 'number' && typeof address.longitude === 'number';
-      return hasText || hasCoordinates;
-    });
 
 const sanitizeContacts = (items: CompanyContact[]) =>
   items
@@ -263,9 +213,9 @@ export default function EditCompanyPage() {
   const [fiscalNotes, setFiscalNotes] = useState('');
   const [additionalIdentities, setAdditionalIdentities] = useState<TaxIdentity[]>([]);
 
-  const [addresses, setAddresses] = useState<CompanyAddress[]>([createEmptyAddress()]);
   const [contacts, setContacts] = useState<CompanyContact[]>([createEmptyContact()]);
   const [administratorIdsJson, setAdministratorIdsJson] = useState('[]');
+  const [addressesModalVisible, setAddressesModalVisible] = useState(false);
   const administratorAnalysis = useMemo(
     () => analyzeAdministratorIdsInput(administratorIdsJson),
     [administratorIdsJson]
@@ -315,7 +265,6 @@ export default function EditCompanyPage() {
       dynamicIdentities.length ? dynamicIdentities.map(identity => ({ ...identity })) : []
     );
 
-    setAddresses(company.addresses.length ? company.addresses.map(address => ({ ...address })) : [createEmptyAddress()]);
     setContacts(company.contacts.length ? company.contacts.map(contact => ({ ...contact })) : [createEmptyContact()]);
     setAdministratorIdsJson(
       company.administrator_ids?.length ? JSON.stringify(company.administrator_ids) : '[]'
@@ -333,51 +282,6 @@ export default function EditCompanyPage() {
     () => [{ label: 'Seleccionar condición IVA', value: '' }, ...IVA_OPTIONS],
     []
   );
-
-  const coordinateInputValue = (value: string | number | null | undefined) => {
-    if (typeof value === 'string') {
-      return value;
-    }
-    if (typeof value === 'number') {
-      return String(value);
-    }
-    return '';
-  };
-
-  const updateAddressField = (index: number, field: keyof CompanyAddress, value: string) => {
-    if (!canEdit) return;
-    setAddresses(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
-  const updateAddressCoordinates = (
-    index: number,
-    coordinate: { latitude: number; longitude: number } | null,
-  ) => {
-    if (!canEdit) return;
-    setAddresses(prev => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        latitude: coordinate ? coordinate.latitude.toString() : '',
-        longitude: coordinate ? coordinate.longitude.toString() : '',
-      };
-      return updated;
-    });
-  };
-
-  const addAddress = () => {
-    if (!canEdit) return;
-    setAddresses(prev => [...prev, createEmptyAddress()]);
-  };
-
-  const removeAddress = (index: number) => {
-    if (!canEdit) return;
-    setAddresses(prev => prev.filter((_, idx) => idx !== index));
-  };
 
   const updateContactField = (index: number, field: keyof CompanyContact, value: string) => {
     if (!canEdit) return;
@@ -471,7 +375,6 @@ export default function EditCompanyPage() {
         additionalIdentities,
         company.tax_identities,
       ),
-      addresses: sanitizeAddresses(addresses),
       contacts: sanitizeContacts(contacts),
       version: company.version,
     };
@@ -826,164 +729,30 @@ export default function EditCompanyPage() {
         borderColor={borderColor}
         backgroundColor={sectionBackground}
       >
-        {addresses.map((address, index) => (
-          <View key={`address-${index}`} style={[styles.card, { borderColor }]}
-          >
-            <ThemedText style={styles.label}>Calle</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.street}
-              onChangeText={(text) => updateAddressField(index, 'street', text)}
-              placeholder="Calle"
-              placeholderTextColor={placeholderColor}
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Número</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.number ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'number', text)}
-              placeholder="Número"
-              placeholderTextColor={placeholderColor}
-              keyboardType="numbers-and-punctuation"
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Piso</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.floor ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'floor', text)}
-              placeholder="Piso"
-              placeholderTextColor={placeholderColor}
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Departamento</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.apartment ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'apartment', text)}
-              placeholder="Departamento"
-              placeholderTextColor={placeholderColor}
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Ciudad</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.city ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'city', text)}
-              placeholder="Ciudad"
-              placeholderTextColor={placeholderColor}
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Provincia / Estado</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.state ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'state', text)}
-              placeholder="Provincia"
-              placeholderTextColor={placeholderColor}
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>País</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.country ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'country', text)}
-              placeholder="País"
-              placeholderTextColor={placeholderColor}
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Código Postal</ThemedText>
-            <TextInput
-              style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
-              value={address.postal_code ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'postal_code', text)}
-              placeholder="CP"
-              placeholderTextColor={placeholderColor}
-              keyboardType="numbers-and-punctuation"
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Notas</ThemedText>
-            <TextInput
-              style={[
-                styles.input,
-                styles.multiline,
-                { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-              ]}
-              value={address.notes ?? ''}
-              onChangeText={(text) => updateAddressField(index, 'notes', text)}
-              placeholder="Referencias adicionales"
-              placeholderTextColor={placeholderColor}
-              multiline
-              editable={canEdit}
-            />
-
-            <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
-            <ThemedText style={styles.helperText}>
-              Dirección para GPS:{' '}
-              {formatCompanyAddress(address) || 'Completá la dirección para posicionar el punto.'}
-            </ThemedText>
-            <AddressLocationPicker
-              latitude={address.latitude}
-              longitude={address.longitude}
-              onChange={(coordinate) => updateAddressCoordinates(index, coordinate)}
-              editable={canEdit}
-            />
-
-            <View style={styles.coordinateInputsRow}>
-              <View style={styles.coordinateInputContainer}>
-                <ThemedText style={styles.coordinateLabel}>Latitud</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.coordinateInput,
-                    { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-                  ]}
-                  value={coordinateInputValue(address.latitude)}
-                  onChangeText={(text) => updateAddressField(index, 'latitude', text)}
-                  placeholder="-34.6037"
-                  placeholderTextColor={placeholderColor}
-                  editable={canEdit}
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-              <View style={styles.coordinateInputContainer}>
-                <ThemedText style={styles.coordinateLabel}>Longitud</ThemedText>
-                <TextInput
-                  style={[
-                    styles.input,
-                    styles.coordinateInput,
-                    { backgroundColor: inputBackground, color: inputTextColor, borderColor },
-                  ]}
-                  value={coordinateInputValue(address.longitude)}
-                  onChangeText={(text) => updateAddressField(index, 'longitude', text)}
-                  placeholder="-58.3816"
-                  placeholderTextColor={placeholderColor}
-                  editable={canEdit}
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
+        {company.addresses?.length ? (
+          company.addresses.map((address, index) => (
+            <View key={`address-summary-${address.id ?? index}`} style={[styles.addressSummaryCard, { borderColor }]}>
+              <ThemedText style={styles.addressSummaryTitle}>
+                {address.label?.trim() || `Dirección #${index + 1}`}
+              </ThemedText>
+              <ThemedText style={styles.addressSummaryText}>
+                {formatCompanyAddress(address) || 'Sin datos suficientes'}
+              </ThemedText>
+              {address.is_primary ? (
+                <ThemedText style={styles.addressSummaryBadge}>Principal</ThemedText>
+              ) : null}
             </View>
-
-            {canEdit && addresses.length > 1 ? (
-              <TouchableOpacity style={styles.removeButton} onPress={() => removeAddress(index)}>
-                <ThemedText style={styles.removeButtonText}>Eliminar dirección</ThemedText>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ))}
+          ))
+        ) : (
+          <ThemedText style={styles.helperText}>Aún no hay direcciones asociadas.</ThemedText>
+        )}
 
         {canEdit ? (
-          <TouchableOpacity style={[styles.addItemButton, { borderColor }]} onPress={addAddress}>
-            <ThemedText style={styles.addItemButtonText}>➕ Agregar dirección</ThemedText>
+          <TouchableOpacity
+            style={[styles.addItemButton, { borderColor }]}
+            onPress={() => setAddressesModalVisible(true)}
+          >
+            <ThemedText style={styles.addItemButtonText}>➕ Administrar direcciones</ThemedText>
           </TouchableOpacity>
         ) : null}
       </CollapsibleSection>
@@ -1081,6 +850,15 @@ export default function EditCompanyPage() {
         ) : null}
       </CollapsibleSection>
 
+      <CompanyAddressesModal
+        visible={addressesModalVisible}
+        onClose={() => setAddressesModalVisible(false)}
+        companyId={companyId}
+        canEdit={canEdit}
+        existingAddresses={company.addresses ?? []}
+        onAddressesCreated={loadCompanies}
+      />
+
       {canEdit ? (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -1152,6 +930,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
+  },
+  addressSummaryCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  addressSummaryTitle: {
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  addressSummaryText: {
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  addressSummaryBadge: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   jsonInput: {
     minHeight: 120,
