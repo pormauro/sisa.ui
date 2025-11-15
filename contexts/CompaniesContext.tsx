@@ -665,6 +665,83 @@ const mergeChannels = (...collections: (CommunicationChannel[] | undefined)[]) =
     return mergeRecordCollections(acc, collection, channelComparator);
   }, []);
 
+const coerceNullableString = (value?: string | null) => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const duplicateAddressFields = (address: CompanyAddress) => {
+  const street = coerceNullableString(address.street) ?? '';
+  const number = coerceNullableString(address.number);
+  const floor = coerceNullableString(address.floor);
+  const apartment = coerceNullableString(address.apartment);
+  const city = coerceNullableString(address.city);
+  const state = coerceNullableString(address.state);
+  const country = coerceNullableString(address.country);
+  const postalCode = coerceNullableString(address.postal_code);
+  const notes = coerceNullableString(address.notes);
+  const label = coerceNullableString(address.label);
+  const latitude = toNumericCoordinate(address.latitude);
+  const longitude = toNumericCoordinate(address.longitude);
+  const companyId = typeof address.company_id === 'number' ? address.company_id : null;
+  const isPrimary =
+    typeof address.is_primary === 'boolean'
+      ? address.is_primary
+      : typeof address.is_primary === 'number'
+      ? address.is_primary === 1
+      : null;
+
+  const duplicated: Record<string, unknown> = {
+    ...address,
+    street,
+    number,
+    floor,
+    apartment,
+    city,
+    state,
+    country,
+    postal_code: postalCode,
+    notes,
+    label,
+    latitude,
+    longitude,
+    company_id: companyId,
+    calle: street,
+    numero: number,
+    piso: floor,
+    departamento: apartment,
+    ciudad: city,
+    provincia: state,
+    pais: country,
+    codigo_postal: postalCode,
+    notas: notes,
+    etiqueta: label,
+    empresa_id: companyId,
+    es_principal: isPrimary === null ? null : isPrimary ? 1 : 0,
+    latitud: latitude,
+    longitud: longitude,
+    lat: latitude,
+    lng: longitude,
+    gps_latitude: latitude,
+    gps_longitude: longitude,
+  };
+
+  if (address.id !== undefined) {
+    duplicated.id = address.id;
+    duplicated.address_id = address.id;
+    duplicated.company_address_id = address.id;
+  }
+
+  if (address.version !== undefined) {
+    duplicated.version = address.version;
+  }
+
+  return duplicated;
+};
+
 const serializeNestedArray = (value: unknown) => {
   if (typeof value === 'string') {
     return value;
@@ -789,7 +866,10 @@ const serializeCompanyPayload = (payload: CompanyPayload) => {
   }
 
   if (hasAddresses) {
-    const serializedAddresses = serializeNestedArray(addresses ?? []);
+    const normalizedAddresses = Array.isArray(addresses)
+      ? addresses.map(duplicateAddressFields)
+      : addresses;
+    const serializedAddresses = serializeNestedArray(normalizedAddresses ?? []);
     nested.addresses = serializedAddresses;
     nested.domicilios = serializedAddresses;
     nested.address_list = serializedAddresses;
