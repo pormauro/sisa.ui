@@ -79,19 +79,21 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Membresías de empresas (`CompanyMembershipsContext`)
 ### Modelo
-- `CompanyMembership`: vincula una empresa con un usuario final e incluye datos auxiliares como rol, estado, notas y marcas de auditoría.【F:contexts/CompanyMembershipsContext.tsx†L14-L39】
+- `CompanyMembership`: vincula una empresa con un usuario final e incluye datos auxiliares como rol, estado, notas internas y los campos documentales que exige `sisa.api` (`message` para la solicitud original, `reason` para rechazos, `responded_at` más `responded_by_*` para el historial) junto con el mapa `audit_flags` que expone si una solicitud fue aprobada, rechazada o sigue pendiente.【F:contexts/CompanyMembershipsContext.tsx†L15-L64】
+- `MembershipAuditFlags`: estructura dinámica que normaliza banderas booleanas provenientes del backend (por ejemplo `approved`, `rejected`, `pending`) para que el cliente pueda mostrar estados auditables sin asumir nombres fijos.【F:contexts/CompanyMembershipsContext.tsx†L15-L36】
+- Al hidratar el contexto se reprocesa la caché local con el nuevo parser para garantizar que los objetos guardados antes de la actualización adopten la forma extendida y no pierdan campos opcionales.【F:contexts/CompanyMembershipsContext.tsx†L346-L360】
 
 ### Métodos del contexto
-- `loadCompanyMemberships()`: consulta `/company_memberships`, normaliza la colección devuelta y la almacena en caché local.【F:contexts/CompanyMembershipsContext.tsx†L86-L138】
-- `addCompanyMembership(payload)`: serializa el vínculo empresa-usuario, envía `POST /company_memberships` e inserta la respuesta en el estado compartido.【F:contexts/CompanyMembershipsContext.tsx†L140-L185】
-- `updateCompanyMembership(id, payload)`: ejecuta `PUT /company_memberships/{id}` y fusiona la respuesta con el elemento existente.【F:contexts/CompanyMembershipsContext.tsx†L187-L227】
-- `deleteCompanyMembership(id)`: elimina el registro remoto mediante `DELETE /company_memberships/{id}` y depura la caché local.【F:contexts/CompanyMembershipsContext.tsx†L229-L253】
+- `loadCompanyMemberships()`: consulta `/company_memberships`, tolera respuestas que encapsulan la colección en `memberships`, `data` o `items`, normaliza la respuesta y la guarda en caché local.【F:contexts/CompanyMembershipsContext.tsx†L373-L408】
+- `addCompanyMembership(payload)`: serializa el vínculo empresa-usuario (incluyendo `message`, `reason`, `responded_at` y `audit_flags` cuando corresponda), envía `POST /company_memberships` e inserta la respuesta en el estado compartido.【F:contexts/CompanyMembershipsContext.tsx†L293-L318】【F:contexts/CompanyMembershipsContext.tsx†L410-L455】
+- `updateCompanyMembership(id, payload)`: ejecuta `PUT /company_memberships/{id}`, fusiona la respuesta con el elemento existente y recarga si el backend no devuelve el recurso normalizado.【F:contexts/CompanyMembershipsContext.tsx†L458-L499】
+- `deleteCompanyMembership(id)`: elimina el registro remoto mediante `DELETE /company_memberships/{id}` y depura la caché local.【F:contexts/CompanyMembershipsContext.tsx†L502-L520】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/company_memberships` — listado actualizado de membresías.【F:contexts/CompanyMembershipsContext.tsx†L103-L138】
-- `POST ${BASE_URL}/company_memberships` — alta de relación empresa-usuario.【F:contexts/CompanyMembershipsContext.tsx†L140-L185】
-- `PUT ${BASE_URL}/company_memberships/{id}` — actualización del vínculo existente.【F:contexts/CompanyMembershipsContext.tsx†L187-L222】
-- `DELETE ${BASE_URL}/company_memberships/{id}` — baja lógica del vínculo.【F:contexts/CompanyMembershipsContext.tsx†L229-L253】
+- `GET ${BASE_URL}/company_memberships` — listado actualizado de membresías.【F:contexts/CompanyMembershipsContext.tsx†L373-L408】
+- `POST ${BASE_URL}/company_memberships` — alta de relación empresa-usuario.【F:contexts/CompanyMembershipsContext.tsx†L410-L455】
+- `PUT ${BASE_URL}/company_memberships/{id}` — actualización del vínculo existente.【F:contexts/CompanyMembershipsContext.tsx†L458-L499】
+- `DELETE ${BASE_URL}/company_memberships/{id}` — baja lógica del vínculo.【F:contexts/CompanyMembershipsContext.tsx†L502-L520】
 
 ### Permisos requeridos
 - `listCompanyMemberships` habilita el módulo desde el menú comercial.【F:constants/menuSections.ts†L36-L40】【F:app/company_memberships/index.tsx†L44-L67】

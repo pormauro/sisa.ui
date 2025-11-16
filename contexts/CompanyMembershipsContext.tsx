@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -10,6 +11,10 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+
+export interface MembershipAuditFlags {
+  [key: string]: boolean | undefined;
+}
 
 export interface CompanyMembership {
   id: number;
@@ -23,6 +28,12 @@ export interface CompanyMembership {
   notes?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+  message?: string | null;
+  reason?: string | null;
+  responded_at?: string | null;
+  responded_by_id?: number | null;
+  responded_by_name?: string | null;
+  audit_flags?: MembershipAuditFlags | null;
 }
 
 export interface CompanyMembershipPayload {
@@ -31,17 +42,25 @@ export interface CompanyMembershipPayload {
   role: string | null;
   status: string | null;
   notes: string | null;
+  message?: string | null;
+  reason?: string | null;
+  responded_at?: string | null;
+  audit_flags?: MembershipAuditFlags | null;
 }
 
 export interface MembershipRequestOptions {
   role?: string | null;
   status?: string | null;
   notes?: string | null;
+  message?: string | null;
 }
 
 export interface MembershipStatusUpdateOptions {
   role?: string | null;
   notes?: string | null;
+  reason?: string | null;
+  responded_at?: string | null;
+  audit_flags?: MembershipAuditFlags | null;
 }
 
 interface CompanyMembershipsContextValue {
@@ -95,7 +114,79 @@ const coerceToNumber = (value: unknown): number | null => {
   return null;
 };
 
-const parseMembership = (raw: any): CompanyMembership | null => {
+const unwrapMembershipNode = (value: any): any => {
+  let current = value;
+  const visited = new Set<any>();
+
+  while (current && typeof current === 'object' && !Array.isArray(current)) {
+    if (visited.has(current)) {
+      return current;
+    }
+    visited.add(current);
+
+    if ('id' in current && ('company_id' in current || 'companyId' in current || 'company' in current)) {
+      return current;
+    }
+
+    if (current.membership && typeof current.membership === 'object') {
+      current = current.membership;
+      continue;
+    }
+
+    if (
+      current.data &&
+      typeof current.data === 'object' &&
+      !Array.isArray(current.data) &&
+      Object.keys(current.data).length
+    ) {
+      current = current.data;
+      continue;
+    }
+
+    if (current.items && typeof current.items === 'object' && !Array.isArray(current.items)) {
+      current = current.items;
+      continue;
+    }
+
+    break;
+  }
+
+  return current;
+};
+
+const parseAuditFlags = (value: any): MembershipAuditFlags | null => {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const flags: MembershipAuditFlags = {};
+  Object.entries(value).forEach(([key, raw]) => {
+    let normalized: boolean | undefined;
+    if (typeof raw === 'boolean') {
+      normalized = raw;
+    } else if (typeof raw === 'number') {
+      normalized = raw !== 0;
+    } else if (typeof raw === 'string') {
+      const trimmed = raw.trim().toLowerCase();
+      if (!trimmed) {
+        normalized = undefined;
+      } else if (['1', 'true', 'yes', 'y', 'on', 'si', 'sí', 'active', 'approved'].includes(trimmed)) {
+        normalized = true;
+      } else if (['0', 'false', 'no', 'off', 'inactive', 'rejected'].includes(trimmed)) {
+        normalized = false;
+      }
+    }
+
+    if (typeof normalized === 'boolean') {
+      flags[key] = normalized;
+    }
+  });
+
+  return Object.keys(flags).length ? flags : null;
+};
+
+const parseMembership = (rawValue: any): CompanyMembership | null => {
+  const raw = unwrapMembershipNode(rawValue);
   if (!raw) {
     return null;
   }
@@ -128,6 +219,17 @@ const parseMembership = (raw: any): CompanyMembership | null => {
     getString(raw.user?.name) ??
     `Usuario #${userId}`;
 
+  const respondedBy = raw.responded_by ?? raw.response_user ?? raw.responder ?? null;
+  const respondedByIdCandidate =
+    respondedBy?.id ?? respondedBy?.user_id ?? raw.responded_by_id ?? raw.responder_id ?? null;
+  const respondedByNameCandidate =
+    respondedBy?.username ??
+    respondedBy?.name ??
+    respondedBy?.full_name ??
+    raw.responded_by_name ??
+    raw.responder_name ??
+    null;
+
   return {
     id,
     company_id: companyId,
@@ -143,6 +245,13 @@ const parseMembership = (raw: any): CompanyMembership | null => {
     notes: getString(raw.notes) ?? getString(raw.membership_notes),
     created_at: getString(raw.created_at),
     updated_at: getString(raw.updated_at),
+    message: getString(raw.message) ?? getString(raw.request_message),
+    reason: getString(raw.reason) ?? getString(raw.rejection_reason),
+    responded_at:
+      getString(raw.responded_at) ?? getString(raw.response_at) ?? getString(raw.answered_at) ?? null,
+    responded_by_id: coerceToNumber(respondedByIdCandidate),
+    responded_by_name: getString(respondedByNameCandidate),
+    audit_flags: parseAuditFlags(raw.audit_flags ?? raw.flags ?? raw.audit ?? raw.status_flags),
   };
 };
 
@@ -161,8 +270,17 @@ const normalizeCollection = (value: any): CompanyMembership[] => {
     if (Array.isArray(value.data)) {
       return value.data;
     }
+    if (Array.isArray(value.data?.items)) {
+      return value.data.items;
+    }
+    if (Array.isArray(value.data?.memberships)) {
+      return value.data.memberships;
+    }
     if (Array.isArray(value.items)) {
       return value.items;
+    }
+    if (Array.isArray(value.items?.data)) {
+      return value.items.data;
     }
     return [];
   };
@@ -172,13 +290,30 @@ const normalizeCollection = (value: any): CompanyMembership[] => {
     .filter((membership): membership is CompanyMembership => Boolean(membership));
 };
 
-const serializePayload = (payload: CompanyMembershipPayload) => ({
-  company_id: payload.company_id,
-  user_id: payload.user_id,
-  role: payload.role,
-  status: payload.status,
-  notes: payload.notes,
-});
+const serializePayload = (payload: CompanyMembershipPayload) => {
+  const body: Record<string, unknown> = {
+    company_id: payload.company_id,
+    user_id: payload.user_id,
+    role: payload.role,
+    status: payload.status,
+    notes: payload.notes,
+  };
+
+  if ('message' in payload) {
+    body.message = payload.message ?? null;
+  }
+  if ('reason' in payload) {
+    body.reason = payload.reason ?? null;
+  }
+  if ('responded_at' in payload) {
+    body.responded_at = payload.responded_at ?? null;
+  }
+  if ('audit_flags' in payload) {
+    body.audit_flags = payload.audit_flags ?? null;
+  }
+
+  return body;
+};
 
 const MEMBERSHIP_ENDPOINT_VARIANTS = ['/company_memberships', '/company-memberships'] as const;
 
@@ -215,6 +350,14 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     []
   );
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
+    setMemberships(prev => prev.map(item => parseMembership(item) ?? item));
+  }, [hydrated, setMemberships]);
 
   const headers = useMemo(() => {
     if (!token) {
@@ -419,6 +562,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             role: options?.role ?? existing.role ?? null,
             status: targetStatus,
             notes: options?.notes ?? existing.notes ?? null,
+            reason: existing.reason ?? null,
+            responded_at: existing.responded_at ?? null,
+            audit_flags: existing.audit_flags ?? null,
           });
         }
 
@@ -431,6 +577,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         role: options?.role ?? null,
         status: targetStatus,
         notes: options?.notes ?? null,
+        message: options?.message ?? null,
       });
     },
     [
@@ -463,6 +610,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         role: options?.role ?? membership.role ?? null,
         status,
         notes: options?.notes ?? membership.notes ?? null,
+        reason: options?.reason ?? membership.reason ?? null,
+        responded_at: options?.responded_at ?? membership.responded_at ?? null,
+        audit_flags: options?.audit_flags ?? membership.audit_flags ?? null,
       });
     },
     [memberships, updateCompanyMembership]
