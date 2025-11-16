@@ -2634,6 +2634,559 @@
               }
             }
           ]
+        },
+        {
+          "name": "Invite Company Member",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"role\": \"member\",\n  \"expires_at\": \"2025-01-31T23:59:59\",\n  \"invitation_message\": \"Te esperamos en el equipo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/invite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "invite"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/invite**\n\nGenera o renueva una invitación en estado `invited`, estableciendo `invitation_token`, `expires_at` e `invited_by`. El payload mantiene `company_id` y `user_id` para respetar la ausencia de FOREIGN KEY en `sisa.api`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_user_id')) {",
+                  "  const fallbackUser = pm.collectionVariables.get('user_id') || 1;",
+                  "  pm.collectionVariables.set('membership_user_id', fallbackUser);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.invitation_token) {",
+                  "  pm.collectionVariables.set('membership_invitation_token', jsonData.invitation_token);",
+                  "}",
+                  "if (jsonData && jsonData.membership_id) {",
+                  "  pm.collectionVariables.set('membership_id', jsonData.membership_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Company Invitation",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Invitación cancelada por cambios internos\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/cancel-invitation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "cancel-invitation"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/cancel-invitation**\n\nAnula la invitación activa dejando el registro en `cancelled` y limpiando el token asociado."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept Company Invitation",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{membership_invitation_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "accept"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/accept**\n\nValida el `invitation_token` y deja la membresía en `approved`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_invitation_token')) {",
+                  "  pm.collectionVariables.set('membership_invitation_token', '');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leave Company Membership",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Renuncio voluntariamente a la empresa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "leave"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/leave**\n\nPermite que el propio miembro marque su registro como `left` dejando un comentario opcional."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend Company Member",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Suspendido temporalmente por auditoría interna\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "suspend"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/suspend**\n\nCambia una membresía aprobada al estado `suspended` registrando notas internas."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove Company Member",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Expulsión por incumplir el acuerdo de confidencialidad\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "remove"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/remove**\n\nMarca al miembro como `removed`, preservando las notas del administrador."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Membership History",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/history**\n\nDevuelve el historial completo de la membresía, incluyendo `operation_type`, `notes`, `changed_by` y snapshots de metadatos."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.history) {",
+                  "  pm.collectionVariables.set('membership_history_length', jsonData.history.length);",
+                  "}",
+                  "if (jsonData && jsonData.metadata_snapshot) {",
+                  "  pm.collectionVariables.set('membership_history_snapshot', JSON.stringify(jsonData.metadata_snapshot));",
+                  "}",
+                  "if (jsonData && Array.isArray(jsonData)) {",
+                  "  pm.collectionVariables.set('membership_history_length', jsonData.length);",
+                  "}"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
