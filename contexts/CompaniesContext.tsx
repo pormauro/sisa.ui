@@ -557,6 +557,7 @@ const parseCompany = (raw: any): Company => {
 
   const administratorIds = parseAdministratorIdsValue(
     raw?.administrator_ids ??
+      raw?.admin_users ??
       raw?.admin_ids ??
       raw?.administrator_id ??
       raw?.admin_id ??
