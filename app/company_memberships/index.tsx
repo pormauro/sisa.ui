@@ -17,13 +17,22 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { SearchableSelect } from '@/components/SearchableSelect';
+import { MembershipStatusBadge } from '@/components/MembershipStatusBadge';
+import {
+  MembershipLifecycleStatus,
+  MEMBERSHIP_STATUS_OPTIONS,
+  getMembershipStatusSortWeight,
+} from '@/constants/companyMemberships';
 
-type MembershipSortOption = 'updated' | 'company' | 'user';
+type MembershipSortOption = 'updated' | 'company' | 'user' | 'status';
+type StatusFilterValue = MembershipLifecycleStatus | 'all';
 
 const SORT_OPTIONS: { label: string; value: MembershipSortOption }[] = [
   { label: 'Última actualización', value: 'updated' },
   { label: 'Empresa', value: 'company' },
   { label: 'Usuario', value: 'user' },
+  { label: 'Estado', value: 'status' },
 ];
 
 const getTimestamp = (value?: string | null): number => {
@@ -58,6 +67,7 @@ export default function CompanyMembershipsListPage() {
   const [selectedSort, setSelectedSort] = useState<MembershipSortOption>('updated');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
 
   const canList = permissions.includes('listCompanyMemberships');
   const canCreate = permissions.includes('addCompanyMembership');
@@ -81,18 +91,35 @@ export default function CompanyMembershipsListPage() {
     }, [canList, loadCompanyMemberships])
   );
 
+  const statusFilterItems = useMemo(
+    () => [
+      { label: 'Todos los estados', value: 'all' as StatusFilterValue },
+      ...MEMBERSHIP_STATUS_OPTIONS.map(option => ({ label: option.label, value: option.value })),
+    ],
+    []
+  );
+
   const filteredMemberships = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    const base = query
+    const baseCollection = query
       ? memberships.filter(item => {
           const company = item.company_name?.toLowerCase() ?? '';
           const user = item.user_name?.toLowerCase() ?? '';
           const email = item.user_email?.toLowerCase() ?? '';
           const role = item.role?.toLowerCase() ?? '';
           const status = item.status?.toLowerCase() ?? '';
-          return [company, user, email, role, status].some(field => field.includes(query));
+          const message = item.message?.toLowerCase() ?? '';
+          const reason = item.reason?.toLowerCase() ?? '';
+          return [company, user, email, role, status, message, reason].some(field =>
+            field.includes(query)
+          );
         })
       : memberships;
+
+    const base =
+      statusFilter === 'all'
+        ? baseCollection
+        : baseCollection.filter(item => (item.normalized_status ?? null) === statusFilter);
 
     const items = [...base];
     items.sort((a, b) => {
@@ -101,6 +128,11 @@ export default function CompanyMembershipsListPage() {
           return a.company_name.localeCompare(b.company_name, undefined, { sensitivity: 'base' });
         case 'user':
           return a.user_name.localeCompare(b.user_name, undefined, { sensitivity: 'base' });
+        case 'status':
+          return (
+            getMembershipStatusSortWeight(a.normalized_status ?? null) -
+            getMembershipStatusSortWeight(b.normalized_status ?? null)
+          );
         case 'updated':
         default:
           return getTimestamp(a.updated_at ?? a.created_at) - getTimestamp(b.updated_at ?? b.created_at);
@@ -112,7 +144,13 @@ export default function CompanyMembershipsListPage() {
     }
 
     return items;
-  }, [memberships, searchQuery, selectedSort, sortDirection]);
+  }, [
+    memberships,
+    searchQuery,
+    selectedSort,
+    sortDirection,
+    statusFilter,
+  ]);
 
   const handlePressItem = useCallback(
     (membership: CompanyMembership) => {
@@ -169,7 +207,23 @@ export default function CompanyMembershipsListPage() {
         </View>
         <ThemedText style={styles.userName}>{item.user_name}</ThemedText>
         {item.user_email ? <ThemedText style={styles.userEmail}>{item.user_email}</ThemedText> : null}
-        {item.status ? <ThemedText style={styles.statusText}>Estado: {item.status}</ThemedText> : null}
+        <View style={styles.statusRow}>
+          <MembershipStatusBadge
+            normalizedStatus={item.normalized_status ?? null}
+            fallbackLabel={item.status ?? 'Sin estado'}
+            size="sm"
+          />
+          {item.message ? (
+            <ThemedText style={styles.statusMeta} numberOfLines={2}>
+              Solicitud: {item.message}
+            </ThemedText>
+          ) : null}
+        </View>
+        {item.reason ? (
+          <ThemedText style={styles.reasonText} numberOfLines={2}>
+            Respuesta: {item.reason}
+          </ThemedText>
+        ) : null}
         <View style={styles.itemFooter}>
           <ThemedText style={styles.metaText}>
             Actualizado: {item.updated_at ? new Date(item.updated_at).toLocaleString() : 'N/D'}
@@ -234,6 +288,24 @@ export default function CompanyMembershipsListPage() {
             {sortDirection === 'asc' ? '↑' : '↓'}
           </ThemedText>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.filtersRow}>
+        <View style={styles.filterSelect}>
+          <SearchableSelect
+            items={statusFilterItems}
+            selectedValue={statusFilter}
+            onValueChange={value => {
+              if (value === null) {
+                setStatusFilter('all');
+                return;
+              }
+              setStatusFilter(value as StatusFilterValue);
+            }}
+            placeholder="Filtrar por estado"
+            showSearch={false}
+          />
+        </View>
       </View>
 
       <View style={styles.sortSummary}>
@@ -308,6 +380,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
   },
+  filtersRow: {
+    marginBottom: 12,
+  },
+  filterSelect: {
+    flex: 1,
+  },
   sortButtonText: {
     fontSize: 18,
     fontWeight: '600',
@@ -363,10 +441,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     opacity: 0.8,
   },
-  statusText: {
-    fontSize: 13,
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  statusMeta: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  reasonText: {
+    fontSize: 12,
     fontStyle: 'italic',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   itemFooter: {
     flexDirection: 'row',

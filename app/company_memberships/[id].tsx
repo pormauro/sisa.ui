@@ -24,6 +24,8 @@ import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { normalizeNullableText } from '@/utils/normalizeNullableText';
+import { MembershipStatusBadge } from '@/components/MembershipStatusBadge';
+import { MembershipLifecycleStatus } from '@/constants/companyMemberships';
 
 export default function EditCompanyMembershipPage() {
   const router = useRouter();
@@ -37,6 +39,9 @@ export default function EditCompanyMembershipPage() {
     updateCompanyMembership,
     deleteCompanyMembership,
     loading,
+    statusCatalog,
+    roleCatalog,
+    normalizeStatus,
   } = useContext(CompanyMembershipsContext);
   const { companies, loadCompanies } = useContext(CompaniesContext);
   const { profiles, loadProfiles } = useContext(ProfilesListContext);
@@ -52,8 +57,10 @@ export default function EditCompanyMembershipPage() {
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [role, setRole] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState<MembershipLifecycleStatus | ''>('');
   const [notes, setNotes] = useState('');
+  const [message, setMessage] = useState('');
+  const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -85,9 +92,12 @@ export default function EditCompanyMembershipPage() {
     setCompanyId(membership.company_id);
     setUserId(membership.user_id);
     setRole(membership.role ?? '');
-    setStatus(membership.status ?? '');
+    const normalized = normalizeStatus(membership.status ?? '') ?? null;
+    setStatus(normalized ?? '');
     setNotes(membership.notes ?? '');
-  }, [membership]);
+    setMessage(membership.message ?? '');
+    setReason(membership.reason ?? '');
+  }, [membership, normalizeStatus]);
 
   const companyItems = useMemo(
     () =>
@@ -107,6 +117,22 @@ export default function EditCompanyMembershipPage() {
     [profiles]
   );
 
+  const statusItems = useMemo(
+    () => statusCatalog.map(option => ({ label: option.label, value: option.value })),
+    [statusCatalog]
+  );
+
+  const roleItems = useMemo(
+    () => roleCatalog.map(option => ({ label: option.label, value: option.value })),
+    [roleCatalog]
+  );
+
+  const normalizedStatus = normalizeStatus(status);
+  const selectedStatus = useMemo(
+    () => statusCatalog.find(item => item.value === normalizedStatus) ?? null,
+    [normalizedStatus, statusCatalog]
+  );
+
   const handleUpdate = useCallback(async () => {
     if (!companyId || !userId) {
       Alert.alert('Datos incompletos', 'Debes seleccionar empresa y usuario.');
@@ -116,15 +142,19 @@ export default function EditCompanyMembershipPage() {
     setSubmitting(true);
     try {
       const normalizedRole = normalizeNullableText(role);
-      const normalizedStatus = normalizeNullableText(status);
       const normalizedNotes = normalizeNullableText(notes);
+      const normalizedMessage = normalizeNullableText(message);
+      const normalizedReason = normalizeNullableText(reason);
+      const normalizedStatusValue = normalizeStatus(status) ?? null;
 
       const ok = await updateCompanyMembership(membershipId, {
         company_id: companyId,
         user_id: userId,
         role: normalizedRole,
-        status: normalizedStatus,
+        status: normalizedStatusValue,
         notes: normalizedNotes,
+        message: normalizedMessage,
+        reason: normalizedReason,
       });
 
       if (ok) {
@@ -143,7 +173,19 @@ export default function EditCompanyMembershipPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [companyId, membershipId, notes, role, router, status, updateCompanyMembership, userId]);
+  }, [
+    companyId,
+    membershipId,
+    message,
+    normalizeStatus,
+    notes,
+    reason,
+    role,
+    router,
+    status,
+    updateCompanyMembership,
+    userId,
+  ]);
 
   const handleRemove = useCallback(() => {
     if (!membership) {
@@ -242,6 +284,17 @@ export default function EditCompanyMembershipPage() {
             />
 
             <ThemedText style={styles.label}>Rol asignado (opcional)</ThemedText>
+            <SearchableSelect
+              items={roleItems}
+              selectedValue={roleItems.find(item => item.value === role)?.value ?? null}
+              onValueChange={value => {
+                if (typeof value === 'string' || typeof value === 'number') {
+                  setRole(String(value));
+                }
+              }}
+              placeholder="Selecciona una sugerencia"
+              showSearch={false}
+            />
             <ThemedTextInput
               placeholder="Ej.: Administrador, Responsable comercial"
               value={role}
@@ -249,11 +302,28 @@ export default function EditCompanyMembershipPage() {
               autoCapitalize="sentences"
             />
 
-            <ThemedText style={styles.label}>Estado interno (opcional)</ThemedText>
-            <ThemedTextInput
-              placeholder="Ej.: Activo, Invitado, Suspendido"
-              value={status}
-              onChangeText={setStatus}
+            <ThemedText style={styles.label}>Estado interno</ThemedText>
+            <View style={styles.statusHelper}>
+              <MembershipStatusBadge
+                normalizedStatus={normalizedStatus}
+                fallbackLabel={status || membership.status || 'Sin estado'}
+              />
+              <ThemedText style={styles.statusDescription}>
+                {selectedStatus?.description ?? 'Seleccioná un estado actualizado.'}
+              </ThemedText>
+            </View>
+            <SearchableSelect
+              items={statusItems}
+              selectedValue={normalizedStatus ?? null}
+              onValueChange={value => {
+                if (value === null) {
+                  setStatus('');
+                  return;
+                }
+                setStatus(String(value) as MembershipLifecycleStatus);
+              }}
+              placeholder="Selecciona un estado"
+              showSearch={false}
             />
 
             <ThemedText style={styles.label}>Notas (opcional)</ThemedText>
@@ -261,6 +331,22 @@ export default function EditCompanyMembershipPage() {
               placeholder="Contexto adicional o instrucciones para el equipo"
               value={notes}
               onChangeText={setNotes}
+              multiline
+            />
+
+            <ThemedText style={styles.label}>Mensaje de solicitud (opcional)</ThemedText>
+            <ThemedTextInput
+              placeholder="Texto de la solicitud original"
+              value={message}
+              onChangeText={setMessage}
+              multiline
+            />
+
+            <ThemedText style={styles.label}>Motivo o respuesta (opcional)</ThemedText>
+            <ThemedTextInput
+              placeholder="Explicá la aprobación o rechazo"
+              value={reason}
+              onChangeText={setReason}
               multiline
             />
 
@@ -309,6 +395,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  statusHelper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusDescription: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   submitButton: {
     marginTop: 12,
