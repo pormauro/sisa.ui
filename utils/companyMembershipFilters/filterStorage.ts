@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { MembershipFilterState } from '@/app/company_memberships/filterTypes';
+import type { MembershipFilterState } from './filterTypes';
 
 const LAST_FILTERS_KEY = 'companyMemberships:lastFilters';
 const SAVED_VIEWS_KEY = 'companyMemberships:savedViews';
