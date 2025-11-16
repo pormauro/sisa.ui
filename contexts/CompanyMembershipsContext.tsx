@@ -80,10 +80,24 @@ export interface MembershipStatusUpdateOptions {
   audit_flags?: MembershipAuditFlags | null;
 }
 
+export type MembershipNotificationSeverity = 'info' | 'success' | 'warning' | 'error';
+
+export interface MembershipNotification {
+  id: string;
+  severity: MembershipNotificationSeverity;
+  message: string;
+  description?: string | null;
+  createdAt: string;
+}
+
 interface CompanyMembershipsContextValue {
   memberships: CompanyMembership[];
   hydrated: boolean;
   loading: boolean;
+  lastSyncedAt: string | null;
+  syncError: string | null;
+  isStale: boolean;
+  notifications: MembershipNotification[];
   statusCatalog: typeof MEMBERSHIP_STATUS_OPTIONS;
   roleCatalog: typeof MEMBERSHIP_ROLE_SUGGESTIONS;
   normalizeStatus: (value?: string | null) => MembershipLifecycleStatus | null;
@@ -100,12 +114,24 @@ interface CompanyMembershipsContextValue {
     status: string,
     options?: MembershipStatusUpdateOptions
   ) => Promise<CompanyMembership | null>;
+  enqueueNotification: (
+    message: string,
+    severity?: MembershipNotificationSeverity,
+    description?: string | null
+  ) => string | null;
+  dismissNotification: (id: string) => void;
+  clearNotifications: () => void;
+  clearSyncError: () => void;
 }
 
 const defaultContextValue: CompanyMembershipsContextValue = {
   memberships: [],
   hydrated: false,
   loading: false,
+  lastSyncedAt: null,
+  syncError: null,
+  isStale: false,
+  notifications: [],
   statusCatalog: MEMBERSHIP_STATUS_OPTIONS,
   roleCatalog: MEMBERSHIP_ROLE_SUGGESTIONS,
   normalizeStatus: normalizeMembershipStatus,
@@ -115,6 +141,10 @@ const defaultContextValue: CompanyMembershipsContextValue = {
   deleteCompanyMembership: async () => false,
   requestMembershipAccess: async () => null,
   updateMembershipStatus: async () => null,
+  enqueueNotification: () => null,
+  dismissNotification: () => undefined,
+  clearNotifications: () => undefined,
+  clearSyncError: () => undefined,
 };
 
 export const CompanyMembershipsContext =
@@ -342,6 +372,68 @@ const serializePayload = (payload: CompanyMembershipPayload) => {
 };
 
 const MEMBERSHIP_ENDPOINT_VARIANTS = ['/company_memberships', '/company-memberships'] as const;
+const MEMBERSHIP_STREAM_SUFFIX = '/stream';
+const REFRESH_INTERVAL_MINUTES = 5;
+const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000;
+const MAX_NOTIFICATION_QUEUE = 6;
+
+type EventSourceLike = {
+  close: () => void;
+  onmessage: null | ((event: { data: string }) => void);
+  onerror: null | ((event: any) => void);
+};
+
+type EventSourceConstructorLike = new (url: string) => EventSourceLike;
+
+type WebSocketLike = {
+  close: () => void;
+  onmessage: null | ((event: { data: string }) => void);
+  onerror: null | ((event: any) => void);
+};
+
+type WebSocketConstructorLike = new (url: string) => WebSocketLike;
+
+const describeUnknownError = (error: unknown): string | null => {
+  if (!error) {
+    return null;
+  }
+
+  if (typeof error === 'string') {
+    const trimmed = error.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch (serializationError) {
+    console.error('Unable to serialize error payload:', serializationError);
+  }
+
+  return null;
+};
+
+const toWebSocketUrl = (url: string): string => {
+  if (url.startsWith('https://')) {
+    return `wss://${url.slice('https://'.length)}`;
+  }
+  if (url.startsWith('http://')) {
+    return `ws://${url.slice('http://'.length)}`;
+  }
+  return url;
+};
+
+const buildMembershipStreamingUrl = (token?: string | null): string => {
+  const basePath = `${BASE_URL}${MEMBERSHIP_ENDPOINT_VARIANTS[0]}${MEMBERSHIP_STREAM_SUFFIX}`;
+  if (!token) {
+    return basePath;
+  }
+  const separator = basePath.includes('?') ? '&' : '?';
+  return `${basePath}${separator}token=${encodeURIComponent(token)}`;
+};
 
 const parseJsonSafely = (text: string): any => {
   if (!text) {
@@ -478,6 +570,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     []
   );
   const [loading, setLoading] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [isStale, setIsStale] = useState(false);
+  const [notifications, setNotifications] = useState<MembershipNotification[]>([]);
   const membershipsRef = useRef<CompanyMembership[]>(memberships);
 
   useEffect(() => {
@@ -492,6 +588,49 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     membershipsRef.current = memberships;
   }, [memberships]);
 
+  useEffect(() => {
+    if (!headers) {
+      setIsStale(false);
+      setSyncError(null);
+    }
+  }, [headers]);
+
+  const enqueueNotification = useCallback(
+    (message: string, severity: MembershipNotificationSeverity = 'info', description?: string | null) => {
+      if (!message) {
+        return null;
+      }
+
+      const notification: MembershipNotification = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        severity,
+        message,
+        description: description ?? null,
+        createdAt: new Date().toISOString(),
+      };
+
+      setNotifications(prev => {
+        const next = [notification, ...prev];
+        return next.slice(0, MAX_NOTIFICATION_QUEUE);
+      });
+
+      return notification.id;
+    },
+    []
+  );
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  const clearSyncError = useCallback(() => {
+    setSyncError(null);
+  }, []);
+
   const headers = useMemo(() => {
     if (!token) {
       return null;
@@ -502,6 +641,42 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       Authorization: `Bearer ${token}`,
     } satisfies Record<string, string>;
   }, [token]);
+
+  const reportOperationalError = useCallback(
+    (message: string, error?: unknown) => {
+      const details = describeUnknownError(error);
+      enqueueNotification(message, 'error', details);
+      if (error instanceof Error) {
+        console.error(message, error);
+      } else if (details) {
+        console.error(message, details);
+      } else if (error !== undefined) {
+        console.error(message, error);
+      }
+    },
+    [enqueueNotification]
+  );
+
+  const handleSyncSuccess = useCallback(
+    (options?: { message?: string; severity?: MembershipNotificationSeverity }) => {
+      setLastSyncedAt(new Date().toISOString());
+      setSyncError(null);
+      setIsStale(false);
+      if (options?.message) {
+        enqueueNotification(options.message, options.severity ?? 'success');
+      }
+    },
+    [enqueueNotification]
+  );
+
+  const handleSyncFailure = useCallback(
+    (message: string, error?: unknown) => {
+      setIsStale(true);
+      setSyncError(message);
+      reportOperationalError(message, error);
+    },
+    [reportOperationalError]
+  );
 
   const postCompanyMembershipAction = useCallback(
     async (
@@ -529,11 +704,18 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const mergeMembershipIntoState = useCallback(
     (incoming: CompanyMembership) => {
       setMemberships(prev => {
-        const filtered = prev.filter(item => item.id !== incoming.id);
-        return [incoming, ...filtered];
+        const index = prev.findIndex(item => item.id === incoming.id);
+        if (index === -1) {
+          return [incoming, ...prev];
+        }
+
+        const clone = [...prev];
+        clone[index] = { ...clone[index], ...incoming };
+        return clone;
       });
+      handleSyncSuccess();
     },
-    [setMemberships]
+    [handleSyncSuccess, setMemberships]
   );
 
   const loadCompanyMemberships = useCallback(async (): Promise<CompanyMembership[]> => {
@@ -546,17 +728,19 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
       if (response.status === 404) {
         setMemberships([]);
+        handleSyncSuccess();
         return [];
       }
 
       if (!response.ok) {
-        console.error('Error loading company memberships:', response.status, response.statusText);
+        handleSyncFailure('No pudimos cargar las membresías.', `${response.status} ${response.statusText}`);
         return membershipsRef.current;
       }
 
       const text = await response.text();
       if (!text) {
         setMemberships([]);
+        handleSyncSuccess();
         return [];
       }
 
@@ -564,18 +748,154 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         const json = JSON.parse(text);
         const normalized = normalizeCollection(json);
         setMemberships(normalized);
+        handleSyncSuccess();
         return normalized;
       } catch (error) {
-        console.error('Unable to parse company memberships payload:', error);
+        handleSyncFailure('No pudimos interpretar las membresías recibidas.', error);
         return membershipsRef.current;
       }
     } catch (error) {
-      console.error('Error loading company memberships:', error);
+      handleSyncFailure('No pudimos sincronizar las membresías.', error);
       return membershipsRef.current;
     } finally {
       setLoading(false);
     }
-  }, [headers, setMemberships]);
+  }, [handleSyncFailure, handleSyncSuccess, headers, setMemberships]);
+
+  useEffect(() => {
+    if (!headers) {
+      return;
+    }
+
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedule = () => {
+      timer = setTimeout(async () => {
+        try {
+          await loadCompanyMemberships();
+        } finally {
+          if (!disposed) {
+            schedule();
+          }
+        }
+      }, REFRESH_INTERVAL_MS);
+    };
+
+    loadCompanyMemberships();
+    schedule();
+
+    return () => {
+      disposed = true;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+  }, [headers, loadCompanyMemberships]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const globalObject = typeof globalThis !== 'undefined' ? (globalThis as any) : undefined;
+    const EventSourceCtor = globalObject?.EventSource as EventSourceConstructorLike | undefined;
+    const WebSocketCtor = globalObject?.WebSocket as WebSocketConstructorLike | undefined;
+
+    if (!EventSourceCtor && !WebSocketCtor) {
+      return;
+    }
+
+    const streamingUrl = buildMembershipStreamingUrl(token);
+    let disposed = false;
+    let cleanup: (() => void) | null = null;
+
+    const handleStreamingMessage = (raw: string) => {
+      if (!raw) {
+        return;
+      }
+
+      const payload = parseJsonSafely(raw);
+      const membership = extractMembershipFromPayload(payload ?? raw);
+      if (membership) {
+        mergeMembershipIntoState(membership);
+        enqueueNotification(
+          'Se recibieron cambios de membresías en vivo.',
+          'info',
+          `${membership.company_name} · ${membership.user_name}`
+        );
+      }
+    };
+
+    const tryEventSource = (): boolean => {
+      if (!EventSourceCtor) {
+        return false;
+      }
+
+      try {
+        const eventSource = new EventSourceCtor(streamingUrl);
+        eventSource.onmessage = event => handleStreamingMessage(event.data);
+        eventSource.onerror = () => {
+          if (disposed) {
+            return;
+          }
+          enqueueNotification(
+            'El canal SSE de membresías se cerró. Seguiremos sincronizando de forma periódica.',
+            'warning'
+          );
+          eventSource.close();
+        };
+        cleanup = () => {
+          disposed = true;
+          eventSource.close();
+        };
+        return true;
+      } catch (error) {
+        reportOperationalError('No se pudo iniciar el canal SSE de membresías.', error);
+        return false;
+      }
+    };
+
+    const tryWebSocket = (): boolean => {
+      if (!WebSocketCtor) {
+        return false;
+      }
+
+      try {
+        const ws = new WebSocketCtor(toWebSocketUrl(streamingUrl));
+        ws.onmessage = event => handleStreamingMessage(event.data);
+        ws.onerror = event => {
+          if (disposed) {
+            return;
+          }
+          reportOperationalError('El canal WebSocket de membresías falló.', event);
+        };
+        cleanup = () => {
+          disposed = true;
+          ws.close();
+        };
+        return true;
+      } catch (error) {
+        reportOperationalError('No se pudo iniciar el canal WebSocket de membresías.', error);
+        return false;
+      }
+    };
+
+    if (tryEventSource()) {
+      return () => {
+        cleanup?.();
+      };
+    }
+
+    if (tryWebSocket()) {
+      return () => {
+        cleanup?.();
+      };
+    }
+
+    return undefined;
+  }, [enqueueNotification, mergeMembershipIntoState, reportOperationalError, token]);
 
   const addCompanyMembership = useCallback(
     async (payload: CompanyMembershipPayload): Promise<CompanyMembership | null> => {
@@ -604,25 +924,22 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             created = single;
           }
         } catch (error) {
-          console.error('Unable to parse response while adding company membership:', error);
+          reportOperationalError('No pudimos interpretar la respuesta al crear la membresía.', error);
         }
 
         if (created) {
-          setMemberships(prev => {
-            const filtered = prev.filter(item => item.id !== created!.id);
-            return [created!, ...filtered];
-          });
+          mergeMembershipIntoState(created);
           return created;
         }
 
         await loadCompanyMemberships();
       } catch (error) {
-        console.error('Error adding company membership:', error);
+        reportOperationalError('Error al crear la membresía.', error);
       }
 
       return null;
     },
-    [headers, loadCompanyMemberships, setMemberships]
+    [headers, loadCompanyMemberships, mergeMembershipIntoState, reportOperationalError]
   );
 
   const updateCompanyMembership = useCallback(
@@ -639,7 +956,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         }));
 
         if (!response.ok) {
-          console.error('Error updating company membership:', response.status, response.statusText);
+          reportOperationalError('Error al actualizar la membresía.', `${response.status} ${response.statusText}`);
           return false;
         }
 
@@ -649,24 +966,22 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             const json = JSON.parse(text);
             const updated = parseMembership(json.membership ?? json.data ?? json);
             if (updated) {
-              setMemberships(prev =>
-                prev.map(item => (item.id === id ? { ...item, ...updated } : item))
-              );
+              mergeMembershipIntoState(updated);
               return true;
             }
           } catch (error) {
-            console.error('Unable to parse updated company membership payload:', error);
+            reportOperationalError('No pudimos interpretar la respuesta al actualizar la membresía.', error);
           }
         }
 
         await loadCompanyMemberships();
         return true;
       } catch (error) {
-        console.error('Error updating company membership:', error);
+        reportOperationalError('Error al actualizar la membresía.', error);
         return false;
       }
     },
-    [headers, loadCompanyMemberships, setMemberships]
+    [headers, loadCompanyMemberships, mergeMembershipIntoState, reportOperationalError]
   );
 
   const deleteCompanyMembership = useCallback(
@@ -682,18 +997,19 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         }));
 
         if (!response.ok) {
-          console.error('Error deleting company membership:', response.status, response.statusText);
+          reportOperationalError('Error al eliminar la membresía.', `${response.status} ${response.statusText}`);
           return false;
         }
 
         setMemberships(prev => prev.filter(item => item.id !== id));
+        handleSyncSuccess();
         return true;
       } catch (error) {
-        console.error('Error deleting company membership:', error);
+        reportOperationalError('Error al eliminar la membresía.', error);
         return false;
       }
     },
-    [headers, setMemberships]
+    [handleSyncSuccess, headers, reportOperationalError, setMemberships]
   );
 
   const requestMembershipAccess = useCallback(
@@ -724,7 +1040,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         const errorPayload = payload ?? text;
 
         if (response.status === 401) {
-          console.error('Solicitud de membresía sin autorización:', errorPayload);
+          reportOperationalError('Solicitud de membresía sin autorización.', errorPayload);
           throw buildHttpError(
             response.status,
             'Tu sesión expiró. Iniciá sesión nuevamente para continuar.',
@@ -733,7 +1049,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         }
 
         if (response.status === 422) {
-          console.error('Solicitud de membresía inválida:', errorPayload);
+          reportOperationalError('Solicitud de membresía inválida.', errorPayload);
           throw buildHttpError(
             response.status,
             'Los datos enviados no son válidos para registrar la solicitud.',
@@ -742,7 +1058,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         }
 
         if (response.status === 409) {
-          console.warn('Solicitud de membresía duplicada:', errorPayload);
+          enqueueNotification(
+            'Ya existe una solicitud activa para esta empresa.',
+            'warning'
+          );
           const payloadMembership = extractMembershipFromPayload(payload);
           if (payloadMembership) {
             mergeMembershipIntoState(payloadMembership);
@@ -774,11 +1093,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         }
 
         if (!response.ok) {
-          console.error(
-            'Error desconocido al solicitar acceso a la empresa:',
-            response.status,
-            errorPayload
-          );
+          reportOperationalError('No pudimos registrar la solicitud de acceso.', errorPayload);
           throw buildHttpError(
             response.status,
             'No pudimos registrar la solicitud de acceso.',
@@ -794,17 +1109,20 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
         await loadCompanyMemberships();
       } catch (error) {
-        if (error instanceof Error) {
-          console.error('Error requesting membership access:', error);
-        } else {
-          console.error('Error requesting membership access:', String(error));
-        }
+        reportOperationalError('Error al solicitar acceso a la empresa.', error);
         throw error;
       }
 
       return null;
     },
-    [loadCompanyMemberships, mergeMembershipIntoState, postCompanyMembershipAction, userId]
+    [
+      enqueueNotification,
+      loadCompanyMemberships,
+      mergeMembershipIntoState,
+      postCompanyMembershipAction,
+      reportOperationalError,
+      userId,
+    ]
   );
 
   const updateMembershipStatus = useCallback(
@@ -858,7 +1176,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           const errorPayload = payload ?? text;
 
           if (response.status === 401) {
-            console.error('Actualización de membresía sin autorización:', errorPayload);
+            reportOperationalError('Actualización de membresía sin autorización.', errorPayload);
             throw buildHttpError(
               response.status,
               'No estás autorizado para responder la solicitud.',
@@ -867,7 +1185,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           }
 
           if (response.status === 422) {
-            console.error('Actualización de membresía inválida:', errorPayload);
+            reportOperationalError('Actualización de membresía inválida.', errorPayload);
             throw buildHttpError(
               response.status,
               'Los datos enviados no son válidos para responder la solicitud.',
@@ -876,7 +1194,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           }
 
           if (!response.ok) {
-            console.error('Error actualizando el estado de la membresía:', errorPayload);
+            reportOperationalError('Error actualizando el estado de la membresía.', errorPayload);
             throw buildHttpError(
               response.status,
               'No pudimos actualizar el estado de la solicitud.',
@@ -893,11 +1211,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           await loadCompanyMemberships();
           return null;
         } catch (error) {
-          if (error instanceof Error) {
-            console.error('Error updating membership status:', error);
-          } else {
-            console.error('Error updating membership status:', String(error));
-          }
+          reportOperationalError('Error actualizando el estado de la membresía.', error);
           throw error;
         }
       }
@@ -937,6 +1251,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       mergeMembershipIntoState,
       memberships,
       postCompanyMembershipAction,
+      reportOperationalError,
       updateCompanyMembership,
     ]
   );
@@ -946,6 +1261,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       memberships,
       hydrated,
       loading,
+      lastSyncedAt,
+      syncError,
+      isStale,
+      notifications,
       statusCatalog: MEMBERSHIP_STATUS_OPTIONS,
       roleCatalog: MEMBERSHIP_ROLE_SUGGESTIONS,
       normalizeStatus: normalizeMembershipStatus,
@@ -955,17 +1274,29 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       deleteCompanyMembership,
       requestMembershipAccess,
       updateMembershipStatus,
+      enqueueNotification,
+      dismissNotification,
+      clearNotifications,
+      clearSyncError,
     }),
     [
       memberships,
       hydrated,
       loading,
+      lastSyncedAt,
+      syncError,
+      isStale,
+      notifications,
       loadCompanyMemberships,
       addCompanyMembership,
       updateCompanyMembership,
       deleteCompanyMembership,
       requestMembershipAccess,
       updateMembershipStatus,
+      enqueueNotification,
+      dismissNotification,
+      clearNotifications,
+      clearSyncError,
     ]
   );
 
