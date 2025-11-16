@@ -3,8 +3,8 @@
 Este módulo enlaza a los usuarios con las empresas que administran o necesitan consultar. A partir de esta iteración se normalizó el estado de cada solicitud y se extendieron los formularios para capturar los campos que espera la API `sisa.api`.
 
 ## Estados normalizados
-- Los estados permitidos ahora son `pending`, `approved` y `rejected`. Cada valor incluye metadatos (etiqueta localizada, descripción y paleta de colores) en `constants/companyMemberships.ts` y se expone mediante el contexto `CompanyMembershipsContext` para reutilizarlo en formularios y listados.【F:constants/companyMemberships.ts†L1-L104】【F:contexts/CompanyMembershipsContext.tsx†L24-L115】
-- Todas las pantallas que muestran estados utilizan la misma normalización y un `MembershipStatusBadge` que aplica los colores y etiquetas correspondientes.【F:components/MembershipStatusBadge.tsx†L1-L53】
+- Los estados permitidos abarcan `pending`, `invited`, `approved`, `suspended`, `cancelled`, `rejected`, `left` y `removed`. Cada valor incluye metadatos (etiqueta localizada, descripción y paleta de colores) en `constants/companyMemberships.ts` y se expone mediante el contexto `CompanyMembershipsContext` para reutilizarlo en formularios y listados.【F:constants/companyMemberships.ts†L1-L153】【F:contexts/CompanyMembershipsContext.tsx†L24-L115】
+- Todas las pantallas que muestran estados utilizan la misma normalización, las utilidades `isPendingMembershipStatus`/`isApprovedMembershipStatus`/`isRejectedMembershipStatus` y un `MembershipStatusBadge` que aplica los colores y etiquetas correspondientes.【F:components/MembershipStatusBadge.tsx†L1-L53】【F:app/company_memberships/request.tsx†L20-L155】【F:app/companies/viewModal.tsx†L25-L120】
 
 ## Campos adicionales en los formularios
 - Las vistas de creación y edición incorporan selectores para estados/roles y controles de texto para `message` (motivo de la solicitud) y `reason` (respuesta al aprobar o rechazar). Se envían normalizados mediante `normalizeNullableText` antes de invocar la API.【F:app/company_memberships/create.tsx†L23-L187】【F:app/company_memberships/[id].tsx†L23-L208】
