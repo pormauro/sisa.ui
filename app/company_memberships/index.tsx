@@ -30,7 +30,7 @@ import {
   MembershipSortOption,
   StatusFilterValue,
   type MembershipFilterState,
-} from '@/app/company_memberships/filterTypes';
+} from '@/utils/companyMembershipFilters/filterTypes';
 import {
   deleteView,
   loadLastFilters,
@@ -39,7 +39,7 @@ import {
   saveNewView,
   touchViewUsage,
   type MembershipSavedView,
-} from '@/app/company_memberships/filterStorage';
+} from '@/utils/companyMembershipFilters/filterStorage';
 
 const SORT_OPTIONS: { label: string; value: MembershipSortOption }[] = [
   { label: 'Última actualización', value: 'updated' },
