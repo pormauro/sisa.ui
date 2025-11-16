@@ -8,6 +8,7 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
+  TextInput,
 } from 'react-native';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
@@ -60,6 +61,107 @@ const membershipIsRejected = (candidate: NormalizableStatusCandidate): boolean =
 const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, MembershipLifecycleStatus> = {
   approve: 'approved',
   reject: 'rejected',
+};
+
+type ResponseTemplateId = 'approval_default' | 'rejection_missing_docs' | 'more_info_default';
+
+interface ResponseTemplate {
+  id: ResponseTemplateId;
+  label: string;
+  description: string;
+  decision: MembershipDecision | null;
+  status: MembershipLifecycleStatus;
+  defaultMessage: string;
+  defaultReason?: string | null;
+  defaultNotes?: string | null;
+  requireReason?: boolean;
+  requireNotes?: boolean;
+  channel: string;
+  ctaLabel: string;
+}
+
+const RESPONSE_TEMPLATES: ResponseTemplate[] = [
+  {
+    id: 'approval_default',
+    label: 'Aprobación inmediata',
+    description: 'Activa el acceso y envía un mensaje de bienvenida.',
+    decision: 'approve',
+    status: 'approved',
+    defaultMessage:
+      'Hola {{user}}, aprobamos tu acceso a {{company}}. Ya podés operar desde la app.',
+    defaultNotes: 'Alta confirmada desde la vista de empresas.',
+    channel: 'in-app',
+    ctaLabel: 'Aprobar y notificar',
+  },
+  {
+    id: 'rejection_missing_docs',
+    label: 'Rechazo (falta info)',
+    description: 'Informa que faltan datos/documentos para avanzar.',
+    decision: 'reject',
+    status: 'rejected',
+    defaultMessage:
+      'Hola {{user}}, no pudimos aprobar tu acceso porque faltan documentos. Completá los datos y volvé a intentarlo.',
+    defaultReason: 'Documentación incompleta',
+    defaultNotes: 'Rechazo registrado por información insuficiente.',
+    requireReason: true,
+    requireNotes: true,
+    channel: 'in-app',
+    ctaLabel: 'Rechazar y notificar',
+  },
+  {
+    id: 'more_info_default',
+    label: 'Pedir más información',
+    description: 'Mantiene la solicitud en revisión y pide datos extra.',
+    decision: null,
+    status: 'pending',
+    defaultMessage:
+      'Hola {{user}}, necesitamos información adicional para validar tu acceso a {{company}}. Respondé este mensaje con los datos solicitados.',
+    defaultReason: 'Información adicional solicitada',
+    defaultNotes: 'Pendiente hasta recibir documentación complementaria.',
+    requireNotes: true,
+    channel: 'in-app',
+    ctaLabel: 'Enviar consulta',
+  },
+];
+
+const RESPONSE_TEMPLATE_MAP = new Map<ResponseTemplateId, ResponseTemplate>(
+  RESPONSE_TEMPLATES.map(template => [template.id, template])
+);
+
+const DEFAULT_RESPONSE_TEMPLATE_ID: ResponseTemplateId = 'approval_default';
+
+const QUICK_REQUEST_TEMPLATE = {
+  id: 'company-view:auto-request',
+  label: 'Solicitud rápida desde empresas',
+  message: 'Necesito que habiliten mi acceso a esta empresa desde la vista detallada.',
+};
+
+type ResponseComposerState = {
+  templateId: ResponseTemplateId;
+  message: string;
+  reason: string;
+  notes: string;
+};
+
+const fillTemplatePlaceholders = (
+  templateText: string,
+  membership: CompanyMembership | null,
+  companyName?: string | null
+): string => {
+  if (!templateText) {
+    return '';
+  }
+
+  const fallbackUser = membership?.user_name?.trim() || 'la persona solicitante';
+  const fallbackCompany = companyName?.trim() || membership?.company_name || 'la empresa';
+
+  return templateText
+    .replace(/\{\{\s*user\s*\}\}/gi, fallbackUser)
+    .replace(/\{\{\s*company\s*\}\}/gi, fallbackCompany);
+};
+
+const resolveResponseTemplate = (templateId?: ResponseTemplateId | null): ResponseTemplate => {
+  return RESPONSE_TEMPLATE_MAP.get(templateId ?? DEFAULT_RESPONSE_TEMPLATE_ID) ?? RESPONSE_TEMPLATES[0];
 };
 
 const getTimestamp = (value?: string | null): number | null => {
@@ -165,6 +267,7 @@ export default function ViewCompanyModal() {
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const company = companies.find(item => item.id === companyId);
+  const resolvedCompanyName = company?.name ?? company?.legal_name ?? null;
 
   const canView =
     permissions.includes('listCompanies') ||
@@ -192,6 +295,7 @@ export default function ViewCompanyModal() {
 
   const [requestingAccess, setRequestingAccess] = useState(false);
   const [respondingId, setRespondingId] = useState<number | null>(null);
+  const [responseForms, setResponseForms] = useState<Record<number, ResponseComposerState>>({});
 
   const background = useThemeColor({}, 'background');
   const cardBorder = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
@@ -199,6 +303,12 @@ export default function ViewCompanyModal() {
   const actionText = useThemeColor({}, 'buttonText');
   const destructiveBackground = useThemeColor({ light: '#d32f2f', dark: '#ff6b6b' }, 'button');
   const destructiveText = useThemeColor({ light: '#ffffff', dark: '#2f273e' }, 'buttonText');
+  const inputBackground = useThemeColor({ light: '#ffffff', dark: '#1c1c1c' }, 'background');
+  const inputBorder = useThemeColor({ light: '#d0d0d0', dark: '#555555' }, 'background');
+  const inputText = useThemeColor({}, 'text');
+  const placeholderColor = useThemeColor({ light: '#9e9e9e', dark: '#aaaaaa' }, 'text');
+  const errorBorder = useThemeColor({ light: '#c62828', dark: '#ef9a9a' }, 'text');
+  const summaryBackground = useThemeColor({ light: '#f5f7ff', dark: '#1b1f2a' }, 'background');
 
   useEffect(() => {
     if (!canView) {
@@ -266,6 +376,158 @@ export default function ViewCompanyModal() {
   const allowRequestAccess =
     numericUserId !== null && (!currentMembership || membershipIsRejected(currentMembership));
 
+  const buildResponseComposerState = useCallback(
+    (
+      membership: CompanyMembership,
+      templateId: ResponseTemplateId = DEFAULT_RESPONSE_TEMPLATE_ID
+    ): ResponseComposerState => {
+      const template = resolveResponseTemplate(templateId);
+      return {
+        templateId: template.id,
+        message: fillTemplatePlaceholders(template.defaultMessage, membership, resolvedCompanyName),
+        reason: template.defaultReason
+          ? fillTemplatePlaceholders(template.defaultReason, membership, resolvedCompanyName)
+          : '',
+        notes: template.defaultNotes
+          ? fillTemplatePlaceholders(template.defaultNotes, membership, resolvedCompanyName)
+          : '',
+      };
+    },
+    [resolvedCompanyName]
+  );
+
+  const patchResponseComposer = useCallback(
+    (
+      membership: CompanyMembership,
+      updater: (current: ResponseComposerState) => ResponseComposerState
+    ) => {
+      setResponseForms(prev => {
+        const current = prev[membership.id] ?? buildResponseComposerState(membership);
+        const next = updater(current);
+        if (
+          current.templateId === next.templateId &&
+          current.message === next.message &&
+          current.reason === next.reason &&
+          current.notes === next.notes
+        ) {
+          return prev;
+        }
+        return { ...prev, [membership.id]: next };
+      });
+    },
+    [buildResponseComposerState]
+  );
+
+  const handleTemplateChange = useCallback(
+    (membership: CompanyMembership, templateId: ResponseTemplateId) => {
+      patchResponseComposer(membership, () => buildResponseComposerState(membership, templateId));
+    },
+    [buildResponseComposerState, patchResponseComposer]
+  );
+
+  const handleComposerValueChange = useCallback(
+    (membership: CompanyMembership, field: 'message' | 'reason' | 'notes', value: string) => {
+      patchResponseComposer(membership, current => ({ ...current, [field]: value }));
+    },
+    [patchResponseComposer]
+  );
+
+  const getResponseComposerState = useCallback(
+    (membership: CompanyMembership): ResponseComposerState => {
+      return responseForms[membership.id] ?? buildResponseComposerState(membership);
+    },
+    [buildResponseComposerState, responseForms]
+  );
+
+  const handleSendResponse = useCallback(
+    (membership: CompanyMembership) => {
+      const composer = responseForms[membership.id] ?? buildResponseComposerState(membership);
+      const template = resolveResponseTemplate(composer.templateId);
+      const trimmedMessage = composer.message.trim();
+      const trimmedNotes = composer.notes.trim();
+      const trimmedReason = composer.reason.trim();
+
+      if (!trimmedMessage.length) {
+        Alert.alert('Mensaje requerido', 'Completá el mensaje que recibirá el solicitante.');
+        return;
+      }
+
+      if (template.requireReason && !trimmedReason.length) {
+        Alert.alert('Motivo requerido', 'Indicá el motivo del rechazo antes de continuar.');
+        return;
+      }
+
+      if (template.requireNotes && !trimmedNotes.length) {
+        Alert.alert(
+          'Observaciones obligatorias',
+          'Registrá observaciones internas para dejar trazabilidad de la decisión.'
+        );
+        return;
+      }
+
+      const submit = async () => {
+        setRespondingId(membership.id);
+        try {
+          const targetStatus = template.decision
+            ? MEMBERSHIP_STATUS_BY_DECISION[template.decision]
+            : template.status ?? membership.status ?? 'pending';
+          const updated = await updateMembershipStatus(membership.id, targetStatus, {
+            decision: template.decision ?? undefined,
+            role: membership.role ?? null,
+            notes: trimmedNotes.length ? trimmedNotes : null,
+            reason: trimmedReason.length ? trimmedReason : null,
+            response_template: template.id,
+            response_template_label: template.label,
+            response_message: trimmedMessage,
+            response_channel: template.channel,
+            response_summary: template.description,
+            message: membership.message ?? null,
+          });
+
+          if (!updated) {
+            Alert.alert(
+              'No pudimos actualizar la solicitud',
+              'Intentá nuevamente o revisá el módulo de membresías.'
+            );
+            return;
+          }
+
+          if (membershipIsPending(updated) && template.decision === null) {
+            Alert.alert('Consulta enviada', 'Registramos tu mensaje y la solicitud sigue pendiente.');
+          } else if (membershipIsApproved(updated)) {
+            Alert.alert('Solicitud aprobada', 'El usuario ahora cuenta con acceso activo a la empresa.');
+          } else if (membershipIsRejected(updated)) {
+            Alert.alert(
+              'Solicitud rechazada',
+              'La solicitud fue marcada como rechazada y notificamos al solicitante.'
+            );
+          } else {
+            Alert.alert('Solicitud actualizada', 'Actualizamos el estado de la solicitud.');
+          }
+        } catch (error) {
+          console.error('Error responding to membership request:', error);
+          showMembershipErrorAlert(
+            error,
+            'No pudimos enviar la notificación. Intentalo nuevamente.'
+          );
+        } finally {
+          setRespondingId(null);
+        }
+      };
+
+      if (template.decision === 'reject') {
+        Alert.alert('Confirmar rechazo', `¿Querés rechazar el acceso de ${membership.user_name}?`, [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Rechazar', style: 'destructive', onPress: () => void submit() },
+        ]);
+        return;
+      }
+
+      void submit();
+    },
+    [buildResponseComposerState, responseForms, updateMembershipStatus]
+  );
+
   const handleRequestAccess = useCallback(async () => {
     if (!company || requestingAccess) {
       return;
@@ -274,13 +536,19 @@ export default function ViewCompanyModal() {
       if (currentMembership && !membershipIsRejected(currentMembership)) {
         Alert.alert('Acceso existente', 'Ya tenés una solicitud registrada para esta empresa.');
         return;
-      }
+    }
 
     setRequestingAccess(true);
     try {
-      const defaultMessage = 'Solicitud enviada desde la vista de empresas.';
+      const defaultMessage = fillTemplatePlaceholders(
+        QUICK_REQUEST_TEMPLATE.message,
+        currentMembership,
+        resolvedCompanyName
+      );
       const result = await requestMembershipAccess(company.id, {
         message: defaultMessage,
+        request_template: QUICK_REQUEST_TEMPLATE.id,
+        request_template_label: QUICK_REQUEST_TEMPLATE.label,
       });
 
       if (!result) {
@@ -315,73 +583,13 @@ export default function ViewCompanyModal() {
     } finally {
       setRequestingAccess(false);
     }
-  }, [company, currentMembership, requestMembershipAccess, requestingAccess]);
-
-  const performRespond = useCallback(
-    async (membership: CompanyMembership, decision: MembershipDecision) => {
-      const targetStatus = MEMBERSHIP_STATUS_BY_DECISION[decision];
-      setRespondingId(membership.id);
-      try {
-        const responseMessage =
-          decision === 'approve'
-            ? 'Solicitud aprobada desde la vista de empresas.'
-            : 'Solicitud rechazada desde la vista de empresas.';
-        const updated = await updateMembershipStatus(membership.id, targetStatus, {
-          decision,
-          message: responseMessage,
-          role: membership.role ?? null,
-          notes: membership.notes ?? null,
-          reason: decision === 'reject' ? membership.reason ?? responseMessage : undefined,
-        });
-
-        if (!updated) {
-          Alert.alert(
-            'No pudimos actualizar la solicitud',
-            'Intentá nuevamente o revisá el módulo de membresías.'
-          );
-          return;
-        }
-
-        if (membershipIsPending(updated)) {
-          Alert.alert('Solicitud pendiente', 'La solicitud continúa pendiente de revisión.');
-        } else if (membershipIsApproved(updated)) {
-          Alert.alert('Solicitud aprobada', 'El usuario ahora cuenta con acceso activo a la empresa.');
-        } else if (membershipIsRejected(updated)) {
-          Alert.alert('Solicitud rechazada', 'La solicitud fue marcada como rechazada.');
-        } else {
-          Alert.alert('Solicitud actualizada', 'Actualizamos el estado de la solicitud.');
-        }
-      } catch (error) {
-        console.error('Error responding to membership request:', error);
-        showMembershipErrorAlert(
-          error,
-          'No pudimos responder la solicitud. Intentalo nuevamente.'
-        );
-      } finally {
-        setRespondingId(null);
-      }
-    },
-    [updateMembershipStatus]
-  );
-
-  const confirmRespond = useCallback(
-    (membership: CompanyMembership, decision: MembershipDecision) => {
-      const actionLabel = decision === 'approve' ? 'aprobar' : 'rechazar';
-      Alert.alert(
-        'Responder solicitud',
-        `¿Querés ${actionLabel} el acceso de ${membership.user_name}?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: decision === 'approve' ? 'Aprobar' : 'Rechazar',
-            style: decision === 'reject' ? 'destructive' : 'default',
-            onPress: () => void performRespond(membership, decision),
-          },
-        ]
-      );
-    },
-    [performRespond]
-  );
+  }, [
+    company,
+    currentMembership,
+    requestMembershipAccess,
+    requestingAccess,
+    resolvedCompanyName,
+  ]);
 
   const membershipRoleSummary = useMemo(() => {
     if (!companyMemberships.length) {
@@ -817,6 +1025,31 @@ export default function ViewCompanyModal() {
                 const updatedLabel =
                   formatDateTime(item.updated_at) ?? formatDateTime(item.created_at) ?? 'Sin fecha';
                 const canQuickRespond = canEdit && membershipIsPending(item);
+                const composer = canQuickRespond ? getResponseComposerState(item) : null;
+                const selectedTemplate = composer
+                  ? resolveResponseTemplate(composer.templateId)
+                  : null;
+                const messageError = Boolean(composer && !composer.message.trim().length);
+                const reasonError = Boolean(
+                  composer &&
+                    selectedTemplate?.requireReason &&
+                    !composer.reason.trim().length
+                );
+                const notesError = Boolean(
+                  composer && selectedTemplate?.requireNotes && !composer.notes.trim().length
+                );
+                const responseMessage = item.response_message?.trim();
+                let responseTemplateLabel = item.response_template_label?.trim() ?? null;
+                if (!responseTemplateLabel && item.response_template) {
+                  const fallback = RESPONSE_TEMPLATE_MAP.get(
+                    item.response_template as ResponseTemplateId
+                  );
+                  if (fallback) {
+                    responseTemplateLabel = fallback.label;
+                  }
+                }
+                const responseChannel = item.response_channel?.trim();
+                const responseSummary = item.response_summary?.trim();
                 return (
                   <View style={styles.timelineCard}>
                     <View style={styles.timelineHeader}>
@@ -843,6 +1076,41 @@ export default function ViewCompanyModal() {
                         Respuesta: {item.reason}
                       </ThemedText>
                     ) : null}
+                    {item.notes ? (
+                      <ThemedText style={styles.timelineMessage}>
+                        Observaciones: {item.notes}
+                      </ThemedText>
+                    ) : null}
+                    {responseMessage ? (
+                      <View
+                        style={[
+                          styles.notificationSummaryCard,
+                          { borderColor: cardBorder, backgroundColor: summaryBackground },
+                        ]}
+                      >
+                        <ThemedText style={styles.notificationSummaryTitle}>
+                          Mensaje enviado al solicitante
+                        </ThemedText>
+                        {responseTemplateLabel ? (
+                          <ThemedText style={styles.notificationSummaryMeta}>
+                            Plantilla: {responseTemplateLabel}
+                          </ThemedText>
+                        ) : null}
+                        {responseChannel ? (
+                          <ThemedText style={styles.notificationSummaryMeta}>
+                            Canal: {responseChannel}
+                          </ThemedText>
+                        ) : null}
+                        {responseSummary ? (
+                          <ThemedText style={styles.notificationSummaryMeta}>
+                            {responseSummary}
+                          </ThemedText>
+                        ) : null}
+                        <ThemedText style={styles.notificationSummaryBody}>
+                          {responseMessage}
+                        </ThemedText>
+                      </View>
+                    ) : null}
                     <View style={styles.timelineActionsRow}>
                       <TouchableOpacity
                         style={styles.memberLinkButton}
@@ -850,35 +1118,168 @@ export default function ViewCompanyModal() {
                       >
                         <ThemedText style={styles.memberLinkText}>Ver ficha</ThemedText>
                       </TouchableOpacity>
-                      {canQuickRespond ? (
-                        <View style={styles.quickActions}>
-                          <TouchableOpacity
-                            style={[styles.quickActionButton, { backgroundColor: actionBackground }]}
-                            onPress={() => confirmRespond(item, 'approve')}
-                            disabled={respondingId === item.id}
-                            activeOpacity={0.85}
-                          >
-                            {respondingId === item.id ? (
-                              <ActivityIndicator color={actionText} />
-                            ) : (
-                              <ThemedText style={[styles.quickActionText, { color: actionText }]}>Aprobar</ThemedText>
-                            )}
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.quickActionButton, { backgroundColor: destructiveBackground }]}
-                            onPress={() => confirmRespond(item, 'reject')}
-                            disabled={respondingId === item.id}
-                            activeOpacity={0.85}
-                          >
-                            {respondingId === item.id ? (
-                              <ActivityIndicator color={destructiveText} />
-                            ) : (
-                              <ThemedText style={[styles.quickActionText, { color: destructiveText }]}>Rechazar</ThemedText>
-                            )}
-                          </TouchableOpacity>
-                        </View>
-                      ) : null}
                     </View>
+                    {canQuickRespond && composer && selectedTemplate ? (
+                      <View style={styles.responseComposer}>
+                        <ThemedText style={styles.responseComposerTitle}>
+                          Responder solicitud
+                        </ThemedText>
+                        <ThemedText style={styles.responseComposerHint}>
+                          {selectedTemplate.description}
+                        </ThemedText>
+                        <View style={styles.templateOptionsRow}>
+                          {RESPONSE_TEMPLATES.map(template => {
+                            const selected = template.id === composer.templateId;
+                            const isDestructive = template.decision === 'reject';
+                            const resolvedBackground = selected
+                              ? isDestructive
+                                ? destructiveBackground
+                                : actionBackground
+                              : 'transparent';
+                            const resolvedTextColor = selected
+                              ? isDestructive
+                                ? destructiveText
+                                : actionText
+                              : undefined;
+                              return (
+                                <TouchableOpacity
+                                  key={`template-chip-${template.id}`}
+                                style={[
+                                  styles.templateChipButton,
+                                  {
+                                    borderColor: selected ? resolvedBackground : cardBorder,
+                                    backgroundColor: resolvedBackground,
+                                  },
+                                ]}
+                                onPress={() => handleTemplateChange(item, template.id)}
+                              >
+                                <ThemedText
+                                  style={[
+                                    styles.templateChipText,
+                                    resolvedTextColor ? { color: resolvedTextColor } : null,
+                                    !selected && isDestructive ? { color: destructiveBackground } : null,
+                                  ]}
+                                >
+                                  {template.label}
+                                </ThemedText>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                        <View style={styles.composerFieldGroup}>
+                          <ThemedText style={styles.composerFieldLabel}>
+                            Mensaje para el solicitante
+                          </ThemedText>
+                          <TextInput
+                            multiline
+                            value={composer.message}
+                            onChangeText={value => handleComposerValueChange(item, 'message', value)}
+                            placeholder="Detallá el mensaje que recibirá la persona solicitante"
+                            placeholderTextColor={placeholderColor}
+                            textAlignVertical="top"
+                            style={[
+                              styles.composerInput,
+                              {
+                                backgroundColor: inputBackground,
+                                borderColor: messageError ? errorBorder : inputBorder,
+                                color: inputText,
+                              },
+                            ]}
+                          />
+                          {messageError ? (
+                            <ThemedText style={styles.composerErrorText}>
+                              Este mensaje es obligatorio.
+                            </ThemedText>
+                          ) : null}
+                        </View>
+                        {selectedTemplate.requireReason ? (
+                          <View style={styles.composerFieldGroup}>
+                            <ThemedText style={styles.composerFieldLabel}>Motivo</ThemedText>
+                            <TextInput
+                              value={composer.reason}
+                              onChangeText={value => handleComposerValueChange(item, 'reason', value)}
+                              placeholder="Ej: Documentación incompleta"
+                              placeholderTextColor={placeholderColor}
+                              style={[
+                                styles.composerInput,
+                                {
+                                  backgroundColor: inputBackground,
+                                  borderColor: reasonError ? errorBorder : inputBorder,
+                                  color: inputText,
+                                },
+                              ]}
+                            />
+                            {reasonError ? (
+                              <ThemedText style={styles.composerErrorText}>
+                                El motivo es obligatorio para rechazar.
+                              </ThemedText>
+                            ) : null}
+                          </View>
+                        ) : null}
+                        <View style={styles.composerFieldGroup}>
+                          <ThemedText style={styles.composerFieldLabel}>
+                            Observaciones internas
+                          </ThemedText>
+                          <TextInput
+                            multiline
+                            value={composer.notes}
+                            onChangeText={value => handleComposerValueChange(item, 'notes', value)}
+                            placeholder="Estas notas quedan registradas en el historial"
+                            placeholderTextColor={placeholderColor}
+                            textAlignVertical="top"
+                            style={[
+                              styles.composerInput,
+                              {
+                                backgroundColor: inputBackground,
+                                borderColor: notesError ? errorBorder : inputBorder,
+                                color: inputText,
+                              },
+                            ]}
+                          />
+                          {notesError ? (
+                            <ThemedText style={styles.composerErrorText}>
+                              Registrá observaciones para mantener la trazabilidad.
+                            </ThemedText>
+                          ) : null}
+                        </View>
+                        <TouchableOpacity
+                          style={[
+                            styles.composerSubmitButton,
+                            {
+                              backgroundColor:
+                                selectedTemplate.decision === 'reject'
+                                  ? destructiveBackground
+                                  : actionBackground,
+                            },
+                          ]}
+                          onPress={() => handleSendResponse(item)}
+                          disabled={respondingId === item.id}
+                          activeOpacity={0.85}
+                        >
+                          {respondingId === item.id ? (
+                            <ActivityIndicator
+                              color={
+                                selectedTemplate.decision === 'reject' ? destructiveText : actionText
+                              }
+                            />
+                          ) : (
+                            <ThemedText
+                              style={[
+                                styles.composerSubmitText,
+                                {
+                                  color:
+                                    selectedTemplate.decision === 'reject'
+                                      ? destructiveText
+                                      : actionText,
+                                },
+                              ]}
+                            >
+                              {selectedTemplate.ctaLabel}
+                            </ThemedText>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
                   </View>
                 );
               }}
@@ -1170,17 +1571,79 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  quickActions: {
+  notificationSummaryCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 6,
+    gap: 4,
+  },
+  notificationSummaryTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  notificationSummaryMeta: {
+    fontSize: 12,
+    color: '#666',
+  },
+  notificationSummaryBody: {
+    fontSize: 14,
+  },
+  responseComposer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+    gap: 12,
+  },
+  responseComposerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  responseComposerHint: {
+    fontSize: 13,
+    color: '#666',
+  },
+  templateOptionsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  quickActionButton: {
+  templateChipButton: {
+    borderWidth: 1,
+    borderRadius: 999,
     paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
+    paddingHorizontal: 12,
   },
-  quickActionText: {
+  templateChipText: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  composerFieldGroup: {
+    gap: 4,
+  },
+  composerFieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  composerInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 42,
+  },
+  composerErrorText: {
+    fontSize: 12,
+    color: '#c62828',
+  },
+  composerSubmitButton: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  composerSubmitText: {
+    fontSize: 15,
     fontWeight: '600',
   },
   timelineSeparator: {
