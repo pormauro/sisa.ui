@@ -423,12 +423,6 @@ const serializePayload = (payload: CompanyMembershipPayload) => {
 };
 
 const MEMBERSHIP_ENDPOINT_VARIANTS = ['/company_memberships', '/company-memberships'] as const;
-let resolvedMembershipEndpoint: string | null = null;
-
-const rememberMembershipEndpoint = (basePath: string): string => {
-  resolvedMembershipEndpoint = basePath;
-  return basePath;
-};
 const MEMBERSHIP_STREAM_SUFFIX = '/stream';
 const REFRESH_INTERVAL_MINUTES = 5;
 const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000;
@@ -484,8 +478,13 @@ const toWebSocketUrl = (url: string): string => {
   return url;
 };
 
-const buildMembershipStreamingUrl = (token?: string | null): string => {
-  const endpoint = resolvedMembershipEndpoint ?? MEMBERSHIP_ENDPOINT_VARIANTS[0];
+const buildMembershipStreamingUrl = (
+  endpoint: string | null,
+  token?: string | null
+): string | null => {
+  if (!endpoint) {
+    return null;
+  }
   const basePath = `${BASE_URL}${endpoint}${MEMBERSHIP_STREAM_SUFFIX}`;
   if (!token) {
     return basePath;
@@ -598,7 +597,8 @@ const buildCompanyMembershipUrl = (
 
 const fetchMembershipResource = async (
   suffix = '',
-  init?: RequestInit | (() => RequestInit)
+  init?: RequestInit | (() => RequestInit),
+  onEndpointResolved?: (endpoint: string) => void
 ): Promise<Response> => {
   const normalizedSuffix = suffix ? (suffix.startsWith('/') ? suffix : `/${suffix}`) : '';
   const buildOptions = (): RequestInit | undefined => {
@@ -617,7 +617,7 @@ const fetchMembershipResource = async (
     const isLastAttempt = index === MEMBERSHIP_ENDPOINT_VARIANTS.length - 1;
 
     if (response.ok) {
-      rememberMembershipEndpoint(basePath);
+      onEndpointResolved?.(basePath);
       return response;
     }
 
@@ -643,6 +643,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const [isStale, setIsStale] = useState(false);
   const [notifications, setNotifications] = useState<MembershipNotification[]>([]);
   const [supportsStreaming, setSupportsStreaming] = useState(false);
+  const [membershipEndpoint, setMembershipEndpoint] = useState<string | null>(null);
   const membershipsRef = useRef<CompanyMembership[]>(memberships);
   const streamingWarningIssuedRef = useRef(false);
 
@@ -788,13 +789,19 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [handleSyncSuccess, setMemberships]
   );
 
+  const fetchMembershipResourceWithEndpoint = useCallback(
+    (suffix = '', init?: RequestInit | (() => RequestInit)) =>
+      fetchMembershipResource(suffix, init, setMembershipEndpoint),
+    [setMembershipEndpoint]
+  );
+
   const loadCompanyMemberships = useCallback(async (): Promise<CompanyMembership[]> => {
     if (!headers) {
       return membershipsRef.current;
     }
     setLoading(true);
     try {
-      const response = await fetchMembershipResource('', { headers });
+      const response = await fetchMembershipResourceWithEndpoint('', { headers });
 
       if (response.status === 404) {
         setMemberships([]);
@@ -830,7 +837,13 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     } finally {
       setLoading(false);
     }
-  }, [handleSyncFailure, handleSyncSuccess, headers, setMemberships]);
+  }, [
+    fetchMembershipResourceWithEndpoint,
+    handleSyncFailure,
+    handleSyncSuccess,
+    headers,
+    setMemberships,
+  ]);
 
   useEffect(() => {
     if (!headers) {
@@ -864,10 +877,13 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     };
   }, [headers, loadCompanyMemberships]);
 
-  const streamingUrl = buildMembershipStreamingUrl(token);
+  const streamingUrl = useMemo(
+    () => buildMembershipStreamingUrl(membershipEndpoint, token),
+    [membershipEndpoint, token]
+  );
 
   useEffect(() => {
-    if (!token || !headers) {
+    if (!token || !headers || !streamingUrl) {
       setSupportsStreaming(false);
       streamingWarningIssuedRef.current = false;
       return;
@@ -930,7 +946,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   }, [enqueueNotification, headers, streamingUrl, token]);
 
   useEffect(() => {
-    if (!token || !supportsStreaming) {
+    if (!token || !supportsStreaming || !streamingUrl) {
       return;
     }
 
@@ -1045,7 +1061,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
 
       try {
-        const response = await fetchMembershipResource('', () => ({
+        const response = await fetchMembershipResourceWithEndpoint('', () => ({
           method: 'POST',
           headers,
           body: JSON.stringify(serializePayload(payload)),
@@ -1080,7 +1096,13 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
       return null;
     },
-    [headers, loadCompanyMemberships, mergeMembershipIntoState, reportOperationalError]
+    [
+      fetchMembershipResourceWithEndpoint,
+      headers,
+      loadCompanyMemberships,
+      mergeMembershipIntoState,
+      reportOperationalError,
+    ]
   );
 
   const updateCompanyMembership = useCallback(
@@ -1090,7 +1112,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
 
       try {
-        const response = await fetchMembershipResource(`/${id}`, () => ({
+        const response = await fetchMembershipResourceWithEndpoint(`/${id}`, () => ({
           method: 'PUT',
           headers,
           body: JSON.stringify(serializePayload(payload)),
@@ -1122,7 +1144,13 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return false;
       }
     },
-    [headers, loadCompanyMemberships, mergeMembershipIntoState, reportOperationalError]
+    [
+      fetchMembershipResourceWithEndpoint,
+      headers,
+      loadCompanyMemberships,
+      mergeMembershipIntoState,
+      reportOperationalError,
+    ]
   );
 
   const deleteCompanyMembership = useCallback(
@@ -1132,7 +1160,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
 
       try {
-        const response = await fetchMembershipResource(`/${id}`, () => ({
+        const response = await fetchMembershipResourceWithEndpoint(`/${id}`, () => ({
           method: 'DELETE',
           headers,
         }));
@@ -1150,7 +1178,13 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return false;
       }
     },
-    [handleSyncSuccess, headers, reportOperationalError, setMemberships]
+    [
+      fetchMembershipResourceWithEndpoint,
+      handleSyncSuccess,
+      headers,
+      reportOperationalError,
+      setMemberships,
+    ]
   );
 
   const requestMembershipAccess = useCallback(
