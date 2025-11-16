@@ -91,6 +91,11 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `updateCompanyMembership(id, payload)`: ejecuta `PUT /company_memberships/{id}`, fusiona la respuesta con el elemento existente y recarga si el backend no devuelve el recurso normalizado.【F:contexts/CompanyMembershipsContext.tsx†L458-L499】
 - `deleteCompanyMembership(id)`: elimina el registro remoto mediante `DELETE /company_memberships/{id}` y depura la caché local.【F:contexts/CompanyMembershipsContext.tsx†L502-L520】
 
+### Sincronización y alertas
+- El provider también conserva `lastSyncedAt`, `syncError`, `isStale` y una cola `notifications` junto con los métodos `enqueueNotification`, `dismissNotification`, `clearNotifications` y `clearSyncError` para que la UI emita toasts persistentes y permita limpiarlos manualmente desde cualquier pantalla.【F:contexts/CompanyMembershipsContext.tsx†L566-L678】【F:contexts/CompanyMembershipsContext.tsx†L1260-L1280】
+- `loadCompanyMemberships()` se ejecuta automáticamente al montar el contexto y luego cada cinco minutos; si la sincronización falla se marca el estado como obsoleto y se propaga el error a través de las notificaciones previas. Cuando el backend expone `/company_memberships/stream`, un `EventSource` (o WebSocket de respaldo) fusiona los cambios recibidos en `mergeMembershipIntoState` para mantener el listado actualizado sin intervención manual.【F:contexts/CompanyMembershipsContext.tsx†L708-L898】
+- Las pantallas pueden mostrar indicadores de frescura comparando `lastSyncedAt` con sus propios umbrales, ocultar banners invocando `clearSyncError` tras atenderlos y limpiar la cola con `dismissNotification` cuando el usuario reconoce cada mensaje.【F:contexts/CompanyMembershipsContext.tsx†L660-L678】【F:contexts/CompanyMembershipsContext.tsx†L1260-L1280】
+
 ### Endpoints consumidos
 - `GET ${BASE_URL}/company_memberships` — listado actualizado de membresías.【F:contexts/CompanyMembershipsContext.tsx†L373-L408】
 - `POST ${BASE_URL}/company_memberships` — alta de relación empresa-usuario.【F:contexts/CompanyMembershipsContext.tsx†L410-L455】
