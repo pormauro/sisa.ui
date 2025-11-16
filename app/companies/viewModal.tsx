@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   ScrollView,
   View,
   StyleSheet,
@@ -59,6 +60,46 @@ const membershipIsRejected = (candidate: NormalizableStatusCandidate): boolean =
 const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, MembershipLifecycleStatus> = {
   approve: 'approved',
   reject: 'rejected',
+};
+
+const getTimestamp = (value?: string | null): number | null => {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  const timestamp = date.getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+};
+
+const formatDateTime = (value?: string | null): string | null => {
+  const timestamp = getTimestamp(value);
+  if (!timestamp) {
+    return null;
+  }
+  const formatter = new Intl.DateTimeFormat('es-AR', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  return formatter.format(new Date(timestamp));
+};
+
+const formatDuration = (milliseconds: number): string => {
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) {
+    return '—';
+  }
+  const minutes = milliseconds / (1000 * 60);
+  if (minutes < 60) {
+    return `${minutes.toFixed(1)} min`;
+  }
+  const hours = minutes / 60;
+  if (hours < 24) {
+    return `${hours.toFixed(1)} h`;
+  }
+  const days = hours / 24;
+  return `${days.toFixed(1)} d`;
 };
 
 const getErrorStatusCode = (error: unknown): number | null => {
@@ -342,6 +383,113 @@ export default function ViewCompanyModal() {
     [performRespond]
   );
 
+  const membershipRoleSummary = useMemo(() => {
+    if (!companyMemberships.length) {
+      return [] as { label: string; count: number }[];
+    }
+    const counts = new Map<string, number>();
+    companyMemberships.forEach(item => {
+      const label = item.role?.trim() || 'Sin rol asignado';
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }, [companyMemberships]);
+
+  const membershipStatusSummary = useMemo(() => {
+    if (!companyMemberships.length) {
+      return [] as {
+        key: string;
+        label: string;
+        count: number;
+        order: number;
+      }[];
+    }
+    const counts = new Map<string, {
+      count: number;
+      normalized: MembershipLifecycleStatus | null;
+    }>();
+    companyMemberships.forEach(item => {
+      const normalized = resolveLifecycleStatus(item);
+      const key = normalized ?? 'unknown';
+      const record = counts.get(key) ?? { count: 0, normalized };
+      record.count += 1;
+      record.normalized = normalized;
+      counts.set(key, record);
+    });
+    return Array.from(counts.entries())
+      .map(([key, record]) => {
+        const metadata = getMembershipStatusMetadata(record.normalized ?? undefined);
+        return {
+          key,
+          label: metadata?.label ?? 'Sin estado',
+          count: record.count,
+          order: metadata?.order ?? 99,
+        };
+      })
+      .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+  }, [companyMemberships]);
+
+  const historicalKpis = useMemo(() => {
+    const resolved = companyMemberships.filter(
+      membership => getTimestamp(membership.responded_at) !== null
+    );
+    const sortedResolved = resolved
+      .slice()
+      .sort((a, b) => (getTimestamp(b.responded_at) ?? 0) - (getTimestamp(a.responded_at) ?? 0));
+    const lastResolvedLabel = sortedResolved.length
+      ? formatDateTime(sortedResolved[0].responded_at) ?? '—'
+      : 'Sin registros';
+    const durations = resolved
+      .map(membership => {
+        const created = getTimestamp(membership.created_at);
+        const respondedAt = getTimestamp(membership.responded_at);
+        if (created === null || respondedAt === null) {
+          return null;
+        }
+        return Math.max(respondedAt - created, 0);
+      })
+      .filter((value): value is number => Number.isFinite(value) && value !== null);
+    const averageResponseLabel = durations.length
+      ? formatDuration(durations.reduce((sum, value) => sum + value, 0) / durations.length)
+      : '—';
+    const lastResolvedBy = sortedResolved[0]?.responded_by_name?.trim();
+    return [
+      {
+        key: 'lastResolved',
+        label: 'Última solicitud atendida',
+        value: lastResolvedLabel,
+        hint: lastResolvedBy ? `Por ${lastResolvedBy}` : undefined,
+      },
+      {
+        key: 'avgResponse',
+        label: 'Tiempo promedio de respuesta',
+        value: averageResponseLabel,
+        hint: durations.length ? `${durations.length} registros` : undefined,
+      },
+      {
+        key: 'pendingActive',
+        label: 'Pendientes vs activos',
+        value: `${pendingMemberships.length} / ${activeMemberships.length}`,
+        hint: 'Pendientes / activos',
+      },
+    ];
+  }, [companyMemberships, pendingMemberships.length, activeMemberships.length]);
+
+  const membershipTimelineItems = useMemo(() => {
+    if (!companyMemberships.length) {
+      return [] as CompanyMembership[];
+    }
+    return companyMemberships
+      .slice()
+      .sort((a, b) => {
+        const aTimestamp = getTimestamp(a.updated_at) ?? getTimestamp(a.created_at) ?? 0;
+        const bTimestamp = getTimestamp(b.updated_at) ?? getTimestamp(b.created_at) ?? 0;
+        return bTimestamp - aTimestamp;
+      });
+  }, [companyMemberships]);
+
   const attachments = useMemo(() => {
     if (!company?.attached_files) {
       return '';
@@ -514,6 +662,7 @@ export default function ViewCompanyModal() {
   const hasContacts = contactCards.length > 0;
   const hasCompanyChannels = companyChannelCards.length > 0;
 
+
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}
     >
@@ -537,7 +686,72 @@ export default function ViewCompanyModal() {
 
       <View>
         <ThemedText style={styles.sectionTitle}>Accesos y membresías</ThemedText>
-        <View style={[styles.card, styles.membershipCard, { borderColor: cardBorder }]}>
+        <View style={[styles.card, styles.membershipAnalyticsPanel, { borderColor: cardBorder }]}>
+          <View style={styles.analyticsRow}>
+            <View style={styles.analyticsColumn}>
+              <ThemedText style={styles.analyticsTitle}>Roles detectados</ThemedText>
+              <View style={styles.chipGroup}>
+                {membershipRoleSummary.length ? (
+                  membershipRoleSummary.map(role => (
+                    <View key={`role-chip-${role.label}`} style={styles.chip}>
+                      <ThemedText style={styles.chipLabel}>{role.label}</ThemedText>
+                      <ThemedText style={styles.chipValue}>{role.count}</ThemedText>
+                    </View>
+                  ))
+                ) : (
+                  <ThemedText style={styles.membershipNotice}>Sin roles registrados.</ThemedText>
+                )}
+              </View>
+            </View>
+            <View style={styles.analyticsColumn}>
+              <ThemedText style={styles.analyticsTitle}>Estados</ThemedText>
+              <View style={styles.chipGroup}>
+                {membershipStatusSummary.length ? (
+                  membershipStatusSummary.map(status => (
+                    <View key={`status-chip-${status.key}`} style={styles.chip}>
+                      <ThemedText style={styles.chipLabel}>{status.label}</ThemedText>
+                      <ThemedText style={styles.chipValue}>{status.count}</ThemedText>
+                    </View>
+                  ))
+                ) : (
+                  <ThemedText style={styles.membershipNotice}>Sin estados registrados.</ThemedText>
+                )}
+              </View>
+            </View>
+          </View>
+          <View style={styles.kpiRow}>
+            {historicalKpis.map(kpi => (
+              <View key={kpi.key} style={styles.kpiCard}>
+                <ThemedText style={styles.kpiLabel}>{kpi.label}</ThemedText>
+                <ThemedText style={styles.kpiValue}>{kpi.value}</ThemedText>
+                {kpi.hint ? <ThemedText style={styles.kpiHint}>{kpi.hint}</ThemedText> : null}
+              </View>
+            ))}
+          </View>
+          <View style={styles.memberNavigationGrid}>
+            {companyMemberships.length ? (
+              companyMemberships.map(member => (
+                <TouchableOpacity
+                  key={`member-link-${member.id}`}
+                  style={[styles.memberNavigationButton, { borderColor: cardBorder }]}
+                  onPress={() => router.push(`/company_memberships/${member.id}`)}
+                  activeOpacity={0.85}
+                >
+                  <ThemedText style={styles.memberNavigationLabel}>{member.user_name}</ThemedText>
+                  {member.role ? (
+                    <ThemedText style={styles.memberNavigationSubLabel}>{member.role}</ThemedText>
+                  ) : null}
+                </TouchableOpacity>
+              ))
+            ) : (
+              <ThemedText style={styles.membershipNotice}>
+                Todavía no hay miembros registrados.
+              </ThemedText>
+            )}
+          </View>
+        </View>
+
+        <View style={[styles.card, styles.membershipStatusCard, { borderColor: cardBorder }]}>
           <View style={styles.membershipRow}>
             <ThemedText style={styles.label}>Tu estado</ThemedText>
             <MembershipStatusBadge
@@ -588,60 +802,97 @@ export default function ViewCompanyModal() {
           </TouchableOpacity>
         ) : null}
 
-        {canEdit && pendingMemberships.length ? (
-          <View style={[styles.pendingCard, { borderColor: cardBorder }]}>
-            <ThemedText style={styles.pendingTitle}>Solicitudes pendientes</ThemedText>
-            {pendingMemberships.map(pending => (
-              <View key={`pending-${pending.id}`} style={styles.pendingRow}>
-                <View style={styles.pendingInfo}>
-                  <ThemedText style={styles.pendingName}>{pending.user_name}</ThemedText>
-                {pending.user_email ? (
-                  <ThemedText style={styles.identityExtra}>{pending.user_email}</ThemedText>
-                ) : null}
-                {pending.notes ? (
-                  <ThemedText style={styles.identityExtra}>{pending.notes}</ThemedText>
-                ) : null}
-                {pending.message ? (
-                  <ThemedText style={styles.identityExtra}>Solicitud: {pending.message}</ThemedText>
-                ) : null}
-                {pending.reason ? (
-                  <ThemedText style={styles.identityExtra}>Respuesta: {pending.reason}</ThemedText>
-                ) : null}
-              </View>
-                <View style={styles.pendingActions}>
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: actionBackground }]}
-                    onPress={() => confirmRespond(pending, 'approve')}
-                    disabled={respondingId === pending.id}
-                    activeOpacity={0.85}
-                  >
-                    {respondingId === pending.id ? (
-                      <ActivityIndicator color={actionText} />
-                    ) : (
-                      <ThemedText style={[styles.actionButtonText, { color: actionText }]}>
-                        Aprobar
-                      </ThemedText>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.actionButton, { backgroundColor: destructiveBackground }]}
-                    onPress={() => confirmRespond(pending, 'reject')}
-                    disabled={respondingId === pending.id}
-                    activeOpacity={0.85}
-                  >
-                    {respondingId === pending.id ? (
-                      <ActivityIndicator color={destructiveText} />
-                    ) : (
-                      <ThemedText style={[styles.actionButtonText, { color: destructiveText }]}>
-                        Rechazar
-                      </ThemedText>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+        <View style={[styles.card, styles.timelineContainer, { borderColor: cardBorder }]}
+        >
+          <View style={styles.timelineHeaderRow}>
+            <ThemedText style={styles.analyticsTitle}>Actividad reciente</ThemedText>
+            {membershipsLoading ? <ActivityIndicator /> : null}
           </View>
-        ) : null}
+          {membershipTimelineItems.length ? (
+            <FlatList
+              data={membershipTimelineItems}
+              keyExtractor={item => String(item.id)}
+              renderItem={({ item }) => {
+                const normalizedStatus = resolveLifecycleStatus(item);
+                const updatedLabel =
+                  formatDateTime(item.updated_at) ?? formatDateTime(item.created_at) ?? 'Sin fecha';
+                const canQuickRespond = canEdit && membershipIsPending(item);
+                return (
+                  <View style={styles.timelineCard}>
+                    <View style={styles.timelineHeader}>
+                      <View style={styles.timelineUserBlock}>
+                        <ThemedText style={styles.timelineName}>{item.user_name}</ThemedText>
+                        {item.role ? (
+                          <ThemedText style={styles.timelineRole}>{item.role}</ThemedText>
+                        ) : null}
+                      </View>
+                      <MembershipStatusBadge
+                        normalizedStatus={normalizedStatus}
+                        fallbackLabel={item.status ?? 'Sin estado'}
+                        size="sm"
+                      />
+                    </View>
+                    <ThemedText style={styles.timelineDate}>{updatedLabel}</ThemedText>
+                    {item.message ? (
+                      <ThemedText style={styles.timelineMessage}>
+                        Solicitud: {item.message}
+                      </ThemedText>
+                    ) : null}
+                    {item.reason ? (
+                      <ThemedText style={styles.timelineMessage}>
+                        Respuesta: {item.reason}
+                      </ThemedText>
+                    ) : null}
+                    <View style={styles.timelineActionsRow}>
+                      <TouchableOpacity
+                        style={styles.memberLinkButton}
+                        onPress={() => router.push(`/company_memberships/${item.id}`)}
+                      >
+                        <ThemedText style={styles.memberLinkText}>Ver ficha</ThemedText>
+                      </TouchableOpacity>
+                      {canQuickRespond ? (
+                        <View style={styles.quickActions}>
+                          <TouchableOpacity
+                            style={[styles.quickActionButton, { backgroundColor: actionBackground }]}
+                            onPress={() => confirmRespond(item, 'approve')}
+                            disabled={respondingId === item.id}
+                            activeOpacity={0.85}
+                          >
+                            {respondingId === item.id ? (
+                              <ActivityIndicator color={actionText} />
+                            ) : (
+                              <ThemedText style={[styles.quickActionText, { color: actionText }]}>Aprobar</ThemedText>
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.quickActionButton, { backgroundColor: destructiveBackground }]}
+                            onPress={() => confirmRespond(item, 'reject')}
+                            disabled={respondingId === item.id}
+                            activeOpacity={0.85}
+                          >
+                            {respondingId === item.id ? (
+                              <ActivityIndicator color={destructiveText} />
+                            ) : (
+                              <ThemedText style={[styles.quickActionText, { color: destructiveText }]}>Rechazar</ThemedText>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              }}
+              ItemSeparatorComponent={() => <View style={styles.timelineSeparator} />}
+              scrollEnabled={false}
+            />
+          ) : (
+            <ThemedText style={styles.membershipNotice}>
+              {membershipsLoading
+                ? 'Sincronizando historial...'
+                : 'No hay movimientos registrados todavía.'}
+            </ThemedText>
+          )}
+        </View>
       </View>
 
       {hasTaxIdentities ? (
@@ -733,6 +984,97 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 8,
   },
+  membershipAnalyticsPanel: {
+    gap: 16,
+  },
+  membershipStatusCard: {
+    marginTop: 16,
+    gap: 12,
+  },
+  analyticsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  analyticsColumn: {
+    flex: 1,
+    gap: 8,
+    minWidth: 160,
+  },
+  analyticsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  chipGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chipLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  chipValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  kpiRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  kpiCard: {
+    flexGrow: 1,
+    minWidth: 140,
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    borderRadius: 12,
+    padding: 12,
+    gap: 4,
+  },
+  kpiLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  kpiValue: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  kpiHint: {
+    fontSize: 13,
+    color: '#888',
+  },
+  memberNavigationGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  memberNavigationButton: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flexGrow: 1,
+    minWidth: 140,
+  },
+  memberNavigationLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  memberNavigationSubLabel: {
+    fontSize: 13,
+    color: '#666',
+  },
   addressCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -749,9 +1091,6 @@ const styles = StyleSheet.create({
     padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  membershipCard: {
-    gap: 12,
   },
   membershipRow: {
     flexDirection: 'row',
@@ -773,46 +1112,79 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  pendingCard: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
+  timelineContainer: {
     marginTop: 16,
     gap: 12,
   },
-  pendingTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  pendingRow: {
+  timelineHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
   },
-  pendingInfo: {
+  timelineCard: {
+    borderWidth: 1,
+    borderColor: '#e3e3e3',
+    borderRadius: 12,
+    padding: 12,
+    gap: 6,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timelineUserBlock: {
     flex: 1,
-    gap: 4,
   },
-  pendingName: {
-    fontSize: 15,
+  timelineName: {
+    fontSize: 16,
     fontWeight: '600',
   },
-  pendingActions: {
+  timelineRole: {
+    fontSize: 13,
+    color: '#666',
+  },
+  timelineDate: {
+    fontSize: 13,
+    color: '#666',
+  },
+  timelineMessage: {
+    fontSize: 14,
+    color: '#555',
+  },
+  timelineActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 12,
+  },
+  memberLinkButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+  },
+  memberLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  quickActions: {
     flexDirection: 'row',
     gap: 8,
   },
-  actionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  quickActionButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 96,
   },
-  actionButtonText: {
-    fontSize: 14,
+  quickActionText: {
+    fontSize: 13,
     fontWeight: '600',
+  },
+  timelineSeparator: {
+    height: 12,
   },
   identityRow: {
     marginBottom: 8,
