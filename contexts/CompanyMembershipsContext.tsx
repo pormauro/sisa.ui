@@ -430,6 +430,8 @@ const REFRESH_INTERVAL_MINUTES = 5;
 const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000;
 const STREAM_HANDSHAKE_TIMEOUT_MS = 5000;
 const MAX_NOTIFICATION_QUEUE = 6;
+const MEMBERSHIP_REQUEST_TIMEOUT_MS = 15000;
+const MEMBERSHIP_RESPONSE_PREVIEW_LIMIT = 600;
 
 type EventSourceLike = {
   close: () => void;
@@ -468,6 +470,125 @@ const describeUnknownError = (error: unknown): string | null => {
   }
 
   return null;
+};
+
+const formatMembershipLogPrefix = (
+  label: string,
+  method: string,
+  url: string,
+  durationMs?: number
+): string => {
+  const base = `[Membresías][${label}] ${method.toUpperCase()} ${url}`;
+  if (typeof durationMs === 'number' && Number.isFinite(durationMs)) {
+    return `${base} (${durationMs} ms)`;
+  }
+  return base;
+};
+
+const normalizeResponsePreview = (text: string | null): string | null => {
+  if (!text) {
+    return null;
+  }
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized.length) {
+    return null;
+  }
+  if (normalized.length > MEMBERSHIP_RESPONSE_PREVIEW_LIMIT) {
+    return `${normalized.slice(0, MEMBERSHIP_RESPONSE_PREVIEW_LIMIT)}… (+${
+      normalized.length - MEMBERSHIP_RESPONSE_PREVIEW_LIMIT
+    } caracteres)`;
+  }
+  return normalized;
+};
+
+const readResponsePreview = async (response: Response): Promise<string> => {
+  try {
+    const preview = normalizeResponsePreview(await response.clone().text());
+    return preview ?? '<<sin cuerpo>>';
+  } catch (error) {
+    const details = describeUnknownError(error);
+    return `<<sin acceso al cuerpo${details ? `: ${details}` : ''}>>`;
+  }
+};
+
+const linkAbortSignals = (
+  controller: AbortController,
+  externalSignal?: AbortSignal | null
+): (() => void) => {
+  if (!externalSignal) {
+    return () => {};
+  }
+
+  if (externalSignal.aborted) {
+    controller.abort((externalSignal as any).reason);
+    return () => {};
+  }
+
+  const abortHandler = () => {
+    try {
+      controller.abort((externalSignal as any).reason);
+    } catch (error) {
+      console.error('No se pudo propagar el motivo de cancelación:', error);
+      controller.abort();
+    }
+  };
+
+  externalSignal.addEventListener('abort', abortHandler);
+  return () => {
+    externalSignal.removeEventListener('abort', abortHandler);
+  };
+};
+
+const logMembershipResponse = async (
+  response: Response,
+  method: string,
+  url: string,
+  durationMs: number
+) => {
+  const statusLine = `${response.status} ${response.statusText}`.trim();
+  const prefix = formatMembershipLogPrefix(response.ok ? 'OK' : 'ERROR', method, url, durationMs);
+  const preview = await readResponsePreview(response);
+  const logger = response.ok ? console.log : console.error;
+  logger(`${prefix} ${statusLine}`.trim());
+  console.log(`[Membresías][Respuesta] ${preview}`);
+};
+
+const fetchMembershipWithLogging = async (
+  url: string,
+  init?: RequestInit
+): Promise<Response> => {
+  const method = String(init?.method ?? 'GET').toUpperCase();
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  let timeoutTriggered = false;
+  const timeoutId = setTimeout(() => {
+    timeoutTriggered = true;
+    controller.abort();
+  }, MEMBERSHIP_REQUEST_TIMEOUT_MS);
+  const unlinkSignals = linkAbortSignals(controller, init?.signal ?? undefined);
+  console.log(formatMembershipLogPrefix('Solicitud', method, url));
+
+  try {
+    const response = await fetch(url, {
+      ...(init ?? {}),
+      method,
+      signal: controller.signal,
+    });
+    const durationMs = Date.now() - startedAt;
+    await logMembershipResponse(response, method, url, durationMs);
+    return response;
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    if (timeoutTriggered && error instanceof Error && error.name === 'AbortError') {
+      console.error(formatMembershipLogPrefix('TIEMPO EXCEDIDO', method, url, durationMs));
+    } else {
+      console.error(formatMembershipLogPrefix('ERROR', method, url, durationMs), error);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    unlinkSignals();
+  }
 };
 
 const toWebSocketUrl = (url: string): string => {
@@ -615,7 +736,10 @@ const fetchMembershipResource = async (
 
   for (let index = 0; index < MEMBERSHIP_ENDPOINT_VARIANTS.length; index += 1) {
     const basePath = MEMBERSHIP_ENDPOINT_VARIANTS[index];
-    const response = await fetch(`${BASE_URL}${basePath}${normalizedSuffix}`, buildOptions());
+    const response = await fetchMembershipWithLogging(
+      `${BASE_URL}${basePath}${normalizedSuffix}`,
+      buildOptions()
+    );
     const isLastAttempt = index === MEMBERSHIP_ENDPOINT_VARIANTS.length - 1;
 
     if (response.ok) {
