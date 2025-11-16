@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -86,7 +87,7 @@ interface CompanyMembershipsContextValue {
   statusCatalog: typeof MEMBERSHIP_STATUS_OPTIONS;
   roleCatalog: typeof MEMBERSHIP_ROLE_SUGGESTIONS;
   normalizeStatus: (value?: string | null) => MembershipLifecycleStatus | null;
-  loadCompanyMemberships: () => Promise<void>;
+  loadCompanyMemberships: () => Promise<CompanyMembership[]>;
   addCompanyMembership: (payload: CompanyMembershipPayload) => Promise<CompanyMembership | null>;
   updateCompanyMembership: (id: number, payload: CompanyMembershipPayload) => Promise<boolean>;
   deleteCompanyMembership: (id: number) => Promise<boolean>;
@@ -108,7 +109,7 @@ const defaultContextValue: CompanyMembershipsContextValue = {
   statusCatalog: MEMBERSHIP_STATUS_OPTIONS,
   roleCatalog: MEMBERSHIP_ROLE_SUGGESTIONS,
   normalizeStatus: normalizeMembershipStatus,
-  loadCompanyMemberships: async () => {},
+  loadCompanyMemberships: async () => [],
   addCompanyMembership: async () => null,
   updateCompanyMembership: async () => false,
   deleteCompanyMembership: async () => false,
@@ -477,6 +478,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     []
   );
   const [loading, setLoading] = useState(false);
+  const membershipsRef = useRef<CompanyMembership[]>(memberships);
 
   useEffect(() => {
     if (!hydrated) {
@@ -485,6 +487,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
     setMemberships(prev => prev.map(item => parseMembership(item) ?? item));
   }, [hydrated, setMemberships]);
+
+  useEffect(() => {
+    membershipsRef.current = memberships;
+  }, [memberships]);
 
   const headers = useMemo(() => {
     if (!token) {
@@ -530,9 +536,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [setMemberships]
   );
 
-  const loadCompanyMemberships = useCallback(async () => {
+  const loadCompanyMemberships = useCallback(async (): Promise<CompanyMembership[]> => {
     if (!headers) {
-      return;
+      return membershipsRef.current;
     }
     setLoading(true);
     try {
@@ -540,28 +546,32 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
       if (response.status === 404) {
         setMemberships([]);
-        return;
+        return [];
       }
 
       if (!response.ok) {
         console.error('Error loading company memberships:', response.status, response.statusText);
-        return;
+        return membershipsRef.current;
       }
 
       const text = await response.text();
       if (!text) {
         setMemberships([]);
-        return;
+        return [];
       }
 
       try {
         const json = JSON.parse(text);
-        setMemberships(normalizeCollection(json));
+        const normalized = normalizeCollection(json);
+        setMemberships(normalized);
+        return normalized;
       } catch (error) {
         console.error('Unable to parse company memberships payload:', error);
+        return membershipsRef.current;
       }
     } catch (error) {
       console.error('Error loading company memberships:', error);
+      return membershipsRef.current;
     } finally {
       setLoading(false);
     }
@@ -727,6 +737,38 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           throw buildHttpError(
             response.status,
             'Los datos enviados no son válidos para registrar la solicitud.',
+            errorPayload
+          );
+        }
+
+        if (response.status === 409) {
+          console.warn('Solicitud de membresía duplicada:', errorPayload);
+          const payloadMembership = extractMembershipFromPayload(payload);
+          if (payloadMembership) {
+            mergeMembershipIntoState(payloadMembership);
+            return payloadMembership;
+          }
+
+          const existingMembership = membershipsRef.current.find(
+            membership =>
+              membership.company_id === numericCompanyId && membership.user_id === numericUserId
+          );
+          if (existingMembership) {
+            return existingMembership;
+          }
+
+          const refreshedMemberships = await loadCompanyMemberships();
+          const refreshed = refreshedMemberships.find(
+            membership =>
+              membership.company_id === numericCompanyId && membership.user_id === numericUserId
+          );
+          if (refreshed) {
+            return refreshed;
+          }
+
+          throw buildHttpError(
+            response.status,
+            'Ya existe una solicitud activa para esta empresa.',
             errorPayload
           );
         }
