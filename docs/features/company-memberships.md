@@ -13,6 +13,10 @@ Este módulo enlaza a los usuarios con las empresas que administran o necesitan 
 ## Listado con filtros por estado
 - El listado principal ahora permite filtrar y ordenar por estado normalizado utilizando los catálogos del contexto. También se sumaron chips con el mensaje y la respuesta para cada registro.【F:app/company_memberships/index.tsx†L1-L240】
 
+## Panel táctico dentro de la ficha de empresas
+- La vista de empresas incorpora un panel compuesto bajo "Accesos y membresías" con chips por rol/estado, KPIs históricos (última solicitud atendida, promedio de respuesta y relación entre pendientes/activos) y botones rápidos para abrir la ficha de cada miembro sin abandonar el modal.【F:app/companies/viewModal.tsx†L521-L655】
+- En el mismo bloque se agregó un timeline ordenado por `updated_at` que muestra insignias de estado, mensajes y acciones rápidas de aprobación/rechazo. Esto evita cambiar de pantalla cuando se procesan solicitudes urgentes y mantiene el historial visible para todo el equipo.【F:app/companies/viewModal.tsx†L657-L741】
+
 ## Recordatorio de seguridad
 - Todas las operaciones continúan enviando el token `Bearer` provisto por `AuthContext`; el backend sigue sin claves foráneas, por lo que la normalización ocurre en el cliente antes de persistir los datos.【F:contexts/CompanyMembershipsContext.tsx†L410-L520】【F:docs/setup-and-configuration.md†L16-L26】
 - Aun cuando los endpoints expongan rutas anidadas (`/companies/{companyId}/memberships/...`), el payload mantiene los campos `company_id` y `user_id` explícitos porque la base `sisa.api` carece de restricciones `FOREIGN KEY`. Esto permite que las instalaciones antiguas puedan registrar auditorías completas incluso si siguen consumiendo los controladores legacy.【F:docs/features/modules.md†L82-L110】【F:contexts/CompanyMembershipsContext.tsx†L25-L188】
