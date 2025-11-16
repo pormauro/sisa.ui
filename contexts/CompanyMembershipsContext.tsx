@@ -19,6 +19,7 @@ import {
   MembershipLifecycleStatus,
   normalizeMembershipStatus,
 } from '@/constants/companyMemberships';
+import useSuperAdministrator from '@/hooks/useSuperAdministrator';
 
 export interface MembershipAuditFlags {
   [key: string]: boolean | undefined;
@@ -635,6 +636,7 @@ const fetchMembershipResource = async (
 export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }) => {
   const { token, userId } = useContext(AuthContext);
   const { companies } = useContext(CompaniesContext);
+  const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
   const [memberships, setMemberships, hydrated] = useCachedState<CompanyMembership[]>(
     'company_memberships',
     []
@@ -645,10 +647,37 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const [isStale, setIsStale] = useState(false);
   const [notifications, setNotifications] = useState<MembershipNotification[]>([]);
   const [supportsStreaming, setSupportsStreaming] = useState(false);
-  const [fallbackToCompanyListing, setFallbackToCompanyListing] = useState(false);
   const [membershipEndpoint, setMembershipEndpoint] = useState<string | null>(null);
   const membershipsRef = useRef<CompanyMembership[]>(memberships);
   const streamingWarningIssuedRef = useRef(false);
+  const missingAdminWarningIssuedRef = useRef(false);
+
+  const administeredCompanyIds = useMemo(() => {
+    const collected = new Set<number>();
+    companies.forEach(company => {
+      const numericCompanyId = coerceToNumber(company.id);
+      if (numericCompanyId === null) {
+        return;
+      }
+      if (isSuperAdministrator) {
+        collected.add(numericCompanyId);
+        return;
+      }
+      if (!normalizedUserId) {
+        return;
+      }
+      if (!Array.isArray(company.administrator_ids) || !company.administrator_ids.length) {
+        return;
+      }
+      const isAdministered = company.administrator_ids.some(
+        adminId => String(adminId ?? '').trim() === normalizedUserId
+      );
+      if (isAdministered) {
+        collected.add(numericCompanyId);
+      }
+    });
+    return Array.from(collected);
+  }, [companies, isSuperAdministrator, normalizedUserId]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -886,18 +915,25 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return membershipsRef.current;
       }
 
-      const companyIds = companies
-        .map(company => coerceToNumber(company.id))
-        .filter((value): value is number => value !== null);
+      const companyIds = administeredCompanyIds;
 
       if (!companyIds.length) {
-        handleSyncFailure(
-          'No pudimos cargar las membresías porque no hay empresas disponibles.',
-          'Sin empresas sincronizadas no podemos consultar las solicitudes.'
-        );
+        if (!companies.length) {
+          return [];
+        }
+
+        setMemberships([]);
+        if (!missingAdminWarningIssuedRef.current) {
+          missingAdminWarningIssuedRef.current = true;
+          enqueueNotification(
+            'Tu usuario no figura en el campo admin_users de ninguna empresa, por lo que no hay membresías para administrar.',
+            'warning'
+          );
+        }
         return [];
       }
 
+      missingAdminWarningIssuedRef.current = false;
       setLoading(true);
       try {
         const aggregated: CompanyMembership[] = [];
@@ -907,7 +943,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         }
         handleSyncSuccess({
           message:
-            'Sincronizamos las solicitudes empresa por empresa porque el endpoint global no está disponible.',
+            'Sincronizamos las solicitudes empresa por empresa respetando los administradores configurados en admin_users.',
           severity: 'info',
         });
         return aggregated;
@@ -919,11 +955,14 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
     },
     [
-      companies,
+      administeredCompanyIds,
+      companies.length,
+      enqueueNotification,
       handleSyncFailure,
       handleSyncSuccess,
       headers,
       loadCompanyMembershipsForCompany,
+      setMemberships,
     ]
   );
 
@@ -938,57 +977,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return membershipsRef.current;
       }
 
-      if (fallbackToCompanyListing) {
-        return loadCompanyMembershipsFromCompanies();
-      }
-      setLoading(true);
-      try {
-        const response = await fetchMembershipResourceWithEndpoint('', { headers });
-
-        if (response.status === 404) {
-          setFallbackToCompanyListing(true);
-          return loadCompanyMembershipsFromCompanies();
-        }
-
-        if (!response.ok) {
-          handleSyncFailure('No pudimos cargar las membresías.', `${response.status} ${response.statusText}`);
-          return membershipsRef.current;
-        }
-
-        const text = await response.text();
-        if (!text) {
-          setMemberships([]);
-          handleSyncSuccess();
-          return [];
-        }
-
-        try {
-          const json = JSON.parse(text);
-          const normalized = normalizeCollection(json);
-          setMemberships(normalized);
-          handleSyncSuccess();
-          return normalized;
-        } catch (error) {
-          handleSyncFailure('No pudimos interpretar las membresías recibidas.', error);
-          return membershipsRef.current;
-        }
-      } catch (error) {
-        handleSyncFailure('No pudimos sincronizar las membresías.', error);
-        return membershipsRef.current;
-      } finally {
-        setLoading(false);
-      }
+      return loadCompanyMembershipsFromCompanies();
     },
-    [
-      fetchMembershipResourceWithEndpoint,
-      handleSyncFailure,
-      handleSyncSuccess,
-      headers,
-      fallbackToCompanyListing,
-      loadCompanyMembershipsFromCompanies,
-      loadCompanyMembershipsForCompany,
-      setMemberships,
-    ]
+    [headers, loadCompanyMembershipsFromCompanies, loadCompanyMembershipsForCompany]
   );
 
   useEffect(() => {
@@ -1024,17 +1015,12 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   }, [headers, loadCompanyMemberships]);
 
   useEffect(() => {
-    if (!fallbackToCompanyListing || !headers || !companies.length) {
+    if (!headers || !administeredCompanyIds.length) {
       return;
     }
 
     void loadCompanyMembershipsFromCompanies();
-  }, [
-    companies.length,
-    fallbackToCompanyListing,
-    headers,
-    loadCompanyMembershipsFromCompanies,
-  ]);
+  }, [administeredCompanyIds, headers, loadCompanyMembershipsFromCompanies]);
 
   const streamingUrl = useMemo(
     () => buildMembershipStreamingUrl(membershipEndpoint, token),
