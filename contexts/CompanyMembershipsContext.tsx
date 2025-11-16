@@ -423,6 +423,12 @@ const serializePayload = (payload: CompanyMembershipPayload) => {
 };
 
 const MEMBERSHIP_ENDPOINT_VARIANTS = ['/company_memberships', '/company-memberships'] as const;
+let resolvedMembershipEndpoint: string | null = null;
+
+const rememberMembershipEndpoint = (basePath: string): string => {
+  resolvedMembershipEndpoint = basePath;
+  return basePath;
+};
 const MEMBERSHIP_STREAM_SUFFIX = '/stream';
 const REFRESH_INTERVAL_MINUTES = 5;
 const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000;
@@ -478,7 +484,8 @@ const toWebSocketUrl = (url: string): string => {
 };
 
 const buildMembershipStreamingUrl = (token?: string | null): string => {
-  const basePath = `${BASE_URL}${MEMBERSHIP_ENDPOINT_VARIANTS[0]}${MEMBERSHIP_STREAM_SUFFIX}`;
+  const endpoint = resolvedMembershipEndpoint ?? MEMBERSHIP_ENDPOINT_VARIANTS[0];
+  const basePath = `${BASE_URL}${endpoint}${MEMBERSHIP_STREAM_SUFFIX}`;
   if (!token) {
     return basePath;
   }
@@ -607,6 +614,7 @@ const fetchMembershipResource = async (
     const basePath = MEMBERSHIP_ENDPOINT_VARIANTS[index];
     const response = await fetch(`${BASE_URL}${basePath}${normalizedSuffix}`, buildOptions());
     if (response.status !== 404 || index === MEMBERSHIP_ENDPOINT_VARIANTS.length - 1) {
+      rememberMembershipEndpoint(basePath);
       return response;
     }
   }
@@ -845,6 +853,8 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     };
   }, [headers, loadCompanyMemberships]);
 
+  const streamingUrl = buildMembershipStreamingUrl(token);
+
   useEffect(() => {
     if (!token) {
       return;
@@ -858,7 +868,6 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       return;
     }
 
-    const streamingUrl = buildMembershipStreamingUrl(token);
     let disposed = false;
     let cleanup: (() => void) | null = null;
 
@@ -946,7 +955,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     }
 
     return undefined;
-  }, [enqueueNotification, mergeMembershipIntoState, reportOperationalError, token]);
+  }, [enqueueNotification, mergeMembershipIntoState, reportOperationalError, streamingUrl, token]);
 
   const addCompanyMembership = useCallback(
     async (payload: CompanyMembershipPayload): Promise<CompanyMembership | null> => {
