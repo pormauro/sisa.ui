@@ -613,10 +613,18 @@ const fetchMembershipResource = async (
   for (let index = 0; index < MEMBERSHIP_ENDPOINT_VARIANTS.length; index += 1) {
     const basePath = MEMBERSHIP_ENDPOINT_VARIANTS[index];
     const response = await fetch(`${BASE_URL}${basePath}${normalizedSuffix}`, buildOptions());
-    if (response.status !== 404 || index === MEMBERSHIP_ENDPOINT_VARIANTS.length - 1) {
+    const isLastAttempt = index === MEMBERSHIP_ENDPOINT_VARIANTS.length - 1;
+
+    if (response.ok) {
       rememberMembershipEndpoint(basePath);
       return response;
     }
+
+    if (response.status === 404 && !isLastAttempt) {
+      continue;
+    }
+
+    return response;
   }
 
   throw new Error('Unable to resolve company memberships endpoint');
