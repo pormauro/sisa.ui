@@ -1138,11 +1138,11 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             return refreshed;
           }
 
-          throw buildHttpError(
-            response.status,
-            'Ya existe una solicitud activa para esta empresa.',
+          reportOperationalError(
+            'Ya existe una solicitud activa para esta empresa, pero no pudimos recuperarla.',
             errorPayload
           );
+          return null;
         }
 
         if (!response.ok) {
