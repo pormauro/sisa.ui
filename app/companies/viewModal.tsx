@@ -15,6 +15,7 @@ import { CompaniesContext } from '@/contexts/CompaniesContext';
 import {
   CompanyMembershipsContext,
   CompanyMembership,
+  MembershipDecision,
 } from '@/contexts/CompanyMembershipsContext';
 import FileGallery from '@/components/FileGallery';
 import { IconSymbol } from '@/components/ui/IconSymbol';
@@ -55,11 +56,56 @@ const membershipIsRejected = (status?: string | null): boolean => {
   return ['rechaz', 'deneg', 'declin', 'cancel'].some(keyword => normalized.includes(keyword));
 };
 
-type MembershipDecision = 'approve' | 'reject';
-
 const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, string> = {
   approve: 'activo',
   reject: 'rechazado',
+};
+
+const getErrorStatusCode = (error: unknown): number | null => {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+  const candidate = (error as { status?: unknown }).status;
+  if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+    return Math.trunc(candidate);
+  }
+  if (typeof candidate === 'string' && candidate.trim().length) {
+    const parsed = Number(candidate);
+    return Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+  }
+  return null;
+};
+
+const getErrorMessageText = (error: unknown): string | null => {
+  if (error instanceof Error) {
+    const trimmed = error.message?.trim();
+    return trimmed && trimmed.length ? trimmed : null;
+  }
+  if (typeof error === 'string') {
+    const trimmed = error.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  return null;
+};
+
+const showMembershipErrorAlert = (error: unknown, fallbackMessage: string) => {
+  const status = getErrorStatusCode(error);
+  const message = getErrorMessageText(error);
+
+  if (status === 401) {
+    Alert.alert('Sesión expirada', 'Tu sesión expiró. Iniciá sesión nuevamente para continuar.');
+    return;
+  }
+
+  if (status === 422) {
+    Alert.alert(
+      'Datos inválidos',
+      message ?? 'Revisá la información enviada e intentá nuevamente.'
+    );
+    return;
+  }
+
+  Alert.alert('Error', fallbackMessage);
 };
 
 export default function ViewCompanyModal() {
@@ -182,7 +228,10 @@ export default function ViewCompanyModal() {
 
     setRequestingAccess(true);
     try {
-      const result = await requestMembershipAccess(company.id);
+      const defaultMessage = 'Solicitud enviada desde la vista de empresas.';
+      const result = await requestMembershipAccess(company.id, {
+        message: defaultMessage,
+      });
 
       if (!result) {
         Alert.alert(
@@ -209,7 +258,10 @@ export default function ViewCompanyModal() {
       }
     } catch (error) {
       console.error('Error requesting membership access:', error);
-      Alert.alert('Error', 'No pudimos enviar tu solicitud. Intentá nuevamente en unos minutos.');
+      showMembershipErrorAlert(
+        error,
+        'No pudimos enviar tu solicitud. Intentá nuevamente en unos minutos.'
+      );
     } finally {
       setRequestingAccess(false);
     }
@@ -220,8 +272,19 @@ export default function ViewCompanyModal() {
       const targetStatus = MEMBERSHIP_STATUS_BY_DECISION[decision];
       setRespondingId(membership.id);
       try {
-        const ok = await updateMembershipStatus(membership.id, targetStatus);
-        if (!ok) {
+        const responseMessage =
+          decision === 'approve'
+            ? 'Solicitud aprobada desde la vista de empresas.'
+            : 'Solicitud rechazada desde la vista de empresas.';
+        const updated = await updateMembershipStatus(membership.id, targetStatus, {
+          decision,
+          message: responseMessage,
+          role: membership.role ?? null,
+          notes: membership.notes ?? null,
+          reason: decision === 'reject' ? membership.reason ?? responseMessage : undefined,
+        });
+
+        if (!updated) {
           Alert.alert(
             'No pudimos actualizar la solicitud',
             'Intentá nuevamente o revisá el módulo de membresías.'
@@ -229,15 +292,21 @@ export default function ViewCompanyModal() {
           return;
         }
 
-        const successMessage =
-          decision === 'approve'
-            ? 'El usuario ahora cuenta con acceso a la empresa.'
-            : 'La solicitud fue marcada como rechazada.';
-
-        Alert.alert('Solicitud actualizada', successMessage);
+        if (membershipIsPending(updated.status)) {
+          Alert.alert('Solicitud pendiente', 'La solicitud continúa pendiente de revisión.');
+        } else if (membershipIsActive(updated.status)) {
+          Alert.alert('Solicitud aprobada', 'El usuario ahora cuenta con acceso activo a la empresa.');
+        } else if (membershipIsRejected(updated.status)) {
+          Alert.alert('Solicitud rechazada', 'La solicitud fue marcada como rechazada.');
+        } else {
+          Alert.alert('Solicitud actualizada', 'Actualizamos el estado de la solicitud.');
+        }
       } catch (error) {
         console.error('Error responding to membership request:', error);
-        Alert.alert('Error', 'No pudimos responder la solicitud. Intentalo nuevamente.');
+        showMembershipErrorAlert(
+          error,
+          'No pudimos responder la solicitud. Intentalo nuevamente.'
+        );
       } finally {
         setRespondingId(null);
       }
