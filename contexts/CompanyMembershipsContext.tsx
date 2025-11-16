@@ -48,6 +48,11 @@ export interface CompanyMembershipPayload {
   audit_flags?: MembershipAuditFlags | null;
 }
 
+interface MembershipHttpError extends Error {
+  status?: number;
+  details?: unknown;
+}
+
 export interface MembershipRequestOptions {
   role?: string | null;
   status?: string | null;
@@ -55,10 +60,14 @@ export interface MembershipRequestOptions {
   message?: string | null;
 }
 
+export type MembershipDecision = 'approve' | 'reject';
+
 export interface MembershipStatusUpdateOptions {
   role?: string | null;
   notes?: string | null;
   reason?: string | null;
+  message?: string | null;
+  decision?: MembershipDecision;
   responded_at?: string | null;
   audit_flags?: MembershipAuditFlags | null;
 }
@@ -79,7 +88,7 @@ interface CompanyMembershipsContextValue {
     id: number,
     status: string,
     options?: MembershipStatusUpdateOptions
-  ) => Promise<boolean>;
+  ) => Promise<CompanyMembership | null>;
 }
 
 const defaultContextValue: CompanyMembershipsContextValue = {
@@ -91,7 +100,7 @@ const defaultContextValue: CompanyMembershipsContextValue = {
   updateCompanyMembership: async () => false,
   deleteCompanyMembership: async () => false,
   requestMembershipAccess: async () => null,
-  updateMembershipStatus: async () => false,
+  updateMembershipStatus: async () => null,
 };
 
 export const CompanyMembershipsContext =
@@ -317,6 +326,108 @@ const serializePayload = (payload: CompanyMembershipPayload) => {
 
 const MEMBERSHIP_ENDPOINT_VARIANTS = ['/company_memberships', '/company-memberships'] as const;
 
+const parseJsonSafely = (text: string): any => {
+  if (!text) {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error('Unable to parse memberships payload:', error);
+    return null;
+  }
+};
+
+const extractMembershipFromPayload = (payload: any): CompanyMembership | null => {
+  if (!payload) {
+    return null;
+  }
+  return parseMembership(payload.membership ?? payload.data ?? payload);
+};
+
+const extractErrorMessage = (payload: any): string | null => {
+  if (!payload) {
+    return null;
+  }
+
+  if (typeof payload === 'string') {
+    const trimmed = payload.trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  if (typeof payload.message === 'string') {
+    const trimmed = payload.message.trim();
+    if (trimmed.length) {
+      return trimmed;
+    }
+  }
+
+  if (typeof payload.error === 'string') {
+    const trimmed = payload.error.trim();
+    if (trimmed.length) {
+      return trimmed;
+    }
+  }
+
+  if (typeof payload.detail === 'string') {
+    const trimmed = payload.detail.trim();
+    if (trimmed.length) {
+      return trimmed;
+    }
+  }
+
+  if (Array.isArray(payload.errors)) {
+    const messages = payload.errors
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+    if (messages.length) {
+      return messages.join(' ');
+    }
+  }
+
+  if (payload.errors && typeof payload.errors === 'object') {
+    const messages: string[] = [];
+    Object.values(payload.errors).forEach(value => {
+      if (Array.isArray(value)) {
+        value.forEach(item => {
+          if (typeof item === 'string' && item.trim().length) {
+            messages.push(item.trim());
+          }
+        });
+      } else if (typeof value === 'string' && value.trim().length) {
+        messages.push(value.trim());
+      }
+    });
+    if (messages.length) {
+      return messages.join(' ');
+    }
+  }
+
+  return null;
+};
+
+const buildHttpError = (
+  status: number,
+  fallbackMessage: string,
+  payload: any
+): MembershipHttpError => {
+  const errorMessage = extractErrorMessage(payload) ?? fallbackMessage;
+  const error = new Error(errorMessage) as MembershipHttpError;
+  error.status = status;
+  error.details = payload;
+  return error;
+};
+
+const buildCompanyMembershipUrl = (
+  companyId: number,
+  membershipId?: number | null,
+  suffix = ''
+): string => {
+  const normalizedSuffix = suffix ? (suffix.startsWith('/') ? suffix : `/${suffix}`) : '';
+  const membershipSegment = membershipId ? `/${membershipId}` : '';
+  return `${BASE_URL}/companies/${companyId}/memberships${membershipSegment}${normalizedSuffix}`;
+};
+
 const fetchMembershipResource = async (
   suffix = '',
   init?: RequestInit | (() => RequestInit)
@@ -369,6 +480,39 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       Authorization: `Bearer ${token}`,
     } satisfies Record<string, string>;
   }, [token]);
+
+  const postCompanyMembershipAction = useCallback(
+    async (
+      companyId: number,
+      membershipId: number | null,
+      suffix: string,
+      body: Record<string, unknown>
+    ): Promise<Response> => {
+      if (!headers) {
+        const error = new Error('Se requiere autenticación para operar sobre membresías');
+        (error as MembershipHttpError).status = 401;
+        throw error;
+      }
+
+      const url = buildCompanyMembershipUrl(companyId, membershipId ?? undefined, suffix);
+      return fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+    },
+    [headers]
+  );
+
+  const mergeMembershipIntoState = useCallback(
+    (incoming: CompanyMembership) => {
+      setMemberships(prev => {
+        const filtered = prev.filter(item => item.id !== incoming.id);
+        return [incoming, ...filtered];
+      });
+    },
+    [setMemberships]
+  );
 
   const loadCompanyMemberships = useCallback(async () => {
     if (!headers) {
@@ -531,10 +675,6 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       companyId: number,
       options?: MembershipRequestOptions
     ): Promise<CompanyMembership | null> => {
-      if (!headers) {
-        return null;
-      }
-
       const numericCompanyId = coerceToNumber(companyId);
       const numericUserId = coerceToNumber(userId);
 
@@ -544,49 +684,69 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
       const targetStatus = options?.status ?? 'pending';
 
-      const existing = memberships.find(
-        membership =>
-          membership.company_id === numericCompanyId && membership.user_id === numericUserId
-      );
+      try {
+        const response = await postCompanyMembershipAction(numericCompanyId, null, '', {
+          user_id: numericUserId,
+          status: targetStatus,
+          role: options?.role ?? null,
+          notes: options?.notes ?? null,
+          message: options?.message ?? null,
+        });
 
-      if (existing) {
-        const normalizedTarget =
-          typeof targetStatus === 'string' ? targetStatus.trim().toLowerCase() : '';
-        const normalizedCurrent =
-          typeof existing.status === 'string' ? existing.status.trim().toLowerCase() : '';
+        const text = await response.text();
+        const payload = parseJsonSafely(text);
+        const errorPayload = payload ?? text;
 
-        if (normalizedTarget && normalizedTarget !== normalizedCurrent) {
-          await updateCompanyMembership(existing.id, {
-            company_id: existing.company_id,
-            user_id: existing.user_id,
-            role: options?.role ?? existing.role ?? null,
-            status: targetStatus,
-            notes: options?.notes ?? existing.notes ?? null,
-            reason: existing.reason ?? null,
-            responded_at: existing.responded_at ?? null,
-            audit_flags: existing.audit_flags ?? null,
-          });
+        if (response.status === 401) {
+          console.error('Solicitud de membresía sin autorización:', errorPayload);
+          throw buildHttpError(
+            response.status,
+            'Tu sesión expiró. Iniciá sesión nuevamente para continuar.',
+            errorPayload
+          );
         }
 
-        return existing;
+        if (response.status === 422) {
+          console.error('Solicitud de membresía inválida:', errorPayload);
+          throw buildHttpError(
+            response.status,
+            'Los datos enviados no son válidos para registrar la solicitud.',
+            errorPayload
+          );
+        }
+
+        if (!response.ok) {
+          console.error(
+            'Error desconocido al solicitar acceso a la empresa:',
+            response.status,
+            errorPayload
+          );
+          throw buildHttpError(
+            response.status,
+            'No pudimos registrar la solicitud de acceso.',
+            errorPayload
+          );
+        }
+
+        const membership = extractMembershipFromPayload(payload);
+        if (membership) {
+          mergeMembershipIntoState(membership);
+          return membership;
+        }
+
+        await loadCompanyMemberships();
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error('Error requesting membership access:', error);
+        } else {
+          console.error('Error requesting membership access:', String(error));
+        }
+        throw error;
       }
 
-      return addCompanyMembership({
-        company_id: numericCompanyId,
-        user_id: numericUserId,
-        role: options?.role ?? null,
-        status: targetStatus,
-        notes: options?.notes ?? null,
-        message: options?.message ?? null,
-      });
+      return null;
     },
-    [
-      addCompanyMembership,
-      headers,
-      memberships,
-      updateCompanyMembership,
-      userId,
-    ]
+    [loadCompanyMemberships, mergeMembershipIntoState, postCompanyMembershipAction, userId]
   );
 
   const updateMembershipStatus = useCallback(
@@ -594,17 +754,97 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       id: number,
       status: string,
       options?: MembershipStatusUpdateOptions
-    ): Promise<boolean> => {
+    ): Promise<CompanyMembership | null> => {
       if (!status) {
-        return false;
+        return null;
       }
 
       const membership = memberships.find(item => item.id === id);
       if (!membership) {
-        return false;
+        return null;
       }
 
-      return updateCompanyMembership(id, {
+      if (options?.decision) {
+        const decisionSuffix = `/${options.decision}`;
+        const body: Record<string, unknown> = {
+          status,
+          role: options.role ?? membership.role ?? null,
+          notes: options.notes ?? membership.notes ?? null,
+        };
+
+        if (options.decision === 'reject') {
+          body.reason = options.reason ?? membership.reason ?? null;
+        }
+
+        if (options.message !== undefined || membership.message !== undefined) {
+          body.message = options.message ?? membership.message ?? null;
+        }
+
+        if (options.responded_at !== undefined || membership.responded_at !== undefined) {
+          body.responded_at = options.responded_at ?? membership.responded_at ?? null;
+        }
+
+        if (options.audit_flags !== undefined || membership.audit_flags !== undefined) {
+          body.audit_flags = options.audit_flags ?? membership.audit_flags ?? null;
+        }
+
+        try {
+          const response = await postCompanyMembershipAction(
+            membership.company_id,
+            membership.id,
+            decisionSuffix,
+            body
+          );
+          const text = await response.text();
+          const payload = parseJsonSafely(text);
+          const errorPayload = payload ?? text;
+
+          if (response.status === 401) {
+            console.error('Actualización de membresía sin autorización:', errorPayload);
+            throw buildHttpError(
+              response.status,
+              'No estás autorizado para responder la solicitud.',
+              errorPayload
+            );
+          }
+
+          if (response.status === 422) {
+            console.error('Actualización de membresía inválida:', errorPayload);
+            throw buildHttpError(
+              response.status,
+              'Los datos enviados no son válidos para responder la solicitud.',
+              errorPayload
+            );
+          }
+
+          if (!response.ok) {
+            console.error('Error actualizando el estado de la membresía:', errorPayload);
+            throw buildHttpError(
+              response.status,
+              'No pudimos actualizar el estado de la solicitud.',
+              errorPayload
+            );
+          }
+
+          const updated = extractMembershipFromPayload(payload);
+          if (updated) {
+            mergeMembershipIntoState(updated);
+            return updated;
+          }
+
+          await loadCompanyMemberships();
+          return null;
+        } catch (error) {
+          if (error instanceof Error) {
+            console.error('Error updating membership status:', error);
+          } else {
+            console.error('Error updating membership status:', String(error));
+          }
+          throw error;
+        }
+      }
+
+      const ok = await updateCompanyMembership(id, {
         company_id: membership.company_id,
         user_id: membership.user_id,
         role: options?.role ?? membership.role ?? null,
@@ -614,8 +854,30 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         responded_at: options?.responded_at ?? membership.responded_at ?? null,
         audit_flags: options?.audit_flags ?? membership.audit_flags ?? null,
       });
+
+      if (!ok) {
+        return null;
+      }
+
+      const fallback: CompanyMembership = {
+        ...membership,
+        role: options?.role ?? membership.role ?? null,
+        status,
+        notes: options?.notes ?? membership.notes ?? null,
+        reason: options?.reason ?? membership.reason ?? null,
+        responded_at: options?.responded_at ?? membership.responded_at ?? null,
+        audit_flags: options?.audit_flags ?? membership.audit_flags ?? null,
+      };
+      mergeMembershipIntoState(fallback);
+      return fallback;
     },
-    [memberships, updateCompanyMembership]
+    [
+      loadCompanyMemberships,
+      mergeMembershipIntoState,
+      memberships,
+      postCompanyMembershipAction,
+      updateCompanyMembership,
+    ]
   );
 
   const value = useMemo(
