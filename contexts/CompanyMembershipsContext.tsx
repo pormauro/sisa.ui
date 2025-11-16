@@ -432,6 +432,7 @@ const rememberMembershipEndpoint = (basePath: string): string => {
 const MEMBERSHIP_STREAM_SUFFIX = '/stream';
 const REFRESH_INTERVAL_MINUTES = 5;
 const REFRESH_INTERVAL_MS = REFRESH_INTERVAL_MINUTES * 60 * 1000;
+const STREAM_HANDSHAKE_TIMEOUT_MS = 5000;
 const MAX_NOTIFICATION_QUEUE = 6;
 
 type EventSourceLike = {
@@ -641,7 +642,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [notifications, setNotifications] = useState<MembershipNotification[]>([]);
+  const [supportsStreaming, setSupportsStreaming] = useState(false);
   const membershipsRef = useRef<CompanyMembership[]>(memberships);
+  const streamingWarningIssuedRef = useRef(false);
 
   useEffect(() => {
     if (!hydrated) {
@@ -864,7 +867,70 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const streamingUrl = buildMembershipStreamingUrl(token);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || !headers) {
+      setSupportsStreaming(false);
+      streamingWarningIssuedRef.current = false;
+      return;
+    }
+
+    let disposed = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), STREAM_HANDSHAKE_TIMEOUT_MS);
+
+    const handleUnsupportedStreaming = (description?: string | null) => {
+      setSupportsStreaming(false);
+      if (!streamingWarningIssuedRef.current) {
+        streamingWarningIssuedRef.current = true;
+        enqueueNotification(
+          'El servidor no expone el stream de membresías. Seguiremos en modo polling.',
+          'warning',
+          description ?? undefined
+        );
+      }
+    };
+
+    const verifyStreamingEndpoint = async () => {
+      try {
+        const response = await fetch(streamingUrl, {
+          method: 'HEAD',
+          headers,
+          signal: controller.signal,
+        });
+
+        if (disposed) {
+          return;
+        }
+
+        if (response.ok) {
+          setSupportsStreaming(true);
+          streamingWarningIssuedRef.current = false;
+        } else {
+          const description = `${response.status} ${response.statusText}`.trim();
+          handleUnsupportedStreaming(description);
+        }
+      } catch (error) {
+        if (disposed) {
+          return;
+        }
+
+        const description = describeUnknownError(error);
+        handleUnsupportedStreaming(description);
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    verifyStreamingEndpoint();
+
+    return () => {
+      disposed = true;
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [enqueueNotification, headers, streamingUrl, token]);
+
+  useEffect(() => {
+    if (!token || !supportsStreaming) {
       return;
     }
 
@@ -963,7 +1029,14 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     }
 
     return undefined;
-  }, [enqueueNotification, mergeMembershipIntoState, reportOperationalError, streamingUrl, token]);
+  }, [
+    enqueueNotification,
+    mergeMembershipIntoState,
+    reportOperationalError,
+    streamingUrl,
+    supportsStreaming,
+    token,
+  ]);
 
   const addCompanyMembership = useCallback(
     async (payload: CompanyMembershipPayload): Promise<CompanyMembership | null> => {
