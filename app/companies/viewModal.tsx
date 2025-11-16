@@ -29,6 +29,9 @@ import {
   MembershipLifecycleStatus,
   getMembershipStatusMetadata,
   normalizeMembershipStatus as normalizeLifecycleStatus,
+  isApprovedMembershipStatus,
+  isPendingMembershipStatus,
+  isRejectedMembershipStatus,
 } from '@/constants/companyMemberships';
 
 type NormalizableStatusCandidate =
@@ -50,13 +53,13 @@ const resolveLifecycleStatus = (
 };
 
 const membershipIsPending = (candidate: NormalizableStatusCandidate): boolean =>
-  resolveLifecycleStatus(candidate) === 'pending';
+  isPendingMembershipStatus(resolveLifecycleStatus(candidate));
 
 const membershipIsApproved = (candidate: NormalizableStatusCandidate): boolean =>
-  resolveLifecycleStatus(candidate) === 'approved';
+  isApprovedMembershipStatus(resolveLifecycleStatus(candidate));
 
 const membershipIsRejected = (candidate: NormalizableStatusCandidate): boolean =>
-  resolveLifecycleStatus(candidate) === 'rejected';
+  isRejectedMembershipStatus(resolveLifecycleStatus(candidate));
 
 const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, MembershipLifecycleStatus> = {
   approve: 'approved',

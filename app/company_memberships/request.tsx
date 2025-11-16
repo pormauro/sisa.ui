@@ -18,6 +18,11 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedText } from '@/components/ThemedText';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import {
+  isApprovedMembershipStatus,
+  isPendingMembershipStatus,
+  isSuspendedMembershipStatus,
+} from '@/constants/companyMemberships';
 
 const RequestCompanyMembershipAccessScreen: React.FC = () => {
   const router = useRouter();
@@ -75,7 +80,11 @@ const RequestCompanyMembershipAccessScreen: React.FC = () => {
       }
       const status =
         membership.normalized_status ?? normalizeStatus(membership.status ?? null);
-      return status === 'pending' || status === 'approved';
+      return (
+        isPendingMembershipStatus(status) ||
+        isApprovedMembershipStatus(status) ||
+        isSuspendedMembershipStatus(status)
+      );
     });
   }, [memberships, normalizeStatus, numericUserId]);
 
@@ -135,7 +144,11 @@ const RequestCompanyMembershipAccessScreen: React.FC = () => {
         ? membership.normalized_status ?? normalizeStatus(membership.status ?? null)
         : null;
 
-      if (normalizedStatus === 'pending' || normalizedStatus === 'approved') {
+      if (
+        normalizedStatus &&
+        (isPendingMembershipStatus(normalizedStatus) ||
+          isApprovedMembershipStatus(normalizedStatus))
+      ) {
         router.replace('/company_memberships');
       }
     } catch (error) {
