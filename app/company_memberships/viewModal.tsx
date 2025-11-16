@@ -7,6 +7,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { MembershipStatusBadge } from '@/components/MembershipStatusBadge';
 
 export default function ViewCompanyMembershipModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -65,17 +66,30 @@ export default function ViewCompanyMembershipModal() {
           </>
         ) : null}
 
-        {membership.status ? (
-          <>
-            <ThemedText style={styles.label}>Estado</ThemedText>
-            <ThemedText style={styles.value}>{membership.status}</ThemedText>
-          </>
-        ) : null}
+        <ThemedText style={styles.label}>Estado</ThemedText>
+        <MembershipStatusBadge
+          normalizedStatus={membership.normalized_status ?? null}
+          fallbackLabel={membership.status ?? 'Sin estado'}
+        />
 
         {membership.notes ? (
           <>
             <ThemedText style={styles.label}>Notas</ThemedText>
             <ThemedText style={styles.value}>{membership.notes}</ThemedText>
+          </>
+        ) : null}
+
+        {membership.message ? (
+          <>
+            <ThemedText style={styles.label}>Mensaje enviado</ThemedText>
+            <ThemedText style={styles.value}>{membership.message}</ThemedText>
+          </>
+        ) : null}
+
+        {membership.reason ? (
+          <>
+            <ThemedText style={styles.label}>Motivo/respuesta</ThemedText>
+            <ThemedText style={styles.value}>{membership.reason}</ThemedText>
           </>
         ) : null}
 

@@ -11,6 +11,12 @@ import React, {
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import {
+  MEMBERSHIP_ROLE_SUGGESTIONS,
+  MEMBERSHIP_STATUS_OPTIONS,
+  MembershipLifecycleStatus,
+  normalizeMembershipStatus,
+} from '@/constants/companyMemberships';
 
 export interface MembershipAuditFlags {
   [key: string]: boolean | undefined;
@@ -34,6 +40,7 @@ export interface CompanyMembership {
   responded_by_id?: number | null;
   responded_by_name?: string | null;
   audit_flags?: MembershipAuditFlags | null;
+  normalized_status?: MembershipLifecycleStatus | null;
 }
 
 export interface CompanyMembershipPayload {
@@ -76,6 +83,9 @@ interface CompanyMembershipsContextValue {
   memberships: CompanyMembership[];
   hydrated: boolean;
   loading: boolean;
+  statusCatalog: typeof MEMBERSHIP_STATUS_OPTIONS;
+  roleCatalog: typeof MEMBERSHIP_ROLE_SUGGESTIONS;
+  normalizeStatus: (value?: string | null) => MembershipLifecycleStatus | null;
   loadCompanyMemberships: () => Promise<void>;
   addCompanyMembership: (payload: CompanyMembershipPayload) => Promise<CompanyMembership | null>;
   updateCompanyMembership: (id: number, payload: CompanyMembershipPayload) => Promise<boolean>;
@@ -95,6 +105,9 @@ const defaultContextValue: CompanyMembershipsContextValue = {
   memberships: [],
   hydrated: false,
   loading: false,
+  statusCatalog: MEMBERSHIP_STATUS_OPTIONS,
+  roleCatalog: MEMBERSHIP_ROLE_SUGGESTIONS,
+  normalizeStatus: normalizeMembershipStatus,
   loadCompanyMemberships: async () => {},
   addCompanyMembership: async () => null,
   updateCompanyMembership: async () => false,
@@ -239,6 +252,8 @@ const parseMembership = (rawValue: any): CompanyMembership | null => {
     raw.responder_name ??
     null;
 
+  const status = getString(raw.status) ?? getString(raw.membership_status);
+
   return {
     id,
     company_id: companyId,
@@ -250,7 +265,7 @@ const parseMembership = (rawValue: any): CompanyMembership | null => {
       getString(raw.user?.email) ??
       null,
     role: getString(raw.role) ?? getString(raw.membership_role),
-    status: getString(raw.status) ?? getString(raw.membership_status),
+    status,
     notes: getString(raw.notes) ?? getString(raw.membership_notes),
     created_at: getString(raw.created_at),
     updated_at: getString(raw.updated_at),
@@ -261,6 +276,7 @@ const parseMembership = (rawValue: any): CompanyMembership | null => {
     responded_by_id: coerceToNumber(respondedByIdCandidate),
     responded_by_name: getString(respondedByNameCandidate),
     audit_flags: parseAuditFlags(raw.audit_flags ?? raw.flags ?? raw.audit ?? raw.status_flags),
+    normalized_status: normalizeMembershipStatus(status),
   };
 };
 
@@ -859,6 +875,8 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return null;
       }
 
+      const normalized = normalizeMembershipStatus(status);
+
       const fallback: CompanyMembership = {
         ...membership,
         role: options?.role ?? membership.role ?? null,
@@ -867,6 +885,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         reason: options?.reason ?? membership.reason ?? null,
         responded_at: options?.responded_at ?? membership.responded_at ?? null,
         audit_flags: options?.audit_flags ?? membership.audit_flags ?? null,
+        normalized_status: normalized,
       };
       mergeMembershipIntoState(fallback);
       return fallback;
@@ -885,6 +904,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       memberships,
       hydrated,
       loading,
+      statusCatalog: MEMBERSHIP_STATUS_OPTIONS,
+      roleCatalog: MEMBERSHIP_ROLE_SUGGESTIONS,
+      normalizeStatus: normalizeMembershipStatus,
       loadCompanyMemberships,
       addCompanyMembership,
       updateCompanyMembership,

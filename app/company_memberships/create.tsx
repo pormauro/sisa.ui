@@ -13,10 +13,13 @@ import { ThemedTextInput } from '@/components/ThemedTextInput';
 import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { normalizeNullableText } from '@/utils/normalizeNullableText';
+import { MembershipStatusBadge } from '@/components/MembershipStatusBadge';
+import { MembershipLifecycleStatus } from '@/constants/companyMemberships';
 
 export default function CreateCompanyMembershipPage() {
   const router = useRouter();
-  const { addCompanyMembership } = useContext(CompanyMembershipsContext);
+  const { addCompanyMembership, statusCatalog, roleCatalog, normalizeStatus } =
+    useContext(CompanyMembershipsContext);
   const { companies, loadCompanies } = useContext(CompaniesContext);
   const { profiles, loadProfiles } = useContext(ProfilesListContext);
   const { permissions } = useContext(PermissionsContext);
@@ -28,8 +31,10 @@ export default function CreateCompanyMembershipPage() {
   const [companyId, setCompanyId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [role, setRole] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState<MembershipLifecycleStatus | ''>('pending');
   const [notes, setNotes] = useState('');
+  const [message, setMessage] = useState('');
+  const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const canCreate = permissions.includes('addCompanyMembership');
@@ -64,6 +69,22 @@ export default function CreateCompanyMembershipPage() {
     [profiles]
   );
 
+  const statusItems = useMemo(
+    () => statusCatalog.map(option => ({ label: option.label, value: option.value })),
+    [statusCatalog]
+  );
+
+  const roleItems = useMemo(
+    () => roleCatalog.map(option => ({ label: option.label, value: option.value })),
+    [roleCatalog]
+  );
+
+  const normalizedStatus = normalizeStatus(status);
+  const selectedStatus = useMemo(
+    () => statusCatalog.find(item => item.value === normalizedStatus) ?? null,
+    [normalizedStatus, statusCatalog]
+  );
+
   const handleSubmit = async () => {
     if (!companyId) {
       Alert.alert('Datos incompletos', 'Selecciona la empresa que recibirá al usuario.');
@@ -77,8 +98,10 @@ export default function CreateCompanyMembershipPage() {
     setSubmitting(true);
     try {
       const normalizedRole = normalizeNullableText(role);
-      const normalizedStatus = normalizeNullableText(status);
+      const normalizedStatus = normalizeStatus(status) ?? null;
       const normalizedNotes = normalizeNullableText(notes);
+      const normalizedMessage = normalizeNullableText(message);
+      const normalizedReason = normalizeNullableText(reason);
 
       const created = await addCompanyMembership({
         company_id: companyId,
@@ -86,6 +109,8 @@ export default function CreateCompanyMembershipPage() {
         role: normalizedRole,
         status: normalizedStatus,
         notes: normalizedNotes,
+        message: normalizedMessage,
+        reason: normalizedReason,
       });
 
       if (created) {
@@ -152,6 +177,17 @@ export default function CreateCompanyMembershipPage() {
             />
 
             <ThemedText style={styles.label}>Rol asignado (opcional)</ThemedText>
+            <SearchableSelect
+              items={roleItems}
+              selectedValue={roleItems.find(item => item.value === role)?.value ?? null}
+              onValueChange={value => {
+                if (typeof value === 'string' || typeof value === 'number') {
+                  setRole(String(value));
+                }
+              }}
+              placeholder="Selecciona una sugerencia"
+              showSearch={false}
+            />
             <ThemedTextInput
               placeholder="Ej.: Administrador, Responsable comercial"
               value={role}
@@ -159,11 +195,28 @@ export default function CreateCompanyMembershipPage() {
               autoCapitalize="sentences"
             />
 
-            <ThemedText style={styles.label}>Estado interno (opcional)</ThemedText>
-            <ThemedTextInput
-              placeholder="Ej.: Activo, Invitado, Suspendido"
-              value={status}
-              onChangeText={setStatus}
+            <ThemedText style={styles.label}>Estado interno</ThemedText>
+            <View style={styles.statusHelper}>
+              <MembershipStatusBadge
+                normalizedStatus={normalizedStatus}
+                fallbackLabel={status || 'Sin estado'}
+              />
+              <ThemedText style={styles.statusDescription}>
+                {selectedStatus?.description ?? 'Seleccioná un estado para la solicitud.'}
+              </ThemedText>
+            </View>
+            <SearchableSelect
+              items={statusItems}
+              selectedValue={normalizedStatus ?? null}
+              onValueChange={value => {
+                if (value === null) {
+                  setStatus('');
+                  return;
+                }
+                setStatus(String(value) as MembershipLifecycleStatus);
+              }}
+              placeholder="Selecciona un estado"
+              showSearch={false}
             />
 
             <ThemedText style={styles.label}>Notas (opcional)</ThemedText>
@@ -171,6 +224,22 @@ export default function CreateCompanyMembershipPage() {
               placeholder="Contexto adicional o instrucciones para el equipo"
               value={notes}
               onChangeText={setNotes}
+              multiline
+            />
+
+            <ThemedText style={styles.label}>Mensaje de solicitud (opcional)</ThemedText>
+            <ThemedTextInput
+              placeholder="Ej.: Solicito acceso para facturar las gestiones del cliente X"
+              value={message}
+              onChangeText={setMessage}
+              multiline
+            />
+
+            <ThemedText style={styles.label}>Motivo o respuesta (opcional)</ThemedText>
+            <ThemedTextInput
+              placeholder="Justificá una aprobación o rechazo si aplica"
+              value={reason}
+              onChangeText={setReason}
               multiline
             />
 
@@ -208,6 +277,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  statusHelper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusDescription: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
   submitButton: {
     marginTop: 12,

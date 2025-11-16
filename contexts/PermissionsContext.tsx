@@ -18,6 +18,18 @@ const PERMISSION_ALIASES: Record<string, string[]> = {
   listComments: ['listFeedbacks'],
   addComment: ['addFeedback'],
   respondComment: ['respondFeedback'],
+  requestCompanyMembership: [
+    'requestCompanyMemberships',
+    'requestCompanyMembershipAccess',
+  ],
+  requestCompanyMemberships: [
+    'requestCompanyMembership',
+    'requestCompanyMembershipAccess',
+  ],
+  requestCompanyMembershipAccess: [
+    'requestCompanyMembership',
+    'requestCompanyMemberships',
+  ],
 };
 
 const expandWithAliases = (values: string[]): string[] => {

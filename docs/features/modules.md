@@ -82,6 +82,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `CompanyMembership`: vincula una empresa con un usuario final e incluye datos auxiliares como rol, estado, notas internas y los campos documentales que exige `sisa.api` (`message` para la solicitud original, `reason` para rechazos, `responded_at` más `responded_by_*` para el historial) junto con el mapa `audit_flags` que expone si una solicitud fue aprobada, rechazada o sigue pendiente.【F:contexts/CompanyMembershipsContext.tsx†L15-L64】
 - `MembershipAuditFlags`: estructura dinámica que normaliza banderas booleanas provenientes del backend (por ejemplo `approved`, `rejected`, `pending`) para que el cliente pueda mostrar estados auditables sin asumir nombres fijos.【F:contexts/CompanyMembershipsContext.tsx†L15-L36】
 - Al hidratar el contexto se reprocesa la caché local con el nuevo parser para garantizar que los objetos guardados antes de la actualización adopten la forma extendida y no pierdan campos opcionales.【F:contexts/CompanyMembershipsContext.tsx†L346-L360】
+- El catálogo de estados normalizados (`pending`, `approved`, `rejected`) y las insignias reutilizadas en formularios/listados se documentan en detalle en `docs/features/company-memberships.md`. Todos los formularios consumen esas opciones para serializar el estado antes de enviarlo al backend.【F:docs/features/company-memberships.md†L1-L19】
 
 ### Métodos del contexto
 - `loadCompanyMemberships()`: consulta `/company_memberships`, tolera respuestas que encapsulan la colección en `memberships`, `data` o `items`, normaliza la respuesta y la guarda en caché local.【F:contexts/CompanyMembershipsContext.tsx†L373-L408】
@@ -100,10 +101,10 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `addCompanyMembership`, `updateCompanyMembership`, `deleteCompanyMembership` controlan la disponibilidad de altas, ediciones y bajas dentro de las pantallas del módulo.【F:app/company_memberships/index.tsx†L44-L172】【F:app/company_memberships/create.tsx†L24-L109】【F:app/company_memberships/[id].tsx†L44-L211】
 
 ### Pantallas relacionadas
-- `app/company_memberships/index.tsx` — listado con búsqueda, orden dinámico y acciones rápidas de baja.【F:app/company_memberships/index.tsx†L1-L196】
-- `app/company_memberships/create.tsx` — formulario de alta que reutiliza catálogos de empresas y usuarios registrados.【F:app/company_memberships/create.tsx†L1-L147】
-- `app/company_memberships/[id].tsx` — edición del vínculo con controles para reasignar usuario, actualizar rol/estado y eliminar la membresía.【F:app/company_memberships/[id].tsx†L1-L258】
-- `app/company_memberships/viewModal.tsx` — vista de lectura rápida con opción de salto a edición si el usuario posee permisos.【F:app/company_memberships/viewModal.tsx†L1-L94】
+- `app/company_memberships/index.tsx` — listado con búsqueda, filtros por estado normalizado, orden dinámico y acciones rápidas de baja.【F:app/company_memberships/index.tsx†L1-L240】
+- `app/company_memberships/create.tsx` — formulario de alta que reutiliza catálogos de empresas, usuarios registrados y los estados/roles sugeridos; permite capturar el mensaje y la respuesta esperados por la API.【F:app/company_memberships/create.tsx†L1-L200】
+- `app/company_memberships/[id].tsx` — edición del vínculo con controles para reasignar usuario, actualizar rol/estado mediante catálogos y documentar el mensaje/motivo.【F:app/company_memberships/[id].tsx†L1-L230】
+- `app/company_memberships/viewModal.tsx` — vista de lectura rápida con badge de estado normalizado y mensajes de solicitud/respuesta más acceso a la edición si el usuario posee permisos.【F:app/company_memberships/viewModal.tsx†L1-L110】
 
 ## Proveedores (`ProvidersContext`)
 ### Modelo

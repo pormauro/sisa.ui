@@ -22,43 +22,43 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { toNumericCoordinate } from '@/utils/coordinates';
+import { MembershipStatusBadge } from '@/components/MembershipStatusBadge';
+import {
+  MembershipLifecycleStatus,
+  getMembershipStatusMetadata,
+  normalizeMembershipStatus as normalizeLifecycleStatus,
+} from '@/constants/companyMemberships';
 
-const normalizeMembershipStatus = (status?: string | null): string => {
-  if (!status) {
-    return '';
+type NormalizableStatusCandidate =
+  | { status?: string | null; normalized_status?: MembershipLifecycleStatus | null }
+  | string
+  | null
+  | undefined;
+
+const resolveLifecycleStatus = (
+  candidate: NormalizableStatusCandidate
+): MembershipLifecycleStatus | null => {
+  if (!candidate) {
+    return null;
   }
-  return status.trim().toLowerCase();
+  if (typeof candidate === 'string') {
+    return normalizeLifecycleStatus(candidate);
+  }
+  return candidate.normalized_status ?? normalizeLifecycleStatus(candidate.status ?? '');
 };
 
-const membershipIsPending = (status?: string | null): boolean => {
-  const normalized = normalizeMembershipStatus(status);
-  if (!normalized) {
-    return false;
-  }
-  return normalized.includes('pend') || normalized.includes('solicit');
-};
+const membershipIsPending = (candidate: NormalizableStatusCandidate): boolean =>
+  resolveLifecycleStatus(candidate) === 'pending';
 
-const membershipIsActive = (status?: string | null): boolean => {
-  const normalized = normalizeMembershipStatus(status);
-  if (!normalized) {
-    return false;
-  }
-  return ['active', 'activo', 'habilitado', 'approved', 'aprobado', 'vigente'].some(keyword =>
-    normalized.includes(keyword)
-  );
-};
+const membershipIsApproved = (candidate: NormalizableStatusCandidate): boolean =>
+  resolveLifecycleStatus(candidate) === 'approved';
 
-const membershipIsRejected = (status?: string | null): boolean => {
-  const normalized = normalizeMembershipStatus(status);
-  if (!normalized) {
-    return false;
-  }
-  return ['rechaz', 'deneg', 'declin', 'cancel'].some(keyword => normalized.includes(keyword));
-};
+const membershipIsRejected = (candidate: NormalizableStatusCandidate): boolean =>
+  resolveLifecycleStatus(candidate) === 'rejected';
 
-const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, string> = {
-  approve: 'activo',
-  reject: 'rechazado',
+const MEMBERSHIP_STATUS_BY_DECISION: Record<MembershipDecision, MembershipLifecycleStatus> = {
+  approve: 'approved',
+  reject: 'rejected',
 };
 
 const getErrorStatusCode = (error: unknown): number | null => {
@@ -194,37 +194,46 @@ export default function ViewCompanyModal() {
   }, [companyMemberships, numericUserId]);
 
   const pendingMemberships = useMemo(
-    () => companyMemberships.filter(membership => membershipIsPending(membership.status)),
+    () => companyMemberships.filter(membership => membershipIsPending(membership)),
     [companyMemberships]
   );
 
   const activeMemberships = useMemo(
-    () => companyMemberships.filter(membership => membershipIsActive(membership.status)),
+    () => companyMemberships.filter(membership => membershipIsApproved(membership)),
     [companyMemberships]
+  );
+
+  const currentLifecycleStatus = useMemo(
+    () => resolveLifecycleStatus(currentMembership ?? null),
+    [currentMembership]
+  );
+
+  const membershipStatusMeta = useMemo(
+    () => getMembershipStatusMetadata(currentLifecycleStatus ?? undefined),
+    [currentLifecycleStatus]
   );
 
   const membershipStatusLabel = membershipsLoading
     ? 'Cargando...'
     : currentMembership
-      ? currentMembership.status ?? 'Sin estado'
+      ? membershipStatusMeta?.label ?? currentMembership.status ?? 'Sin estado'
       : 'Sin acceso';
 
   const pendingCountLabel = membershipsLoading ? '—' : String(pendingMemberships.length);
   const activeCountLabel = membershipsLoading ? '—' : String(activeMemberships.length);
 
   const allowRequestAccess =
-    numericUserId !== null &&
-    (!currentMembership || membershipIsRejected(currentMembership.status));
+    numericUserId !== null && (!currentMembership || membershipIsRejected(currentMembership));
 
   const handleRequestAccess = useCallback(async () => {
     if (!company || requestingAccess) {
       return;
     }
 
-    if (currentMembership && !membershipIsRejected(currentMembership.status)) {
-      Alert.alert('Acceso existente', 'Ya tenés una solicitud registrada para esta empresa.');
-      return;
-    }
+      if (currentMembership && !membershipIsRejected(currentMembership)) {
+        Alert.alert('Acceso existente', 'Ya tenés una solicitud registrada para esta empresa.');
+        return;
+      }
 
     setRequestingAccess(true);
     try {
@@ -241,14 +250,14 @@ export default function ViewCompanyModal() {
         return;
       }
 
-      if (membershipIsPending(result.status)) {
+      if (membershipIsPending(result)) {
         Alert.alert(
           'Solicitud enviada',
           'Notificamos a los administradores para que revisen tu acceso.'
         );
-      } else if (membershipIsActive(result.status)) {
+      } else if (membershipIsApproved(result)) {
         Alert.alert('Acceso confirmado', 'Ya contás con acceso activo a esta empresa.');
-      } else if (membershipIsRejected(result.status)) {
+      } else if (membershipIsRejected(result)) {
         Alert.alert(
           'Solicitud rechazada',
           'Tu solicitud fue marcada como rechazada. Te recomendamos contactar a un administrador para más detalles.'
@@ -292,11 +301,11 @@ export default function ViewCompanyModal() {
           return;
         }
 
-        if (membershipIsPending(updated.status)) {
+        if (membershipIsPending(updated)) {
           Alert.alert('Solicitud pendiente', 'La solicitud continúa pendiente de revisión.');
-        } else if (membershipIsActive(updated.status)) {
+        } else if (membershipIsApproved(updated)) {
           Alert.alert('Solicitud aprobada', 'El usuario ahora cuenta con acceso activo a la empresa.');
-        } else if (membershipIsRejected(updated.status)) {
+        } else if (membershipIsRejected(updated)) {
           Alert.alert('Solicitud rechazada', 'La solicitud fue marcada como rechazada.');
         } else {
           Alert.alert('Solicitud actualizada', 'Actualizamos el estado de la solicitud.');
@@ -531,8 +540,15 @@ export default function ViewCompanyModal() {
         <View style={[styles.card, styles.membershipCard, { borderColor: cardBorder }]}>
           <View style={styles.membershipRow}>
             <ThemedText style={styles.label}>Tu estado</ThemedText>
-            <ThemedText style={styles.value}>{membershipStatusLabel}</ThemedText>
+            <MembershipStatusBadge
+              normalizedStatus={currentLifecycleStatus}
+              fallbackLabel={membershipStatusLabel}
+              size="sm"
+            />
           </View>
+          {membershipStatusMeta?.description ? (
+            <ThemedText style={styles.membershipNotice}>{membershipStatusMeta.description}</ThemedText>
+          ) : null}
           <View style={styles.membershipRow}>
             <ThemedText style={styles.label}>Solicitudes pendientes</ThemedText>
             <ThemedText style={styles.value}>{pendingCountLabel}</ThemedText>
@@ -543,13 +559,13 @@ export default function ViewCompanyModal() {
           </View>
         </View>
 
-        {currentMembership && membershipIsPending(currentMembership.status) ? (
+        {currentMembership && membershipIsPending(currentMembership) ? (
           <ThemedText style={styles.membershipNotice}>
             Tu solicitud está pendiente de revisión.
           </ThemedText>
         ) : null}
 
-        {currentMembership && membershipIsRejected(currentMembership.status) ? (
+        {currentMembership && membershipIsRejected(currentMembership) ? (
           <ThemedText style={styles.membershipNotice}>
             Tu última solicitud fue rechazada. Podés volver a solicitar acceso si corresponde.
           </ThemedText>
@@ -579,13 +595,19 @@ export default function ViewCompanyModal() {
               <View key={`pending-${pending.id}`} style={styles.pendingRow}>
                 <View style={styles.pendingInfo}>
                   <ThemedText style={styles.pendingName}>{pending.user_name}</ThemedText>
-                  {pending.user_email ? (
-                    <ThemedText style={styles.identityExtra}>{pending.user_email}</ThemedText>
-                  ) : null}
-                  {pending.notes ? (
-                    <ThemedText style={styles.identityExtra}>{pending.notes}</ThemedText>
-                  ) : null}
-                </View>
+                {pending.user_email ? (
+                  <ThemedText style={styles.identityExtra}>{pending.user_email}</ThemedText>
+                ) : null}
+                {pending.notes ? (
+                  <ThemedText style={styles.identityExtra}>{pending.notes}</ThemedText>
+                ) : null}
+                {pending.message ? (
+                  <ThemedText style={styles.identityExtra}>Solicitud: {pending.message}</ThemedText>
+                ) : null}
+                {pending.reason ? (
+                  <ThemedText style={styles.identityExtra}>Respuesta: {pending.reason}</ThemedText>
+                ) : null}
+              </View>
                 <View style={styles.pendingActions}>
                   <TouchableOpacity
                     style={[styles.actionButton, { backgroundColor: actionBackground }]}
