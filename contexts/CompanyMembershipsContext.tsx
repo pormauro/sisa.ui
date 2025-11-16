@@ -792,6 +792,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const membershipsRef = useRef<CompanyMembership[]>(memberships);
   const streamingWarningIssuedRef = useRef(false);
   const missingAdminWarningIssuedRef = useRef(false);
+  const unauthorizedCompaniesRef = useRef<Set<number>>(new Set());
 
   const administeredCompanyIds = useMemo(() => {
     const collected = new Set<number>();
@@ -957,6 +958,42 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [setMembershipEndpoint]
   );
 
+  const describeCompany = useCallback(
+    (companyId: number) => {
+      const company = companies.find(candidate => candidate.id === companyId);
+      if (company?.name) {
+        return company.name;
+      }
+      if (company?.legal_name) {
+        return company.legal_name;
+      }
+      return `la empresa #${companyId}`;
+    },
+    [companies]
+  );
+
+  const warnUnauthorizedCompanyAccess = useCallback(
+    (companyId: number) => {
+      if (unauthorizedCompaniesRef.current.has(companyId)) {
+        return;
+      }
+      unauthorizedCompaniesRef.current.add(companyId);
+      const companyLabel = describeCompany(companyId);
+      enqueueNotification(
+        `No tenés permisos para sincronizar las membresías de ${companyLabel}.`,
+        'warning',
+        'Revisá el campo admin_users o solicitá acceso desde la sección de membresías.'
+      );
+    },
+    [describeCompany, enqueueNotification]
+  );
+
+  const clearUnauthorizedCompanyFlag = useCallback((companyId: number) => {
+    if (unauthorizedCompaniesRef.current.has(companyId)) {
+      unauthorizedCompaniesRef.current.delete(companyId);
+    }
+  }, []);
+
   const loadCompanyMembershipsForCompany = useCallback(
     async (
       targetCompanyId: number,
@@ -979,6 +1016,16 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         const response = await fetch(buildCompanyMembershipUrl(numericCompanyId), { headers });
 
         if (response.status === 404) {
+          clearUnauthorizedCompanyFlag(numericCompanyId);
+          setMemberships(prev => prev.filter(item => item.company_id !== numericCompanyId));
+          if (!silent) {
+            handleSyncSuccess();
+          }
+          return [];
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          warnUnauthorizedCompanyAccess(numericCompanyId);
           setMemberships(prev => prev.filter(item => item.company_id !== numericCompanyId));
           if (!silent) {
             handleSyncSuccess();
@@ -1009,6 +1056,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         try {
           const json = JSON.parse(text);
           const normalized = normalizeCollection(json);
+          clearUnauthorizedCompanyFlag(numericCompanyId);
           setMemberships(prev => {
             const filtered = prev.filter(item => item.company_id !== numericCompanyId);
             return [...normalized, ...filtered];
