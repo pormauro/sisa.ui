@@ -105,6 +105,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/company_memberships/create.tsx` — formulario de alta que reutiliza catálogos de empresas, usuarios registrados y los estados/roles sugeridos; permite capturar el mensaje y la respuesta esperados por la API.【F:app/company_memberships/create.tsx†L1-L200】
 - `app/company_memberships/[id].tsx` — edición del vínculo con controles para reasignar usuario, actualizar rol/estado mediante catálogos y documentar el mensaje/motivo.【F:app/company_memberships/[id].tsx†L1-L230】
 - `app/company_memberships/viewModal.tsx` — vista de lectura rápida con badge de estado normalizado y mensajes de solicitud/respuesta más acceso a la edición si el usuario posee permisos.【F:app/company_memberships/viewModal.tsx†L1-L110】
+- `app/company_memberships/request.tsx` — flujo de autoservicio para usuarios sin permisos que deben solicitar acceso: reutiliza `CompaniesContext` para listar empresas con búsqueda, habilita la carga manual del ID/código, permite adjuntar un mensaje opcional y envía `requestMembershipAccess` mostrando indicador de carga, alertas de éxito/error y redirección automática cuando el backend responde `pending` o `approved`.【F:app/company_memberships/request.tsx†L1-L212】
 
 ## Proveedores (`ProvidersContext`)
 ### Modelo
