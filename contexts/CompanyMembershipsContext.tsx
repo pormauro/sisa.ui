@@ -11,6 +11,7 @@ import React, {
 
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { CompaniesContext } from '@/contexts/CompaniesContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import {
   MEMBERSHIP_ROLE_SUGGESTIONS,
@@ -633,6 +634,7 @@ const fetchMembershipResource = async (
 
 export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }) => {
   const { token, userId } = useContext(AuthContext);
+  const { companies } = useContext(CompaniesContext);
   const [memberships, setMemberships, hydrated] = useCachedState<CompanyMembership[]>(
     'company_memberships',
     []
@@ -643,6 +645,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const [isStale, setIsStale] = useState(false);
   const [notifications, setNotifications] = useState<MembershipNotification[]>([]);
   const [supportsStreaming, setSupportsStreaming] = useState(false);
+  const [fallbackToCompanyListing, setFallbackToCompanyListing] = useState(false);
   const [membershipEndpoint, setMembershipEndpoint] = useState<string | null>(null);
   const membershipsRef = useRef<CompanyMembership[]>(memberships);
   const streamingWarningIssuedRef = useRef(false);
@@ -796,7 +799,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   );
 
   const loadCompanyMembershipsForCompany = useCallback(
-    async (targetCompanyId: number): Promise<CompanyMembership[]> => {
+    async (
+      targetCompanyId: number,
+      options?: { silent?: boolean }
+    ): Promise<CompanyMembership[]> => {
       const numericCompanyId = coerceToNumber(targetCompanyId);
       if (numericCompanyId === null) {
         return [];
@@ -806,28 +812,38 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
       }
 
-      setLoading(true);
+      const silent = options?.silent ?? false;
+      if (!silent) {
+        setLoading(true);
+      }
       try {
         const response = await fetch(buildCompanyMembershipUrl(numericCompanyId), { headers });
 
         if (response.status === 404) {
           setMemberships(prev => prev.filter(item => item.company_id !== numericCompanyId));
-          handleSyncSuccess();
+          if (!silent) {
+            handleSyncSuccess();
+          }
           return [];
         }
 
         if (!response.ok) {
-          handleSyncFailure(
-            'No pudimos cargar las solicitudes de membresía de la empresa.',
-            `${response.status} ${response.statusText}`
-          );
-          return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+          if (!silent) {
+            handleSyncFailure(
+              'No pudimos cargar las solicitudes de membresía de la empresa.',
+              `${response.status} ${response.statusText}`
+            );
+            return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+          }
+          throw new Error(`${response.status} ${response.statusText}`);
         }
 
         const text = await response.text();
         if (!text) {
           setMemberships(prev => prev.filter(item => item.company_id !== numericCompanyId));
-          handleSyncSuccess();
+          if (!silent) {
+            handleSyncSuccess();
+          }
           return [];
         }
 
@@ -838,20 +854,77 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             const filtered = prev.filter(item => item.company_id !== numericCompanyId);
             return [...normalized, ...filtered];
           });
-          handleSyncSuccess();
+          if (!silent) {
+            handleSyncSuccess();
+          }
           return normalized;
         } catch (error) {
-          handleSyncFailure('No pudimos interpretar las membresías de la empresa.', error);
-          return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+          if (!silent) {
+            handleSyncFailure('No pudimos interpretar las membresías de la empresa.', error);
+            return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+          }
+          throw error;
         }
       } catch (error) {
-        handleSyncFailure('No pudimos sincronizar las membresías de la empresa.', error);
-        return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+        if (!silent) {
+          handleSyncFailure('No pudimos sincronizar las membresías de la empresa.', error);
+          return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+        }
+        throw error;
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [handleSyncFailure, handleSyncSuccess, headers, setMemberships]
+  );
+
+  const loadCompanyMembershipsFromCompanies = useCallback(
+    async (): Promise<CompanyMembership[]> => {
+      if (!headers) {
+        return membershipsRef.current;
+      }
+
+      const companyIds = companies
+        .map(company => coerceToNumber(company.id))
+        .filter((value): value is number => value !== null);
+
+      if (!companyIds.length) {
+        handleSyncFailure(
+          'No pudimos cargar las membresías porque no hay empresas disponibles.',
+          'Sin empresas sincronizadas no podemos consultar las solicitudes.'
+        );
+        return [];
+      }
+
+      setLoading(true);
+      try {
+        const aggregated: CompanyMembership[] = [];
+        for (const companyId of companyIds) {
+          const chunk = await loadCompanyMembershipsForCompany(companyId, { silent: true });
+          aggregated.push(...chunk);
+        }
+        handleSyncSuccess({
+          message:
+            'Sincronizamos las solicitudes empresa por empresa porque el endpoint global no está disponible.',
+          severity: 'info',
+        });
+        return aggregated;
+      } catch (error) {
+        handleSyncFailure('No pudimos sincronizar las membresías desde las empresas.', error);
+        return membershipsRef.current;
       } finally {
         setLoading(false);
       }
     },
-    [handleSyncFailure, handleSyncSuccess, headers, setMemberships]
+    [
+      companies,
+      handleSyncFailure,
+      handleSyncSuccess,
+      headers,
+      loadCompanyMembershipsForCompany,
+    ]
   );
 
   const loadCompanyMemberships = useCallback(
@@ -864,14 +937,17 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       if (!headers) {
         return membershipsRef.current;
       }
+
+      if (fallbackToCompanyListing) {
+        return loadCompanyMembershipsFromCompanies();
+      }
       setLoading(true);
       try {
         const response = await fetchMembershipResourceWithEndpoint('', { headers });
 
         if (response.status === 404) {
-          setMemberships([]);
-          handleSyncSuccess();
-          return [];
+          setFallbackToCompanyListing(true);
+          return loadCompanyMembershipsFromCompanies();
         }
 
         if (!response.ok) {
@@ -908,6 +984,8 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       handleSyncFailure,
       handleSyncSuccess,
       headers,
+      fallbackToCompanyListing,
+      loadCompanyMembershipsFromCompanies,
       loadCompanyMembershipsForCompany,
       setMemberships,
     ]
@@ -944,6 +1022,19 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       }
     };
   }, [headers, loadCompanyMemberships]);
+
+  useEffect(() => {
+    if (!fallbackToCompanyListing || !headers || !companies.length) {
+      return;
+    }
+
+    void loadCompanyMembershipsFromCompanies();
+  }, [
+    companies.length,
+    fallbackToCompanyListing,
+    headers,
+    loadCompanyMembershipsFromCompanies,
+  ]);
 
   const streamingUrl = useMemo(
     () => buildMembershipStreamingUrl(membershipEndpoint, token),
