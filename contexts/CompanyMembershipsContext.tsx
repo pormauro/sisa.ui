@@ -42,6 +42,13 @@ export interface CompanyMembership {
   responded_by_name?: string | null;
   audit_flags?: MembershipAuditFlags | null;
   normalized_status?: MembershipLifecycleStatus | null;
+  request_template?: string | null;
+  request_template_label?: string | null;
+  response_template?: string | null;
+  response_template_label?: string | null;
+  response_message?: string | null;
+  response_channel?: string | null;
+  response_summary?: string | null;
 }
 
 export interface CompanyMembershipPayload {
@@ -54,6 +61,13 @@ export interface CompanyMembershipPayload {
   reason?: string | null;
   responded_at?: string | null;
   audit_flags?: MembershipAuditFlags | null;
+  request_template?: string | null;
+  request_template_label?: string | null;
+  response_template?: string | null;
+  response_template_label?: string | null;
+  response_message?: string | null;
+  response_channel?: string | null;
+  response_summary?: string | null;
 }
 
 interface MembershipHttpError extends Error {
@@ -66,6 +80,8 @@ export interface MembershipRequestOptions {
   status?: string | null;
   notes?: string | null;
   message?: string | null;
+  request_template?: string | null;
+  request_template_label?: string | null;
 }
 
 export type MembershipDecision = 'approve' | 'reject';
@@ -78,6 +94,11 @@ export interface MembershipStatusUpdateOptions {
   decision?: MembershipDecision;
   responded_at?: string | null;
   audit_flags?: MembershipAuditFlags | null;
+  response_template?: string | null;
+  response_template_label?: string | null;
+  response_message?: string | null;
+  response_channel?: string | null;
+  response_summary?: string | null;
 }
 
 export type MembershipNotificationSeverity = 'info' | 'success' | 'warning' | 'error';
@@ -308,6 +329,15 @@ const parseMembership = (rawValue: any): CompanyMembership | null => {
     responded_by_name: getString(respondedByNameCandidate),
     audit_flags: parseAuditFlags(raw.audit_flags ?? raw.flags ?? raw.audit ?? raw.status_flags),
     normalized_status: normalizeMembershipStatus(status),
+    request_template: getString(raw.request_template) ?? getString(raw.requestTemplate),
+    request_template_label:
+      getString(raw.request_template_label) ?? getString(raw.requestTemplateLabel),
+    response_template: getString(raw.response_template) ?? getString(raw.responseTemplate),
+    response_template_label:
+      getString(raw.response_template_label) ?? getString(raw.responseTemplateLabel),
+    response_message: getString(raw.response_message) ?? getString(raw.responseMessage),
+    response_channel: getString(raw.response_channel) ?? getString(raw.notification_channel),
+    response_summary: getString(raw.response_summary) ?? getString(raw.notification_summary),
   };
 };
 
@@ -366,6 +396,27 @@ const serializePayload = (payload: CompanyMembershipPayload) => {
   }
   if ('audit_flags' in payload) {
     body.audit_flags = payload.audit_flags ?? null;
+  }
+  if ('request_template' in payload) {
+    body.request_template = payload.request_template ?? null;
+  }
+  if ('request_template_label' in payload) {
+    body.request_template_label = payload.request_template_label ?? null;
+  }
+  if ('response_template' in payload) {
+    body.response_template = payload.response_template ?? null;
+  }
+  if ('response_template_label' in payload) {
+    body.response_template_label = payload.response_template_label ?? null;
+  }
+  if ('response_message' in payload) {
+    body.response_message = payload.response_message ?? null;
+  }
+  if ('response_channel' in payload) {
+    body.response_channel = payload.response_channel ?? null;
+  }
+  if ('response_summary' in payload) {
+    body.response_summary = payload.response_summary ?? null;
   }
 
   return body;
@@ -1033,6 +1084,8 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           role: options?.role ?? null,
           notes: options?.notes ?? null,
           message: options?.message ?? null,
+          request_template: options?.request_template ?? null,
+          request_template_label: options?.request_template_label ?? null,
         });
 
         const text = await response.text();
@@ -1152,8 +1205,24 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
           body.reason = options.reason ?? membership.reason ?? null;
         }
 
+        if (options.response_template !== undefined || membership.response_template !== undefined) {
+          body.response_template = options.response_template ?? membership.response_template ?? null;
+        }
+
+        if (
+          options.response_template_label !== undefined ||
+          membership.response_template_label !== undefined
+        ) {
+          body.response_template_label =
+            options.response_template_label ?? membership.response_template_label ?? null;
+        }
+
         if (options.message !== undefined || membership.message !== undefined) {
           body.message = options.message ?? membership.message ?? null;
+        }
+
+        if (options.response_message !== undefined || membership.response_message !== undefined) {
+          body.response_message = options.response_message ?? membership.response_message ?? null;
         }
 
         if (options.responded_at !== undefined || membership.responded_at !== undefined) {
@@ -1162,6 +1231,14 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
 
         if (options.audit_flags !== undefined || membership.audit_flags !== undefined) {
           body.audit_flags = options.audit_flags ?? membership.audit_flags ?? null;
+        }
+
+        if (options.response_channel !== undefined || membership.response_channel !== undefined) {
+          body.response_channel = options.response_channel ?? membership.response_channel ?? null;
+        }
+
+        if (options.response_summary !== undefined || membership.response_summary !== undefined) {
+          body.response_summary = options.response_summary ?? membership.response_summary ?? null;
         }
 
         try {
@@ -1225,6 +1302,15 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         reason: options?.reason ?? membership.reason ?? null,
         responded_at: options?.responded_at ?? membership.responded_at ?? null,
         audit_flags: options?.audit_flags ?? membership.audit_flags ?? null,
+        response_template: options?.response_template ?? membership.response_template ?? null,
+        response_template_label:
+          options?.response_template_label ?? membership.response_template_label ?? null,
+        response_message: options?.response_message ?? membership.response_message ?? null,
+        response_channel: options?.response_channel ?? membership.response_channel ?? null,
+        response_summary: options?.response_summary ?? membership.response_summary ?? null,
+        request_template: membership.request_template ?? null,
+        request_template_label: membership.request_template_label ?? null,
+        message: options?.message ?? membership.message ?? null,
       });
 
       if (!ok) {
@@ -1242,6 +1328,13 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         responded_at: options?.responded_at ?? membership.responded_at ?? null,
         audit_flags: options?.audit_flags ?? membership.audit_flags ?? null,
         normalized_status: normalized,
+        response_template: options?.response_template ?? membership.response_template ?? null,
+        response_template_label:
+          options?.response_template_label ?? membership.response_template_label ?? null,
+        response_message: options?.response_message ?? membership.response_message ?? null,
+        response_channel: options?.response_channel ?? membership.response_channel ?? null,
+        response_summary: options?.response_summary ?? membership.response_summary ?? null,
+        message: options?.message ?? membership.message ?? null,
       };
       mergeMembershipIntoState(fallback);
       return fallback;

@@ -2410,7 +2410,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"status\": \"pending\",\n  \"role\": \"member\",\n  \"notes\": \"Solicitud creada desde Postman\",\n  \"message\": \"{{membership_request_message}}\"\n}",
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"status\": \"pending\",\n  \"role\": \"member\",\n  \"notes\": \"Solicitud creada desde Postman\",\n  \"message\": \"{{membership_request_message}}\",\n  \"request_template\": \"{{membership_request_template}}\",\n  \"request_template_label\": \"{{membership_request_template_label}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2428,7 +2428,7 @@
                 "memberships"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships**\n\nRegistra la solicitud de acceso utilizando token Bearer y recordando que los campos `company_id` y `user_id` deben enviarse de forma explícita porque `sisa.api` carece de FOREIGN KEY. El ejemplo incluye `message`, `role` y `notes` tal como los espera el backend anidado, pero si la instalación solo expone `/company_memberships` el contexto reutiliza el mismo payload como fallback."
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships**\n\nRegistra la solicitud de acceso utilizando token Bearer y recordando que los campos `company_id` y `user_id` deben enviarse de forma explícita porque `sisa.api` carece de FOREIGN KEY. El ejemplo incluye `message`, `role`, `notes` y la dupla `request_template`/`request_template_label` para identificar la plantilla utilizada; si la instalación solo expone `/company_memberships` el contexto reutiliza el mismo payload como fallback."
           },
           "response": [],
           "event": [
@@ -2446,7 +2446,13 @@
                   "  pm.collectionVariables.set('membership_user_id', fallbackUser);",
                   "}",
                   "const timestamp = new Date().toISOString();",
-                  "pm.collectionVariables.set('membership_request_message', 'Solicitud enviada el ' + timestamp);"
+                  "pm.collectionVariables.set('membership_request_message', 'Solicitud enviada el ' + timestamp);",
+                  "if (!pm.collectionVariables.get('membership_request_template')) {",
+                  "  pm.collectionVariables.set('membership_request_template', 'postman:auto');",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_request_template_label')) {",
+                  "  pm.collectionVariables.set('membership_request_template_label', 'Solicitud generada desde Postman');",
+                  "}"
                 ]
               }
             },
@@ -2503,7 +2509,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"role\": \"admin\",\n  \"notes\": \"Aprobado desde colección Postman\",\n  \"message\": \"Bienvenido al equipo\"\n}",
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"role\": \"admin\",\n  \"notes\": \"Aprobado desde colección Postman\",\n  \"message\": \"{{membership_request_message}}\",\n  \"response_template\": \"approval_default\",\n  \"response_template_label\": \"Aprobación inmediata\",\n  \"response_message\": \"Bienvenido al equipo\",\n  \"response_channel\": \"in-app\",\n  \"response_summary\": \"Notificación registrada desde Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2523,7 +2529,7 @@
                 "approve"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/approve**\n\nConfirma la solicitud manteniendo `company_id`/`user_id` dentro del payload para respetar el esquema sin FOREIGN KEY. Permite ajustar el `role`, documentar `notes` y enviar un `message` de bienvenida; si la instalación no soporta los endpoints anidados, la app cambia automáticamente a `PUT /company_memberships/{id}`."
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/approve**\n\nConfirma la solicitud manteniendo `company_id`/`user_id` dentro del payload para respetar el esquema sin FOREIGN KEY. Permite ajustar el `role`, documentar `notes`, reenviar el `message` original y registrar `response_template`, `response_message`, `response_channel` y `response_summary` para auditar la notificación; si la instalación no soporta los endpoints anidados, la app cambia automáticamente a `PUT /company_memberships/{id}`."
           },
           "response": [],
           "event": [
@@ -2582,7 +2588,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"reason\": \"La documentación está incompleta\",\n  \"notes\": \"Se notificó al solicitante por email\",\n  \"message\": \"Por favor reenvía la información faltante\"\n}",
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"reason\": \"La documentación está incompleta\",\n  \"notes\": \"Se notificó al solicitante por email\",\n  \"message\": \"{{membership_request_message}}\",\n  \"response_template\": \"rejection_missing_docs\",\n  \"response_template_label\": \"Rechazo (falta info)\",\n  \"response_message\": \"Por favor reenviá la información faltante\",\n  \"response_channel\": \"in-app\",\n  \"response_summary\": \"Aviso automático generado desde Postman\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2602,7 +2608,7 @@
                 "reject"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/reject**\n\nRegistra el rechazo documentando `reason`, `notes` y `message`. Igual que en el resto de las operaciones, la colección recalca que `company_id` y `user_id` deben incluirse porque la base `sisa.api` no implementa FOREIGN KEY; en ausencia de los endpoints anidados se reutiliza `PUT /company_memberships/{id}` como fallback."
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/reject**\n\nRegistra el rechazo documentando `reason`, `notes`, `message` y los campos `response_template`/`response_message`/`response_channel`/`response_summary` para dejar registro del aviso enviado al solicitante. Igual que en el resto de las operaciones, la colección recalca que `company_id` y `user_id` deben incluirse porque la base `sisa.api` no implementa FOREIGN KEY; en ausencia de los endpoints anidados se reutiliza `PUT /company_memberships/{id}` como fallback."
           },
           "response": [],
           "event": [
