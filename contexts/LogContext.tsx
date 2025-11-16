@@ -125,19 +125,16 @@ export const LogProvider: React.FC<PropsWithChildren> = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const logWithConsole = (type: LogType, args: unknown[], original?: typeof console.error) => {
+    const logWithConsole = (type: LogType, args: unknown[]) => {
       addLog({ type, message: formatArgs(args) });
-      if (typeof original === 'function') {
-        original.apply(console, args as any);
-      }
     };
 
     console.error = (...args: unknown[]) => {
-      logWithConsole('error', args, originalConsoleError.current);
+      logWithConsole('error', args);
     };
 
     console.warn = (...args: unknown[]) => {
-      logWithConsole('warn', args, originalConsoleWarn.current);
+      logWithConsole('warn', args);
     };
 
     (Alert as any).alert = (
