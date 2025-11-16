@@ -2293,6 +2293,96 @@
             "description": "**GET {baseUrl}/companies/search**\n\nDescripción: Busca compañías utilizando coincidencias parciales en razón social o nombre de fantasía y opcionalmente por documento.\n\n> Comentario: Requiere token Bearer en Authorization."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Company Memberships",
+      "description": "Flujo completo para gestionar las membresías de empresas utilizando token Bearer. Cada request recuerda que la base sisa.api sigue sin FOREIGN KEY, por lo que los payloads siempre incluyen company_id y user_id explícitos incluso cuando se usa el esquema anidado /companies/{id}/memberships.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{authToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "List Company Memberships",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships?status={{membership_status_filter}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{membership_company_id}}",
+                "memberships"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "{{membership_status_filter}}",
+                  "description": "Filtro pending|approved|rejected aplicado en la colección."
+                }
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{{membership_company_id}}/memberships**\n\nDevuelve miembros activos y solicitudes pendientes asociadas a la empresa indicada. La descripción recalca que la base de datos `sisa.api` continúa sin FOREIGN KEY, por lo que aunque se use un endpoint anidado, el backend exige que todos los payloads incluyan `company_id` y `user_id` al crear o actualizar registros. Requiere token Bearer salvo en el login."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_status_filter')) {",
+                  "  pm.collectionVariables.set('membership_status_filter', 'pending');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.memberships && Array.isArray(jsonData.memberships)) {",
+                  "    pm.collectionVariables.set('membership_last_count', jsonData.memberships.length);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Request Company Membership",
@@ -2312,63 +2402,80 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"message\": \"Quisiera sumarme al equipo.\",\n  \"role\": \"member\"\n}"
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"status\": \"pending\",\n  \"role\": \"member\",\n  \"notes\": \"Solicitud creada desde Postman\",\n  \"message\": \"{{membership_request_message}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships",
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "companies",
-                "{{company_id}}",
+                "{{membership_company_id}}",
                 "memberships"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Genera una solicitud formal para vincular a un usuario con la empresa indicada. La API registra el mensaje del solicitante y bloquea solicitudes duplicadas activas.\n\nCuerpo esperado:\n- `message` (opcional): texto corto para dar contexto al administrador.\n- `role` (obligatorio): rol operativo que tendrá el solicitante una vez aprobado (`member`, `supervisor`, etc.).\n\nErrores frecuentes:\n- `400 Bad Request` cuando falta `role` o se envía un valor inválido.\n- `401 Unauthorized` si el token Bearer no está presente o expiró.\n- `404 Not Found` si el `company_id` no existe o está inactivo."
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships**\n\nRegistra la solicitud de acceso utilizando token Bearer y recordando que los campos `company_id` y `user_id` deben enviarse de forma explícita porque `sisa.api` carece de FOREIGN KEY. El ejemplo incluye `message`, `role` y `notes` tal como los espera el backend anidado, pero si la instalación solo expone `/company_memberships` el contexto reutiliza el mismo payload como fallback."
           },
-          "response": []
-        },
-        {
-          "name": "List Company Memberships",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{authToken}}",
-                  "type": "string"
-                }
-              ]
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_user_id')) {",
+                  "  const fallbackUser = pm.collectionVariables.get('user_id') || 1001;",
+                  "  pm.collectionVariables.set('membership_user_id', fallbackUser);",
+                  "}",
+                  "const timestamp = new Date().toISOString();",
+                  "pm.collectionVariables.set('membership_request_message', 'Solicitud enviada el ' + timestamp);"
+                ]
+              }
             },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships?status=pending",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "companies",
-                "{{company_id}}",
-                "memberships"
-              ],
-              "query": [
-                {
-                  "key": "status",
-                  "value": "pending",
-                  "description": "Filtra por estado: pending, approved o rejected"
-                }
-              ]
-            },
-            "description": "**GET {baseUrl}/companies/{{company_id}}/memberships**\n\nDescripción: Devuelve el conjunto de miembros y solicitudes pendientes asociados a la empresa. El resultado puede filtrarse con `status=pending|approved|rejected` y siempre incluye paginación estándar (`page`, `per_page`).\n\nErrores frecuentes:\n- `401 Unauthorized` ante tokens Bearer inválidos.\n- `404 Not Found` cuando el identificador de empresa no coincide con un registro vigente."
-          },
-          "response": []
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "let membershipId = null;",
+                  "if (jsonData) {",
+                  "    if (jsonData.id) {",
+                  "        membershipId = jsonData.id;",
+                  "    } else if (jsonData.membership && jsonData.membership.id) {",
+                  "        membershipId = jsonData.membership.id;",
+                  "    } else if (jsonData.data && jsonData.data.id) {",
+                  "        membershipId = jsonData.data.id;",
+                  "    }",
+                  "}",
+                  "if (membershipId) {",
+                  "    pm.collectionVariables.set('membership_id', membershipId);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Approve Company Membership",
@@ -2388,28 +2495,66 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"role\": \"member\",\n  \"notes\": \"Bienvenido al equipo\"\n}"
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"role\": \"admin\",\n  \"notes\": \"Aprobado desde colección Postman\",\n  \"message\": \"Bienvenido al equipo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/approve",
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/approve",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "companies",
-                "{{company_id}}",
+                "{{membership_company_id}}",
                 "memberships",
                 "{{membership_id}}",
                 "approve"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/approve**\n\nDescripción: Confirma la solicitud seleccionada, asigna el rol que recibirá el miembro dentro de la compañía y permite documentar notas internas visibles solo para administradores.\n\nCuerpo esperado:\n- `role` (opcional): si se omite se conserva el rol propuesto por el solicitante.\n- `notes` (opcional): anotaciones operativas para el historial.\n\nErrores frecuentes:\n- `400 Bad Request` si la solicitud ya fue aprobada/rechazada.\n- `401 Unauthorized` cuando falta el Bearer token.\n- `404 Not Found` si `membership_id` no pertenece a la empresa indicada."
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/approve**\n\nConfirma la solicitud manteniendo `company_id`/`user_id` dentro del payload para respetar el esquema sin FOREIGN KEY. Permite ajustar el `role`, documentar `notes` y enviar un `message` de bienvenida; si la instalación no soporta los endpoints anidados, la app cambia automáticamente a `PUT /company_memberships/{id}`."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set('membership_decision', 'approved');"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Reject Company Membership",
@@ -2429,28 +2574,66 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"reason\": \"La empresa no admite nuevos miembros por ahora.\"\n}"
+              "raw": "{\n  \"company_id\": {{membership_company_id}},\n  \"user_id\": {{membership_user_id}},\n  \"reason\": \"La documentación está incompleta\",\n  \"notes\": \"Se notificó al solicitante por email\",\n  \"message\": \"Por favor reenvía la información faltante\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/reject",
+              "raw": "{{baseUrl}}/companies/{{membership_company_id}}/memberships/{{membership_id}}/reject",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "companies",
-                "{{company_id}}",
+                "{{membership_company_id}}",
                 "memberships",
                 "{{membership_id}}",
                 "reject"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{{company_id}}/memberships/{{membership_id}}/reject**\n\nDescripción: Marca la solicitud como rechazada y notifica el motivo al postulante. Permite mantener un historial auditable de las decisiones tomadas.\n\nCuerpo esperado:\n- `reason` (obligatorio): justificación breve que se devuelve en las notificaciones.\n\nErrores frecuentes:\n- `400 Bad Request` si la solicitud ya estaba procesada o si falta el campo `reason`.\n- `401 Unauthorized` por problemas con el token Bearer.\n- `404 Not Found` cuando la solicitud no está asociada al `company_id` indicado."
+            "description": "**POST {baseUrl}/companies/{{membership_company_id}}/memberships/{{membership_id}}/reject**\n\nRegistra el rechazo documentando `reason`, `notes` y `message`. Igual que en el resto de las operaciones, la colección recalca que `company_id` y `user_id` deben incluirse porque la base `sisa.api` no implementa FOREIGN KEY; en ausencia de los endpoints anidados se reutiliza `PUT /company_memberships/{id}` como fallback."
           },
-          "response": []
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('membership_company_id')) {",
+                  "  const fallbackCompany = pm.collectionVariables.get('company_id') || 1;",
+                  "  pm.collectionVariables.set('membership_company_id', fallbackCompany);",
+                  "}",
+                  "if (!pm.collectionVariables.get('membership_id')) {",
+                  "  pm.collectionVariables.set('membership_id', 1);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set('membership_decision', 'rejected');"
+                ]
+              }
+            }
+          ]
         }
       ]
     }
