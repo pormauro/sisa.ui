@@ -19,7 +19,7 @@ import {
   MembershipLifecycleStatus,
   normalizeMembershipStatus,
 } from '@/constants/companyMemberships';
-import useSuperAdministrator from '@/hooks/useSuperAdministrator';
+import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 
 export interface MembershipAuditFlags {
   [key: string]: boolean | undefined;
@@ -84,6 +84,13 @@ export interface MembershipRequestOptions {
   message?: string | null;
   request_template?: string | null;
   request_template_label?: string | null;
+  position_title?: string | null;
+  department?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  employment_type?: string | null;
+  visibility?: string | null;
+  profile_excerpt?: string | null;
 }
 
 export type MembershipDecision = 'approve' | 'reject';
@@ -761,6 +768,16 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const { token, userId } = useContext(AuthContext);
   const { companies } = useContext(CompaniesContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
+  const headers = useMemo(() => {
+    if (!token) {
+      return null;
+    }
+    return {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    } satisfies Record<string, string>;
+  }, [token]);
   const [memberships, setMemberships, hydrated] = useCachedState<CompanyMembership[]>(
     'company_memberships',
     []
@@ -857,17 +874,6 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const clearSyncError = useCallback(() => {
     setSyncError(null);
   }, []);
-
-  const headers = useMemo(() => {
-    if (!token) {
-      return null;
-    }
-    return {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    } satisfies Record<string, string>;
-  }, [token]);
 
   const reportOperationalError = useCallback(
     (message: string, error?: unknown) => {
@@ -1468,18 +1474,28 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         return null;
       }
 
-      const targetStatus = options?.status ?? 'pending';
-
       try {
-        const response = await postCompanyMembershipAction(numericCompanyId, null, '', {
-          user_id: numericUserId,
-          status: targetStatus,
+        const body: Record<string, unknown> = {
+          message: options?.message ?? null,
           role: options?.role ?? null,
           notes: options?.notes ?? null,
-          message: options?.message ?? null,
           request_template: options?.request_template ?? null,
           request_template_label: options?.request_template_label ?? null,
-        });
+          position_title: options?.position_title ?? null,
+          department: options?.department ?? null,
+          started_at: options?.started_at ?? null,
+          ended_at: options?.ended_at ?? null,
+          employment_type: options?.employment_type ?? null,
+          visibility: options?.visibility ?? null,
+          profile_excerpt: options?.profile_excerpt ?? null,
+        };
+
+        const response = await postCompanyMembershipAction(
+          numericCompanyId,
+          null,
+          '',
+          body
+        );
 
         const text = await response.text();
         const payload = parseJsonSafely(text);
