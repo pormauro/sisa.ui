@@ -10,6 +10,12 @@ Este módulo enlaza a los usuarios con las empresas que administran o necesitan 
 - Las vistas de creación y edición incorporan selectores para estados/roles y controles de texto para `message` (motivo de la solicitud) y `reason` (respuesta al aprobar o rechazar). Se envían normalizados mediante `normalizeNullableText` antes de invocar la API.【F:app/company_memberships/create.tsx†L23-L187】【F:app/company_memberships/[id].tsx†L23-L208】
 - Los listados y modales muestran los mensajes y motivos capturados para que los administradores puedan priorizar y auditar cada solicitud.【F:app/company_memberships/index.tsx†L1-L240】【F:app/company_memberships/viewModal.tsx†L1-L120】
 
+## Permisos requeridos y flujo de asignación
+- `listCompanyMemberships` habilita el acceso al listado general desde el menú comercial y desbloquea los filtros persistentes que comparten todas las vistas.【F:app/company_memberships/index.tsx†L64-L118】【F:app/Home.tsx†L13-L61】
+- `addCompanyMembership`, `updateCompanyMembership` y `deleteCompanyMembership` controlan quién puede dar de alta, editar o dar de baja vínculos entre usuarios y empresas en las pantallas dedicadas del módulo.【F:app/company_memberships/create.tsx†L19-L110】【F:app/company_memberships/[id].tsx†L30-L211】
+- Los permisos `requestCompanyMembership`, `requestCompanyMemberships` y `requestCompanyMembershipAccess` permiten a cualquier usuario autenticado solicitar acceso desde `/company_memberships/request` cuando aún no figura como administrador; la UI redirige automáticamente al listado si consigue un permiso de lectura completo.【F:app/company_memberships/request.tsx†L25-L106】
+- La pantalla de permisos agrupa estos sectores bajo "Company Memberships" para que los administradores puedan asignarlos desde un único bloque sin olvidar la variante de solicitud.【F:app/permission/PermissionScreen.tsx†L16-L63】
+
 ## Listado con filtros por estado
 - El listado principal ahora permite filtrar y ordenar por estado normalizado utilizando los catálogos del contexto. También se sumaron chips con el mensaje y la respuesta para cada registro.【F:app/company_memberships/index.tsx†L1-L240】
 

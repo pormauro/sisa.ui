@@ -20,6 +20,18 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 const PERMISSION_GROUPS = [
   { group: "Permissions", permissions: ['listGlobalPermissions','listPermissionsByUser','listPermissions', 'addPermission', 'deletePermission','listAllProfiles'] },
   { group: "Companies", permissions: ['listCompanies', 'addCompany', 'updateCompany', 'deleteCompany'] },
+  {
+    group: "Company Memberships",
+    permissions: [
+      'listCompanyMemberships',
+      'addCompanyMembership',
+      'updateCompanyMembership',
+      'deleteCompanyMembership',
+      'requestCompanyMembership',
+      'requestCompanyMemberships',
+      'requestCompanyMembershipAccess',
+    ],
+  },
   { group: "Files", permissions: ['uploadFile', 'downloadFile'] },
   { group: "Clients", permissions: ['getClient', 'addClient', 'updateClient', 'deleteClient', 'listClients'] },
   { group: "Folders", permissions: ['listFolders', 'getFolder', 'addFolder', 'updateFolder', 'deleteFolder', 'listFolderHistory', 'listFoldersByClient'] },
