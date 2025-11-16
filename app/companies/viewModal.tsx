@@ -257,6 +257,7 @@ const showMembershipErrorAlert = (error: unknown, fallbackMessage: string) => {
 export default function ViewCompanyModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const companyId = Number(id);
+  const resolvedCompanyId = Number.isFinite(companyId) ? companyId : null;
   const router = useRouter();
 
   const { companies } = useContext(CompaniesContext);
@@ -269,7 +270,7 @@ export default function ViewCompanyModal() {
   } = useContext(CompanyMembershipsContext);
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
-  const company = companies.find(item => item.id === companyId);
+  const company = companies.find(item => item.id === resolvedCompanyId);
   const resolvedCompanyName = company?.name ?? company?.legal_name ?? null;
 
   const canView =
@@ -317,8 +318,14 @@ export default function ViewCompanyModal() {
     if (!canView) {
       return;
     }
+
+    if (resolvedCompanyId && canEdit) {
+      void loadCompanyMemberships(resolvedCompanyId);
+      return;
+    }
+
     void loadCompanyMemberships();
-  }, [canView, loadCompanyMemberships]);
+  }, [canEdit, canView, loadCompanyMemberships, resolvedCompanyId]);
 
   const numericUserId = useMemo(() => {
     if (!normalizedUserId) {
@@ -332,11 +339,11 @@ export default function ViewCompanyModal() {
   }, [normalizedUserId]);
 
   const companyMemberships = useMemo(() => {
-    if (!Number.isFinite(companyId)) {
+    if (!resolvedCompanyId) {
       return [] as CompanyMembership[];
     }
-    return memberships.filter(item => item.company_id === companyId);
-  }, [companyId, memberships]);
+    return memberships.filter(item => item.company_id === resolvedCompanyId);
+  }, [memberships, resolvedCompanyId]);
 
   const currentMembership = useMemo(() => {
     if (numericUserId === null) {
@@ -962,6 +969,60 @@ export default function ViewCompanyModal() {
           </View>
         </View>
 
+        {canEdit ? (
+          <View style={[styles.card, styles.membershipRequestCard, { borderColor: cardBorder }]}>
+            <View style={styles.timelineHeaderRow}>
+              <ThemedText style={styles.analyticsTitle}>Solicitudes registradas</ThemedText>
+              {membershipsLoading ? <ActivityIndicator /> : null}
+            </View>
+            {companyMemberships.length ? (
+              companyMemberships.map((membership, index) => {
+                const normalizedStatus = resolveLifecycleStatus(membership);
+                const submittedAt = formatDateTime(membership.created_at) ?? 'Sin fecha';
+                const requesterLabel = membership.user_name?.trim()
+                  ? membership.user_name.trim()
+                  : `Usuario #${membership.user_id}`;
+                const roleLabel = membership.role?.trim();
+                const requestMessage = membership.message?.trim();
+
+                return (
+                  <View
+                    key={`membership-request-${membership.id}`}
+                    style={[
+                      styles.membershipRequestRow,
+                      index === 0 ? styles.membershipRequestRowFirst : null,
+                    ]}
+                  >
+                    <View style={styles.membershipRequestHeader}>
+                      <View style={styles.membershipRequestIdentity}>
+                        <ThemedText style={styles.membershipRequestName}>{requesterLabel}</ThemedText>
+                        <ThemedText style={styles.membershipRequestMeta}>
+                          Registrado: {submittedAt}
+                        </ThemedText>
+                      </View>
+                      <MembershipStatusBadge
+                        normalizedStatus={normalizedStatus}
+                        fallbackLabel={membership.status ?? 'Sin estado'}
+                        size="sm"
+                      />
+                    </View>
+                    {roleLabel ? (
+                      <ThemedText style={styles.membershipRequestMeta}>Rol solicitado: {roleLabel}</ThemedText>
+                    ) : null}
+                    {requestMessage ? (
+                      <ThemedText style={styles.membershipRequestMessage}>{requestMessage}</ThemedText>
+                    ) : null}
+                  </View>
+                );
+              })
+            ) : (
+              <ThemedText style={styles.membershipNotice}>
+                No registramos solicitudes para esta empresa.
+              </ThemedText>
+            )}
+          </View>
+        ) : null}
+
         <View style={[styles.card, styles.membershipStatusCard, { borderColor: cardBorder }]}>
           <View style={styles.membershipRow}>
             <ThemedText style={styles.label}>Tu estado</ThemedText>
@@ -1478,6 +1539,43 @@ const styles = StyleSheet.create({
   memberNavigationSubLabel: {
     fontSize: 13,
     color: '#666',
+  },
+  membershipRequestCard: {
+    marginTop: 16,
+    gap: 12,
+  },
+  membershipRequestRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e5e5',
+    paddingTop: 12,
+    marginTop: 12,
+    gap: 6,
+  },
+  membershipRequestRowFirst: {
+    borderTopWidth: 0,
+    paddingTop: 0,
+    marginTop: 0,
+  },
+  membershipRequestHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  membershipRequestIdentity: {
+    flex: 1,
+  },
+  membershipRequestName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  membershipRequestMeta: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  membershipRequestMessage: {
+    fontSize: 14,
+    color: '#444',
   },
   addressCardHeader: {
     flexDirection: 'row',
