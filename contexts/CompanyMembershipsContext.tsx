@@ -122,7 +122,7 @@ interface CompanyMembershipsContextValue {
   statusCatalog: typeof MEMBERSHIP_STATUS_OPTIONS;
   roleCatalog: typeof MEMBERSHIP_ROLE_SUGGESTIONS;
   normalizeStatus: (value?: string | null) => MembershipLifecycleStatus | null;
-  loadCompanyMemberships: () => Promise<CompanyMembership[]>;
+  loadCompanyMemberships: (companyId?: number | string | null) => Promise<CompanyMembership[]>;
   addCompanyMembership: (payload: CompanyMembershipPayload) => Promise<CompanyMembership | null>;
   updateCompanyMembership: (id: number, payload: CompanyMembershipPayload) => Promise<boolean>;
   deleteCompanyMembership: (id: number) => Promise<boolean>;
@@ -795,55 +795,123 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [setMembershipEndpoint]
   );
 
-  const loadCompanyMemberships = useCallback(async (): Promise<CompanyMembership[]> => {
-    if (!headers) {
-      return membershipsRef.current;
-    }
-    setLoading(true);
-    try {
-      const response = await fetchMembershipResourceWithEndpoint('', { headers });
-
-      if (response.status === 404) {
-        setMemberships([]);
-        handleSyncSuccess();
+  const loadCompanyMembershipsForCompany = useCallback(
+    async (targetCompanyId: number): Promise<CompanyMembership[]> => {
+      const numericCompanyId = coerceToNumber(targetCompanyId);
+      if (numericCompanyId === null) {
         return [];
       }
 
-      if (!response.ok) {
-        handleSyncFailure('No pudimos cargar las membresías.', `${response.status} ${response.statusText}`);
-        return membershipsRef.current;
+      if (!headers) {
+        return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
       }
 
-      const text = await response.text();
-      if (!text) {
-        setMemberships([]);
-        handleSyncSuccess();
-        return [];
-      }
-
+      setLoading(true);
       try {
-        const json = JSON.parse(text);
-        const normalized = normalizeCollection(json);
-        setMemberships(normalized);
-        handleSyncSuccess();
-        return normalized;
+        const response = await fetch(buildCompanyMembershipUrl(numericCompanyId), { headers });
+
+        if (response.status === 404) {
+          setMemberships(prev => prev.filter(item => item.company_id !== numericCompanyId));
+          handleSyncSuccess();
+          return [];
+        }
+
+        if (!response.ok) {
+          handleSyncFailure(
+            'No pudimos cargar las solicitudes de membresía de la empresa.',
+            `${response.status} ${response.statusText}`
+          );
+          return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+        }
+
+        const text = await response.text();
+        if (!text) {
+          setMemberships(prev => prev.filter(item => item.company_id !== numericCompanyId));
+          handleSyncSuccess();
+          return [];
+        }
+
+        try {
+          const json = JSON.parse(text);
+          const normalized = normalizeCollection(json);
+          setMemberships(prev => {
+            const filtered = prev.filter(item => item.company_id !== numericCompanyId);
+            return [...normalized, ...filtered];
+          });
+          handleSyncSuccess();
+          return normalized;
+        } catch (error) {
+          handleSyncFailure('No pudimos interpretar las membresías de la empresa.', error);
+          return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+        }
       } catch (error) {
-        handleSyncFailure('No pudimos interpretar las membresías recibidas.', error);
+        handleSyncFailure('No pudimos sincronizar las membresías de la empresa.', error);
+        return membershipsRef.current.filter(item => item.company_id === numericCompanyId);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [handleSyncFailure, handleSyncSuccess, headers, setMemberships]
+  );
+
+  const loadCompanyMemberships = useCallback(
+    async (companyId?: number | string | null): Promise<CompanyMembership[]> => {
+      const numericCompanyId = coerceToNumber(companyId ?? undefined);
+      if (numericCompanyId !== null) {
+        return loadCompanyMembershipsForCompany(numericCompanyId);
+      }
+
+      if (!headers) {
         return membershipsRef.current;
       }
-    } catch (error) {
-      handleSyncFailure('No pudimos sincronizar las membresías.', error);
-      return membershipsRef.current;
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    fetchMembershipResourceWithEndpoint,
-    handleSyncFailure,
-    handleSyncSuccess,
-    headers,
-    setMemberships,
-  ]);
+      setLoading(true);
+      try {
+        const response = await fetchMembershipResourceWithEndpoint('', { headers });
+
+        if (response.status === 404) {
+          setMemberships([]);
+          handleSyncSuccess();
+          return [];
+        }
+
+        if (!response.ok) {
+          handleSyncFailure('No pudimos cargar las membresías.', `${response.status} ${response.statusText}`);
+          return membershipsRef.current;
+        }
+
+        const text = await response.text();
+        if (!text) {
+          setMemberships([]);
+          handleSyncSuccess();
+          return [];
+        }
+
+        try {
+          const json = JSON.parse(text);
+          const normalized = normalizeCollection(json);
+          setMemberships(normalized);
+          handleSyncSuccess();
+          return normalized;
+        } catch (error) {
+          handleSyncFailure('No pudimos interpretar las membresías recibidas.', error);
+          return membershipsRef.current;
+        }
+      } catch (error) {
+        handleSyncFailure('No pudimos sincronizar las membresías.', error);
+        return membershipsRef.current;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [
+      fetchMembershipResourceWithEndpoint,
+      handleSyncFailure,
+      handleSyncSuccess,
+      headers,
+      loadCompanyMembershipsForCompany,
+      setMemberships,
+    ]
+  );
 
   useEffect(() => {
     if (!headers) {

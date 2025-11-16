@@ -86,7 +86,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - El catálogo de estados normalizados (`pending`, `approved`, `rejected`) y las insignias reutilizadas en formularios/listados se documentan en detalle en `docs/features/company-memberships.md`. Todos los formularios consumen esas opciones para serializar el estado antes de enviarlo al backend.【F:docs/features/company-memberships.md†L1-L19】
 
 ### Métodos del contexto
-- `loadCompanyMemberships()`: consulta `/company_memberships`, tolera respuestas que encapsulan la colección en `memberships`, `data` o `items`, normaliza la respuesta y la guarda en caché local.【F:contexts/CompanyMembershipsContext.tsx†L373-L408】
+- `loadCompanyMemberships(companyId?)`: cuando no recibe argumentos consulta `/company_memberships` (con fallback entre las variantes con guion o guion bajo), y si se pasa un ID de empresa invoca `GET /companies/{companyId}/memberships` para reemplazar solo los registros asociados a esa empresa en la caché local.【F:contexts/CompanyMembershipsContext.tsx†L595-L873】
 - `addCompanyMembership(payload)`: serializa el vínculo empresa-usuario (incluyendo `message`, `reason`, `responded_at` y `audit_flags` cuando corresponda), envía `POST /company_memberships` e inserta la respuesta en el estado compartido.【F:contexts/CompanyMembershipsContext.tsx†L293-L318】【F:contexts/CompanyMembershipsContext.tsx†L410-L455】
 - `updateCompanyMembership(id, payload)`: ejecuta `PUT /company_memberships/{id}`, fusiona la respuesta con el elemento existente y recarga si el backend no devuelve el recurso normalizado.【F:contexts/CompanyMembershipsContext.tsx†L458-L499】
 - `deleteCompanyMembership(id)`: elimina el registro remoto mediante `DELETE /company_memberships/{id}` y depura la caché local.【F:contexts/CompanyMembershipsContext.tsx†L502-L520】
@@ -99,6 +99,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Endpoints consumidos
 - `GET ${BASE_URL}/company_memberships` — listado actualizado de membresías.【F:contexts/CompanyMembershipsContext.tsx†L373-L408】
+- `GET ${BASE_URL}/companies/{companyId}/memberships` — listado contextual cuando se necesita hidratar una empresa puntual (por ejemplo, al abrir el modal de detalle).【F:contexts/CompanyMembershipsContext.tsx†L595-L873】
 - `POST ${BASE_URL}/company_memberships` — alta de relación empresa-usuario.【F:contexts/CompanyMembershipsContext.tsx†L410-L455】
 - `PUT ${BASE_URL}/company_memberships/{id}` — actualización del vínculo existente.【F:contexts/CompanyMembershipsContext.tsx†L458-L499】
 - `DELETE ${BASE_URL}/company_memberships/{id}` — baja lógica del vínculo.【F:contexts/CompanyMembershipsContext.tsx†L502-L520】
