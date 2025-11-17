@@ -1,8 +1,9 @@
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { useRouter } from 'expo-router';
-import React, { useContext } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { NotificationsContext } from '@/contexts/NotificationsContext';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useContext, useMemo } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
@@ -16,6 +17,7 @@ const Menu: React.FC = () => {
   const router = useRouter();
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
+  const { unreadCount, refreshUnreadCount } = useContext(NotificationsContext);
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
@@ -36,6 +38,20 @@ const Menu: React.FC = () => {
     return false;
   };
 
+  const canAccessNotifications = useMemo(
+    () => permissions.includes('listNotifications') && permissions.includes('markNotificationRead'),
+    [permissions]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!canAccessNotifications) {
+        return;
+      }
+      void refreshUnreadCount();
+    }, [canAccessNotifications, refreshUnreadCount])
+  );
+
   const visibleShortcutsSection = {
     ...SHORTCUTS_SECTION,
     items: SHORTCUTS_SECTION.items.filter(isEnabled),
@@ -53,15 +69,43 @@ const Menu: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
   const headerIconColor = useThemeColor({}, 'tint');
   const headerIconBackground = useThemeColor({ light: '#f2f0ff', dark: '#3a2d4f' }, 'background');
+  const badgeBackground = useThemeColor({ light: '#e53935', dark: '#ff8a80' }, 'tint');
+
+  const handleNotificationsPress = useCallback(() => {
+    if (!canAccessNotifications) {
+      return;
+    }
+    router.push('/notifications');
+  }, [canAccessNotifications, router]);
+
+  const unreadLabel = unreadCount > 99 ? '99+' : unreadCount.toString();
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <ThemedText style={styles.title}>Menú Principal</ThemedText>
-          <View style={[styles.headerIconContainer, { backgroundColor: headerIconBackground }]}>
-            <Ionicons name="notifications-outline" size={22} color={headerIconColor} />
-          </View>
+          {canAccessNotifications ? (
+            <TouchableOpacity
+              accessibilityLabel="Abrir notificaciones"
+              style={[styles.headerIconContainer, { backgroundColor: headerIconBackground }]}
+              activeOpacity={0.85}
+              onPress={handleNotificationsPress}
+            >
+              <Ionicons name="notifications-outline" size={22} color={headerIconColor} />
+              {unreadCount > 0 ? (
+                <View style={[styles.badge, { backgroundColor: badgeBackground }]}
+                >
+                  <ThemedText style={styles.badgeText}>{unreadLabel}</ThemedText>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.headerIconContainer, { backgroundColor: headerIconBackground }]}
+            >
+              <Ionicons name="notifications-off-outline" size={22} color={headerIconColor} />
+            </View>
+          )}
         </View>
         <View style={styles.sectionsContainer}>
           {visibleSections.length === 0 ? (
@@ -115,6 +159,23 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   sectionsContainer: {
     paddingBottom: 30,

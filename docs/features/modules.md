@@ -455,3 +455,6 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Permisos y UI
 - La sección de notificaciones se habilita únicamente para usuarios con `listNotifications` y `markNotificationRead`, mientras que el registro de dispositivos requiere `registerDevice`. Estos permisos deben agregarse en la pantalla de permisos (`/permission`) para mantener la trazabilidad indicada por backend y garantizar que todas las peticiones autenticadas sigan enviando `Authorization: Bearer {{token}}`.【F:docs/features/modules.md†L5-L15】【F:docs/postman/sisa-api.postman_collection.json†L2687-L2868】
+- `app/notifications/index.tsx` implementa el Centro de notificaciones con filtros de búsqueda, selector de no leídas, acciones masivas y refresco manual reutilizando el `NotificationsContext`. Desde cada tarjeta se navega a la vista de detalle o se cambia el estado leído sin abandonar el listado.【F:app/notifications/index.tsx†L1-L243】
+- `app/notifications/[id].tsx` ofrece la lectura ampliada del evento, expone metadata normalizada/raw y permite abrir la acción asociada o alternar el estado leído desde el detalle.【F:app/notifications/[id].tsx†L1-L164】
+- El icono de notificaciones del menú principal abre esta sección y muestra el contador global de no leídas obtenido desde el contexto para usuarios con permisos habilitados.【F:app/Home.tsx†L1-L143】
