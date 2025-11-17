@@ -11,7 +11,6 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 
 ## Catálogos comerciales
 - **Empresas** — Ruta: `/companies`. Permiso: `listCompanies`.
-- **Membresías de empresas** — Ruta principal: `/company_memberships`. Permiso: `listCompanyMemberships`. Si la persona solo cuenta con permisos de solicitud (`requestCompanyMembership*`), se muestra la ruta alternativa `/company_memberships/request` para que pueda pedir acceso sin abandonar la app.【F:constants/menuSections.ts†L76-L106】【F:app/menu/[section].tsx†L13-L78】
 - **Clientes** — Ruta: `/clients`. Permiso: `listClients`.
 - **Proveedores** — Ruta: `/providers`. Permiso: `listProviders`.
 - **Productos y servicios** — Ruta: `/products_services`. Permiso: `listProductsServices`.
