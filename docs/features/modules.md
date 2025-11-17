@@ -432,3 +432,25 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `app/comments/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/comments/index.tsx†L1-L214】
 - `app/comments/create.tsx` — formulario para que cualquier usuario envíe un nuevo comentario.【F:app/comments/create.tsx†L1-L168】
 - `app/comments/[id].tsx` — detalle del comentario con lectura de respuesta, archivos adjuntos y formulario para responder si corresponde.【F:app/comments/[id].tsx†L1-L228】
+
+## Notificaciones (`NotificationsContext`)
+### Modelo y filtros
+- `NotificationRecord` agrupa metadatos del evento (`event_key`, `title`, `body`, `action_reference`), flags de envío/lectura (`is_sent`, `is_sent_push`, `is_read`, `sent_at`, `read_at`), canal utilizado y payloads JSON normalizados para `metadata`/`metadata_raw` manteniendo compatibilidad con instalaciones previas sin claves foráneas.【F:contexts/NotificationsContext.tsx†L17-L115】
+- `NotificationPagination` y `NotificationQueryOptions` encapsulan los parámetros `page`, `per_page`, `only_unread`, `event_key` y `search`, reutilizados por el Centro de notificaciones para ejecutar búsquedas indexadas en `notifications`/`user_notifications`.【F:contexts/NotificationsContext.tsx†L37-L78】
+
+### Métodos del contexto
+- `loadNotifications(options?)` construye la query string, invoca `GET /notifications`, normaliza los objetos retornados y mantiene la colección ordenada por fecha más reciente.【F:contexts/NotificationsContext.tsx†L140-L201】
+- `refreshUnreadCount()` consulta `GET /notifications/unread-count` y actualiza el badge global que utiliza la UI en iconos y menús.【F:contexts/NotificationsContext.tsx†L203-L226】
+- `markNotificationRead(notificationId, { read, timestamp })` envía `PATCH /notifications/{id}/read`, actualiza el estado local (o rehidrata el registro con la respuesta) y ajusta el contador de no leídas respetando la regla de token Bearer obligatorio.【F:contexts/NotificationsContext.tsx†L228-L282】
+- `markAllNotificationsRead({ read })` ejecuta `POST /notifications/mark-all-read`, sincroniza los flags locales y vuelve a calcular el contador cuando se restauran notificaciones como no leídas.【F:contexts/NotificationsContext.tsx†L284-L320】
+- `registerDevice(payload)` serializa el token Expo/FCM y su plataforma para `POST /user-devices`, habilitando el flujo de push indicado en la documentación del backend.【F:contexts/NotificationsContext.tsx†L322-L345】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/notifications` — listado paginado con filtros opcionales y respuesta cacheada localmente.【F:contexts/NotificationsContext.tsx†L163-L201】
+- `GET ${BASE_URL}/notifications/unread-count` — contador de no leídas reutilizado por badges e indicadores.【F:contexts/NotificationsContext.tsx†L203-L226】
+- `PATCH ${BASE_URL}/notifications/{id}/read` y `POST ${BASE_URL}/notifications/mark-all-read` — manejo de flags `is_read`/`read_at` respetando la atomicidad del backend sin `FOREIGN KEY`.【F:contexts/NotificationsContext.tsx†L228-L320】
+- `POST ${BASE_URL}/user-devices` — registro y actualización de tokens de Expo/FCM/Web push para enlazarlos a `user_devices` según la convención del módulo.【F:contexts/NotificationsContext.tsx†L322-L345】
+- La carpeta "Notificaciones" de la colección Postman replica este flujo completo y documenta cada request con ejemplos listos para usar variables (`notification_id`, `device_token`, `device_platform`).【F:docs/postman/sisa-api.postman_collection.json†L2687-L2806】【F:docs/postman/sisa-api.postman_collection.json†L2807-L2868】
+
+### Permisos y UI
+- La sección de notificaciones se habilita únicamente para usuarios con `listNotifications` y `markNotificationRead`, mientras que el registro de dispositivos requiere `registerDevice`. Estos permisos deben agregarse en la pantalla de permisos (`/permission`) para mantener la trazabilidad indicada por backend y garantizar que todas las peticiones autenticadas sigan enviando `Authorization: Bearer {{token}}`.【F:docs/features/modules.md†L5-L15】【F:docs/postman/sisa-api.postman_collection.json†L2687-L2868】

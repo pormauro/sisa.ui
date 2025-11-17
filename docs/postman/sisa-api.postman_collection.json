@@ -2371,7 +2371,7 @@
                 "memberships"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships**\n\nCrea una solicitud en estado pending vinculada al usuario autenticado, registrando mensaje, cargo, departamento y fechas declaradas." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships**\n\nCrea una solicitud en estado pending vinculada al usuario autenticado, registrando mensaje, cargo, departamento y fechas declaradas."
           },
           "response": []
         },
@@ -2405,7 +2405,7 @@
                 "invite"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/invite**\n\nRegistra una invitación en estado invited con token propio, fecha de expiración y notas para el usuario receptor." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/invite**\n\nRegistra una invitación en estado invited con token propio, fecha de expiración y notas para el usuario receptor."
           },
           "response": []
         },
@@ -2440,7 +2440,7 @@
                 "accept"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/accept**\n\nValida el token recibido por email o push y deja la membresía en estado approved." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/accept**\n\nValida el token recibido por email o push y deja la membresía en estado approved."
           },
           "response": []
         },
@@ -2475,7 +2475,7 @@
                 "cancel-invitation"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/cancel-invitation**\n\nAnula la invitación antes de que sea aceptada y limpia el token asociado." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/cancel-invitation**\n\nAnula la invitación antes de que sea aceptada y limpia el token asociado."
           },
           "response": []
         },
@@ -2510,7 +2510,7 @@
                 "approve"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/approve**\n\nAprueba solicitudes pending ajustando el rol final y dejando notas en el historial." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/approve**\n\nAprueba solicitudes pending ajustando el rol final y dejando notas en el historial."
           },
           "response": []
         },
@@ -2545,7 +2545,7 @@
                 "reject"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/reject**\n\nRegistra el rechazo con la razón oficial, dejando el registro en estado rejected." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/reject**\n\nRegistra el rechazo con la razón oficial, dejando el registro en estado rejected."
           },
           "response": []
         },
@@ -2580,7 +2580,7 @@
                 "leave"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/leave**\n\nPermite que la persona abandone la empresa registrando notas internas y cambiando el estado a left." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/leave**\n\nPermite que la persona abandone la empresa registrando notas internas y cambiando el estado a left."
           },
           "response": []
         },
@@ -2615,7 +2615,7 @@
                 "suspend"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/suspend**\n\nCambia el estado a suspended sin perder el historial ni el rol original." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/suspend**\n\nCambia el estado a suspended sin perder el historial ni el rol original."
           },
           "response": []
         },
@@ -2650,7 +2650,7 @@
                 "remove"
               ]
             },
-            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/remove**\n\nElimina miembros activos por decisión de la empresa, dejando constancia del motivo interno." 
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/remove**\n\nElimina miembros activos por decisión de la empresa, dejando constancia del motivo interno."
           },
           "response": []
         },
@@ -2677,7 +2677,208 @@
                 "history"
               ]
             },
-            "description": "**GET {baseUrl}/companies/{company_id}/memberships/{membership_id}/history**\n\nDevuelve la cronología completa de aprobaciones, rechazos, invitaciones, suspensiones y notas internas asociadas." 
+            "description": "**GET {baseUrl}/companies/{company_id}/memberships/{membership_id}/history**\n\nDevuelve la cronología completa de aprobaciones, rechazos, invitaciones, suspensiones y notas internas asociadas."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notificaciones",
+      "description": "Operaciones del módulo de notificaciones. Todos los requests usan el token Bearer almacenado en {{authToken}}.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{authToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?page=1&per_page=20&only_unread=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "only_unread",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "**GET {{baseUrl}}/notifications**\\n\\nDevuelve las notificaciones del usuario con paginado y filtros opcionales.\\n\\n> Comentario: Requiere header Authorization con `Bearer {{authToken}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Unread count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": "**GET {{baseUrl}}/notifications/unread-count**\\n\\nRetorna un contador simple para badges de la UI.\\n\\n> Comentario: Requiere header Authorization con `Bearer {{authToken}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark notification read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"read\\\": true\\n}\\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notification_id}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{notification_id}}",
+                "read"
+              ]
+            },
+            "description": "**PATCH {{baseUrl}}/notifications/{{notification_id}}/read**\\n\\nMarca como leída/no leída la notificación indicada. Utiliza la variable `notification_id` para cambiar el objetivo.\\n\\n> Comentario: Requiere header Authorization con `Bearer {{authToken}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Mark all read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"read\\\": true\\n}\\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mark-all-read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "mark-all-read"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/notifications/mark-all-read**\\n\\nMarca todas las notificaciones del usuario autenticado y responde con el número de filas afectadas.\\n\\n> Comentario: Requiere header Authorization con `Bearer {{authToken}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Register device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\\n  \\\"device_token\\\": \\\"{{device_token}}\\\",\\n  \\\"platform\\\": \\\"{{device_platform}}\\\",\\n  \\\"is_active\\\": true\\n}\\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user-devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user-devices"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/user-devices**\\n\\nRegistra o actualiza el token del dispositivo móvil/web. Usa las variables `device_token` y `device_platform` (`ios`, `android`, `web`, `other`).\\n\\n> Comentario: Requiere header Authorization con `Bearer {{authToken}}`."
           },
           "response": []
         }
@@ -2724,6 +2925,18 @@
     {
       "key": "membership_token",
       "value": ""
+    },
+    {
+      "key": "notification_id",
+      "value": "1"
+    },
+    {
+      "key": "device_token",
+      "value": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+    },
+    {
+      "key": "device_platform",
+      "value": "web"
     }
   ]
 }
