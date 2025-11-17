@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
+import CircleImagePicker from '@/components/CircleImagePicker';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
 import {
@@ -15,6 +16,7 @@ import {
   CompanyMembershipStatus,
   CompanyMembershipsContext,
 } from '@/contexts/CompanyMembershipsContext';
+import { ProfilesContext } from '@/contexts/ProfilesContext';
 
 const STATUS_LABELS: Record<CompanyMembershipStatus, { label: string; color: string }> = {
   pending: { label: 'Solicitado', color: '#f59e0b' },
@@ -96,10 +98,11 @@ export default function CompanyMembershipsScreen() {
 
   const { companies } = useContext(CompaniesContext);
   const {
-    getMemberships,
+    membershipsByCompany,
     loadMemberships,
     canListMemberships,
   } = useContext(CompanyMembershipsContext);
+  const { profiles, getProfile } = useContext(ProfilesContext);
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,8 +126,71 @@ export default function CompanyMembershipsScreen() {
     if (!validCompanyId) {
       return [] as CompanyMembership[];
     }
-    return getMemberships(validCompanyId, 'all');
-  }, [getMemberships, validCompanyId]);
+    const byCompany = membershipsByCompany[validCompanyId];
+    if (!byCompany) {
+      return [] as CompanyMembership[];
+    }
+    const allMemberships = byCompany.all ?? [];
+    return Array.isArray(allMemberships) ? (allMemberships as CompanyMembership[]) : [];
+  }, [membershipsByCompany, validCompanyId]);
+
+  const administratorUserIds = useMemo(() => {
+    return administratorIds
+      .map(id => {
+        const parsed = Number(id);
+        return Number.isFinite(parsed) ? parsed : null;
+      })
+      .filter((value): value is number => value !== null);
+  }, [administratorIds]);
+
+  const membershipUserIds = useMemo(() => {
+    const collected = new Set<number>();
+    membershipList.forEach(member => {
+      if (Number.isFinite(member.user_id)) {
+        collected.add(member.user_id);
+      }
+    });
+    return Array.from(collected);
+  }, [membershipList]);
+
+  const requiredUserIds = useMemo(() => {
+    const combined = new Set<number>();
+    administratorUserIds.forEach(id => combined.add(id));
+    membershipUserIds.forEach(id => combined.add(id));
+    return Array.from(combined);
+  }, [administratorUserIds, membershipUserIds]);
+
+  useEffect(() => {
+    const missing = requiredUserIds.filter(userId => !profiles[userId]);
+    missing.forEach(userId => {
+      void getProfile(userId);
+    });
+  }, [requiredUserIds, profiles, getProfile]);
+
+  const administratorsData = useMemo(
+    () =>
+      administratorIds.map(adminId => {
+        const parsedId = Number(adminId);
+        const userId = Number.isFinite(parsedId) ? parsedId : null;
+        const profile = userId ? profiles[userId] : null;
+        const displayName = profile?.full_name?.trim();
+        const avatarFileId = profile?.profile_file_id
+          ? String(profile.profile_file_id)
+          : undefined;
+        return {
+          key: adminId,
+          userId,
+          name:
+            displayName && displayName.length
+              ? displayName
+              : userId
+                ? `Usuario #${userId}`
+                : `ID ${adminId}`,
+          fileId: avatarFileId,
+        };
+      }),
+    [administratorIds, profiles],
+  );
 
   const fetchMemberships = useCallback(async () => {
     if (!validCompanyId || !canListMemberships) {
@@ -183,9 +249,15 @@ export default function CompanyMembershipsScreen() {
         <ThemedText style={styles.sectionTitle}>Administradores</ThemedText>
         {administratorIds.length ? (
           <View style={styles.chipGroup}>
-            {administratorIds.map(adminId => (
-              <View key={adminId} style={[styles.chip, { borderColor }]}> 
-                <ThemedText style={styles.chipLabel}>Usuario #{adminId}</ThemedText>
+            {administratorsData.map(admin => (
+              <View key={admin.key} style={[styles.chip, { borderColor }]}>
+                <CircleImagePicker
+                  fileId={admin.fileId}
+                  size={32}
+                  editable={false}
+                  style={styles.chipAvatar}
+                />
+                <ThemedText style={styles.chipLabel}>{admin.name}</ThemedText>
               </View>
             ))}
           </View>
@@ -205,14 +277,30 @@ export default function CompanyMembershipsScreen() {
             {membershipList.map(member => {
               const statusData = STATUS_LABELS[member.status];
               const details = buildMembershipDetails(member);
+              const profile = profiles[member.user_id];
+              const displayName =
+                profile?.full_name?.trim()?.length
+                  ? profile.full_name.trim()
+                  : `Usuario #${member.user_id || 'Desconocido'}`;
+              const avatarFileId = profile?.profile_file_id
+                ? String(profile.profile_file_id)
+                : undefined;
               return (
-                <View key={`membership-${member.id}`} style={[styles.memberCard, { borderColor }]}> 
+                <View key={`membership-${member.id}`} style={[styles.memberCard, { borderColor }]}>
                   <View style={styles.memberHeader}>
-                    <View>
-                      <ThemedText style={styles.memberTitle}>Usuario #{member.user_id || 'Desconocido'}</ThemedText>
-                      {hasContent(member.role) ? (
-                        <ThemedText style={styles.memberSubtitle}>{member.role}</ThemedText>
-                      ) : null}
+                    <View style={styles.memberIdentity}>
+                      <CircleImagePicker
+                        fileId={avatarFileId}
+                        size={42}
+                        editable={false}
+                        style={styles.memberAvatar}
+                      />
+                      <View>
+                        <ThemedText style={styles.memberTitle}>{displayName}</ThemedText>
+                        {hasContent(member.role) ? (
+                          <ThemedText style={styles.memberSubtitle}>{member.role}</ThemedText>
+                        ) : null}
+                      </View>
                     </View>
                     <View
                       style={[
@@ -279,10 +367,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   chipLabel: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  chipAvatar: {
+    marginRight: 4,
   },
   emptyText: {
     fontSize: 14,
@@ -307,6 +401,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  memberIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
   memberTitle: {
     fontSize: 16,
     fontWeight: '700',
@@ -314,6 +414,9 @@ const styles = StyleSheet.create({
   memberSubtitle: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  memberAvatar: {
+    marginRight: 4,
   },
   statusBadge: {
     borderRadius: 999,
