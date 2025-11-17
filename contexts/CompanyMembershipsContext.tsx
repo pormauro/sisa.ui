@@ -2,8 +2,10 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   ReactNode,
+  useRef,
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -479,12 +481,17 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     'companyMemberships',
     {},
   );
+  const membershipsStoreRef = useRef<MembershipStore>(membershipsByCompany);
   const [membershipHistories, setMembershipHistories] = useCachedState<MembershipHistoryState>(
     'companyMembershipHistories',
     {},
   );
   const { token, checkConnection } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
+
+  useEffect(() => {
+    membershipsStoreRef.current = membershipsByCompany;
+  }, [membershipsByCompany]);
 
   const hasAnyPermission = useCallback(
     (candidates: string | string[]) => {
@@ -554,15 +561,21 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [canManageMemberships, hasAnyPermission],
   );
 
-  const getMemberships = useCallback(
+  const getMembershipsFromStore = useCallback(
     (companyId: number, status: MembershipStatusFilter = 'approved') => {
-      const byCompany = membershipsByCompany[companyId];
+      const byCompany = membershipsStoreRef.current[companyId];
       if (!byCompany) {
         return [];
       }
       return byCompany[status] ?? [];
     },
-    [membershipsByCompany],
+    [],
+  );
+
+  const getMemberships = useCallback(
+    (companyId: number, status: MembershipStatusFilter = 'approved') =>
+      getMembershipsFromStore(companyId, status),
+    [getMembershipsFromStore],
   );
 
   const getMembershipHistory = useCallback(
@@ -614,7 +627,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const loadMemberships = useCallback(
     async (companyId: number, status: MembershipStatusFilter = 'approved') => {
       if (!token || !canListMemberships) {
-        return getMemberships(companyId, status);
+        return getMembershipsFromStore(companyId, status);
       }
       try {
         const query = status ? `?status=${encodeURIComponent(status)}` : '';
@@ -630,7 +643,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         await ensureAuthResponse(response, { onUnauthorized: checkConnection });
         if (!response.ok) {
           console.error('Error al listar membresías de empresa:', response.status);
-          return getMemberships(companyId, status);
+          return getMembershipsFromStore(companyId, status);
         }
         const payload = await response.json();
         const parsed = sortByNewest(parseMembershipList(payload), getDefaultSortValue);
@@ -645,18 +658,18 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al cargar membresías de empresa.');
-          return getMemberships(companyId, status);
+          return getMembershipsFromStore(companyId, status);
         }
         console.error('Error inesperado al cargar membresías de empresa.', error);
-        return getMemberships(companyId, status);
+        return getMembershipsFromStore(companyId, status);
       }
     },
     [
       token,
       canListMemberships,
-      getMemberships,
       setMembershipsByCompany,
       checkConnection,
+      getMembershipsFromStore,
     ],
   );
 
