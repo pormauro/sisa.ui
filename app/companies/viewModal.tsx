@@ -1,6 +1,7 @@
 import React, { useContext, useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -10,6 +11,7 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { toNumericCoordinate } from '@/utils/coordinates';
+import { CompanyMembershipsContext } from '@/contexts/CompanyMembershipsContext';
 
 export default function ViewCompanyModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -20,6 +22,7 @@ export default function ViewCompanyModal() {
   const { companies } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
+  const { canListMemberships } = useContext(CompanyMembershipsContext);
 
   const company = companies.find(item => item.id === resolvedCompanyId);
 
@@ -55,6 +58,7 @@ export default function ViewCompanyModal() {
   const background = useThemeColor({}, 'background');
   const cardBorder = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
   const actionBackground = useThemeColor({}, 'button');
+  const socialButtonBackground = useThemeColor({ light: '#f8fafc', dark: '#111827' }, 'background');
 
   const attachments = useMemo(() => {
     if (!company || !company.attached_files) {
@@ -238,6 +242,26 @@ export default function ViewCompanyModal() {
         editable={false}
       />
 
+      <TouchableOpacity
+        style={[styles.socialButton, { borderColor: cardBorder, backgroundColor: socialButtonBackground }]}
+        activeOpacity={0.85}
+        onPress={() => router.push(`/companies/memberships?id=${company.id}`)}
+        accessibilityRole="button"
+      >
+        <View style={styles.socialIconWrapper}>
+          <Ionicons name="people-circle" size={28} color={actionBackground} />
+        </View>
+        <View style={styles.socialTextWrapper}>
+          <ThemedText style={styles.socialTitle}>Personas de la empresa</ThemedText>
+          <ThemedText style={styles.socialSubtitle}>
+            {canListMemberships
+              ? 'Administradores y estado de las membresías'
+              : 'Solicita el permiso &quot;Company Memberships&quot; para abrir la red'}
+          </ThemedText>
+        </View>
+        <IconSymbol name="chevron.forward" size={18} color={actionBackground} />
+      </TouchableOpacity>
+
       {generalFields.length ? (
         <View>
           <ThemedText style={styles.sectionTitle}>Datos Generales</ThemedText>
@@ -332,6 +356,33 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     gap: 16,
+  },
+  socialButton: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  socialIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(79, 70, 229, 0.08)',
+  },
+  socialTextWrapper: {
+    flex: 1,
+  },
+  socialTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  socialSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
   },
   sectionTitle: {
     fontSize: 20,
