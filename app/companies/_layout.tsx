@@ -8,6 +8,7 @@ export default function CompaniesLayout() {
       <Stack.Screen name="create" options={{ title: 'Nueva Empresa' }} />
       <Stack.Screen name="[id]" options={{ title: 'Editar Empresa' }} />
       <Stack.Screen name="viewModal" options={{ title: 'Detalle de la Empresa', presentation: 'modal' }} />
+      <Stack.Screen name="memberships" options={{ title: 'Personas de la empresa' }} />
     </Stack>
   );
 }
