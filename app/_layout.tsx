@@ -3,6 +3,7 @@ import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
 import { CompaniesProvider } from '@/contexts/CompaniesContext';
+import { CompanyMembershipsProvider } from '@/contexts/CompanyMembershipsContext';
 import { ConfigProvider } from '@/contexts/ConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
@@ -87,7 +88,8 @@ export default function RootLayout() {
                         <ToastProvider>
                           <CashBoxesProvider>
                             <CompaniesProvider>
-                              <ClientsProvider>
+                              <CompanyMembershipsProvider>
+                                <ClientsProvider>
                                   <ProvidersProvider>
                                     <CategoriesProvider>
                                       <ProductsServicesProvider>
@@ -121,6 +123,7 @@ export default function RootLayout() {
                                     </CategoriesProvider>
                                   </ProvidersProvider>
                                 </ClientsProvider>
+                              </CompanyMembershipsProvider>
                             </CompaniesProvider>
                           </CashBoxesProvider>
                         </ToastProvider>

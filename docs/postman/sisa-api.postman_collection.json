@@ -2295,6 +2295,393 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Company Memberships",
+      "description": "Gestiona el ciclo completo de invitaciones, solicitudes, suspensiones y auditoría de membresías por empresa.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{authToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "List memberships by status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships?status=approved",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "approved",
+                  "description": "pending, invited, approved, rejected, cancelled, left, removed, suspended o all"
+                }
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{company_id}/memberships**\n\nDevuelve las membresías filtradas por estado, respetando la visibilidad y devolviendo los metadatos disponibles (cargo, departamento, employment_type, fechas, visibilidad y notas internas)."
+          },
+          "response": []
+        },
+        {
+          "name": "Request membership",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Quisiera sumarme al equipo.\",\n  \"role\": \"member\",\n  \"position_title\": \"Analista Sr\",\n  \"department\": \"Finanzas\",\n  \"started_at\": \"2024-01-15T09:00:00-03:00\",\n  \"employment_type\": \"full_time\",\n  \"visibility\": \"company\",\n  \"profile_excerpt\": \"Experiencia liderando auditorías SOX.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships**\n\nCrea una solicitud en estado pending vinculada al usuario autenticado, registrando mensaje, cargo, departamento y fechas declaradas." 
+          },
+          "response": []
+        },
+        {
+          "name": "Invite member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": {{invited_user_id}},\n  \"role\": \"member\",\n  \"expires_at\": \"2025-01-31T23:59:59\",\n  \"invitation_message\": \"Te esperamos en el equipo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/invite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "invite"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/invite**\n\nRegistra una invitación en estado invited con token propio, fecha de expiración y notas para el usuario receptor." 
+          },
+          "response": []
+        },
+        {
+          "name": "Accept invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{membership_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "accept"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/accept**\n\nValida el token recibido por email o push y deja la membresía en estado approved." 
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Invitación cancelada por cambios internos\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/cancel-invitation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "cancel-invitation"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/cancel-invitation**\n\nAnula la invitación antes de que sea aceptada y limpia el token asociado." 
+          },
+          "response": []
+        },
+        {
+          "name": "Approve membership request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"member\",\n  \"notes\": \"Bienvenido al equipo\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "approve"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/approve**\n\nAprueba solicitudes pending ajustando el rol final y dejando notas en el historial." 
+          },
+          "response": []
+        },
+        {
+          "name": "Reject membership request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"La empresa no admite nuevos miembros por ahora.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "reject"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/reject**\n\nRegistra el rechazo con la razón oficial, dejando el registro en estado rejected." 
+          },
+          "response": []
+        },
+        {
+          "name": "Leave company",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Renuncio voluntariamente a la empresa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "leave"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/leave**\n\nPermite que la persona abandone la empresa registrando notas internas y cambiando el estado a left." 
+          },
+          "response": []
+        },
+        {
+          "name": "Suspend member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Suspendido temporalmente por auditoría interna\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/suspend",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "suspend"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/suspend**\n\nCambia el estado a suspended sin perder el historial ni el rol original." 
+          },
+          "response": []
+        },
+        {
+          "name": "Remove member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Expulsión por incumplir el acuerdo de confidencialidad\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "remove"
+              ]
+            },
+            "description": "**POST {baseUrl}/companies/{company_id}/memberships/{membership_id}/remove**\n\nElimina miembros activos por decisión de la empresa, dejando constancia del motivo interno." 
+          },
+          "response": []
+        },
+        {
+          "name": "Membership history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{company_id}}/memberships/{{membership_id}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "companies",
+                "{{company_id}}",
+                "memberships",
+                "{{membership_id}}",
+                "history"
+              ]
+            },
+            "description": "**GET {baseUrl}/companies/{company_id}/memberships/{membership_id}/history**\n\nDevuelve la cronología completa de aprobaciones, rechazos, invitaciones, suspensiones y notas internas asociadas." 
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -2321,6 +2708,22 @@
     {
       "key": "invoiceItemId",
       "value": "1"
+    },
+    {
+      "key": "company_id",
+      "value": "1"
+    },
+    {
+      "key": "membership_id",
+      "value": "1"
+    },
+    {
+      "key": "invited_user_id",
+      "value": "15"
+    },
+    {
+      "key": "membership_token",
+      "value": ""
     }
   ]
 }

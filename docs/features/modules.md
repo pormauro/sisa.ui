@@ -78,6 +78,29 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Cada dirección admite latitud y longitud: los formularios de alta/edición incorporan un selector de mapa que envía las coordenadas numéricas dentro del JSON serializado, y la vista modal muestra los puntos cargados. Además, el selector ahora incluye un botón "Usar mi ubicación" que solicita permisos de GPS y centra el mapa en la posición actual del dispositivo para agilizar el alta de coordenadas reales.【F:components/AddressLocationPicker.tsx†L1-L260】【F:app/companies/create.tsx†L520-L820】【F:app/companies/[id].tsx†L520-L880】【F:app/companies/viewModal.tsx†L300-L340】
 - Todos los requests al endpoint `/companies` incluyen el encabezado `Authorization: Bearer <token>`, requisito obligatorio salvo en el flujo de login inicial.【F:contexts/CompaniesContext.tsx†L229-L344】【F:docs/setup-and-configuration.md†L14-L24】
 
+## Membresías corporativas (`CompanyMembershipsContext`)
+### Modelo y permisos
+- El contexto normaliza los estados `pending`, `invited`, `approved`, `rejected`, `cancelled`, `left`, `removed` y `suspended`, junto con cargo, departamento, tipo de contratación, fechas y visibilidad, evitando depender de claves foráneas del backend.【F:contexts/CompanyMembershipsContext.tsx†L15-L173】
+- Los historiales guardan el tipo de operación, notas, razón del cambio, usuario involucrado y el `metadata_snapshot` parseado cuando la API envía cadenas JSON.【F:contexts/CompanyMembershipsContext.tsx†L338-L452】
+- Las banderas `canManageMemberships`, `canInviteMembers`, `canLeaveCompany`, `canViewHistory`, entre otras, se calculan una sola vez desde `PermissionsContext`, permitiendo que las pantallas habiliten o oculten acciones sin reimplementar lógica de autorización.【F:contexts/CompanyMembershipsContext.tsx†L489-L555】
+
+### Métodos del contexto
+- `loadMemberships(companyId, status)` ejecuta `GET /companies/{id}/memberships?status=` con token Bearer, actualiza la caché por empresa/estado y devuelve los datos previos cuando el usuario no tiene permisos para listar.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】
+- `loadMembershipHistory(companyId, membershipId)` consulta `GET /companies/{id}/memberships/{membershipId}/history`, ordena la cronología y guarda el resultado localmente para reutilizarlo sin hits repetidos.【F:contexts/CompanyMembershipsContext.tsx†L670-L709】
+- `handleMembershipMutation` centraliza la firma de cada `POST` protegido, encapsula `ensureAuthResponse`, limpia la caché de la empresa/historial afectado y devuelve un booleano listo para las vistas.【F:contexts/CompanyMembershipsContext.tsx†L711-L752】
+- Las operaciones `requestMembership`, `inviteMember`, `acceptInvitation`, `cancelInvitation`, `approveMembership`, `rejectMembership`, `leaveMembership`, `suspendMember` y `removeMember` comparten ese helper para mantener sincronizados los listados tras cada cambio de estado.【F:contexts/CompanyMembershipsContext.tsx†L754-L912】
+
+### Endpoints consumidos
+- `GET ${BASE_URL}/companies/{companyId}/memberships?status=` — listado filtrado por estado.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】
+- `GET ${BASE_URL}/companies/{companyId}/memberships/{membershipId}/history` — historial completo por membresía.【F:contexts/CompanyMembershipsContext.tsx†L670-L690】
+- `POST ${BASE_URL}/companies/{companyId}/memberships` / `invite` / `{membershipId}/(accept|cancel-invitation|approve|reject|leave|suspend|remove)` — ciclo de vida completo de solicitudes, invitaciones y bajas, siempre protegido por token Bearer.【F:contexts/CompanyMembershipsContext.tsx†L754-L912】
+
+### Permisos requeridos
+- El grupo "Company Memberships" en la pantalla de permisos agrupa `listCompanyMemberships`, `manageCompanyMemberships`, `inviteCompanyMembers`, `cancelCompanyInvitations`, `approveCompanyMembership`, `rejectCompanyMembership`, `acceptCompanyInvitation`, `requestCompanyMembership`, `leaveCompanyMembership`, `suspendCompanyMember`, `removeCompanyMember` y `listCompanyMembershipHistory`.【F:app/permission/PermissionScreen.tsx†L20-L38】
+
+### Colección de Postman
+- La carpeta "Company Memberships" dentro de `docs/postman/sisa-api.postman_collection.json` documenta cada endpoint con cuerpos de ejemplo y variables (`company_id`, `membership_id`, `invited_user_id`, `membership_token`) para auditar el flujo sin reescribir IDs manualmente.【F:docs/postman/sisa-api.postman_collection.json†L2300-L2717】
+
 ## Proveedores (`ProvidersContext`)
 ### Modelo
 - `Provider`: razón social, identificadores y datos de contacto opcionales.【F:contexts/ProvidersContext.tsx†L13-L21】
