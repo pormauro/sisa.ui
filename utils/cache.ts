@@ -9,12 +9,12 @@ type CacheListener = () => void;
 const dataCacheListeners = new Set<CacheListener>();
 const fileCacheListeners = new Set<CacheListener>();
 
-const notifyListeners = (listeners: Set<CacheListener>): void => {
+const broadcastListeners = (listeners: Set<CacheListener>): void => {
   listeners.forEach(listener => {
     try {
       listener();
     } catch (error) {
-      console.log('Error notifying cache listener', error);
+      console.log('Error updating cache listener', error);
     }
   });
 };
@@ -67,7 +67,7 @@ export const clearAllDataCaches = async (): Promise<void> => {
   } catch (error) {
     console.log('Error clearing data cache', error);
   } finally {
-    notifyListeners(dataCacheListeners);
+    broadcastListeners(dataCacheListeners);
   }
 };
 
@@ -113,6 +113,6 @@ export const clearFileCaches = async (): Promise<void> => {
   } catch (error) {
     console.log('Error clearing file cache', error);
   } finally {
-    notifyListeners(fileCacheListeners);
+    broadcastListeners(fileCacheListeners);
   }
 };

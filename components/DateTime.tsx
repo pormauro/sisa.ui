@@ -14,7 +14,7 @@ function toMySQLDateTime(date: Date): string {
   return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
 }
 
-// Recibe una prop 'onDateChange' para notificar al padre la fecha elegida
+// Recibe una prop 'onDateChange' para informar al padre la fecha elegida
 export default function MyDatePicker({
   label,
   onDateChange,
@@ -34,7 +34,7 @@ export default function MyDatePicker({
     setDate(currentDate);
     const dateStr = toMySQLDateTime(currentDate);
     setMysqlDate(dateStr);
-    onDateChange(dateStr); // <-- Notificamos al padre
+    onDateChange(dateStr); // <-- Avisamos al padre
   };
 
   return (

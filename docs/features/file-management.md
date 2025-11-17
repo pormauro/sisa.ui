@@ -14,7 +14,7 @@ Este documento resume cómo funciona la capa de gestión de archivos en la aplic
 - **`uploadFile`** recibe la ruta local, nombre, tipo MIME y tamaño del archivo. Crea un `FormData` con el campo `file`, envía la solicitud autenticada (token Bearer) al endpoint `/files` y, si la API responde con éxito, copia el archivo procesado al `documentDirectory` del dispositivo y persiste sus metadatos (`localUri`, nombre original, MIME, etc.) en `AsyncStorage` mediante `setCachedFileMeta` para reutilizarlo offline.
 - **`getFile`** consulta primero `AsyncStorage` para recuperar metadatos y verificar que el archivo local siga existiendo. Si está disponible, lo lee como base64 y devuelve un `data URI` listo para mostrar. Cuando no hay caché válida, descarga el recurso desde el backend con cabecera `Authorization: Bearer`, interpreta los encabezados `Content-Type`/`Content-Disposition` para reconstruir el nombre original, codifica la respuesta en base64 y la guarda en disco junto con los metadatos cacheados.
 - **`getFileMetadata`** garantiza el acceso a los metadatos cacheados (nombre, tipo, `localUri`), solicitando el archivo remoto como fallback cuando no existe registro local.
-- **`clearLocalFiles`** borra los archivos físicos almacenados en `documentDirectory`, limpia las entradas de `AsyncStorage` para claves `@sisa:file:` y `file_meta_`, y delega en `clearFileCaches` para notificar a los escuchas que la caché fue invalidada. Se recomienda invocarla durante cierres de sesión o cuando una auditoría obligue a eliminar datos sensibles del dispositivo.
+- **`clearLocalFiles`** borra los archivos físicos almacenados en `documentDirectory`, limpia las entradas de `AsyncStorage` para claves `@sisa:file:` y `file_meta_`, y delega en `clearFileCaches` para avisar a los escuchas que la caché fue invalidada. Se recomienda invocarla durante cierres de sesión o cuando una auditoría obligue a eliminar datos sensibles del dispositivo.
 
 ## Compresión y recorte en `CircleImagePicker`
 
@@ -23,7 +23,7 @@ Este documento resume cómo funciona la capa de gestión de archivos en la aplic
 - Solicita permisos explícitos para cámara (`requestCameraPermissionsAsync`) y biblioteca (`requestMediaLibraryPermissionsAsync`) antes de permitir la captura o selección de imágenes.
 - Si `crop` está activo, recorta el recurso seleccionado de forma centrada y manteniendo la relación de aspecto solicitada (`cropAspect`), usando `expo-image-manipulator`.
 - Aplica `ensureUnderMaxSize` tras cada selección para iterar hasta tres veces sobre el archivo, reduciendo dimensiones y calidad JPEG en función de `MAX_FILE_SIZE`. El algoritmo calcula un ratio basado en el tamaño actual versus el máximo y va ajustando ancho/alto junto con la calidad (`compress`) hasta que el archivo quede dentro del límite.
-- Tras procesar el recurso, llama a `uploadFile`, actualiza el estado local y notifica `onImageChange` con el nuevo `fileId` generado por la API.
+- Tras procesar el recurso, llama a `uploadFile`, actualiza el estado local y dispara `onImageChange` con el nuevo `fileId` generado por la API.
 
 ## Galería de archivos (`FileGallery`)
 
@@ -57,6 +57,6 @@ Este documento resume cómo funciona la capa de gestión de archivos en la aplic
 
 - **Cámara:** `ImagePicker.requestCameraPermissionsAsync()` debe aprobarse antes de capturar fotos o videos. Manejar el caso de denegación informando al usuario cómo habilitar el permiso.
 - **Galería/Biblioteca:** `ImagePicker.requestMediaLibraryPermissionsAsync()` es obligatorio para acceder a fotos existentes. Sin este permiso, los selectores deben cancelarse y mostrar un mensaje claro.
-- **Documentos (Android):** Cuando se abra un PDF externo, el intent requiere que exista alguna aplicación capaz de manejar `application/pdf`; capturar la excepción y notificar que falta un visor compatible.
+- **Documentos (Android):** Cuando se abra un PDF externo, el intent requiere que exista alguna aplicación capaz de manejar `application/pdf`; capturar la excepción e informar que falta un visor compatible.
 
 Seguir estas pautas asegura que la experiencia de manejo de archivos sea consistente, segura y resiliente ante variaciones de plataforma.
