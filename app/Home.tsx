@@ -10,6 +10,7 @@ import { MenuButton } from '@/components/MenuButton';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
+import { Ionicons } from '@expo/vector-icons';
 
 const Menu: React.FC = () => {
   const router = useRouter();
@@ -50,11 +51,19 @@ const Menu: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
+  const notificationIconColor = useThemeColor({}, 'tint');
+  const notificationIconBackground = useThemeColor({ light: '#f2f0ff', dark: '#3a2d4f' }, 'background');
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
-        <ThemedText style={styles.title}>Menú Principal</ThemedText>
+        <View style={styles.header}>
+          <ThemedText style={styles.title}>Menú Principal</ThemedText>
+          <View style={[styles.notificationIconContainer, { backgroundColor: notificationIconBackground }]}>
+            <Ionicons name="notifications-outline" size={22} color={notificationIconColor} />
+            <View style={[styles.notificationDot, { backgroundColor: tintColor }]} />
+          </View>
+        </View>
         <View style={styles.sectionsContainer}>
           {visibleSections.length === 0 ? (
             <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
@@ -95,6 +104,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingTop: 20,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  notificationIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
   sectionsContainer: {
     paddingBottom: 30,
   },
@@ -112,7 +143,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
   },
 });
