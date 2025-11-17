@@ -32,18 +32,19 @@ El *hook* devuelve `[state, setState, hydrated]`. El tercer valor habilita
 patrones como ocultar un `FlatList` hasta que el estado esté listo o mostrar una
 pantalla de carga mientras se hidrata la caché por primera vez.
 
-## Notificaciones de limpieza del caché de datos
+## Limpieza centralizada del caché de datos
 
 El utilitario [`subscribeToDataCacheClear`](../../utils/cache.ts) mantiene una
 lista (`Set`) de *listeners* y entrega una función de `unsubscribe`, asegurando
-que cada suscriptor reciba una única notificación y que la suscripción se pueda
-liberar cuando el componente se desmonta.【F:utils/cache.ts†L7-L30】 La pantalla de
-configuración expone una acción "Borrar datos de la caché" que ejecuta
-`clearAllDataCaches`; esta función filtra todas las claves con prefijo
+que cada suscriptor reciba el aviso de limpieza una sola vez y que la
+suscripción se pueda liberar cuando el componente se desmonta.【F:utils/cache.ts†L7-L30】
+La pantalla de configuración expone una acción "Borrar datos de la caché" que
+ejecuta `clearAllDataCaches`; esta función filtra todas las claves con prefijo
 `@sisa:data:`, las elimina mediante `multiRemove` y, sin importar el resultado,
-avisa a todos los suscriptores para que restauren sus valores iniciales.【F:app/user/ConfigScreen.tsx†L29-L53】【F:utils/cache.ts†L60-L71】
+propaga la señal a todos los suscriptores para que restauren sus valores
+iniciales.【F:app/user/ConfigScreen.tsx†L29-L53】【F:utils/cache.ts†L60-L71】
 
-> **Nota**: esta notificación solo afecta al "caché de datos" (catálogos,
+> **Nota**: este mecanismo solo afecta al "caché de datos" (catálogos,
 > permisos, configuraciones). La limpieza de archivos binarios se gestiona por
 > separado, como se describe en la sección de `FilesContext`.
 
@@ -89,9 +90,10 @@ Algunos ejemplos representativos:
   `ProfilesListContext` usan claves separadas para distinguir el perfil activo y
   la lista de perfiles disponibles, evitando sobre-escrituras involuntarias.【F:contexts/PermissionsContext.tsx†L19-L85】【F:contexts/ProfilesContext.tsx†L21-L48】【F:contexts/ProfilesListContext.tsx†L29-L61】
 
-Dado que todos comparten `useCachedState` y se suscriben a la misma notificación,
-una limpieza de caché o una reinstalación restablece cada estado a su forma
-inicial hasta que la sincronización con el backend se complete nuevamente.
+Dado que todos comparten `useCachedState` y se suscriben al mismo aviso de
+limpieza, una purga de caché o una reinstalación restablece cada estado a su
+forma inicial hasta que la sincronización con el backend se complete
+nuevamente.
 
 ## `FilesContext`: metadatos y blobs persistidos
 
@@ -111,8 +113,8 @@ con una capa específica para archivos binarios:
   auto-complete con la primera consulta.【F:contexts/FilesContext.tsx†L179-L192】
 - **Limpieza selectiva.** `clearLocalFiles` identifica todas las claves de
   archivos en `AsyncStorage`, elimina los archivos físicos si existen y luego
-  invoca `clearFileCaches` para notificar a cualquier suscriptor interesado en
-  la invalidez del caché de archivos.【F:contexts/FilesContext.tsx†L193-L214】【F:utils/cache.ts†L104-L117】
+  invoca `clearFileCaches` para avisar a cualquier suscriptor interesado en la
+  invalidez del caché de archivos.【F:contexts/FilesContext.tsx†L193-L214】【F:utils/cache.ts†L104-L117】
 
 Gracias a esta estrategia, el usuario puede abrir documentos previamente
 consultados aun sin conexión y dispone de una acción explícita en la pantalla de
@@ -139,7 +141,6 @@ los datos cacheados hasta que la conexión se restablezca; `FilesContext`, por
 su parte, reutiliza el mismo token para garantizar que las descargas y subidas
 conserven la autenticación cuando la red vuelve a estar disponible.【F:contexts/FilesContext.tsx†L50-L177】【F:contexts/ClientsContext.tsx†L45-L138】
 
-En conjunto, `useCachedState`, la infraestructura de notificaciones y la
-integración con `AuthContext` permiten que la aplicación soporte cortes de red,
-limpiezas manuales de caché y reutilización de datos sin replicar lógica en cada
-módulo.
+En conjunto, `useCachedState`, la propagación de limpiezas y la integración con
+`AuthContext` permiten que la aplicación soporte cortes de red, limpiezas
+manuales de caché y reutilización de datos sin replicar lógica en cada módulo.

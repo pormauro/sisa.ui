@@ -8,7 +8,7 @@ Esta aplicación móvil se construye con [Expo Router](https://expo.github.io/ro
 - **`components/`**: Agrupa componentes reutilizables de UI como [`ThemeProvider`](../../components/ThemeProvider.tsx), que ajusta la paleta de colores del *navigator* según el modo claro/oscuro.
 - **`contexts/`**: Contiene los contextos de React responsables de manejar datos compartidos (autenticación, permisos, catálogos, etc.). Cada contexto encapsula las llamadas al backend y expone funciones para modificar el estado asociado.
 - **`hooks/`**: Incluye *hooks* personalizados como [`useCachedState`](../../hooks/useCachedState.ts) para hidratar estados desde almacenamiento persistente y `useThemeColor` para combinar la paleta de colores con los componentes.
-- **`utils/`**: Implementa utilidades como [`utils/cache.ts`](../../utils/cache.ts) que abstrae el almacenamiento en `AsyncStorage` y notifica cuando se limpian los caches.
+- **`utils/`**: Implementa utilidades como [`utils/cache.ts`](../../utils/cache.ts) que abstrae el almacenamiento en `AsyncStorage` y propaga las limpiezas de caché.
 - **`config/`** y **`constants/`**: Centralizan valores compartidos, por ejemplo [`config/Index.ts`](../../config/Index.ts) expone la `BASE_URL` usada por todas las peticiones HTTP y `constants/Colors` define los esquemas de color.
 - **`assets/`, `styles/`, `scripts/`**: Complementan la UI con íconos, estilos globales y scripts auxiliares.
 

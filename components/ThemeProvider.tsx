@@ -17,7 +17,6 @@ export function ThemeProvider({ children }: PropsWithChildren) {
       card: Colors[colorScheme].background,
       text: Colors[colorScheme].text,
       border: Colors[colorScheme].icon,
-      notification: Colors[colorScheme].tint,
     },
   };
 

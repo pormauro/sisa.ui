@@ -8,7 +8,7 @@
 - La configuración de resiliencia establece tres reintentos máximos, demoras de 10 segundos entre reintentos y tiempos de espera de 10 segundos por petición, implementados mediante `fetchWithTimeout` para abortar solicitudes lentas.【F:contexts/AuthContext.tsx†L30-L47】
 - `performLogin` envía las credenciales a `/login` con control de timeout y, tras una respuesta válida, extrae el token Bearer del encabezado `Authorization` (rechazando la sesión si está ausente).【F:contexts/AuthContext.tsx†L74-L134】
 - El flujo de autenticación continúa solicitando `/profile` con el token recién emitido, consolidando el identificador y el correo del usuario, calculando una expiración de una hora y marcando el estado como en línea solo cuando ambos pasos tienen éxito.【F:contexts/AuthContext.tsx†L97-L131】
-- Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; cuando la respuesta falla por motivos distintos, se limpia el estado y se notifica al usuario mediante alertas.【F:contexts/AuthContext.tsx†L135-L152】
+- Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; cuando la respuesta falla por motivos distintos, se limpia el estado y se informa al usuario mediante alertas.【F:contexts/AuthContext.tsx†L135-L152】
 
 ## Persistencia segura de credenciales
 - El proveedor delega la persistencia en `utils/auth/secureStore`, que usa `expo-secure-store` cuando la plataforma lo soporta y recurre a `localStorage` (o `AsyncStorage` en su defecto) al ejecutar en la web, garantizando un almacenamiento disponible en cada entorno con manejo homogéneo de errores.【F:utils/auth/secureStore.ts†L1-L139】【F:contexts/AuthContext.tsx†L49-L57】

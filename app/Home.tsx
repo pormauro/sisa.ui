@@ -51,17 +51,16 @@ const Menu: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
-  const notificationIconColor = useThemeColor({}, 'tint');
-  const notificationIconBackground = useThemeColor({ light: '#f2f0ff', dark: '#3a2d4f' }, 'background');
+  const headerIconColor = useThemeColor({}, 'tint');
+  const headerIconBackground = useThemeColor({ light: '#f2f0ff', dark: '#3a2d4f' }, 'background');
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <ThemedText style={styles.title}>Menú Principal</ThemedText>
-          <View style={[styles.notificationIconContainer, { backgroundColor: notificationIconBackground }]}>
-            <Ionicons name="notifications-outline" size={22} color={notificationIconColor} />
-            <View style={[styles.notificationDot, { backgroundColor: tintColor }]} />
+          <View style={[styles.headerIconContainer, { backgroundColor: headerIconBackground }]}>
+            <Ionicons name="notifications-outline" size={22} color={headerIconColor} />
           </View>
         </View>
         <View style={styles.sectionsContainer}>
@@ -110,21 +109,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  notificationIconContainer: {
+  headerIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  notificationDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    position: 'absolute',
-    top: 10,
-    right: 10,
   },
   sectionsContainer: {
     paddingBottom: 30,
