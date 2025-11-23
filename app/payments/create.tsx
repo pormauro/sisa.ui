@@ -764,7 +764,12 @@ export default function CreatePayment() {
         </>
       )}
 
-      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
+      <FileGallery
+        filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable
+        invoiceMarkingEnabled
+      />
 
       <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleSubmit} disabled={loading}>
         {loading ? (

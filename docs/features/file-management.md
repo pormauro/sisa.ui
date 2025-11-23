@@ -31,9 +31,15 @@ Este documento resume cómo funciona la capa de gestión de archivos en la aplic
 
 ### Flujo de inicialización y carga
 
-1. Recibe `filesJson` (lista de IDs) y crea placeholders en estado interno `attachedFiles`.
+1. Recibe `filesJson` (lista de IDs u objetos) y crea placeholders en estado interno `attachedFiles`.
 2. Para cada ID, ejecuta en paralelo `getFile` y `getFileMetadata`. Una vez resueltos, rellena los placeholders con el `data URI` para previsualización, tipo MIME, nombre original y `localUri` cacheado.
 3. Cuando el usuario agrega un archivo (DocumentPicker o cámara), reutiliza `uploadFile` y actualiza `filesJson` con los IDs devueltos por el backend, replicando el ciclo de carga de metadatos.
+
+### Marcado de facturas en pagos
+
+- Cuando `FileGallery` se usa en el carrusel de **pagos** (`invoiceMarkingEnabled`), cada entrada de `filesJson` es un objeto `{ id, is_invoice }` que señala si el adjunto corresponde a una factura real.
+- La UI muestra un botón con icono de factura sobre cada tarjeta; el estado inactivo es gris y al activarlo se pinta de verde. Se puede marcar más de un archivo por pago.
+- En modos de solo lectura (`editable={false}`) el indicador sigue mostrando el color correcto, pero no permite alternar el valor.
 
 ### Manejo de tipos y previsualizaciones
 

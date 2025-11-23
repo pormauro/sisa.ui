@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ interface FileGalleryProps {
   filesJson: string;
   onChangeFilesJson: (updatedJson: string) => void;
   editable?: boolean;
+  invoiceMarkingEnabled?: boolean;
 }
 
 interface AttachedFile {
@@ -36,6 +37,7 @@ interface AttachedFile {
   previewUri: string;
   localUri: string;
   loading: boolean;
+  isInvoice?: boolean;
 }
 
 interface FileItemProps {
@@ -45,6 +47,8 @@ interface FileItemProps {
   onPreviewPdf: (uri: string) => void;
   index: number;
   editable: boolean;
+  showInvoiceToggle: boolean;
+  onToggleInvoice?: (fileId: number) => void;
 }
 
 const VideoThumbnail: React.FC<{ uri: string }> = ({ uri }) => {
@@ -154,7 +158,16 @@ const PdfViewer: React.FC<{ uri: string }> = ({ uri }) => {
   );
 };
 
-const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPreviewPdf, index, editable }) => {
+const FileItem: React.FC<FileItemProps> = ({
+  file,
+  onDelete,
+  onPreview,
+  onPreviewPdf,
+  index,
+  editable,
+  showInvoiceToggle,
+  onToggleInvoice,
+}) => {
   if (file.loading) {
     return (
       <View style={[styles.fileItem, styles.loadingContainer]}>
@@ -227,6 +240,19 @@ const FileItem: React.FC<FileItemProps> = ({ file, onDelete, onPreview, onPrevie
 
   return (
     <TouchableOpacity style={styles.fileItem} onPress={handlePress}>
+      {showInvoiceToggle && (
+        <TouchableOpacity
+          style={styles.invoiceToggle}
+          onPress={() => onToggleInvoice?.(file.id)}
+          disabled={!editable}
+        >
+          <MaterialCommunityIcons
+            name="file-document-outline"
+            size={24}
+            color={file.isInvoice ? '#2e7d32' : '#9e9e9e'}
+          />
+        </TouchableOpacity>
+      )}
       {isImage ? (
         <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
       ) : isVideo ? (
@@ -262,12 +288,54 @@ const PdfPreviewModal: React.FC<{ uri: string; onClose: () => void }> = ({ uri, 
   );
 };
 
-const FileGallery: React.FC<FileGalleryProps> = ({ filesJson, onChangeFilesJson, editable = false }) => {
+const FileGallery: React.FC<FileGalleryProps> = ({
+  filesJson,
+  onChangeFilesJson,
+  editable = false,
+  invoiceMarkingEnabled = false,
+}) => {
   const { uploadFile, getFile, getFileMetadata } = useContext(FileContext);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [pdfPreviewUri, setPdfPreviewUri] = useState<string | null>(null);
   const isEditable = !!editable;
+
+  const syncFilesJson = (files: AttachedFile[]) => {
+    const payload = invoiceMarkingEnabled
+      ? files.map(f => ({ id: f.id, is_invoice: !!f.isInvoice }))
+      : files.map(f => f.id);
+    onChangeFilesJson(JSON.stringify(payload));
+  };
+
+  const parseFileDescriptors = useCallback((): { id: number; isInvoice: boolean }[] => {
+    if (!filesJson) return [] as { id: number; isInvoice: boolean }[];
+
+    const parsed = JSON.parse(filesJson);
+    if (!Array.isArray(parsed)) {
+      throw new Error('Formato inválido en filesJson');
+    }
+
+    return parsed
+      .map(item => {
+        if (typeof item === 'number') {
+          return { id: item, isInvoice: false };
+        }
+
+        if (item && typeof item === 'object') {
+          const candidateId = (item as any).id;
+          const id = Number(candidateId);
+          if (Number.isNaN(id)) {
+            return null;
+          }
+
+          const isInvoice = Boolean((item as any).is_invoice ?? (item as any).isInvoice);
+          return { id, isInvoice };
+        }
+
+        return null;
+      })
+      .filter((item): item is { id: number; isInvoice: boolean } => !!item);
+  }, [filesJson]);
 
   const handlePreviewPdf = (uri: string) => {
     setPreviewIndex(null);
@@ -327,28 +395,30 @@ const handleAddCameraFile = async () => {
       originalName: '',
       localUri: '',
       loading: true,
+      isInvoice: false,
     };
     setAttachedFiles(prev => {
       const newArr = [...prev, placeholder];
-      onChangeFilesJson(JSON.stringify(newArr.map(f => f.id)));
+      syncFilesJson(newArr);
       return newArr;
     });
 
     const dataUri = await getFile(fileData.id);
     const metadata = await getFileMetadata(fileData.id);
     setAttachedFiles(prev =>
-      prev.map(f =>
-        f.id === fileData.id
-          ? {
-              id: f.id,
-              previewUri: dataUri ?? '',
-              fileType: metadata?.file_type ?? '',
-              originalName: metadata?.original_name ?? '',
-              localUri: metadata?.localUri ?? '',
-              loading: false,
-            }
-          : f
-      )
+        prev.map(f =>
+          f.id === fileData.id
+            ? {
+                id: f.id,
+                previewUri: dataUri ?? '',
+                fileType: metadata?.file_type ?? '',
+                originalName: metadata?.original_name ?? '',
+                localUri: metadata?.localUri ?? '',
+                loading: false,
+                isInvoice: f.isInvoice ?? false,
+              }
+            : f
+        )
     );
   } catch (error: any) {
     console.error('Error cámara:', error);
@@ -359,20 +429,21 @@ const handleAddCameraFile = async () => {
   useEffect(() => {
     const loadPlaceholders = () => {
       try {
-        const ids: number[] = filesJson ? JSON.parse(filesJson) : [];
-        const placeholders = ids.map(
-          id => ({
+        const descriptors = parseFileDescriptors();
+        const placeholders = descriptors.map(
+          ({ id, isInvoice }) => ({
             id,
             previewUri: '',
             fileType: '',
             originalName: '',
             localUri: '',
             loading: true,
+            isInvoice,
           } as AttachedFile)
         );
         setAttachedFiles(placeholders);
 
-        ids.forEach(async (id, idx) => {
+        descriptors.forEach(async ({ id, isInvoice }, idx) => {
           try {
             const [dataUri, metadata] = await Promise.all([
               getFile(id),
@@ -392,6 +463,7 @@ const handleAddCameraFile = async () => {
                 originalName,
                 localUri,
                 loading: false,
+                isInvoice: copy[idx]?.isInvoice ?? isInvoice,
               };
               return copy;
             });
@@ -406,7 +478,7 @@ const handleAddCameraFile = async () => {
       }
     };
     loadPlaceholders();
-  }, [filesJson, getFile, getFileMetadata]);
+  }, [filesJson, getFile, getFileMetadata, parseFileDescriptors]);
 
   const pickFile = async () => {
     try {
@@ -455,10 +527,11 @@ const handleAddCameraFile = async () => {
         originalName: '',
         localUri: '',
         loading: true,
+        isInvoice: false,
       };
       setAttachedFiles(prev => {
         const newArr = [...prev, placeholder];
-        onChangeFilesJson(JSON.stringify(newArr.map(f => f.id)));
+        syncFilesJson(newArr);
         return newArr;
       });
 
@@ -471,7 +544,15 @@ const handleAddCameraFile = async () => {
       setAttachedFiles(prev =>
         prev.map(f =>
           f.id === fileData.id
-            ? { id: f.id, previewUri: dataUri ?? '', fileType, originalName, localUri, loading: false }
+            ? {
+                id: f.id,
+                previewUri: dataUri ?? '',
+                fileType,
+                originalName,
+                localUri,
+                loading: false,
+                isInvoice: f.isInvoice ?? false,
+              }
             : f
         )
       );
@@ -484,8 +565,18 @@ const handleAddCameraFile = async () => {
   const handleDeleteFile = (id: number) => {
     setAttachedFiles(prev => {
       const filtered = prev.filter(f => f.id !== id);
-      onChangeFilesJson(JSON.stringify(filtered.map(f => f.id)));
+      syncFilesJson(filtered);
       return filtered;
+    });
+  };
+
+  const handleToggleInvoice = (id: number) => {
+    setAttachedFiles(prev => {
+      const updated = prev.map(file =>
+        file.id === id ? { ...file, isInvoice: !file.isInvoice } : file
+      );
+      syncFilesJson(updated);
+      return updated;
     });
   };
 
@@ -534,6 +625,8 @@ const handleAddCameraFile = async () => {
             onPreview={setPreviewIndex}
             onPreviewPdf={handlePreviewPdf}
             editable={isEditable}
+            showInvoiceToggle={invoiceMarkingEnabled}
+            onToggleInvoice={handleToggleInvoice}
           />
         ))}
         {isEditable && (
@@ -589,6 +682,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+  },
+  invoiceToggle: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    padding: 6,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 16,
   },
   deleteButtonText: {
     color: '#fff',

@@ -656,7 +656,12 @@ export default function PaymentDetailPage() {
         </>
       )}
 
-      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable={canEdit} />
+      <FileGallery
+        filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable={canEdit}
+        invoiceMarkingEnabled
+      />
 
       {canEdit && (
         <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate} disabled={loading}>
