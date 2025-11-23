@@ -71,6 +71,13 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'list',
         requiredPermissions: ['listCategories'],
       },
+      {
+        title: 'Reportes',
+        route: '/reports',
+        icon: 'document-attach-outline',
+        requiredPermissions: ['generatePaymentReport'],
+        fallbackPermissions: ['listReports'],
+      },
     ],
   },
   {

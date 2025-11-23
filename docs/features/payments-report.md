@@ -38,3 +38,11 @@ Cuando el rango no devuelve pagos ni adjuntos válidos, el servicio responde con
 - Se utiliza la fuente **DejaVu Sans** junto con el parser HTML5 de Dompdf para preservar caracteres especiales.
 
 > Requisito: la librería [`dompdf/dompdf`](https://github.com/dompdf/dompdf) debe estar instalada en el servidor.
+
+## Generación desde la app móvil
+- Menú principal → **Gestión financiera** → **Reportes**.
+- El formulario pide dos fechas (inicio y fin) con calendario nativo. Las fechas se envían en formato `YYYY-MM-DD`.
+- Al obtener una respuesta exitosa:
+  - Se abre camino al PDF devuelto (`download_url` o `/files/{file_id}`),
+  - Se registra un reporte en la lista local con `report_type: payments`, metadata del rango y estado `generated`.
+- Si el rango no tiene comprobantes válidos, la app muestra el mensaje de la API (`404` con detalle).

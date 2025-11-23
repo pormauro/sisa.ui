@@ -68,6 +68,7 @@ const PERMISSION_GROUPS = [
     ],
   },
   { group: "Receipts", permissions: ['listReceipts', 'getReceipt', 'addReceipt', 'updateReceipt', 'deleteReceipt', 'listReceiptHistory'] },
+  { group: "Reports", permissions: ['listReports', 'getReport', 'createReport', 'updateReport', 'deleteReport'] },
   { group: "Categories", permissions: ['listCategories', 'getCategory', 'addCategory', 'updateCategory', 'deleteCategory', 'listCategoryHistory'] },
   { group: "Providers", permissions: ['listProviders', 'getProvider', 'addProvider', 'updateProvider', 'deleteProvider', 'listProviderHistory'] },
   { group: "Sales", permissions: ['listSales', 'getSale', 'addSale', 'updateSale', 'deleteSale', 'listSaleHistory'] },
