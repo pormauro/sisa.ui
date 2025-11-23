@@ -13,6 +13,8 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
 
   useEffect(() => {
     let isMounted = true;
+    setHydrated(false);
+    setState(initialRef.current);
     (async () => {
       const cached = await getCachedData<T>(cacheKey);
       if (cached !== null && isMounted) {

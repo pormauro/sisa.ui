@@ -167,50 +167,15 @@ const mergeNotification = (
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
   const configContext = useContext(ConfigContext);
+  const notificationsCacheKey = useMemo(
+    () => (userId ? `notifications:${userId}` : 'notifications:guest'),
+    [userId]
+  );
   const [notifications, setNotifications, notificationsHydrated] = useCachedState<NotificationEntry[]>(
-    'notifications',
+    notificationsCacheKey,
     []
   );
-  const [cachedOwnerId, setCachedOwnerId, cachedOwnerHydrated] = useCachedState<string | null>(
-    'notifications.owner',
-    null
-  );
   const [loading, setLoading] = useState(false);
-
-  const clearCachedNotifications = useCallback(() => {
-    setNotifications(prev => (prev.length > 0 ? [] : prev));
-  }, [setNotifications]);
-
-  useEffect(() => {
-    if (!notificationsHydrated || !cachedOwnerHydrated) {
-      return;
-    }
-
-    if (!authIsLoading && !userId) {
-      clearCachedNotifications();
-      setCachedOwnerId(null);
-      return;
-    }
-
-    const hasCachedNotifications = notifications.length > 0;
-
-    if (userId && hasCachedNotifications && cachedOwnerId !== userId) {
-      clearCachedNotifications();
-    }
-
-    if (userId !== cachedOwnerId && !authIsLoading) {
-      setCachedOwnerId(userId ?? null);
-    }
-  }, [
-    authIsLoading,
-    cachedOwnerHydrated,
-    cachedOwnerId,
-    clearCachedNotifications,
-    notifications,
-    notificationsHydrated,
-    setCachedOwnerId,
-    userId,
-  ]);
 
   const authorizedFetch = useCallback(
     async (url: string, options?: RequestInit) => {
@@ -282,12 +247,12 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   }, [refreshNotifications, token]);
 
   useEffect(() => {
-    if (authIsLoading || !token || !notificationsHydrated || !cachedOwnerHydrated) {
+    if (authIsLoading || !token || !notificationsHydrated) {
       return;
     }
 
     void refreshNotifications();
-  }, [authIsLoading, cachedOwnerHydrated, notificationsHydrated, refreshNotifications, token, userId]);
+  }, [authIsLoading, notificationsHydrated, refreshNotifications, token, userId]);
 
   const markAsRead = useCallback(
     async (notificationId: number): Promise<boolean> => {
