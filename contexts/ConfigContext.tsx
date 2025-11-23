@@ -13,7 +13,6 @@ export interface ConfigDetails {
   filter_config: unknown;
   default_payment_cash_box_id: number | null;
   default_receiving_cash_box_id: number | null;
-  clear_notifications_when_unread_empty: boolean;
 }
 
 export type ConfigForm = ConfigDetails;
@@ -21,7 +20,6 @@ export type ConfigForm = ConfigDetails;
 type NormalizedConfigInput = Partial<ConfigDetails> & {
   default_payment_cash_box_id?: unknown;
   default_receiving_cash_box_id?: unknown;
-  clear_notifications_when_unread_empty?: unknown;
 };
 
 interface ConfigContextType {
@@ -45,23 +43,6 @@ const parseNullableNumber = (value: unknown): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
-const parseBoolean = (value: unknown): boolean => {
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    return ['1', 'true', 'yes', 'y', 'on'].includes(normalized);
-  }
-
-  if (typeof value === 'number') {
-    return value !== 0;
-  }
-
-  return false;
-};
-
 const DEFAULT_CONFIG: ConfigDetails = {
   role: '',
   view_type: '',
@@ -70,7 +51,6 @@ const DEFAULT_CONFIG: ConfigDetails = {
   filter_config: null,
   default_payment_cash_box_id: null,
   default_receiving_cash_box_id: null,
-  clear_notifications_when_unread_empty: false,
 };
 
 function normalizeConfig(config: NormalizedConfigInput): ConfigDetails {
@@ -92,11 +72,6 @@ function normalizeConfig(config: NormalizedConfigInput): ConfigDetails {
       typeof config.default_receiving_cash_box_id === 'undefined'
         ? DEFAULT_CONFIG.default_receiving_cash_box_id
         : config.default_receiving_cash_box_id
-    ),
-    clear_notifications_when_unread_empty: parseBoolean(
-      typeof config.clear_notifications_when_unread_empty === 'undefined'
-        ? DEFAULT_CONFIG.clear_notifications_when_unread_empty
-        : config.clear_notifications_when_unread_empty
     ),
   };
 }
