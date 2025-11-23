@@ -206,7 +206,7 @@ const NotificationsScreen = () => {
 
   const handleMarkRead = useCallback(
     (id: number) => {
-      void markAsRead(id, { read_at: new Date().toISOString() });
+      void markAsRead(id, { read: true, read_at: new Date().toISOString() });
     },
     [markAsRead],
   );
@@ -219,7 +219,7 @@ const NotificationsScreen = () => {
   );
 
   const handleMarkAll = useCallback(async () => {
-    const updated = await markAllAsRead();
+    const updated = await markAllAsRead({ company_id: 0 });
     if (updated > 0) {
       await loadNotifications({ status: selectedStatus });
     }

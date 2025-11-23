@@ -341,11 +341,15 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   );
 
   const markAsRead = useCallback(
-    async (id: number, payload?: { read_at?: string | null }): Promise<NotificationEntry | null> => {
+    async (
+      id: number,
+      payload?: { read?: boolean; read_at?: string | null },
+    ): Promise<NotificationEntry | null> => {
       try {
+        const requestPayload = { read: true, ...payload };
         const response = await authorizedFetch(`${BASE_URL}/notifications/${id}/read`, {
           method: 'PATCH',
-          body: JSON.stringify(payload ?? {}),
+          body: JSON.stringify(requestPayload),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -368,7 +372,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
           severity: 'info',
           created_by_user_id: null,
           timestamps: { created_at: null, expires_at: null, scheduled_at: null, sent_at: null },
-          state: { ...parseState(payload ?? {}), is_read: true },
+          state: { ...parseState(requestPayload ?? {}), is_read: true },
         };
         mergeNotification(fallback);
         return fallback;
@@ -429,11 +433,12 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   );
 
   const markAllAsRead = useCallback(
-    async (payload?: { company_id?: number | null }): Promise<number> => {
+    async (payload: { company_id?: number | null } = { company_id: 0 }): Promise<number> => {
       try {
+        const requestPayload = { company_id: 0, ...payload };
         const response = await authorizedFetch(`${BASE_URL}/notifications/mark-all-read`, {
           method: 'POST',
-          body: JSON.stringify(payload ?? {}),
+          body: JSON.stringify(requestPayload),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
