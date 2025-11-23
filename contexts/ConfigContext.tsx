@@ -13,6 +13,7 @@ export interface ConfigDetails {
   filter_config: unknown;
   default_payment_cash_box_id: number | null;
   default_receiving_cash_box_id: number | null;
+  show_notifications_badge: boolean;
 }
 
 export type ConfigForm = ConfigDetails;
@@ -51,7 +52,11 @@ const DEFAULT_CONFIG: ConfigDetails = {
   filter_config: null,
   default_payment_cash_box_id: null,
   default_receiving_cash_box_id: null,
+  show_notifications_badge: true,
 };
+
+const parseBooleanFlag = (value: unknown): boolean =>
+  value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
 
 function normalizeConfig(config: NormalizedConfigInput): ConfigDetails {
   return {
@@ -73,6 +78,10 @@ function normalizeConfig(config: NormalizedConfigInput): ConfigDetails {
         ? DEFAULT_CONFIG.default_receiving_cash_box_id
         : config.default_receiving_cash_box_id
     ),
+    show_notifications_badge:
+      typeof config.show_notifications_badge === 'undefined'
+        ? DEFAULT_CONFIG.show_notifications_badge
+        : parseBooleanFlag(config.show_notifications_badge),
   };
 }
 

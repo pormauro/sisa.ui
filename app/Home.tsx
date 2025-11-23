@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
+import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -52,10 +53,11 @@ const Menu: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <ThemedText style={styles.title}>Menú Principal</ThemedText>
+          <NotificationMenuBadge />
         </View>
         <View style={styles.sectionsContainer}>
           {visibleSections.length === 0 ? (
@@ -97,7 +99,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    columnGap: 12,
     marginBottom: 20,
   },
   sectionsContainer: {
@@ -120,6 +123,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    textAlign: 'center',
+    textAlign: 'left',
   },
 });
