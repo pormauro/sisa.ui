@@ -189,6 +189,14 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
         });
         await ensureAuthResponse(response);
         const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const errorMessage =
+            typeof data?.message === 'string'
+              ? data.message
+              : 'No se pudo registrar el reporte generado.';
+          Alert.alert('Error', errorMessage);
+          return null;
+        }
         const id = resolveReportId(data);
         if (id === null) {
           Alert.alert(
