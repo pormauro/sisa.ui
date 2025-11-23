@@ -31,6 +31,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
+import { NotificationsBell } from '@/components/NotificationsBell';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { LogProvider } from '@/contexts/LogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
@@ -108,6 +109,7 @@ export default function RootLayout() {
                                                               <PendingSelectionProvider>
                                                                 <>
                                                                   <RootLayoutContent />
+                                                                  <NotificationsBell />
                                                                   <LogOverlay />
                                                                 </>
                                                               </PendingSelectionProvider>
