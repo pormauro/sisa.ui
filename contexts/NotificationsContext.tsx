@@ -187,7 +187,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       return;
     }
 
-    if (userId && cachedOwnerId && cachedOwnerId !== userId) {
+    const hasCachedNotifications = notifications.length > 0;
+
+    if (userId && hasCachedNotifications && cachedOwnerId !== userId) {
       clearCachedNotifications();
     }
 
@@ -199,6 +201,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     cachedOwnerHydrated,
     cachedOwnerId,
     clearCachedNotifications,
+    notifications,
     notificationsHydrated,
     setCachedOwnerId,
     userId,
