@@ -85,7 +85,11 @@ export default function ViewPaymentModal() {
       {filesJson ? (
         <>
           <ThemedText style={styles.label}>Archivos</ThemedText>
-          <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} />
+          <FileGallery
+            filesJson={filesJson}
+            onChangeFilesJson={() => {}}
+            invoiceMarkingEnabled
+          />
         </>
       ) : null}
 
