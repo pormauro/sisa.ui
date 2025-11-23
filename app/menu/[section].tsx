@@ -78,6 +78,8 @@ const MenuGroupScreen: React.FC = () => {
                   key={item.route}
                   icon={item.icon}
                   title={item.title}
+                  layout="grid"
+                  showChevron={false}
                   onPress={() => router.push(access.route as any)}
                 />
               ))}
@@ -156,6 +158,9 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     paddingBottom: 8,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   emptyStateContainer: {
     padding: 24,

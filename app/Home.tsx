@@ -70,11 +70,8 @@ const Menu: React.FC = () => {
                 key={section.key}
                 icon={section.icon}
                 title={section.title}
-                subtitle={
-                  section.items.length === 1
-                    ? '1 opción disponible'
-                    : `${section.items.length} opciones disponibles`
-                }
+                showChevron={false}
+                layout="grid"
                 onPress={() =>
                   router.push({ pathname: '/menu/[section]', params: { section: section.key } })
                 }
@@ -104,6 +101,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
     paddingBottom: 30,
   },
   emptyStateContainer: {

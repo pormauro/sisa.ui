@@ -24,6 +24,7 @@ export interface MenuButtonProps {
   showChevron?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityState?: AccessibilityState;
+  layout?: 'row' | 'grid';
 }
 
 export const MenuButton: React.FC<MenuButtonProps> = ({
@@ -35,6 +36,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   showChevron = true,
   style,
   accessibilityState,
+  layout = 'row',
 }) => {
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
@@ -42,6 +44,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   const cardBackgroundColor = useThemeColor({ light: '#FFFFFF', dark: '#3d2f4d' }, 'background');
   const colorScheme = useColorScheme();
   const isLightMode = colorScheme === 'light';
+  const isGridLayout = layout === 'grid';
 
   return (
     <TouchableOpacity
@@ -52,6 +55,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
       onLongPress={onLongPress}
       style={[
         styles.container,
+        isGridLayout ? styles.gridContainer : styles.rowContainer,
         {
           backgroundColor: cardBackgroundColor,
           borderColor: tintColor,
@@ -61,22 +65,30 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
         style,
       ]}
     >
-      <View style={[styles.iconContainer, { backgroundColor: tintColor }]}> 
-        <Ionicons name={icon} size={28} color={iconForegroundColor} />
+      <View
+        style={[
+          styles.iconContainer,
+          isGridLayout ? styles.iconContainerGrid : styles.iconContainerRow,
+          { backgroundColor: tintColor },
+        ]}
+      >
+        <Ionicons name={icon} size={isGridLayout ? 40 : 28} color={iconForegroundColor} />
       </View>
-      <View style={styles.textContainer}>
-        <ThemedText style={styles.title}>{title}</ThemedText>
-        {subtitle ? <ThemedText style={styles.subtitle}>{subtitle}</ThemedText> : null}
+      <View style={[styles.textContainer, isGridLayout && styles.gridTextContainer]}>
+        <ThemedText style={[styles.title, isGridLayout && styles.gridTitle]}>{title}</ThemedText>
+        {subtitle ? (
+          <ThemedText style={[styles.subtitle, isGridLayout && styles.gridSubtitle]}>{subtitle}</ThemedText>
+        ) : null}
       </View>
-      {showChevron ? <Ionicons name="chevron-forward" size={22} color={textColor} /> : null}
+      {!isGridLayout && showChevron ? (
+        <Ionicons name="chevron-forward" size={22} color={textColor} />
+      ) : null}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 18,
     borderRadius: 12,
@@ -87,29 +99,54 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
+  rowContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gridContainer: {
+    flexBasis: '48%',
+    alignItems: 'center',
+  },
   darkModeShadow: {
     shadowOpacity: 0.35,
     elevation: 0,
   },
   iconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconContainerRow: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 16,
+  },
+  iconContainerGrid: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    marginBottom: 12,
   },
   textContainer: {
     flex: 1,
+  },
+  gridTextContainer: {
+    alignItems: 'center',
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
   },
+  gridTitle: {
+    textAlign: 'center',
+  },
   subtitle: {
     fontSize: 14,
     opacity: 0.7,
     marginTop: 4,
+  },
+  gridSubtitle: {
+    textAlign: 'center',
   },
 });
 
