@@ -327,10 +327,20 @@ const FileGallery: React.FC<FileGalleryProps> = ({
   const isEditable = !!editable;
 
   const syncFilesJson = (files: AttachedFile[]) => {
-    const payload = invoiceMarkingEnabled
-      ? files.map(f => ({ id: f.id, is_invoice: !!f.isInvoice }))
-      : files.map(f => f.id);
-    onChangeFilesJson(JSON.stringify(payload));
+    if (invoiceMarkingEnabled) {
+      const payload = files.map(f => ({
+        id: f.id,
+        is_invoice: !!f.isInvoice,
+        metadata: {
+          file_id: f.id,
+          is_invoice: !!f.isInvoice,
+        },
+      }));
+      onChangeFilesJson(JSON.stringify(payload));
+      return;
+    }
+
+    onChangeFilesJson(JSON.stringify(files.map(f => f.id)));
   };
 
   const parseFileDescriptors = useCallback((): { id: number; isInvoice: boolean }[] => {
@@ -354,7 +364,15 @@ const FileGallery: React.FC<FileGalleryProps> = ({
             return null;
           }
 
-          const isInvoice = Boolean((item as any).is_invoice ?? (item as any).isInvoice);
+          const metadata = (item as any).metadata;
+          const metadataInvoice =
+            metadata && typeof metadata === 'object'
+              ? (metadata as any).is_invoice ?? (metadata as any).isInvoice
+              : undefined;
+
+          const isInvoice = Boolean(
+            (item as any).is_invoice ?? (item as any).isInvoice ?? metadataInvoice
+          );
           return { id, isInvoice };
         }
 
