@@ -337,10 +337,6 @@ const FileGallery: React.FC<FileGalleryProps> = ({
       const payload = files.map(f => ({
         id: f.id,
         is_invoice: !!f.isInvoice,
-        metadata: {
-          file_id: f.id,
-          is_invoice: !!f.isInvoice,
-        },
       }));
       onChangeFilesJson(JSON.stringify(payload));
       return;
@@ -357,6 +353,18 @@ const FileGallery: React.FC<FileGalleryProps> = ({
       throw new Error('Formato inválido en filesJson');
     }
 
+    const toInvoiceFlag = (item: any) => {
+      const metadata = item?.metadata;
+      const metadataInvoice =
+        metadata && typeof metadata === 'object'
+          ? metadata.is_invoice ?? metadata.isInvoice
+          : undefined;
+
+      return (item?.is_invoice ?? item?.isInvoice ?? metadataInvoice) as
+        | boolean
+        | undefined;
+    };
+
     return parsed
       .map(item => {
         if (typeof item === 'number') {
@@ -370,15 +378,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
             return null;
           }
 
-          const metadata = (item as any).metadata;
-          const metadataInvoice =
-            metadata && typeof metadata === 'object'
-              ? (metadata as any).is_invoice ?? (metadata as any).isInvoice
-              : undefined;
-
-          const isInvoice = Boolean(
-            (item as any).is_invoice ?? (item as any).isInvoice ?? metadataInvoice
-          );
+          const isInvoice = Boolean(toInvoiceFlag(item));
           return { id, isInvoice };
         }
 
@@ -456,19 +456,20 @@ const handleAddCameraFile = async () => {
     const dataUri = await getFile(fileData.id);
     const metadata = await getFileMetadata(fileData.id);
     setAttachedFiles(prev =>
-        prev.map(f =>
-          f.id === fileData.id
-            ? {
-                id: f.id,
-                previewUri: dataUri ?? '',
-                fileType: metadata?.file_type ?? '',
-                originalName: metadata?.original_name ?? '',
-                localUri: metadata?.localUri ?? '',
-                loading: false,
-                isInvoice: f.isInvoice ?? false,
-              }
-            : f
-        )
+      prev.map(f => {
+        const metadataInvoice = (metadata as any)?.is_invoice ?? (metadata as any)?.isInvoice;
+        return f.id === fileData.id
+          ? {
+              id: f.id,
+              previewUri: dataUri ?? '',
+              fileType: metadata?.file_type ?? '',
+              originalName: metadata?.original_name ?? '',
+              localUri: metadata?.localUri ?? '',
+              loading: false,
+              isInvoice: metadataInvoice ?? f.isInvoice ?? false,
+            }
+          : f;
+      })
     );
   } catch (error: any) {
     console.error('Error cámara:', error);
@@ -506,6 +507,7 @@ const handleAddCameraFile = async () => {
 
             setAttachedFiles(prev => {
               const copy = [...prev];
+              const metadataInvoice = (metadata as any)?.is_invoice ?? (metadata as any)?.isInvoice;
               copy[idx] = {
                 id,
                 previewUri: dataUri || '',
@@ -513,7 +515,7 @@ const handleAddCameraFile = async () => {
                 originalName,
                 localUri,
                 loading: false,
-                isInvoice: copy[idx]?.isInvoice ?? isInvoice,
+                isInvoice: metadataInvoice ?? copy[idx]?.isInvoice ?? isInvoice,
               };
               return copy;
             });
@@ -592,8 +594,9 @@ const handleAddCameraFile = async () => {
       const localUri = metadata?.localUri ?? '';
 
       setAttachedFiles(prev =>
-        prev.map(f =>
-          f.id === fileData.id
+        prev.map(f => {
+          const metadataInvoice = (metadata as any)?.is_invoice ?? (metadata as any)?.isInvoice;
+          return f.id === fileData.id
             ? {
                 id: f.id,
                 previewUri: dataUri ?? '',
@@ -601,10 +604,10 @@ const handleAddCameraFile = async () => {
                 originalName,
                 localUri,
                 loading: false,
-                isInvoice: f.isInvoice ?? false,
+                isInvoice: metadataInvoice ?? f.isInvoice ?? false,
               }
-            : f
-        )
+            : f;
+        })
       );
     } catch (error: any) {
       console.error('Error agregando archivo:', error);
