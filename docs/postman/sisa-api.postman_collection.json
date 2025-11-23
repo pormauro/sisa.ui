@@ -2682,6 +2682,363 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Send Test Notification (Superuser Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{authToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Notificación de prueba\",\n  \"body\": \"Mensaje visible solo para QA\",\n  \"type\": \"manual\",\n  \"severity\": \"info\",\n  \"user_ids\": [\n    2,\n    3\n  ],\n  \"company_id\": 1,\n  \"source_table\": \"invoices\",\n  \"source_id\": 99,\n  \"source_history_id\": 101,\n  \"payload\": {\n    \"cta\": \"/invoices/99\",\n    \"notes\": \"solo superusuario\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/notifications/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "send"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/notifications/send**\n\nCrea una notificación manual solo cuando el bearer token pertenece al superusuario (id=1). Requiere enviar al menos un `user_id` o `user_ids` y devuelve los ids que fueron aceptados o descartados."
+          },
+          "response": [
+            {
+              "name": "201 Created - enviada",
+              "originalRequest": null,
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Notificación de prueba enviada\",\n  \"notification_id\": 445,\n  \"recipients\": {\n    \"sent_to\": [\n      2,\n      3\n    ],\n    \"invalid_user_ids\": [\n      99\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request - sin usuarios válidos",
+              "originalRequest": null,
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Ninguno de los usuarios indicados existe en el sistema\",\n  \"invalid_user_ids\": [\n    99\n  ]\n}"
+            },
+            {
+              "name": "403 Forbidden - solo superusuario",
+              "originalRequest": null,
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Solo el superusuario puede enviar notificaciones de prueba\",\n  \"code\": \"FORBIDDEN\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Notifications",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "type": "string",
+                  "value": "{{authToken}}"
+                }
+              ]
+            },
+            "description": "**GET {{baseUrl}}/notifications**\n\nRecupera las notificaciones del usuario autenticado. Usa `status` (unread|read|all)\ny filtros opcionales como `company_id`, `limit` y `since` (YYYY-MM-DD HH:MM:SS).",
+            "header": [],
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK - listado",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"notifications\": [\n    {\n      \"id\": 32,\n      \"company_id\": 7,\n      \"type\": \"manual\",\n      \"title\": \"Recordatorio de pago\",\n      \"body\": \"Factura 120 vence mañana\",\n      \"source\": {\n        \"table\": \"invoices\",\n        \"id\": 120,\n        \"history_id\": 980\n      },\n      \"payload\": {\n        \"cta\": \"/invoices/120\"\n      },\n      \"severity\": \"info\",\n      \"created_by_user_id\": 1,\n      \"timestamps\": {\n        \"created_at\": \"2024-12-17 09:45:00\",\n        \"scheduled_at\": null,\n        \"sent_at\": null,\n        \"expires_at\": null\n      },\n      \"state\": {\n        \"is_read\": false,\n        \"read_at\": null,\n        \"is_hidden\": false,\n        \"hidden_at\": null\n      }\n    }\n  ]\n}"
+            },
+            {
+              "name": "400 Bad Request - since inválido",
+              "originalRequest": null,
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Invalid datetime format for since\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Read Notifications",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "type": "string",
+                  "value": "{{authToken}}"
+                }
+              ]
+            },
+            "description": "**GET {{baseUrl}}/notifications/read**\n\nDevuelve solo las notificaciones ya leídas del usuario autenticado. Permite filtrar con `company_id`, `limit` y `since` (YYYY-MM-DD HH:MM:SS).",
+            "header": [],
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "read"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK - solo leídas",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"notifications\": [\n    {\n      \"id\": 32,\n      \"company_id\": 7,\n      \"type\": \"manual\",\n      \"title\": \"Recordatorio de pago\",\n      \"body\": \"Factura 120 vence mañana\",\n      \"source\": {\n        \"table\": \"invoices\",\n        \"id\": 120,\n        \"history_id\": 980\n      },\n      \"payload\": {\n        \"cta\": \"/invoices/120\"\n      },\n      \"severity\": \"info\",\n      \"created_by_user_id\": 1,\n      \"timestamps\": {\n        \"created_at\": \"2024-12-17 09:45:00\",\n        \"scheduled_at\": null,\n        \"sent_at\": null,\n        \"expires_at\": null\n      },\n      \"state\": {\n        \"is_read\": true,\n        \"read_at\": \"2024-12-18 08:00:00\",\n        \"is_hidden\": false,\n        \"hidden_at\": null\n      }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "type": "string",
+                  "value": "{{authToken}}"
+                }
+              ]
+            },
+            "description": "**PATCH {{baseUrl}}/notifications/:id/read**\n\nMarca una notificación como leída para el usuario actual. No se permite revertir a no leído.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"read\": true,\n  \"read_at\": \"2025-04-01 10:00:00\"\n}"
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{id}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{id}}",
+                "read"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK - marcada como leída",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Notification marked as read\",\n  \"notification\": {\n    \"id\": 32,\n    \"company_id\": 7,\n    \"type\": \"manual\",\n    \"title\": \"Recordatorio de pago\",\n    \"body\": \"Factura 120 vence mañana\",\n    \"source\": {\n      \"table\": \"invoices\",\n      \"id\": 120,\n      \"history_id\": 980\n    },\n    \"payload\": {\n      \"cta\": \"/invoices/120\"\n    },\n    \"severity\": \"info\",\n    \"created_by_user_id\": 1,\n    \"timestamps\": {\n      \"created_at\": \"2024-12-17 09:45:00\",\n      \"scheduled_at\": null,\n      \"sent_at\": null,\n      \"expires_at\": null\n    },\n    \"state\": {\n      \"is_read\": true,\n      \"read_at\": \"2024-12-18 08:00:00\",\n      \"is_hidden\": false,\n      \"hidden_at\": null\n    }\n  }\n}"
+            },
+            {
+              "name": "404 Not Found - inexistente",
+              "originalRequest": null,
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Notification not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "type": "string",
+                  "value": "{{authToken}}"
+                }
+              ]
+            },
+            "description": "**POST {{baseUrl}}/notifications/mark-all-read**\n\nMarca todas las notificaciones visibles como leídas; acepta `company_id` para limitar el alcance.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": 0\n}"
+            },
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/mark-all-read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "mark-all-read"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK - lote",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Notifications marked as read\",\n  \"updated_count\": 12\n}"
+            },
+            {
+              "name": "400 Bad Request - company_id inválido",
+              "originalRequest": null,
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"error\": \"company_id must be numeric\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Hide Notification",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "type": "string",
+                  "value": "{{authToken}}"
+                }
+              ]
+            },
+            "description": "**PATCH {{baseUrl}}/notifications/:id/hide**\n\nOculta la notificación para el usuario autenticado y registra `hidden_at` si se envía.",
+            "header": [
+              {
+                "key": "Content-Type",
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"hidden_at\": \"2025-04-01 10:00:00\"\n}"
+            },
+            "method": "PATCH",
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{id}}/hide",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notifications",
+                "{{id}}",
+                "hide"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK - oculta",
+              "originalRequest": null,
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"message\": \"Notification hidden\",\n  \"notification\": {\n    \"id\": 32,\n    \"company_id\": 7,\n    \"type\": \"manual\",\n    \"title\": \"Recordatorio de pago\",\n    \"body\": \"Factura 120 vence mañana\",\n    \"source\": {\n      \"table\": \"invoices\",\n      \"id\": 120,\n      \"history_id\": 980\n    },\n    \"payload\": {\n      \"cta\": \"/invoices/120\"\n    },\n    \"severity\": \"info\",\n    \"created_by_user_id\": 1,\n    \"timestamps\": {\n      \"created_at\": \"2024-12-17 09:45:00\",\n      \"scheduled_at\": null,\n      \"sent_at\": null,\n      \"expires_at\": null\n    },\n    \"state\": {\n      \"is_read\": true,\n      \"read_at\": \"2024-12-18 08:00:00\",\n      \"is_hidden\": true,\n      \"hidden_at\": \"2024-12-18 10:15:00\"\n    }\n  }\n}"
+            },
+            {
+              "name": "404 Not Found - inexistente",
+              "originalRequest": null,
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Notification not found\"\n}"
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
