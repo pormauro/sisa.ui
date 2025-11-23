@@ -12,6 +12,8 @@ La API de facturación centraliza la emisión, control y auditoría de comproban
 - `updateInvoice`: autoriza la edición de datos fiscales, ítems y adjuntos antes de su publicación final.
 - `voidInvoice`: habilita la anulación de comprobantes emitidos, conservando el registro histórico.
 - `downloadInvoicePdf`: da acceso a la descarga de archivos PDF o representaciones digitales.
+- `generateInvoiceReport`: autoriza la generación de reportes consolidados de facturas desde la app, respetando los filtros visib
+les en el módulo.
 
 Cuando se cree una nueva sección en la app que consuma estos endpoints, debe agregarse explícitamente a la configuración de permisos para mantener el alineamiento con el resto del ecosistema.
 

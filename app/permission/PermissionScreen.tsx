@@ -54,6 +54,7 @@ const PERMISSION_GROUPS = [
       'issueInvoice',
       'downloadInvoicePdf',
       'listInvoiceHistory',
+      'generateInvoiceReport',
     ],
   },
   {
