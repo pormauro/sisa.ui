@@ -279,6 +279,12 @@ const FileItem: React.FC<FileItemProps> = ({
           />
         </TouchableOpacity>
       )}
+      {showInvoiceToggle && file.isInvoice && (
+        <View style={styles.invoiceBadge} pointerEvents="none">
+          <MaterialCommunityIcons name="file-document-check-outline" size={16} color="#fff" />
+          <Text style={styles.invoiceBadgeText}>Factura</Text>
+        </View>
+      )}
       {isImage ? (
         <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
       ) : isVideo ? (
@@ -827,5 +833,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: '#555',
+  },
+  invoiceBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#2e7d32',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  invoiceBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
+    marginLeft: 6,
   },
 });
