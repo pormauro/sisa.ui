@@ -40,10 +40,12 @@ const NotificationCard = ({
   item,
   onPress,
   onToggleRead,
+  isDimmed,
 }: {
   item: NotificationEntry;
   onPress: () => void;
   onToggleRead: () => void;
+  isDimmed?: boolean;
 }) => {
   const baseColor = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#4b3f5f' }, 'background');
@@ -53,7 +55,7 @@ const NotificationCard = ({
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.card, { backgroundColor: baseColor, borderColor }]}
+      style={[styles.card, { backgroundColor: baseColor, borderColor }, isDimmed && styles.readCard]}
       activeOpacity={0.9}
     >
       <View style={styles.cardHeader}>
@@ -162,10 +164,9 @@ const NotificationsScreen = () => {
         Alert.alert('Acceso denegado', 'No tienes permisos para actualizar notificaciones.');
         return;
       }
-      if (item.is_read) {
-        await markAsUnread(item.id);
-      } else {
-        await markAsRead(item.id);
+      const success = item.is_read ? await markAsUnread(item.id) : await markAsRead(item.id);
+      if (!success) {
+        Alert.alert('Error', 'No se pudo actualizar el estado de la notificación.');
       }
     },
     [canMarkNotification, markAsRead, markAsUnread]
@@ -177,9 +178,10 @@ const NotificationsScreen = () => {
         item={item}
         onPress={() => router.push(`/notifications/${item.id}`)}
         onToggleRead={() => void toggleRead(item)}
+        isDimmed={filter === 'all' && item.is_read}
       />
     ),
-    [router, toggleRead]
+    [filter, router, toggleRead]
   );
 
   const listHeader = (
@@ -339,6 +341,9 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     position: 'relative',
+  },
+  readCard: {
+    opacity: 0.6,
   },
   cardHeader: {
     flexDirection: 'row',
