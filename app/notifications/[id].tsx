@@ -128,8 +128,11 @@ const NotificationDetailScreen = () => {
           <ThemedText style={styles.itemTitle}>{localItem.title || 'Notificación'}</ThemedText>
           <ThemedText style={[styles.subtitle, { color: mutedText }]}>Creada: {formatDateTime(localItem.created_at)}</ThemedText>
           <ThemedText style={[styles.subtitle, { color: mutedText }]}>Estado: {localItem.is_read ? 'Leída' : 'Pendiente'}</ThemedText>
+          {localItem.is_read && (
+            <ThemedText style={[styles.subtitle, { color: mutedText }]}>Leída el: {formatDateTime(localItem.read_at)}</ThemedText>
+          )}
 
-          <View style={styles.section}> 
+          <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Contenido</ThemedText>
             <ThemedText style={styles.bodyText}>{localItem.body || 'Sin descripción'}</ThemedText>
           </View>

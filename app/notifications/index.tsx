@@ -68,6 +68,9 @@ const NotificationCard = ({
               {item.title || 'Notificación'}
             </ThemedText>
             <ThemedText style={[styles.cardDate, { color: mutedText }]}>{formatDateTime(item.created_at)}</ThemedText>
+            {item.is_read && (
+              <ThemedText style={[styles.cardDate, { color: mutedText }]}>Leída: {formatDateTime(item.read_at)}</ThemedText>
+            )}
           </View>
         </View>
         <TouchableOpacity
