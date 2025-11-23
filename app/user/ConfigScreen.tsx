@@ -21,6 +21,7 @@ const ConfigScreen: React.FC = () => {
   const { cashBoxes } = useContext(CashBoxesContext);
   const [defaultPaymentCashBox, setDefaultPaymentCashBox] = useState<string>('');
   const [defaultReceivingCashBox, setDefaultReceivingCashBox] = useState<string>('');
+  const [showNotificationsBadge, setShowNotificationsBadge] = useState<boolean>(true);
 
   useEffect(() => {
     // Cargamos la configuración (loadConfig se ejecuta al montar el provider, pero aquí se puede refrescar)
@@ -42,6 +43,7 @@ const ConfigScreen: React.FC = () => {
           ? String(configDetails.default_receiving_cash_box_id)
           : ''
       );
+      setShowNotificationsBadge(configDetails.show_notifications_badge);
     }
   }, [configDetails]);
 
@@ -150,6 +152,19 @@ const ConfigScreen: React.FC = () => {
     });
   };
 
+  const handleToggleNotificationsBadge = (value: boolean): void => {
+    setShowNotificationsBadge(value);
+
+    if (!configDetails || configDetails.show_notifications_badge === value) {
+      return;
+    }
+
+    void updateConfig({
+      ...configDetails,
+      show_notifications_badge: value,
+    });
+  };
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: background }]}
@@ -204,6 +219,20 @@ const ConfigScreen: React.FC = () => {
           </View>
           <ThemedText style={styles.switchHint}>
             Al activarlo se ocultará el indicador flotante de errores.
+          </ThemedText>
+          <View style={styles.switchRow}>
+            <ThemedText style={styles.switchLabel}>Globo de notificaciones</ThemedText>
+            <Switch
+              value={showNotificationsBadge}
+              onValueChange={handleToggleNotificationsBadge}
+              trackColor={{ false: '#9ca3af', true: accentColor }}
+              thumbColor={showNotificationsBadge ? accentColor : '#f4f3f4'}
+              ios_backgroundColor="#9ca3af"
+              disabled={!configDetails}
+            />
+          </View>
+          <ThemedText style={styles.switchHint}>
+            Muestra u oculta el globo del menú cuando haya notificaciones sin leer.
           </ThemedText>
           <ThemedText style={styles.selectLabel}>Caja por defecto para cobros</ThemedText>
           <SearchableSelect
