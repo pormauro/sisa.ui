@@ -386,6 +386,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         const fallback: NotificationEntry = {
           id,
           company_id: null,
+          company_name: null,
           type: null,
           title: '',
           body: '',
@@ -430,6 +431,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         const fallback: NotificationEntry = {
           id,
           company_id: null,
+          company_name: null,
           type: null,
           title: '',
           body: '',
