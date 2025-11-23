@@ -121,6 +121,10 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
   const updateConfig = useCallback(
     async (configForm: ConfigForm): Promise<void> => {
       if (!token) return;
+      const previousConfig = configDetails;
+      const nextConfig = normalizeConfig({ ...(configDetails ?? DEFAULT_CONFIG), ...configForm });
+
+      setConfigDetails(nextConfig);
       try {
         const response = await fetch(`${BASE_URL}/user_configurations`, {
           method: 'PUT',
@@ -139,13 +143,15 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
           );
         } else {
           const errData = await response.json();
+          setConfigDetails(previousConfig);
           Alert.alert('Error', errData.error || 'Error actualizando configuración');
         }
       } catch (error: any) {
+        setConfigDetails(previousConfig);
         Alert.alert('Error', error.message);
       }
     },
-    [normalizeConfig, setConfigDetails, token]
+    [configDetails, normalizeConfig, setConfigDetails, token]
   );
 
   useEffect(() => {
