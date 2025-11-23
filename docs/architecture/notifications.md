@@ -1,14 +1,14 @@
 # Arquitectura de notificaciones
 
-Este documento resume la propuesta de base de datos, servicios internos y endpoints API para gestionar notificaciones en SISA siguiendo las políticas actuales (sin claves foráneas y peticiones autenticadas con *Bearer token* excepto login). El objetivo es soportar múltiples usuarios y compañías con estados independientes por usuario.
+Este documento reinicia la especificación de base de datos, servicios internos y endpoints API para notificaciones en SISA. Todas las rutas continúan protegidas con *Bearer token* (solo el login está exento) y la base de datos de `sisa.api` mantiene la política de **no usar `FOREIGN KEY`**.
 
-## Modelo de datos
+## 1. Modelo de datos
 
-Se utilizan dos tablas. No se definen claves foráneas para mantener la convención de `sisa.api`.
+Se definen dos tablas sin claves foráneas: una para el evento y otra para el estado por usuario.
 
 ### Tabla `notifications`
 
-Representa el evento generado (emisión de factura, asignación de job, invitación, etc.).
+Representa el evento generado (emisión de factura, asignación de job, etc.).
 
 ```sql
 CREATE TABLE notifications (
@@ -33,13 +33,13 @@ CREATE TABLE notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-- `source_table` + `source_id` permiten linkear desde la UI a recursos como `/invoices/{id}` o `/jobs/{id}`.
-- `payload` almacena el *snapshot* mínimo para renderizar (ej.: número de factura y cliente) evitando duplicar la entidad completa.
-- `source_history_id` facilita idempotencia cuando el evento proviene de *history* (se puede complementar con índice único opcional para evitar duplicados).
+- `source_table` + `source_id` permiten linkear al recurso `/invoices/{id}` o `/jobs/{id}` desde la UI.
+- `payload` guarda el *snapshot* mínimo para renderizar (número de factura, cliente, título de job) sin duplicar la entidad completa.
+- `source_history_id` facilita idempotencia cuando el evento proviene de `history` (se puede complementar con índice único si se quiere evitar duplicados).
 
 ### Tabla `notification_user_states`
 
-Controla el estado de cada usuario sobre una notificación y repite `company_id` para filtrar rápido.
+Controla el estado por usuario y mantiene redundancia de `company_id` para filtrar rápido.
 
 ```sql
 CREATE TABLE notification_user_states (
@@ -68,9 +68,9 @@ CREATE TABLE notification_user_states (
 - Estado independiente por usuario (`is_read`, `is_hidden`).
 - Consultas eficientes para contadores y listados.
 
-## Servicio interno en PHP
+## 2. Servicio interno en PHP
 
-Centraliza la creación y asignación evitando lógica duplicada en controladores.
+Centraliza la creación y asignación de notificaciones, evitando lógica repetida en controladores. La interfaz propuesta sigue el estilo actual de servicios de dominio.
 
 ```php
 final class NotificationService
@@ -124,7 +124,7 @@ final class NotificationService
     }
 
     /**
-     * Helper para notificar a admins de empresa.
+     * Ejemplo de helper para notificar a admins de empresa.
      */
     public function notifyCompanyAdmins(int $companyId, array $data): int
     {
@@ -141,15 +141,15 @@ final class NotificationService
 }
 ```
 
-## Endpoints API
+## 3. Endpoints API
 
-Todas las peticiones usan *Bearer token* (login excluido por las reglas actuales).
+Autenticación: todas las peticiones usan Bearer token; solo login queda excluido por las reglas actuales.
 
-### Listado de notificaciones del usuario
+### 3.1. Listado de notificaciones del usuario
 
-```
-GET /notifications?status=unread|all&company_id=...&limit=...&since=...
-```
+`GET /notifications?status=unread|read|all&company_id=...&limit=...&since=...`
+
+`GET /notifications/read?company_id=...&limit=...&since=...` devuelve únicamente las notificaciones leídas del usuario autenticado.
 
 Consulta sugerida:
 
@@ -159,28 +159,56 @@ FROM notifications n
 JOIN notification_user_states s ON n.id = s.notification_id
 WHERE s.user_id = :current_user_id
   AND (:company_id IS NULL OR n.company_id = :company_id)
-  AND (:status = 'all' OR (:status = 'unread' AND s.is_read = 0 AND s.is_hidden = 0))
+  AND (
+    :status = 'all'
+    OR (:status = 'unread' AND s.is_read = 0 AND s.is_hidden = 0)
+    OR (:status = 'read' AND s.is_read = 1 AND s.is_hidden = 0)
+  )
 ORDER BY n.created_at DESC
 LIMIT :limit;
 ```
 
-### Marcar como leída / no leída
+### 3.2. Marcar como leída
 
-- `PATCH /notifications/{id}/read` actualiza solo el estado del usuario autenticado.
-- `POST /notifications/mark-all-read` permite marcar en bloque.
+- `PATCH /notifications/{id}/read` marca solo el estado del usuario autenticado y no permite revertir a no leído.
+- `POST /notifications/mark-all-read` permite marcar en bloque todas las notificaciones visibles como leídas.
 
-### Ocultar / *dismiss*
+### 3.3. Ocultar / dismiss
 
 `PATCH /notifications/{id}/hide` actualiza `is_hidden` e `hidden_at` del usuario actual.
 
-## Integración y sincronización
+### 3.4. Envío manual para pruebas (solo superusuario)
 
-- Controladores de facturas, jobs y memberships deben invocar `NotificationService` luego de eventos clave (emisión, asignación, invitaciones).
-- `source_history_id` permite enlazar con history y prevenir duplicados mediante índice único opcional.
-- Para clientes móviles, se puede reutilizar `/sync/batch` o *polling* corto al endpoint de notificaciones.
+`POST /notifications/send`
 
-## Consideraciones operativas
+- **Autorización**: exige Bearer token; únicamente el usuario `id = 1` puede ejecutarlo.
+- **Permiso**: `sendNotifications` queda disponible como permiso global para que la UI pueda referenciarlo, aunque el backend fuerza la verificación de superusuario.
+- **Body**:
+  ```json
+  {
+    "title": "Texto visible en la campana",
+    "body": "Detalle o CTA",
+    "type": "manual",
+    "severity": "info|success|warning|error",
+    "user_ids": [2, 3],
+    "company_id": 10,
+    "source_table": "invoices",
+    "source_id": 99,
+    "source_history_id": 101,
+    "payload": {"cta": "/invoices/99"}
+  }
+  ```
+- **Validaciones**: requiere `title`, `body` y al menos un `user_id`. Se filtran los IDs inexistentes y se informan en la respuesta para depurar.
+- **Respuesta 201**: incluye `notification_id`, `recipients.sent_to` y `recipients.invalid_user_ids` para facilitar pruebas de conectividad.
 
-- Instalar: agregar las tablas en `install.php` y `update_install.php` de `sisa.api`, manteniendo la política de no usar `FOREIGN KEY`.
-- Documentación: actualizar la colección de Postman cuando se implementen los endpoints.
-- Permisos: cualquier nueva sección de UI para notificaciones debe declararse en el esquema de permisos.
+## 4. Integración y sincronización
+
+- Los controladores de facturas, jobs y memberships pueden llamar al `NotificationService` después de cambios clave (emisión, asignación, invitaciones).
+- `source_history_id` sirve para enlazar con `history` y evitar duplicados mediante índice único opcional.
+- Si se desea sincronizar con el cliente móvil, las notificaciones pueden incluirse en `/sync/batch` o consultarse vía endpoint con *polling* corto.
+
+## 5. Consideraciones operativas
+
+- Instalar: agregar las tablas en `install.php` y `update_install.php` manteniendo la política sin claves foráneas.
+- Documentación: incluir los endpoints nuevos en la colección de Postman del servidor cuando se implementen.
+- Permisos: cualquier nueva sección en la UI asociada a notificaciones debe agregarse en el esquema de permisos correspondiente.
