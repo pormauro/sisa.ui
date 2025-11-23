@@ -44,6 +44,7 @@ export interface NotificationState {
 export interface NotificationEntry {
   id: number;
   company_id: number | null;
+  company_name: string | null;
   type: string | null;
   title: string;
   body: string;
@@ -116,6 +117,13 @@ const parseNullableNumber = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const parseOptionalString = (value: unknown): string | null => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  return String(value);
+};
+
 const parsePayload = (value: unknown): Record<string, unknown> | null => {
   if (!value && value !== 0) {
     return null;
@@ -184,6 +192,7 @@ const parseState = (value: any): NotificationState => ({
 const normalizeNotification = (raw: any): NotificationEntry => ({
   id: Number(raw?.id ?? raw?.notification_id ?? 0),
   company_id: parseNullableNumber(raw?.company_id ?? raw?.company?.id),
+  company_name: parseOptionalString(raw?.company_name ?? raw?.company?.name),
   type: raw?.type ?? raw?.notification_type ?? null,
   title: raw?.title ?? raw?.subject ?? '',
   body: raw?.body ?? raw?.message ?? '',
