@@ -9,25 +9,24 @@ import React, {
 } from 'react';
 
 import { AuthContext } from '@/contexts/AuthContext';
-import { ConfigContext } from '@/contexts/ConfigContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
-export type NotificationFilter = 'unread' | 'read';
+export type NotificationStatus = 'unread' | 'read' | 'all';
 
 export interface NotificationEntry {
   id: number;
   company_id: number | null;
-  type: string | null;
+  type: string;
   title: string;
   body: string;
   source_table: string | null;
   source_id: number | null;
   source_history_id?: number | null;
-  created_by_user_id?: number | null;
   payload: any;
   severity: NotificationSeverity;
+  created_by_user_id?: number | null;
   created_at: string;
   scheduled_at?: string | null;
   sent_at?: string | null;
@@ -35,18 +34,27 @@ export interface NotificationEntry {
   is_read: boolean;
   read_at?: string | null;
   is_hidden: boolean;
+  hidden_at?: string | null;
+}
+
+interface RefreshOptions {
+  companyId?: number | null;
+  limit?: number;
+  since?: string;
+}
+
+interface MarkAllOptions {
+  companyId?: number | null;
 }
 
 interface NotificationsContextValue {
   notifications: NotificationEntry[];
   loading: boolean;
   unreadCount: number;
-  refreshNotifications: (
-    filter?: NotificationFilter,
-    options?: { applyUnreadVisibilityRule?: boolean }
-  ) => Promise<void>;
+  refreshNotifications: (status?: NotificationStatus, options?: RefreshOptions) => Promise<void>;
   markAsRead: (notificationId: number) => Promise<boolean>;
-  markAllAsRead: () => Promise<boolean>;
+  markAllAsRead: (options?: MarkAllOptions) => Promise<boolean>;
+  hideNotification: (notificationId: number) => Promise<boolean>;
 }
 
 const defaultContext: NotificationsContextValue = {
@@ -56,18 +64,17 @@ const defaultContext: NotificationsContextValue = {
   refreshNotifications: async () => {},
   markAsRead: async () => false,
   markAllAsRead: async () => false,
+  hideNotification: async () => false,
 };
 
 export const NotificationsContext = createContext<NotificationsContextValue>(defaultContext);
 
 const parseBoolean = (value: any): boolean => {
-  if (value === null || value === undefined) return false;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
   if (typeof value === 'string') {
     const normalized = value.trim().toLowerCase();
     return ['1', 'true', 'yes', 'y', 'on'].includes(normalized);
-  }
-  if (typeof value === 'number') {
-    return value !== 0;
   }
   return Boolean(value);
 };
@@ -81,9 +88,7 @@ const parseSeverity = (value: any): NotificationSeverity => {
 };
 
 const parsePayload = (rawPayload: any) => {
-  if (rawPayload === null || rawPayload === undefined) {
-    return null;
-  }
+  if (rawPayload === null || rawPayload === undefined) return null;
   if (typeof rawPayload === 'string') {
     try {
       return JSON.parse(rawPayload);
@@ -95,74 +100,42 @@ const parsePayload = (rawPayload: any) => {
 };
 
 const normalizeNotification = (raw: any): NotificationEntry => {
-  const id = Number(raw?.id ?? raw?.notification_id ?? raw?.notif_id ?? 0);
-  const createdAt =
-    raw?.timestamps?.created_at ?? raw?.created_at ?? raw?.inserted_at ?? new Date().toISOString();
-  const isRead = parseBoolean(raw?.state?.is_read ?? raw?.is_read ?? raw?.read ?? raw?.leido);
-  const isHidden = parseBoolean(
-    raw?.state?.is_hidden ?? raw?.is_hidden ?? raw?.hidden ?? raw?.descartada
-  );
-
-  const source = raw?.source ?? {};
-  const timestamps = raw?.timestamps ?? {};
-
-  const resolved: NotificationEntry = {
-    id: Number.isFinite(id) ? id : Date.now(),
-    company_id:
-      raw?.company_id !== undefined && raw?.company_id !== null
-        ? Number(raw.company_id)
-        : null,
-    type: raw?.type ?? raw?.category ?? raw?.kind ?? null,
-    title: raw?.title ?? raw?.subject ?? 'Sin título',
-    body: raw?.body ?? raw?.message ?? raw?.detail ?? '',
-    source_table: source.table ?? raw?.source_table ?? raw?.table ?? raw?.origin_table ?? null,
-    source_id:
-      source.id !== undefined && source.id !== null
-        ? Number(source.id)
-        : raw?.source_id !== undefined && raw?.source_id !== null
-          ? Number(raw.source_id)
-          : raw?.sourceId !== undefined && raw?.sourceId !== null
-            ? Number(raw.sourceId)
-            : null,
+  const normalizedId = Number(raw?.id ?? raw?.notification_id ?? 0);
+  return {
+    id: Number.isFinite(normalizedId) ? normalizedId : Date.now(),
+    company_id: raw?.company_id !== undefined && raw?.company_id !== null ? Number(raw.company_id) : null,
+    type: raw?.type ?? 'general',
+    title: raw?.title ?? 'Notificación',
+    body: raw?.body ?? '',
+    source_table: raw?.source_table ?? null,
+    source_id: raw?.source_id !== undefined && raw?.source_id !== null ? Number(raw.source_id) : null,
     source_history_id:
-      source.history_id !== undefined && source.history_id !== null
-        ? Number(source.history_id)
-        : raw?.source_history_id !== undefined && raw?.source_history_id !== null
-          ? Number(raw.source_history_id)
-          : null,
+      raw?.source_history_id !== undefined && raw?.source_history_id !== null
+        ? Number(raw.source_history_id)
+        : null,
+    payload: parsePayload(raw?.payload ?? null),
+    severity: parseSeverity(raw?.severity),
     created_by_user_id:
       raw?.created_by_user_id !== undefined && raw?.created_by_user_id !== null
         ? Number(raw.created_by_user_id)
         : null,
-    payload: parsePayload(raw?.payload ?? raw?.data ?? null),
-    severity: parseSeverity(raw?.severity ?? raw?.level ?? raw?.status),
-    created_at: createdAt,
-    scheduled_at: timestamps.scheduled_at ?? raw?.timestamps?.scheduled_at ?? raw?.scheduled_at ?? null,
-    sent_at: timestamps.sent_at ?? raw?.timestamps?.sent_at ?? raw?.sent_at ?? null,
-    expires_at: timestamps.expires_at ?? raw?.timestamps?.expires_at ?? raw?.expires_at ?? null,
-    is_read: isRead,
-    read_at:
-      raw?.state?.read_at ?? raw?.read_at ?? raw?.leido_en ?? (isRead ? raw?.updated_at ?? null : null),
-    is_hidden: isHidden,
+    created_at: raw?.created_at ?? new Date().toISOString(),
+    scheduled_at: raw?.scheduled_at ?? null,
+    sent_at: raw?.sent_at ?? null,
+    expires_at: raw?.expires_at ?? null,
+    is_read: parseBoolean(raw?.is_read ?? false),
+    read_at: raw?.read_at ?? null,
+    is_hidden: parseBoolean(raw?.is_hidden ?? false),
+    hidden_at: raw?.hidden_at ?? null,
   };
-
-  return resolved;
 };
 
 const extractNotificationArray = (payload: any): NotificationEntry[] => {
   if (!payload) return [];
-  if (Array.isArray(payload)) {
-    return payload.map(normalizeNotification);
-  }
-  if (Array.isArray(payload.notifications)) {
-    return payload.notifications.map(normalizeNotification);
-  }
-  if (Array.isArray(payload.data)) {
-    return payload.data.map(normalizeNotification);
-  }
-  if (payload.notification) {
-    return [normalizeNotification(payload.notification)];
-  }
+  if (Array.isArray(payload)) return payload.map(normalizeNotification);
+  if (Array.isArray(payload.notifications)) return payload.notifications.map(normalizeNotification);
+  if (Array.isArray(payload.data)) return payload.data.map(normalizeNotification);
+  if (payload.notification) return [normalizeNotification(payload.notification)];
   return [];
 };
 
@@ -176,22 +149,8 @@ const sortNotifications = (items: NotificationEntry[]): NotificationEntry[] => {
   return [...items].sort((a, b) => getTime(b.created_at) - getTime(a.created_at));
 };
 
-const mergeNotification = (
-  collection: NotificationEntry[],
-  updated: NotificationEntry
-): NotificationEntry[] => {
-  const exists = collection.find(item => item.id === updated.id);
-  if (exists) {
-    return sortNotifications(
-      collection.map(item => (item.id === updated.id ? { ...item, ...updated } : item))
-    );
-  }
-  return sortNotifications([...collection, updated]);
-};
-
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
-  const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
-  const configContext = useContext(ConfigContext);
+  const { token, isLoading: authIsLoading, userId } = useContext(AuthContext);
   const notificationsCacheKey = useMemo(
     () => (userId ? `notifications:${userId}` : 'notifications:guest'),
     [userId]
@@ -204,9 +163,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
   const authorizedFetch = useCallback(
     async (url: string, options?: RequestInit) => {
-      if (!token) {
-        throw new Error('Missing authentication token');
-      }
+      if (!token) throw new Error('Missing authentication token');
       const response = await fetch(url, {
         ...options,
         headers: {
@@ -221,103 +178,72 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   );
 
   const refreshNotifications = useCallback(
-    async (
-      filter: NotificationFilter = 'unread',
-      options: { applyUnreadVisibilityRule?: boolean } = { applyUnreadVisibilityRule: false }
-    ) => {
-      if (!token) {
-        return;
-      }
+    async (status: NotificationStatus = 'unread', options: RefreshOptions = {}) => {
+      if (!token) return;
       setLoading(true);
       try {
-        const targets: NotificationFilter[] = filter === 'read' ? ['read'] : ['unread', 'read'];
-        const collected: NotificationEntry[] = [];
+        const search = new URLSearchParams();
+        if (status !== 'read') search.set('status', status);
+        if (options.companyId !== undefined && options.companyId !== null) {
+          search.set('company_id', String(options.companyId));
+        }
+        if (options.limit) search.set('limit', String(options.limit));
+        if (options.since) search.set('since', options.since);
 
-        for (const target of targets) {
-          const url =
-            target === 'read'
-              ? `${BASE_URL}/notifications/read`
-              : `${BASE_URL}/notifications?status=unread`;
-          const response = await authorizedFetch(url);
-          const data = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            console.warn('Error loading notifications', data);
-            return;
-          }
-          collected.push(...extractNotificationArray(data));
+        const basePath = status === 'read' ? '/notifications/read' : '/notifications';
+        const query = search.toString();
+        const response = await authorizedFetch(`${BASE_URL}${basePath}${query ? `?${query}` : ''}`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          console.warn('Error loading notifications', data);
+          return;
         }
 
-        const parsed = collected;
-        const shouldClearWhenNoUnread =
-          options.applyUnreadVisibilityRule &&
-          filter === 'unread' &&
-          (configContext?.configDetails?.clear_notifications_when_unread_empty ?? false);
-        setNotifications(prev => {
-          const merged = sortNotifications([
-            ...parsed,
-            ...prev.filter(item => !parsed.some(fetched => fetched.id === item.id)),
-          ]);
-          const hasUnread = merged.some(item => !item.is_read && !item.is_hidden);
-          if (filter === 'unread' && shouldClearWhenNoUnread && !hasUnread) {
-            return [];
-          }
-          return merged;
-        });
+        const parsed = sortNotifications(extractNotificationArray(data));
+        setNotifications(parsed);
       } catch (error) {
         console.warn('Error loading notifications', error);
       } finally {
         setLoading(false);
       }
     },
-    [authorizedFetch, configContext?.configDetails?.clear_notifications_when_unread_empty, setNotifications, token]
+    [authorizedFetch, setNotifications, token]
   );
 
   useEffect(() => {
-    if (!token) return;
-    const intervalId = setInterval(() => {
-      void refreshNotifications();
-    }, 60000);
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [refreshNotifications, token]);
-
-  useEffect(() => {
-    if (authIsLoading || !token || !notificationsHydrated) {
-      return;
-    }
-
+    if (authIsLoading || !token || !notificationsHydrated) return;
     void refreshNotifications();
-  }, [authIsLoading, notificationsHydrated, refreshNotifications, token, userId]);
+  }, [authIsLoading, notificationsHydrated, refreshNotifications, token]);
 
   const markAsRead = useCallback(
     async (notificationId: number): Promise<boolean> => {
-      if (!notificationId) {
-        return false;
-      }
+      if (!notificationId) return false;
       try {
         const response = await authorizedFetch(`${BASE_URL}/notifications/${notificationId}/read`, {
           method: 'PATCH',
-          body: JSON.stringify({ read: true, read_at: new Date().toISOString() }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           console.warn('Error marking notification as read', data);
           return false;
         }
-        const parsed = extractNotificationArray(data);
-        const updated = parsed[0] ?? null;
-        if (updated) {
-          setNotifications(prev => mergeNotification(prev, updated));
-        } else {
-          setNotifications(prev =>
+
+        const updated = extractNotificationArray(data)[0];
+        const fallbackReadAt = new Date().toISOString();
+        setNotifications(prev =>
+          sortNotifications(
             prev.map(item =>
               item.id === notificationId
-                ? { ...item, is_read: true, read_at: new Date().toISOString() }
+                ? {
+                    ...item,
+                    ...(updated ?? {}),
+                    is_read: true,
+                    read_at: updated?.read_at ?? item.read_at ?? fallbackReadAt,
+                  }
                 : item
             )
-          );
-        }
+          )
+        );
         return true;
       } catch (error) {
         console.warn('Error marking notification as read', error);
@@ -327,33 +253,93 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     [authorizedFetch, setNotifications]
   );
 
-  const markAllAsRead = useCallback(async (): Promise<boolean> => {
-    try {
-      const response = await authorizedFetch(`${BASE_URL}/notifications/mark-all-read`, {
-        method: 'POST',
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        console.warn('Error marking all notifications as read', data);
+  const markAllAsRead = useCallback(
+    async (options: MarkAllOptions = {}): Promise<boolean> => {
+      try {
+        const body = options.companyId !== undefined && options.companyId !== null
+          ? JSON.stringify({ company_id: options.companyId })
+          : undefined;
+        const response = await authorizedFetch(`${BASE_URL}/notifications/mark-all-read`, {
+          method: 'POST',
+          body,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          console.warn('Error marking all notifications as read', data);
+          return false;
+        }
+
+        const parsed = extractNotificationArray(data);
+        const fallbackReadAt = new Date().toISOString();
+        if (parsed.length > 0) {
+          const lookup = new Map(parsed.map(item => [item.id, item] as const));
+          setNotifications(prev =>
+            sortNotifications(
+              prev.map(item => {
+                const incoming = lookup.get(item.id);
+                return {
+                  ...item,
+                  ...(incoming ?? {}),
+                  is_read: incoming?.is_read ?? true,
+                  read_at: incoming?.read_at ?? item.read_at ?? fallbackReadAt,
+                };
+              })
+            )
+          );
+        } else {
+          setNotifications(prev =>
+            sortNotifications(
+              prev.map(item => ({ ...item, is_read: true, read_at: item.read_at ?? fallbackReadAt }))
+            )
+          );
+        }
+        return true;
+      } catch (error) {
+        console.warn('Error marking all notifications as read', error);
         return false;
       }
-      const parsed = extractNotificationArray(data);
-      if (parsed.length > 0) {
-        const updatedMap = new Map(parsed.map(item => [item.id, item] as const));
+    },
+    [authorizedFetch, setNotifications]
+  );
+
+  const hideNotification = useCallback(
+    async (notificationId: number): Promise<boolean> => {
+      if (!notificationId) return false;
+      try {
+        const response = await authorizedFetch(`${BASE_URL}/notifications/${notificationId}/hide`, {
+          method: 'PATCH',
+          body: JSON.stringify({ is_hidden: true, hidden_at: new Date().toISOString() }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          console.warn('Error hiding notification', data);
+          return false;
+        }
+
+        const updated = extractNotificationArray(data)[0];
+        const fallbackHiddenAt = new Date().toISOString();
         setNotifications(prev =>
           sortNotifications(
-            prev.map(item => ({ ...item, ...(updatedMap.get(item.id) ?? { is_read: true }) }))
+            prev.map(item =>
+              item.id === notificationId
+                ? {
+                    ...item,
+                    ...(updated ?? {}),
+                    is_hidden: true,
+                    hidden_at: updated?.hidden_at ?? item.hidden_at ?? fallbackHiddenAt,
+                  }
+                : item
+            )
           )
         );
-      } else {
-        setNotifications(prev => prev.map(item => ({ ...item, is_read: true })));
+        return true;
+      } catch (error) {
+        console.warn('Error hiding notification', error);
+        return false;
       }
-      return true;
-    } catch (error) {
-      console.warn('Error marking all notifications as read', error);
-      return false;
-    }
-  }, [authorizedFetch, setNotifications]);
+    },
+    [authorizedFetch, setNotifications]
+  );
 
   const unreadCount = useMemo(
     () => notifications.filter(item => !item.is_read && !item.is_hidden).length,
@@ -368,8 +354,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       refreshNotifications,
       markAsRead,
       markAllAsRead,
+      hideNotification,
     }),
-    [loading, markAllAsRead, markAsRead, notifications, refreshNotifications, unreadCount]
+    [hideNotification, loading, markAllAsRead, markAsRead, notifications, refreshNotifications, unreadCount]
   );
 
   return <NotificationsContext.Provider value={contextValue}>{children}</NotificationsContext.Provider>;
