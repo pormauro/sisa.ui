@@ -10,7 +10,6 @@ import {
 import { useRouter } from 'expo-router';
 
 import { NotificationsContext, NotificationSeverity } from '@/contexts/NotificationsContext';
-import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
@@ -44,7 +43,6 @@ const severityOptions: NotificationSeverity[] = ['info', 'success', 'warning', '
 const SendNotificationScreen = () => {
   const router = useRouter();
   const { userId } = useContext(AuthContext);
-  const { permissions } = useContext(PermissionsContext);
   const { sendNotification } = useContext(NotificationsContext);
 
   const [title, setTitle] = useState('');
@@ -63,14 +61,11 @@ const SendNotificationScreen = () => {
   const tintColor = useThemeColor({}, 'tint');
   const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#40314f' }, 'background');
 
-  const canSend = useMemo(
-    () => userId === '1' || permissions.includes('sendNotifications'),
-    [permissions, userId],
-  );
+  const canSend = useMemo(() => userId === '1', [userId]);
 
   const handleSubmit = useCallback(async () => {
     if (!canSend) {
-      Alert.alert('Sin permisos', 'Solo el superusuario o quienes tengan "sendNotifications" pueden enviar.');
+      Alert.alert('Sin permisos', 'Solo el superusuario puede enviar notificaciones manuales.');
       return;
     }
 
@@ -169,12 +164,12 @@ const SendNotificationScreen = () => {
         <ThemedView style={[styles.container, { borderColor }]}> 
           <ThemedText style={styles.title}>Enviar notificación manual</ThemedText>
           <ThemedText style={styles.subtitle}>
-            Solo disponible para el superusuario (id=1) o cuentas con permiso sendNotifications.
+            Solo disponible para el superusuario (id=1). El resto de los usuarios no puede acceder.
           </ThemedText>
 
           {!canSend && (
             <ThemedText style={styles.warning}>
-              No tenés permisos para enviar notificaciones. Iniciá sesión como superusuario o pedí acceso.
+              No tenés permisos para enviar notificaciones. Iniciá sesión como superusuario para continuar.
             </ThemedText>
           )}
 
