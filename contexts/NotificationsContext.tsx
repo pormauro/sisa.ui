@@ -9,11 +9,12 @@ import React, {
 } from 'react';
 
 import { AuthContext } from '@/contexts/AuthContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
-export type NotificationFilter = 'all' | 'unread';
+export type NotificationFilter = 'all' | 'unread' | 'read';
 
 export interface NotificationEntry {
   id: number;
@@ -162,6 +163,7 @@ const mergeNotification = (
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { token, userId, isLoading: authIsLoading } = useContext(AuthContext);
+  const configContext = useContext(ConfigContext);
   const [notifications, setNotifications, notificationsHydrated] = useCachedState<NotificationEntry[]>(
     'notifications',
     []
@@ -232,27 +234,44 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       }
       setLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (filter === 'unread') {
-          params.append('status', 'unread');
-        }
-        const url = `${BASE_URL}/notifications${params.toString() ? `?${params}` : ''}`;
-        const response = await authorizedFetch(url);
+        const response = await authorizedFetch(`${BASE_URL}/notifications`);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
           console.warn('Error loading notifications', data);
           return;
         }
         const parsed = extractNotificationArray(data);
-        setNotifications(sortNotifications(parsed));
+        const shouldClearWhenNoUnread =
+          configContext?.configDetails?.clear_notifications_when_unread_empty ?? false;
+        setNotifications(prev => {
+          const merged = sortNotifications([
+            ...parsed,
+            ...prev.filter(item => !parsed.some(fetched => fetched.id === item.id)),
+          ]);
+          const hasUnread = merged.some(item => !item.is_read && !item.is_hidden);
+          if (filter === 'unread' && shouldClearWhenNoUnread && !hasUnread) {
+            return [];
+          }
+          return merged;
+        });
       } catch (error) {
         console.warn('Error loading notifications', error);
       } finally {
         setLoading(false);
       }
     },
-    [authorizedFetch, setNotifications, token]
+    [authorizedFetch, configContext?.configDetails?.clear_notifications_when_unread_empty, setNotifications, token]
   );
+
+  useEffect(() => {
+    if (!token) return;
+    const intervalId = setInterval(() => {
+      void refreshNotifications();
+    }, 60000);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [refreshNotifications, token]);
 
   const markAsRead = useCallback(
     async (notificationId: number): Promise<boolean> => {

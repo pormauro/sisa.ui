@@ -105,6 +105,9 @@ const NotificationsScreen = () => {
         if (filter === 'unread') {
           return !notification.is_read;
         }
+        if (filter === 'read') {
+          return notification.is_read;
+        }
         return true;
       }),
     [filter, notifications]
@@ -191,6 +194,14 @@ const NotificationsScreen = () => {
           No leídas ({unreadCount})
         </ThemedText>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.filterChip, filter === 'read' && { backgroundColor: tintColor }]}
+        onPress={() => setFilter('read')}
+      >
+        <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>
+          Leídas
+        </ThemedText>
+      </TouchableOpacity>
       <ThemedButton
         title="Marcar todas"
         onPress={() =>
@@ -224,10 +235,11 @@ const NotificationsScreen = () => {
             contentContainerStyle={styles.listContent}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={
-              <View style={[styles.emptyStateContainer, { borderColor }]}> 
+              <View style={[styles.emptyStateContainer, { borderColor }]}>
                 <ThemedText style={styles.emptyTitle}>Sin notificaciones</ThemedText>
                 <ThemedText style={styles.emptyDescription}>
-                  No encontramos notificaciones {filter === 'unread' ? 'sin leer' : 'cargadas'}.
+                  No encontramos notificaciones
+                  {filter === 'unread' ? ' sin leer' : filter === 'read' ? ' leídas' : ' cargadas'}.
                 </ThemedText>
                 <ThemedButton title="Recargar" onPress={() => void refreshNotifications(filter)} />
               </View>
