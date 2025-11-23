@@ -79,6 +79,9 @@ const NotificationCard = ({
 }) => {
   const pillColors = severityStyle(item.severity, border);
   const state = { ...DEFAULT_NOTIFICATION_STATE, ...item.state };
+  const createdAt =
+    item.timestamps?.created_at ?? item.timestamps?.sent_at ?? item.timestamps?.scheduled_at;
+  const createdAtLabel = createdAt ? formatDateTime(createdAt) : 'Fecha no disponible';
   return (
     <ThemedView style={[styles.card, { borderColor: border, opacity: state.is_hidden ? 0.6 : 1 }]}>
       <View style={styles.cardHeader}>
@@ -105,7 +108,7 @@ const NotificationCard = ({
 
       <View style={styles.metaRow}>
         <ThemedText style={styles.metaText}>
-          Creada: {formatDateTime(item.timestamps.created_at ?? item.timestamps.sent_at)}
+          Creada: {createdAtLabel}
         </ThemedText>
         {item.company_id !== null && (
           <ThemedText style={styles.metaText}>Empresa #{item.company_id}</ThemedText>
