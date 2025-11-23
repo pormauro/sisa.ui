@@ -282,7 +282,7 @@ const FileItem: React.FC<FileItemProps> = ({
       {showInvoiceToggle && file.isInvoice && (
         <View style={styles.invoiceBadge} pointerEvents="none">
           <MaterialCommunityIcons name="file-document-check-outline" size={16} color="#fff" />
-          <Text style={styles.invoiceBadgeText}>Factura</Text>
+          <Text style={styles.invoiceBadgeText}>IS IN VOICE</Text>
         </View>
       )}
       <View style={[styles.previewContainer, file.isInvoice && styles.invoicePreview]}>
@@ -343,7 +343,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     if (invoiceMarkingEnabled) {
       const payload = files.map(f => ({
         id: f.id,
-        is_invoice: !!f.isInvoice,
+        ...(f.isInvoice ? { is_invoice: true } : {}),
       }));
       onChangeFilesJson(JSON.stringify(payload));
       return;
@@ -696,11 +696,6 @@ const handleAddCameraFile = async () => {
         )}
       </ScrollView>
       {previewModal}
-      {invoiceMarkingEnabled && isEditable && (
-        <Text style={styles.invoiceHint}>
-          Mantené presionado un archivo para marcarlo o desmarcarlo como factura real. Un toque corto lo abre como siempre.
-        </Text>
-      )}
     </>
   );
 };
@@ -745,7 +740,7 @@ const styles = StyleSheet.create({
   invoiceOverlay: {
     position: 'absolute',
     top: 10,
-    right: 10,
+    left: 10,
     zIndex: 2,
     backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 20,
@@ -860,13 +855,6 @@ const styles = StyleSheet.create({
   },
   pdfWebContainer: {
     backgroundColor: '#fff',
-  },
-  invoiceHint: {
-    marginTop: 8,
-    marginHorizontal: 10,
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#555',
   },
   invoiceBadge: {
     position: 'absolute',
