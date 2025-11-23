@@ -2732,6 +2732,16 @@
                 {
                   "key": "only_unread",
                   "value": "false"
+                },
+                {
+                  "key": "event_key",
+                  "value": "generic.event",
+                  "description": "Opcional. Filtra por clave de evento cuando la instalación tiene la columna event_key."
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Opcional. Texto libre para buscar en título/cuerpo."
                 }
               ]
             },
