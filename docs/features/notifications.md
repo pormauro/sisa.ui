@@ -16,21 +16,164 @@ Un `NotificationService` en PHP centraliza la creación de eventos y su asignaci
 Esta capa evita lógica duplicada en controladores y mantiene la idempotencia utilizando `source_history_id` cuando se dispara desde `history`.
 
 ## Endpoints y reglas de negocio
+Todas las rutas exigen `Authorization: Bearer <token>` salvo el login. El backend valida que el `company_id` recibido sea numérico y rechaza `since` con formato inválido.
+
 ### Listado
 - `GET /notifications?status=unread|read|all&company_id=&limit=&since=`: retorna las notificaciones del usuario autenticado. Filtra por estado y fecha (`since` en `YYYY-MM-DD HH:MM:SS`) y ordena por `created_at` descendente.
 - `GET /notifications/read`: atajo para obtener únicamente las leídas, con los mismos filtros opcionales.
+
+**Respuestas**
+- 200 OK
+  ```json
+  {
+    "notifications": [
+      {
+        "id": 32,
+        "company_id": 7,
+        "type": "manual",
+        "title": "Recordatorio de pago",
+        "body": "Factura 120 vence mañana",
+        "source": {
+          "table": "invoices",
+          "id": 120,
+          "history_id": 980
+        },
+        "payload": {"cta": "/invoices/120"},
+        "severity": "info",
+        "created_by_user_id": 1,
+        "timestamps": {
+          "created_at": "2024-12-17 09:45:00",
+          "scheduled_at": null,
+          "sent_at": null,
+          "expires_at": null
+        },
+        "state": {
+          "is_read": false,
+          "read_at": null,
+          "is_hidden": false,
+          "hidden_at": null
+        }
+      }
+    ]
+  }
+  ```
+- 400 Bad Request (ej. `since` inválido):
+  ```json
+  { "error": "Invalid datetime format for since" }
+  ```
 
 ### Estado de lectura
 - `PATCH /notifications/{id}/read`: marca como leída la notificación para el usuario actual; no permite revertir a no leído. El cuerpo acepta `read_at` opcional para registrar la marca.
 - `POST /notifications/mark-all-read`: marca todas las notificaciones visibles como leídas y devuelve el número actualizado. Se puede limitar por `company_id`.
 
+**Respuestas**
+- 200 OK (individual)
+  ```json
+  {
+    "message": "Notification marked as read",
+    "notification": {
+      "id": 32,
+      "company_id": 7,
+      "type": "manual",
+      "title": "Recordatorio de pago",
+      "body": "Factura 120 vence mañana",
+      "source": {"table": "invoices", "id": 120, "history_id": 980},
+      "payload": {"cta": "/invoices/120"},
+      "severity": "info",
+      "created_by_user_id": 1,
+      "timestamps": {
+        "created_at": "2024-12-17 09:45:00",
+        "scheduled_at": null,
+        "sent_at": null,
+        "expires_at": null
+      },
+      "state": {
+        "is_read": true,
+        "read_at": "2024-12-18 08:00:00",
+        "is_hidden": false,
+        "hidden_at": null
+      }
+    }
+  }
+  ```
+- 404 Not Found (individual):
+  ```json
+  { "error": "Notification not found" }
+  ```
+- 200 OK (lote)
+  ```json
+  { "message": "Notifications marked as read", "updated_count": 12 }
+  ```
+- 400 Bad Request (lote):
+  ```json
+  { "error": "company_id must be numeric" }
+  ```
+
 ### Ocultar
 - `PATCH /notifications/{id}/hide`: actualiza `is_hidden` y opcionalmente `hidden_at` para el usuario autenticado.
+
+**Respuestas**
+- 200 OK
+  ```json
+  {
+    "message": "Notification hidden",
+    "notification": {
+      "id": 32,
+      "company_id": 7,
+      "type": "manual",
+      "title": "Recordatorio de pago",
+      "body": "Factura 120 vence mañana",
+      "source": {"table": "invoices", "id": 120, "history_id": 980},
+      "payload": {"cta": "/invoices/120"},
+      "severity": "info",
+      "created_by_user_id": 1,
+      "timestamps": {
+        "created_at": "2024-12-17 09:45:00",
+        "scheduled_at": null,
+        "sent_at": null,
+        "expires_at": null
+      },
+      "state": {
+        "is_read": true,
+        "read_at": "2024-12-18 08:00:00",
+        "is_hidden": true,
+        "hidden_at": "2024-12-18 10:15:00"
+      }
+    }
+  }
+  ```
+- 404 Not Found:
+  ```json
+  { "error": "Notification not found" }
+  ```
 
 ### Envío manual (solo superusuario)
 - `POST /notifications/send`: crea una notificación manual y asigna usuarios específicos. Solo el bearer token del superusuario (`id = 1`) está autorizado; la verificación se fuerza en backend aunque exista un permiso UI `sendNotifications` para reflejar la acción.
 - Requiere `title`, `body` y al menos un `user_id` (ya sea `user_id` o `user_ids`). Acepta `company_id`, `source_table`, `source_id`, `source_history_id`, `payload` y `severity` (`info|success|warning|error`).
-- Respuesta `201` detalla `notification_id`, `recipients.sent_to` y `recipients.invalid_user_ids` para depurar IDs inexistentes. Errores frecuentes incluyen `400` por IDs inválidos, `403` por no ser superusuario y `404` cuando se intenta modificar notificaciones inexistentes.
+
+**Respuestas**
+- 201 Created
+  ```json
+  {
+    "message": "Notificación de prueba enviada",
+    "notification_id": 445,
+    "recipients": {
+      "sent_to": [2, 3],
+      "invalid_user_ids": [99]
+    }
+  }
+  ```
+- 400 Bad Request (IDs inválidos):
+  ```json
+  {
+    "error": "Ninguno de los usuarios indicados existe en el sistema",
+    "invalid_user_ids": [99]
+  }
+  ```
+- 403 Forbidden (no superusuario):
+  ```json
+  { "error": "Solo el superusuario puede enviar notificaciones de prueba", "code": "FORBIDDEN" }
+  ```
 
 ## Integración con la app y permisos
 - Cualquier nueva sección de la app relacionada con notificaciones debe agregarse al esquema de permisos para que los menús y botones se habiliten correctamente.
