@@ -281,6 +281,14 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     };
   }, [refreshNotifications, token]);
 
+  useEffect(() => {
+    if (authIsLoading || !token || !notificationsHydrated || !cachedOwnerHydrated) {
+      return;
+    }
+
+    void refreshNotifications();
+  }, [authIsLoading, cachedOwnerHydrated, notificationsHydrated, refreshNotifications, token, userId]);
+
   const markAsRead = useCallback(
     async (notificationId: number): Promise<boolean> => {
       if (!notificationId) {
