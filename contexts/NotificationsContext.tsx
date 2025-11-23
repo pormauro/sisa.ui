@@ -4,7 +4,6 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -167,32 +166,43 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     'notifications',
     []
   );
+  const [cachedOwnerId, setCachedOwnerId, cachedOwnerHydrated] = useCachedState<string | null>(
+    'notifications.owner',
+    null
+  );
   const [loading, setLoading] = useState(false);
-  const previousUserIdRef = useRef<string | null>(null);
 
   const clearCachedNotifications = useCallback(() => {
     setNotifications(prev => (prev.length > 0 ? [] : prev));
   }, [setNotifications]);
 
   useEffect(() => {
-    if (!notificationsHydrated) {
+    if (!notificationsHydrated || !cachedOwnerHydrated) {
       return;
     }
 
     if (!authIsLoading && !userId) {
       clearCachedNotifications();
-      previousUserIdRef.current = null;
+      setCachedOwnerId(null);
       return;
     }
 
-    if (userId && previousUserIdRef.current && previousUserIdRef.current !== userId) {
+    if (userId && cachedOwnerId && cachedOwnerId !== userId) {
       clearCachedNotifications();
     }
 
-    if (userId !== previousUserIdRef.current) {
-      previousUserIdRef.current = userId ?? null;
+    if (userId !== cachedOwnerId && !authIsLoading) {
+      setCachedOwnerId(userId ?? null);
     }
-  }, [authIsLoading, clearCachedNotifications, notificationsHydrated, userId]);
+  }, [
+    authIsLoading,
+    cachedOwnerHydrated,
+    cachedOwnerId,
+    clearCachedNotifications,
+    notificationsHydrated,
+    setCachedOwnerId,
+    userId,
+  ]);
 
   const authorizedFetch = useCallback(
     async (url: string, options?: RequestInit) => {
