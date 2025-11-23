@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthContext } from '@/contexts/AuthContext';
 import { NotificationsContext } from '@/contexts/NotificationsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
 const clampBadgeCount = (value: number) => {
@@ -20,6 +21,7 @@ export const NotificationsBell = () => {
   const { username, isLoading: authLoading } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { notifications, unreadCount, refreshNotifications } = useContext(NotificationsContext);
+  const { configDetails } = useContext(ConfigContext) ?? {};
 
   const canListNotifications = useMemo(
     () =>
@@ -34,6 +36,11 @@ export const NotificationsBell = () => {
     [notifications]
   );
 
+  const shouldHideBell = useMemo(
+    () => (configDetails?.clear_notifications_when_unread_empty ?? false) && unreadCount === 0,
+    [configDetails?.clear_notifications_when_unread_empty, unreadCount]
+  );
+
   useEffect(() => {
     if (authLoading || !username || !canListNotifications) return;
     void refreshNotifications();
@@ -43,7 +50,7 @@ export const NotificationsBell = () => {
   const borderColor = useThemeColor({ light: 'rgba(15, 23, 42, 0.15)', dark: 'rgba(255, 255, 255, 0.25)' }, 'background');
   const iconColor = useThemeColor({}, 'tint');
 
-  if (authLoading || !username || !canListNotifications || !hasVisibleNotifications) {
+  if (authLoading || !username || !canListNotifications || !hasVisibleNotifications || shouldHideBell) {
     return null;
   }
 
