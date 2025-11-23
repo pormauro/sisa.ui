@@ -262,7 +262,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       try {
         const response = await authorizedFetch(`${BASE_URL}/notifications/${notificationId}/read`, {
           method: 'PATCH',
-          body: JSON.stringify({ is_read: true }),
+          body: JSON.stringify({ read: true, read_at: new Date().toISOString() }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -299,7 +299,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       try {
         const response = await authorizedFetch(`${BASE_URL}/notifications/${notificationId}/read`, {
           method: 'PATCH',
-          body: JSON.stringify({ is_read: false }),
+          body: JSON.stringify({ read: false, read_at: null }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -312,7 +312,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
           setNotifications(prev => mergeNotification(prev, updated));
         } else {
           setNotifications(prev =>
-            prev.map(item => (item.id === notificationId ? { ...item, is_read: false } : item))
+            prev.map(item => (item.id === notificationId ? { ...item, is_read: false, read_at: null } : item))
           );
         }
         return true;
