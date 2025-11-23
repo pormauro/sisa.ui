@@ -64,15 +64,9 @@ const formatDateTime = (value?: string | null): string => {
 
 const NotificationCard = ({
   item,
-  onHide,
-  canHide,
-  accent,
   border,
 }: {
   item: NotificationEntry;
-  onHide: (id: number) => void;
-  canHide: boolean;
-  accent: string;
   border: string;
 }) => {
   const pillColors = severityStyle(item.severity, border);
@@ -108,8 +102,8 @@ const NotificationCard = ({
         <ThemedText style={styles.metaText}>
           Creada: {createdAtLabel}
         </ThemedText>
-        {item.company_id !== null && (
-          <ThemedText style={styles.metaText}>Empresa #{item.company_id}</ThemedText>
+        {item.company_name && (
+          <ThemedText style={styles.metaText}>{item.company_name}</ThemedText>
         )}
       </View>
 
@@ -120,17 +114,6 @@ const NotificationCard = ({
         </ThemedText>
       )}
 
-      {canHide && (
-        <View style={styles.actionsRow}>
-          {canHide && !state.is_hidden && (
-            <ThemedButton
-              title="Ocultar"
-              onPress={() => onHide(item.id)}
-              style={[styles.actionButton, { backgroundColor: '#6B7280' }]}
-            />
-          )}
-        </View>
-      )}
     </ThemedView>
   );
 };
@@ -143,7 +126,6 @@ const NotificationsScreen = () => {
     notifications,
     loadNotifications,
     markAsRead,
-    hideNotification,
     markAllAsRead,
     loading,
     filters,
@@ -161,10 +143,6 @@ const NotificationsScreen = () => {
 
   const canList = useMemo(
     () => userId === '1' || permissions.includes('listNotifications'),
-    [permissions, userId],
-  );
-  const canHide = useMemo(
-    () => userId === '1' || permissions.includes('hideNotification'),
     [permissions, userId],
   );
   const canMarkAll = useMemo(
@@ -189,13 +167,6 @@ const NotificationsScreen = () => {
       setRefreshing(false);
     }
   }, [canList, loadNotifications, selectedStatus]);
-
-  const handleHide = useCallback(
-    (id: number) => {
-      void hideNotification(id, { hidden_at: new Date().toISOString() });
-    },
-    [hideNotification],
-  );
 
   const handleMarkAll = useCallback(async () => {
     const updated = await markAllAsRead({ company_id: 0 });
@@ -321,9 +292,6 @@ const NotificationsScreen = () => {
             <TouchableOpacity onPress={() => handleOpenNotification(item)} activeOpacity={0.9}>
               <NotificationCard
                 item={item}
-                onHide={handleHide}
-                canHide={canHide}
-                accent={tintColor}
                 border={borderColor}
               />
             </TouchableOpacity>
@@ -453,17 +421,6 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 13,
     color: '#6b7280',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
-    flexWrap: 'wrap',
-  },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
   },
   loadingContainer: {
     flex: 1,
