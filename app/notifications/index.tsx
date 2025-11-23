@@ -27,6 +27,17 @@ const STATUS_FILTERS: { key: NotificationStatus; label: string }[] = [
   { key: 'read', label: 'Leídas' },
 ];
 
+const DEFAULT_NOTIFICATION_STATE = {
+  is_read: false,
+  read_at: null,
+  is_hidden: false,
+  hidden_at: null,
+  delivered_in_app: false,
+  delivered_email: false,
+  delivered_push: false,
+  last_delivered_at: null,
+};
+
 const severityStyle = (
   severity: NotificationEntry['severity'],
   fallbackBackground: string,
@@ -67,10 +78,9 @@ const NotificationCard = ({
   border: string;
 }) => {
   const pillColors = severityStyle(item.severity, border);
+  const state = { ...DEFAULT_NOTIFICATION_STATE, ...item.state };
   return (
-    <ThemedView
-      style={[styles.card, { borderColor: border, opacity: item.state.is_hidden ? 0.6 : 1 }]}
-    >
+    <ThemedView style={[styles.card, { borderColor: border, opacity: state.is_hidden ? 0.6 : 1 }]}>
       <View style={styles.cardHeader}>
         <View style={[styles.pill, { backgroundColor: pillColors.backgroundColor }]}>
           <ThemedText style={[styles.pillText, { color: pillColors.color }]}>
@@ -79,15 +89,12 @@ const NotificationCard = ({
         </View>
         <View style={styles.stateContainer}>
           <View
-            style={[
-              styles.stateDot,
-              { backgroundColor: item.state.is_read ? '#10B981' : '#F97316' },
-            ]}
+            style={[styles.stateDot, { backgroundColor: state.is_read ? '#10B981' : '#F97316' }]}
           />
           <ThemedText style={styles.stateText}>
-            {item.state.is_read ? 'Leída' : 'Pendiente'}
+            {state.is_read ? 'Leída' : 'Pendiente'}
           </ThemedText>
-          {item.state.is_hidden && <ThemedText style={styles.hiddenBadge}>Oculta</ThemedText>}
+          {state.is_hidden && <ThemedText style={styles.hiddenBadge}>Oculta</ThemedText>}
         </View>
       </View>
 
@@ -114,14 +121,14 @@ const NotificationCard = ({
 
       {(canMarkRead || canHide) && (
         <View style={styles.actionsRow}>
-          {canMarkRead && !item.state.is_read && (
+          {canMarkRead && !state.is_read && (
             <ThemedButton
               title="Marcar como leída"
               onPress={() => onMarkRead(item.id)}
               style={[styles.actionButton, { backgroundColor: accent }]}
             />
           )}
-          {canHide && !item.state.is_hidden && (
+          {canHide && !state.is_hidden && (
             <ThemedButton
               title="Ocultar"
               onPress={() => onHide(item.id)}
@@ -217,13 +224,17 @@ const NotificationsScreen = () => {
 
   const filteredNotifications = useMemo(() => {
     if (!canList) return [];
+    const safeNotifications = notifications.map(item => ({
+      ...item,
+      state: { ...DEFAULT_NOTIFICATION_STATE, ...item.state },
+    }));
     if (selectedStatus === 'unread') {
-      return notifications.filter(item => !item.state.is_read && !item.state.is_hidden);
+      return safeNotifications.filter(item => !item.state.is_read && !item.state.is_hidden);
     }
     if (selectedStatus === 'read') {
-      return notifications.filter(item => item.state.is_read);
+      return safeNotifications.filter(item => item.state.is_read);
     }
-    return notifications.filter(item => !item.state.is_hidden);
+    return safeNotifications.filter(item => !item.state.is_hidden);
   }, [canList, notifications, selectedStatus]);
 
   const unreadCount = useMemo(
