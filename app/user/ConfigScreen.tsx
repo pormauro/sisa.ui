@@ -2,7 +2,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, ScrollView, Alert, View, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-// eslint-disable-next-line import/namespace
 import { ConfigContext } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
 import { ThemedText } from '@/components/ThemedText';
@@ -22,7 +21,6 @@ const ConfigScreen: React.FC = () => {
   const { cashBoxes } = useContext(CashBoxesContext);
   const [defaultPaymentCashBox, setDefaultPaymentCashBox] = useState<string>('');
   const [defaultReceivingCashBox, setDefaultReceivingCashBox] = useState<string>('');
-  const [clearNotificationsWhenUnreadEmpty, setClearNotificationsWhenUnreadEmpty] = useState(false);
 
   useEffect(() => {
     // Cargamos la configuración (loadConfig se ejecuta al montar el provider, pero aquí se puede refrescar)
@@ -43,9 +41,6 @@ const ConfigScreen: React.FC = () => {
         configDetails.default_receiving_cash_box_id !== null
           ? String(configDetails.default_receiving_cash_box_id)
           : ''
-      );
-      setClearNotificationsWhenUnreadEmpty(
-        Boolean(configDetails.clear_notifications_when_unread_empty)
       );
     }
   }, [configDetails]);
@@ -155,18 +150,6 @@ const ConfigScreen: React.FC = () => {
     });
   };
 
-  const handleClearNotificationsWhenUnreadEmptyChange = (value: boolean): void => {
-    setClearNotificationsWhenUnreadEmpty(value);
-    if (!configDetails) {
-      return;
-    }
-
-    void updateConfig({
-      ...configDetails,
-      clear_notifications_when_unread_empty: value,
-    });
-  };
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: background }]}
@@ -221,21 +204,6 @@ const ConfigScreen: React.FC = () => {
           </View>
           <ThemedText style={styles.switchHint}>
             Al activarlo se ocultará el indicador flotante de errores.
-          </ThemedText>
-          <View style={styles.switchRow}>
-            <ThemedText style={styles.switchLabel}>
-              Ocultar notificaciones cuando no queden sin leer
-            </ThemedText>
-            <Switch
-              value={clearNotificationsWhenUnreadEmpty}
-              onValueChange={handleClearNotificationsWhenUnreadEmptyChange}
-              trackColor={{ false: '#9ca3af', true: accentColor }}
-              thumbColor={clearNotificationsWhenUnreadEmpty ? accentColor : '#f4f3f4'}
-              ios_backgroundColor="#9ca3af"
-            />
-          </View>
-          <ThemedText style={styles.switchHint}>
-            Si está activo, al filtrar por “No leídas” y no haber pendientes, se ocultará la lista.
           </ThemedText>
           <ThemedText style={styles.selectLabel}>Caja por defecto para cobros</ThemedText>
           <SearchableSelect

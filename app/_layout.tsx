@@ -23,7 +23,6 @@ import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { CommentsProvider } from '@/contexts/CommentsContext';
-import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -31,7 +30,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
-import { NotificationsBell } from '@/components/NotificationsBell';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { LogProvider } from '@/contexts/LogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
@@ -105,15 +103,12 @@ export default function RootLayout() {
                                                       <ReceiptsProvider>
                                                         <FoldersProvider>
                                                           <CommentsProvider>
-                                                            <NotificationsProvider>
-                                                              <PendingSelectionProvider>
-                                                                <>
-                                                                  <RootLayoutContent />
-                                                                  <NotificationsBell />
-                                                                  <LogOverlay />
-                                                                </>
-                                                              </PendingSelectionProvider>
-                                                            </NotificationsProvider>
+                                                            <PendingSelectionProvider>
+                                                              <>
+                                                                <RootLayoutContent />
+                                                                <LogOverlay />
+                                                              </>
+                                                            </PendingSelectionProvider>
                                                           </CommentsProvider>
                                                         </FoldersProvider>
                                                       </ReceiptsProvider>
