@@ -19,10 +19,11 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Permisos requeridos
 - El botón del menú se muestra con `listNotifications` o, en su defecto, con los permisos de marcado masivo o individual (`markNotificationRead`, `markAllNotificationsRead`).【F:constants/menuSections.ts†L78-L85】
 - La pantalla de permisos ya agrupa las capacidades de listado y marcado dentro del grupo "Notifications".【F:app/permission/PermissionScreen.tsx†L80-L86】
+- Las pantallas rechazan el acceso si el usuario no cuenta con alguno de esos permisos y bloquean los toggles de lectura cuando falta `markNotificationRead` o `markAllNotificationsRead`.【F:app/notifications/index.tsx†L72-L137】【F:app/notifications/[id].tsx†L26-L65】
 
 ### Pantallas relacionadas
 - `app/notifications/index.tsx` lista, filtra por no leídas, permite marcar leída/no leída desde el propio ítem y disparar el marcado masivo.【F:app/notifications/index.tsx†L1-L215】
-- `app/notifications/[id].tsx` muestra el detalle, metadatos y acciones de lectura para una notificación puntual, con manejos de estados inválidos o faltantes.【F:app/notifications/[id].tsx†L1-L168】
+- `app/notifications/[id].tsx` muestra el detalle, metadatos y acciones de lectura para una notificación puntual, con manejos de estados inválidos o faltantes, y valida los permisos antes de recargar o alternar la lectura.【F:app/notifications/[id].tsx†L1-L168】
 
 ## Clientes (`ClientsContext`)
 ### Modelo

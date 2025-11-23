@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { NotificationsContext, type NotificationEntry } from '@/contexts/NotificationsContext';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
@@ -29,6 +30,7 @@ const NotificationDetailScreen = () => {
   }, [paramId]);
 
   const { notifications, refreshNotifications, markAsRead, markAsUnread } = useContext(NotificationsContext);
+  const { permissions } = useContext(PermissionsContext);
   const [loading, setLoading] = useState(false);
   const [localItem, setLocalItem] = useState<NotificationEntry | undefined>(undefined);
 
@@ -39,6 +41,20 @@ const NotificationDetailScreen = () => {
   const spinnerColor = useThemeColor({}, 'tint');
   const tintColor = useThemeColor({}, 'tint');
 
+  const canListNotifications =
+    permissions.includes('listNotifications') ||
+    permissions.includes('markNotificationRead') ||
+    permissions.includes('markAllNotificationsRead');
+  const canMarkNotification = permissions.includes('markNotificationRead');
+
+  useEffect(() => {
+    if (permissions.length === 0) return;
+    if (!canListNotifications) {
+      Alert.alert('Acceso denegado', 'No tienes permisos para ver notificaciones.');
+      router.back();
+    }
+  }, [canListNotifications, permissions.length, router]);
+
   useEffect(() => {
     if (notificationId === null) return;
     const match = notifications.find(item => item.id === notificationId);
@@ -46,20 +62,24 @@ const NotificationDetailScreen = () => {
   }, [notificationId, notifications]);
 
   useEffect(() => {
-    if (notificationId === null) return;
+    if (notificationId === null || !canListNotifications) return;
     setLoading(true);
     void refreshNotifications().finally(() => setLoading(false));
-  }, [notificationId, refreshNotifications]);
+  }, [canListNotifications, notificationId, refreshNotifications]);
 
   const toggleRead = useCallback(async () => {
     if (!localItem) return;
+    if (!canMarkNotification) {
+      Alert.alert('Acceso denegado', 'No tienes permisos para actualizar notificaciones.');
+      return;
+    }
     const success = localItem.is_read
       ? await markAsUnread(localItem.id)
       : await markAsRead(localItem.id);
     if (!success) {
       Alert.alert('Error', 'No se pudo actualizar el estado de lectura.');
     }
-  }, [localItem, markAsRead, markAsUnread]);
+  }, [canMarkNotification, localItem, markAsRead, markAsUnread]);
 
   if (notificationId === null) {
     return (

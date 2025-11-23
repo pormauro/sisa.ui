@@ -1,6 +1,7 @@
-import React, { useCallback, useContext, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useMemo, useState, useEffect } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -12,6 +13,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { NotificationsContext, type NotificationEntry, type NotificationFilter } from '@/contexts/NotificationsContext';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedButton } from '@/components/ThemedButton';
@@ -87,6 +89,7 @@ const NotificationsScreen = () => {
   const router = useRouter();
   const { notifications, loading, refreshNotifications, markAsRead, markAsUnread, markAllAsRead, unreadCount } =
     useContext(NotificationsContext);
+  const { permissions } = useContext(PermissionsContext);
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -107,30 +110,58 @@ const NotificationsScreen = () => {
     [filter, notifications]
   );
 
+  const canListNotifications = useMemo(
+    () =>
+      permissions.includes('listNotifications') ||
+      permissions.includes('markNotificationRead') ||
+      permissions.includes('markAllNotificationsRead'),
+    [permissions]
+  );
+
+  const canMarkNotification = permissions.includes('markNotificationRead');
+  const canMarkAllNotifications = permissions.includes('markAllNotificationsRead');
+
+  useEffect(() => {
+    if (permissions.length === 0) return;
+    if (!canListNotifications) {
+      Alert.alert('Acceso denegado', 'No tienes permisos para ver notificaciones.');
+      router.back();
+    }
+  }, [canListNotifications, permissions.length, router]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refreshNotifications(filter);
+      if (canListNotifications) {
+        await refreshNotifications(filter);
+      }
     } finally {
       setRefreshing(false);
     }
-  }, [filter, refreshNotifications]);
+  }, [canListNotifications, filter, refreshNotifications]);
 
   useFocusEffect(
     useCallback(() => {
+      if (!canListNotifications) {
+        return;
+      }
       void refreshNotifications(filter);
-    }, [filter, refreshNotifications])
+    }, [canListNotifications, filter, refreshNotifications])
   );
 
   const toggleRead = useCallback(
     async (item: NotificationEntry) => {
+      if (!canMarkNotification) {
+        Alert.alert('Acceso denegado', 'No tienes permisos para actualizar notificaciones.');
+        return;
+      }
       if (item.is_read) {
         await markAsUnread(item.id);
       } else {
         await markAsRead(item.id);
       }
     },
-    [markAsRead, markAsUnread]
+    [canMarkNotification, markAsRead, markAsUnread]
   );
 
   const renderItem = useCallback(
@@ -162,9 +193,14 @@ const NotificationsScreen = () => {
       </TouchableOpacity>
       <ThemedButton
         title="Marcar todas"
-        onPress={() => void markAllAsRead()}
+        onPress={() =>
+          canMarkAllNotifications
+            ? void markAllAsRead()
+            : Alert.alert('Acceso denegado', 'No tienes permisos para marcar todas las notificaciones como leídas.')
+        }
         style={[styles.markAllButton, { backgroundColor: tintColor }]}
         textStyle={styles.markAllText}
+        disabled={!canMarkAllNotifications}
       />
     </View>
   );
