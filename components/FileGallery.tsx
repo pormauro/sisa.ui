@@ -285,17 +285,24 @@ const FileItem: React.FC<FileItemProps> = ({
           <Text style={styles.invoiceBadgeText}>Factura</Text>
         </View>
       )}
-      {isImage ? (
-        <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
-      ) : isVideo ? (
-        <VideoThumbnail uri={file.previewUri} />
-      ) : isPdf ? (
-        <PdfThumbnail title={file.originalName} />
-      ) : (
-        <View style={[styles.media, styles.defaultIcon]}>
-          <Text style={styles.iconText}>{file.originalName}</Text>
-        </View>
-      )}
+      <View style={[styles.previewContainer, file.isInvoice && styles.invoicePreview]}>
+        {file.isInvoice && (
+          <View style={styles.invoiceOverlay} pointerEvents="none">
+            <MaterialCommunityIcons name="file-document-check-outline" size={24} color="#2e7d32" />
+          </View>
+        )}
+        {isImage ? (
+          <Image source={{ uri: file.previewUri }} style={styles.media} resizeMode="cover" />
+        ) : isVideo ? (
+          <VideoThumbnail uri={file.previewUri} />
+        ) : isPdf ? (
+          <PdfThumbnail title={file.originalName} />
+        ) : (
+          <View style={[styles.media, styles.defaultIcon]}>
+            <Text style={styles.iconText}>{file.originalName}</Text>
+          </View>
+        )}
+      </View>
       {editable && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(file.id)}>
           <Text style={styles.deleteButtonText}>Delete</Text>
@@ -715,12 +722,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  previewContainer: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 0,
+    borderColor: 'transparent',
+  },
+  invoicePreview: {
+    borderWidth: 3,
+    borderColor: '#2e7d32',
+  },
   loadingContainer: {
     backgroundColor: '#ddd',
-  },  
+  },
   media: {
     width: '100%',
     height: '100%',
+  },
+  invoiceOverlay: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 2,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 20,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: '#2e7d32',
   },
   defaultIcon: {
     backgroundColor: '#ccc',
