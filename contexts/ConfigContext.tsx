@@ -116,8 +116,14 @@ export const ConfigProvider: React.FC<ConfigProviderProps> = ({ children }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        const configuration = normalizeConfig(data.configuration ?? {});
-        setConfigDetails(configuration);
+        setConfigDetails(prev => {
+          const mergedInput = {
+            ...(prev ?? {}),
+            ...(data.configuration ?? {}),
+          } as NormalizedConfigInput;
+
+          return normalizeConfig(mergedInput);
+        });
       } else {
         // Se evita usar console.error para prevenir pantallas rojas en ausencia de conexión
         console.log('Error al obtener la configuración');
