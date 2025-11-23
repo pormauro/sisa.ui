@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   Platform,
+  GestureResponderEvent,
 } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import * as ImagePicker from 'expo-image-picker';
@@ -243,7 +244,11 @@ const FileItem: React.FC<FileItemProps> = ({
       {showInvoiceToggle && (
         <TouchableOpacity
           style={styles.invoiceToggle}
-          onPress={() => onToggleInvoice?.(file.id)}
+          onPress={(event: GestureResponderEvent) => {
+            event.stopPropagation();
+            if (!editable) return;
+            onToggleInvoice?.(file.id);
+          }}
           disabled={!editable}
         >
           <MaterialCommunityIcons
