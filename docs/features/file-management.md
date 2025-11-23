@@ -39,6 +39,7 @@ Este documento resume cómo funciona la capa de gestión de archivos en la aplic
 
 - Cuando `FileGallery` se usa en el carrusel de **pagos** (`invoiceMarkingEnabled`), cada entrada de `filesJson` es un objeto `{ id, is_invoice }` que señala si el adjunto corresponde a una factura real.
 - La UI muestra un botón con icono de factura sobre cada tarjeta; el estado inactivo es gris y al activarlo se pinta de verde. Se puede marcar más de un archivo por pago.
+- Además, un **press prolongado sobre la tarjeta** alterna el estado de factura real sin dejar de respetar el toque corto para abrir o previsualizar el adjunto.
 - En modos de solo lectura (`editable={false}`) el indicador sigue mostrando el color correcto, pero no permite alternar el valor.
 
 ### Manejo de tipos y previsualizaciones

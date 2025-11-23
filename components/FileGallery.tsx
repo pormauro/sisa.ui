@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -169,6 +169,8 @@ const FileItem: React.FC<FileItemProps> = ({
   showInvoiceToggle,
   onToggleInvoice,
 }) => {
+  const longPressHandledRef = useRef(false);
+
   if (file.loading) {
     return (
       <View style={[styles.fileItem, styles.loadingContainer]}>
@@ -181,6 +183,12 @@ const FileItem: React.FC<FileItemProps> = ({
   const isImage = lowerType.includes('image');
   const isVideo = lowerType.includes('video');
   const isPdf = lowerType.includes('pdf');
+
+  const handleLongPress = () => {
+    if (!showInvoiceToggle || !editable) return;
+    longPressHandledRef.current = true;
+    onToggleInvoice?.(file.id);
+  };
 
   const handlePress = async () => {
     if (isImage || isVideo) {
@@ -239,8 +247,21 @@ const FileItem: React.FC<FileItemProps> = ({
     }
   };
 
+  const handlePressWrapper = () => {
+    if (longPressHandledRef.current) {
+      longPressHandledRef.current = false;
+      return;
+    }
+    void handlePress();
+  };
+
   return (
-    <TouchableOpacity style={styles.fileItem} onPress={handlePress}>
+    <TouchableOpacity
+      style={styles.fileItem}
+      onPress={handlePressWrapper}
+      onLongPress={handleLongPress}
+      delayLongPress={300}
+    >
       {showInvoiceToggle && (
         <TouchableOpacity
           style={styles.invoiceToggle}
@@ -641,6 +662,11 @@ const handleAddCameraFile = async () => {
         )}
       </ScrollView>
       {previewModal}
+      {invoiceMarkingEnabled && isEditable && (
+        <Text style={styles.invoiceHint}>
+          Mantené presionado un archivo para marcarlo o desmarcarlo como factura real. Un toque corto lo abre como siempre.
+        </Text>
+      )}
     </>
   );
 };
@@ -776,5 +802,12 @@ const styles = StyleSheet.create({
   },
   pdfWebContainer: {
     backgroundColor: '#fff',
+  },
+  invoiceHint: {
+    marginTop: 8,
+    marginHorizontal: 10,
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#555',
   },
 });
