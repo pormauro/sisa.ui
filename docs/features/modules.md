@@ -197,10 +197,12 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `POST ${BASE_URL}/payments` — alta.【F:contexts/PaymentsContext.tsx†L180-L201】
 - `PUT ${BASE_URL}/payments/{id}` — actualización.【F:contexts/PaymentsContext.tsx†L227-L246】
 - `DELETE ${BASE_URL}/payments/{id}` — baja.【F:contexts/PaymentsContext.tsx†L262-L274】
+- `POST ${BASE_URL}/payments/report/pdf` — genera el PDF consolidado de comprobantes reales adjuntos a pagos dentro de un rango de fechas, ahora centralizado en este módulo.【F:docs/features/payments-report.md†L6-L35】
 
 ### Permisos requeridos
 - `listPayments` habilita la vista general.【F:app/Home.tsx†L20-L37】【F:app/payments/index.tsx†L41-L133】
 - `addPayment`, `updatePayment`, `deletePayment` gobiernan formularios y acciones destructivas.【F:app/payments/create.tsx†L166-L206】【F:app/payments/[id].tsx†L29-L120】【F:app/payments/index.tsx†L145-L187】
+- `generatePaymentReport` permite solicitar el PDF consolidado de comprobantes de pagos con adjuntos de factura real.【F:docs/features/payments-report.md†L6-L35】
 
 ### Pantallas relacionadas
 - `app/payments/index.tsx` — listado con búsqueda y accesos a detalle/modales.【F:app/payments/index.tsx†L1-L187】
@@ -246,7 +248,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Endpoints protegidos: requieren `Authorization: Bearer <token>` en todas las llamadas posteriores al login, en sintonía con las [notas de integración](#notas-de-integración-con-el-backend).
 - Relaciones con clientes, trabajos o cobros se resuelven por identificadores sin claves foráneas en `sisa.api`, manteniendo la convención global del backend.
 - El menú "Gestión financiera" muestra la opción "Facturas" únicamente cuando el perfil cuenta con `listInvoices`, enlazando al listado principal del módulo.【F:constants/menuSections.ts†L44-L52】
-- Permisos esperados (`listInvoices`, `addInvoice`, `updateInvoice`, `deleteInvoice`, `voidInvoice`, `downloadInvoicePdf`, `generateInvoiceReport`) deben registrarse en la pantalla de permisos al habilitar nuevas secciones vinculadas al módulo.
+- Permisos esperados (`listInvoices`, `addInvoice`, `updateInvoice`, `deleteInvoice`, `voidInvoice`, `downloadInvoicePdf`) deben registrarse en la pantalla de permisos al habilitar nuevas secciones vinculadas al módulo. Los reportes consolidados se generan ahora desde pagos mediante `generatePaymentReport`.
 - El historial expuesto por `/invoices/{id}/history` y `/invoices/history` soporta auditorías financieras y debe incluirse en la colección de Postman cuando se actualicen flujos.
 - Los formularios de alta y edición mantienen los campos fiscales sensibles dentro de "Mostrar detalles adicionales": el número de factura es opcional, la moneda se elige con un selector que muestra 🇦🇷 ARS y 🇺🇸 USA, el estado se presenta con etiquetas en español y se incorpora un campo para registrar el porcentaje total de impuestos.【F:app/invoices/create.tsx†L470-L542】【F:app/invoices/[id].tsx†L474-L546】
 - La edición incorpora acciones directas para **emitir** facturas en borrador (`issueInvoice`) y para **consultar el historial** (`listInvoiceHistory`), mostrando un modal con eventos y payloads normalizados que consumen los endpoints `/invoices/{id}/issue` y `/invoices/{id}/history`.【F:app/invoices/[id].tsx†L678-L940】【F:contexts/InvoicesContext.tsx†L830-L915】

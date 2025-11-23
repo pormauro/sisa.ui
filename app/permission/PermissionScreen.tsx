@@ -41,7 +41,7 @@ const PERMISSION_GROUPS = [
   { group: "Clients", permissions: ['getClient', 'addClient', 'updateClient', 'deleteClient', 'listClients'] },
   { group: "Folders", permissions: ['listFolders', 'getFolder', 'addFolder', 'updateFolder', 'deleteFolder', 'listFolderHistory', 'listFoldersByClient'] },
   { group: "Cash Boxes", permissions: ['listCashBoxes', 'getCashBox', 'addCashBox', 'updateCashBox', 'deleteCashBox', 'listCashBoxHistory'] },
-  { group: "Payments", permissions: ['listPayments', 'getPayment', 'addPayment', 'updatePayment', 'deletePayment', 'listPaymentHistory'] },
+  { group: "Payments", permissions: ['listPayments', 'getPayment', 'addPayment', 'updatePayment', 'deletePayment', 'listPaymentHistory', 'generatePaymentReport'] },
   {
     group: "Invoices",
     permissions: [
@@ -54,7 +54,6 @@ const PERMISSION_GROUPS = [
       'issueInvoice',
       'downloadInvoicePdf',
       'listInvoiceHistory',
-      'generateInvoiceReport',
     ],
   },
   {
