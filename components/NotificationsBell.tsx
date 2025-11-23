@@ -19,7 +19,7 @@ export const NotificationsBell = () => {
   const insets = useSafeAreaInsets();
   const { username, isLoading: authLoading } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
-  const { unreadCount, refreshNotifications } = useContext(NotificationsContext);
+  const { notifications, unreadCount, refreshNotifications } = useContext(NotificationsContext);
 
   const canListNotifications = useMemo(
     () =>
@@ -27,6 +27,11 @@ export const NotificationsBell = () => {
       permissions.includes('markNotificationRead') ||
       permissions.includes('markAllNotificationsRead'),
     [permissions]
+  );
+
+  const hasVisibleNotifications = useMemo(
+    () => notifications.some(notification => !notification.is_hidden),
+    [notifications]
   );
 
   useEffect(() => {
@@ -38,7 +43,7 @@ export const NotificationsBell = () => {
   const borderColor = useThemeColor({ light: 'rgba(15, 23, 42, 0.15)', dark: 'rgba(255, 255, 255, 0.25)' }, 'background');
   const iconColor = useThemeColor({}, 'tint');
 
-  if (authLoading || !username || !canListNotifications) {
+  if (authLoading || !username || !canListNotifications || !hasVisibleNotifications) {
     return null;
   }
 
