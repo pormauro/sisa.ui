@@ -197,14 +197,14 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       setLoading(true);
       try {
         const search = new URLSearchParams();
-        if (status !== 'read') search.set('status', status);
+        if (status !== 'all') search.set('status', status);
         if (options.companyId !== undefined && options.companyId !== null) {
           search.set('company_id', String(options.companyId));
         }
         if (options.limit) search.set('limit', String(options.limit));
         if (options.since) search.set('since', options.since);
 
-        const basePath = status === 'read' ? '/notifications/read' : '/notifications';
+        const basePath = '/notifications';
         const query = search.toString();
         const response = await authorizedFetch(`${BASE_URL}${basePath}${query ? `?${query}` : ''}`);
         const data = await response.json().catch(() => ({}));
