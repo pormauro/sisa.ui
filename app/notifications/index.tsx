@@ -171,10 +171,7 @@ const NotificationsScreen = () => {
     () => userId === '1' || permissions.includes('markAllNotificationsRead'),
     [permissions, userId],
   );
-  const canSendManual = useMemo(
-    () => userId === '1' || permissions.includes('sendNotifications'),
-    [permissions, userId],
-  );
+  const canSendManual = useMemo(() => userId === '1', [userId]);
 
   useFocusEffect(
     useCallback(() => {
