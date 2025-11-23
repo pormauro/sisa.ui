@@ -156,6 +156,7 @@ const NotificationsScreen = () => {
         <TouchableOpacity
           style={[styles.filterChip, filter === 'unread' && { backgroundColor: tintColor }]}
           onPress={() => setFilter('unread')}
+          accessibilityLabel="Ver notificaciones sin leer"
         >
           <View style={styles.filterContent}>
             <Ionicons
@@ -163,14 +164,17 @@ const NotificationsScreen = () => {
               size={16}
               color={filter === 'unread' ? '#ffffff' : helperTextColor}
             />
-            <ThemedText style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
-              No leídas ({unreadCount})
-            </ThemedText>
+            {unreadCount > 0 && (
+              <ThemedText style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
+                ({unreadCount})
+              </ThemedText>
+            )}
           </View>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, filter === 'read' && { backgroundColor: tintColor }]}
           onPress={() => setFilter('read')}
+          accessibilityLabel="Ver notificaciones leídas"
         >
           <View style={styles.filterContent}>
             <Ionicons
@@ -178,12 +182,12 @@ const NotificationsScreen = () => {
               size={16}
               color={filter === 'read' ? '#ffffff' : helperTextColor}
             />
-            <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>Leídas</ThemedText>
           </View>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, filter === 'all' && { backgroundColor: tintColor }]}
           onPress={() => setFilter('all')}
+          accessibilityLabel="Ver todas las notificaciones"
         >
           <View style={styles.filterContent}>
             <Ionicons
@@ -191,7 +195,6 @@ const NotificationsScreen = () => {
               size={16}
               color={filter === 'all' ? '#ffffff' : helperTextColor}
             />
-            <ThemedText style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>Todas</ThemedText>
           </View>
         </TouchableOpacity>
         <ThemedButton
