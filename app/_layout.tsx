@@ -19,6 +19,7 @@ import { ProfilesProvider } from '@/contexts/ProfilesContext';
 import { ProfilesListProvider } from '@/contexts/ProfilesListContext';
 import { ProvidersProvider } from '@/contexts/ProvidersContext';
 import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
+import { ReportsProvider } from '@/contexts/ReportsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
@@ -102,18 +103,20 @@ export default function RootLayout() {
                                                   <PaymentsProvider>
                                                     <InvoicesProvider>
                                                     <ReceiptsProvider>
-                                                      <FoldersProvider>
-                                                        <CommentsProvider>
-                                                          <NotificationsProvider>
-                                                            <PendingSelectionProvider>
-                                                              <>
-                                                                <RootLayoutContent />
-                                                                <LogOverlay />
-                                                              </>
-                                                            </PendingSelectionProvider>
-                                                          </NotificationsProvider>
-                                                        </CommentsProvider>
-                                                      </FoldersProvider>
+                                                      <ReportsProvider>
+                                                        <FoldersProvider>
+                                                          <CommentsProvider>
+                                                            <NotificationsProvider>
+                                                              <PendingSelectionProvider>
+                                                                <>
+                                                                  <RootLayoutContent />
+                                                                  <LogOverlay />
+                                                                </>
+                                                              </PendingSelectionProvider>
+                                                            </NotificationsProvider>
+                                                          </CommentsProvider>
+                                                        </FoldersProvider>
+                                                      </ReportsProvider>
                                                     </ReceiptsProvider>
                                                   </InvoicesProvider>
                                                 </PaymentsProvider>
