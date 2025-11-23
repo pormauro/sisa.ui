@@ -162,6 +162,39 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Generar reporte de comprobantes de pagos",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_date\": \"2024-01-01\",\n  \"end_date\": \"2024-01-31\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payments/report/pdf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "report",
+                "pdf"
+              ]
+            },
+            "description": "Genera el PDF con comprobantes adjuntos marcados como factura real dentro del período indicado. Requiere el permiso generatePaymentReport y responde 404 cuando no existen pagos válidos en el rango."
+          },
+          "response": []
         }
       ]
     },
