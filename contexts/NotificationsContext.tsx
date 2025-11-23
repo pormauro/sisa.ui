@@ -14,7 +14,7 @@ import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
-export type NotificationFilter = 'all' | 'unread' | 'read';
+export type NotificationFilter = 'unread' | 'read';
 
 export interface NotificationEntry {
   id: number;
@@ -41,7 +41,6 @@ interface NotificationsContextValue {
     options?: { applyUnreadVisibilityRule?: boolean }
   ) => Promise<void>;
   markAsRead: (notificationId: number) => Promise<boolean>;
-  markAsUnread: (notificationId: number) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
 }
 
@@ -51,7 +50,6 @@ const defaultContext: NotificationsContextValue = {
   unreadCount: 0,
   refreshNotifications: async () => {},
   markAsRead: async () => false,
-  markAsUnread: async () => false,
   markAllAsRead: async () => false,
 };
 
@@ -197,7 +195,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
   const refreshNotifications = useCallback(
     async (
-      filter: NotificationFilter = 'all',
+      filter: NotificationFilter = 'unread',
       options: { applyUnreadVisibilityRule?: boolean } = { applyUnreadVisibilityRule: false }
     ) => {
       if (!token) {
@@ -205,13 +203,24 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       }
       setLoading(true);
       try {
-        const response = await authorizedFetch(`${BASE_URL}/notifications`);
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          console.warn('Error loading notifications', data);
-          return;
+        const targets: NotificationFilter[] = filter === 'read' ? ['read'] : ['unread', 'read'];
+        const collected: NotificationEntry[] = [];
+
+        for (const target of targets) {
+          const url =
+            target === 'read'
+              ? `${BASE_URL}/notifications/read`
+              : `${BASE_URL}/notifications?status=unread`;
+          const response = await authorizedFetch(url);
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            console.warn('Error loading notifications', data);
+            return;
+          }
+          collected.push(...extractNotificationArray(data));
         }
-        const parsed = extractNotificationArray(data);
+
+        const parsed = collected;
         const shouldClearWhenNoUnread =
           options.applyUnreadVisibilityRule &&
           filter === 'unread' &&
@@ -291,39 +300,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     [authorizedFetch, setNotifications]
   );
 
-  const markAsUnread = useCallback(
-    async (notificationId: number): Promise<boolean> => {
-      if (!notificationId) {
-        return false;
-      }
-      try {
-        const response = await authorizedFetch(`${BASE_URL}/notifications/${notificationId}/read`, {
-          method: 'PATCH',
-          body: JSON.stringify({ read: false, read_at: null }),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          console.warn('Error marking notification as unread', data);
-          return false;
-        }
-        const parsed = extractNotificationArray(data);
-        const updated = parsed[0] ?? null;
-        if (updated) {
-          setNotifications(prev => mergeNotification(prev, updated));
-        } else {
-          setNotifications(prev =>
-            prev.map(item => (item.id === notificationId ? { ...item, is_read: false, read_at: null } : item))
-          );
-        }
-        return true;
-      } catch (error) {
-        console.warn('Error marking notification as unread', error);
-        return false;
-      }
-    },
-    [authorizedFetch, setNotifications]
-  );
-
   const markAllAsRead = useCallback(async (): Promise<boolean> => {
     try {
       const response = await authorizedFetch(`${BASE_URL}/notifications/mark-all-read`, {
@@ -364,10 +340,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       unreadCount,
       refreshNotifications,
       markAsRead,
-      markAsUnread,
       markAllAsRead,
     }),
-    [loading, markAllAsRead, markAsRead, markAsUnread, notifications, refreshNotifications, unreadCount]
+    [loading, markAllAsRead, markAsRead, notifications, refreshNotifications, unreadCount]
   );
 
   return <NotificationsContext.Provider value={contextValue}>{children}</NotificationsContext.Provider>;
