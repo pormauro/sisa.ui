@@ -149,6 +149,20 @@ const sortNotifications = (items: NotificationEntry[]): NotificationEntry[] => {
   return [...items].sort((a, b) => getTime(b.created_at) - getTime(a.created_at));
 };
 
+const mergeNotifications = (
+  current: NotificationEntry[],
+  incoming: NotificationEntry[],
+  { replace }: { replace?: boolean } = {}
+): NotificationEntry[] => {
+  if (replace) return sortNotifications(incoming);
+
+  const mergedMap = new Map<number, NotificationEntry>();
+  current.forEach(item => mergedMap.set(item.id, item));
+  incoming.forEach(item => mergedMap.set(item.id, { ...mergedMap.get(item.id), ...item }));
+
+  return sortNotifications(Array.from(mergedMap.values()));
+};
+
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { token, isLoading: authIsLoading, userId } = useContext(AuthContext);
   const notificationsCacheKey = useMemo(
@@ -200,7 +214,8 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         }
 
         const parsed = sortNotifications(extractNotificationArray(data));
-        setNotifications(parsed);
+        const shouldReplace = status === 'all';
+        setNotifications(prev => mergeNotifications(prev, parsed, { replace: shouldReplace }));
       } catch (error) {
         console.warn('Error loading notifications', error);
       } finally {
