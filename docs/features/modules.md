@@ -438,6 +438,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Modelo y filtros
 - `NotificationRecord` agrupa metadatos del evento (`event_key`, `title`, `body`, `action_reference`), flags de envío/lectura (`is_sent`, `is_sent_push`, `is_read`, `sent_at`, `read_at`), canal utilizado y payloads JSON normalizados para `metadata`/`metadata_raw` manteniendo compatibilidad con instalaciones previas sin claves foráneas.【F:contexts/NotificationsContext.tsx†L17-L115】
 - `NotificationPagination` y `NotificationQueryOptions` encapsulan los parámetros `page`, `per_page`, `only_unread`, `event_key` y `search`, reutilizados por el Centro de notificaciones para ejecutar búsquedas indexadas en `notifications`/`user_notifications`.【F:contexts/NotificationsContext.tsx†L37-L78】
+- El esquema MySQL esperado incluye `event_key` como columna obligatoria en `notifications`; la migración `database/migrations/20250116010100_add_event_key_to_notifications.sql` crea/ajusta las tablas necesarias sin `FOREIGN KEY`. Consulta `docs/database/notifications.md` para el detalle de índices recomendados.【F:database/migrations/20250116010100_add_event_key_to_notifications.sql†L1-L49】【F:docs/database/notifications.md†L1-L27】
 
 ### Métodos del contexto
 - `loadNotifications(options?)` construye la query string, invoca `GET /notifications`, normaliza los objetos retornados y mantiene la colección ordenada por fecha más reciente.【F:contexts/NotificationsContext.tsx†L140-L201】
