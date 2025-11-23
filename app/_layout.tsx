@@ -23,7 +23,6 @@ import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { CommentsProvider } from '@/contexts/CommentsContext';
-import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -49,7 +48,7 @@ function RootLayoutContent() {
         router.replace('/login/Login');
       }
     }
-  }, [isLoading, username]);
+  }, [isLoading, router, username]);
 
   if (isLoading) {
     return (
@@ -104,14 +103,12 @@ export default function RootLayout() {
                                                       <ReceiptsProvider>
                                                         <FoldersProvider>
                                                           <CommentsProvider>
-                                                            <NotificationsProvider>
-                                                              <PendingSelectionProvider>
-                                                                <>
-                                                                  <RootLayoutContent />
-                                                                  <LogOverlay />
-                                                                </>
-                                                              </PendingSelectionProvider>
-                                                            </NotificationsProvider>
+                                                            <PendingSelectionProvider>
+                                                              <>
+                                                                <RootLayoutContent />
+                                                                <LogOverlay />
+                                                              </>
+                                                            </PendingSelectionProvider>
                                                           </CommentsProvider>
                                                         </FoldersProvider>
                                                       </ReceiptsProvider>
