@@ -110,12 +110,6 @@ export const MENU_SECTIONS: MenuSection[] = [
       { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
       { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
       {
-        title: 'Notificaciones',
-        route: '/notifications',
-        icon: 'notifications-outline',
-        requiredPermissions: ['listNotifications', 'markNotificationRead'],
-      },
-      {
         title: 'Comentarios',
         route: '/comments',
         icon: 'chatbubbles',
