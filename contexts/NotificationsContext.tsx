@@ -12,7 +12,7 @@ import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
-import { ensureSortedByNewest, sortByNewest } from '@/utils/sort';
+import { ensureSortedByNewest } from '@/utils/sort';
 
 export type NotificationStatus = 'unread' | 'read' | 'all';
 export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error' | (string & {});
@@ -95,7 +95,7 @@ interface NotificationsContextValue {
 const defaultContext: NotificationsContextValue = {
   notifications: [],
   loading: false,
-  filters: {},
+  filters: { status: 'all' },
   loadNotifications: async () => {},
   markAsRead: async () => null,
   hideNotification: async () => null,
@@ -288,7 +288,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
           return;
         }
         const parsed = extractNotificationArray(data);
-        setNotifications(sortByNewest(parsed, item => item.timestamps.created_at ?? item.id));
+        setNotifications(sortNotifications(parsed));
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al listar notificaciones, se solicitará uno nuevo.');
