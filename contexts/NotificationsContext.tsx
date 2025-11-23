@@ -291,7 +291,31 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
           return;
         }
         const parsed = extractNotificationArray(data);
-        setNotifications(sortNotifications(parsed));
+        setNotifications(prev => {
+          const mergedById = new Map<number, NotificationEntry>();
+
+          prev.forEach(item => {
+            mergedById.set(item.id, item);
+          });
+
+          parsed.forEach(item => {
+            const existing = mergedById.get(item.id);
+            if (existing) {
+              mergedById.set(item.id, {
+                ...existing,
+                ...item,
+                state: { ...existing.state, ...item.state },
+                timestamps: { ...existing.timestamps, ...item.timestamps },
+                source: item.source ?? existing.source,
+                payload: item.payload ?? existing.payload,
+              });
+            } else {
+              mergedById.set(item.id, item);
+            }
+          });
+
+          return sortNotifications(Array.from(mergedById.values()));
+        });
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al listar notificaciones, se solicitará uno nuevo.');
