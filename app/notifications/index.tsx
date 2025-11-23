@@ -39,13 +39,9 @@ const severityColors: Record<string, { background: string; text: string; icon: k
 const NotificationCard = ({
   item,
   onPress,
-  onToggleRead,
-  isDimmed,
 }: {
   item: NotificationEntry;
   onPress: () => void;
-  onToggleRead: () => void;
-  isDimmed?: boolean;
 }) => {
   const baseColor = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#e0e0e0', dark: '#4b3f5f' }, 'background');
@@ -53,11 +49,7 @@ const NotificationCard = ({
   const badgeColors = severityColors[item.severity] ?? severityColors.info;
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.card, { backgroundColor: baseColor, borderColor }, isDimmed && styles.readCard]}
-      activeOpacity={0.9}
-    >
+    <TouchableOpacity onPress={onPress} style={[styles.card, { backgroundColor: baseColor, borderColor }]} activeOpacity={0.9}>
       <View style={styles.cardHeader}>
         <View style={styles.headerLeft}>
           <View style={[styles.severityIcon, { backgroundColor: badgeColors.background }]}>
@@ -73,15 +65,6 @@ const NotificationCard = ({
             )}
           </View>
         </View>
-        <TouchableOpacity
-          onPress={onToggleRead}
-          style={styles.readToggle}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <ThemedText style={[styles.readToggleText, { color: mutedText }]}>
-            {item.is_read ? 'Marcar como no leída' : 'Marcar como leída'}
-          </ThemedText>
-        </TouchableOpacity>
       </View>
       <ThemedText style={styles.cardBody} numberOfLines={2}>
         {item.body || 'Sin descripción'}
@@ -93,11 +76,11 @@ const NotificationCard = ({
 
 const NotificationsScreen = () => {
   const router = useRouter();
-  const { notifications, loading, refreshNotifications, markAsRead, markAsUnread, markAllAsRead, unreadCount } =
+  const { notifications, loading, refreshNotifications, markAllAsRead, unreadCount } =
     useContext(NotificationsContext);
   const { permissions } = useContext(PermissionsContext);
   const configContext = useContext(ConfigContext);
-  const [filter, setFilter] = useState<NotificationFilter>('all');
+  const [filter, setFilter] = useState<NotificationFilter>('unread');
   const [refreshing, setRefreshing] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
@@ -114,10 +97,7 @@ const NotificationsScreen = () => {
         if (filter === 'unread') {
           return !notification.is_read;
         }
-        if (filter === 'read') {
-          return notification.is_read;
-        }
-        return true;
+        return notification.is_read;
       }),
     [filter, notifications]
   );
@@ -130,7 +110,6 @@ const NotificationsScreen = () => {
     [permissions]
   );
 
-  const canMarkNotification = permissions.includes('markNotificationRead');
   const canMarkAllNotifications = permissions.includes('markAllNotificationsRead');
 
   useEffect(() => {
@@ -161,56 +140,43 @@ const NotificationsScreen = () => {
     }, [canListNotifications, filter, refreshNotifications])
   );
 
-  const toggleRead = useCallback(
-    async (item: NotificationEntry) => {
-      if (!canMarkNotification) {
-        Alert.alert('Acceso denegado', 'No tienes permisos para actualizar notificaciones.');
-        return;
-      }
-      const success = item.is_read ? await markAsUnread(item.id) : await markAsRead(item.id);
-      if (!success) {
-        Alert.alert('Error', 'No se pudo actualizar el estado de la notificación.');
-      }
-    },
-    [canMarkNotification, markAsRead, markAsUnread]
-  );
-
   const renderItem = useCallback(
     ({ item }: { item: NotificationEntry }) => (
-      <NotificationCard
-        item={item}
-        onPress={() => router.push(`/notifications/${item.id}`)}
-        onToggleRead={() => void toggleRead(item)}
-        isDimmed={filter === 'all' && item.is_read}
-      />
+      <NotificationCard item={item} onPress={() => router.push(`/notifications/${item.id}`)} />
     ),
-    [filter, router, toggleRead]
+    [router]
   );
 
   const listHeader = (
     <View style={[styles.filterHeader, { borderColor }]}> 
       <View style={styles.filterRow}>
         <TouchableOpacity
-          style={[styles.filterChip, filter === 'all' && { backgroundColor: tintColor }]}
-          onPress={() => setFilter('all')}
-        >
-          <ThemedText style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>Todas</ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
           style={[styles.filterChip, filter === 'unread' && { backgroundColor: tintColor }]}
           onPress={() => setFilter('unread')}
         >
-          <ThemedText style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
-            No leídas ({unreadCount})
-          </ThemedText>
+          <View style={styles.filterContent}>
+            <Ionicons
+              name="mail-unread-outline"
+              size={16}
+              color={filter === 'unread' ? '#ffffff' : helperTextColor}
+            />
+            <ThemedText style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
+              No leídas ({unreadCount})
+            </ThemedText>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.filterChip, filter === 'read' && { backgroundColor: tintColor }]}
           onPress={() => setFilter('read')}
         >
-          <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>
-            Leídas
-          </ThemedText>
+          <View style={styles.filterContent}>
+            <Ionicons
+              name="checkmark-done-outline"
+              size={16}
+              color={filter === 'read' ? '#ffffff' : helperTextColor}
+            />
+            <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>Leídas</ThemedText>
+          </View>
         </TouchableOpacity>
         <ThemedButton
           title="Marcar todas"
@@ -225,7 +191,7 @@ const NotificationsScreen = () => {
         />
       </View>
       <ThemedText style={[styles.helperText, { color: helperTextColor }]}>
-        Usa los botones para ver todas las notificaciones, solo las pendientes o las que ya leíste. {hideBellWhenNoUnread
+        Usa los botones para ver solo las pendientes o las que ya leíste. {hideBellWhenNoUnread
           ? 'Si activaste la opción "Ocultar notificaciones cuando no queden sin leer", el ícono solo se ocultará cuando el filtro "No leídas" esté activo y realmente no haya pendientes.'
           : 'El ícono de notificaciones se mantiene visible aunque no haya pendientes, así puedes revisar el historial cuando lo necesites.'}
       </ThemedText>
@@ -255,7 +221,7 @@ const NotificationsScreen = () => {
                 <ThemedText style={styles.emptyTitle}>Sin notificaciones</ThemedText>
                 <ThemedText style={styles.emptyDescription}>
                   No encontramos notificaciones
-                  {filter === 'unread' ? ' sin leer' : filter === 'read' ? ' leídas' : ' cargadas'}.
+                  {filter === 'unread' ? ' sin leer' : ' leídas'}.
                 </ThemedText>
                 <ThemedButton
                   title="Recargar"
@@ -316,6 +282,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#cccccc',
   },
+  filterContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   filterText: {
     fontWeight: '600',
   },
@@ -344,9 +315,6 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     position: 'relative',
-  },
-  readCard: {
-    opacity: 0.6,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -383,14 +351,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
     lineHeight: 20,
-  },
-  readToggle: {
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-  },
-  readToggleText: {
-    fontSize: 12,
-    textDecorationLine: 'underline',
   },
   unreadDot: {
     position: 'absolute',

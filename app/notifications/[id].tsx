@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +29,7 @@ const NotificationDetailScreen = () => {
     return Number.isNaN(parsed) ? null : parsed;
   }, [paramId]);
 
-  const { notifications, refreshNotifications, markAsRead, markAsUnread } = useContext(NotificationsContext);
+  const { notifications, refreshNotifications, markAsRead } = useContext(NotificationsContext);
   const { permissions } = useContext(PermissionsContext);
   const [loading, setLoading] = useState(false);
   const [localItem, setLocalItem] = useState<NotificationEntry | undefined>(undefined);
@@ -67,19 +67,14 @@ const NotificationDetailScreen = () => {
     void refreshNotifications().finally(() => setLoading(false));
   }, [canListNotifications, notificationId, refreshNotifications]);
 
-  const toggleRead = useCallback(async () => {
-    if (!localItem) return;
-    if (!canMarkNotification) {
-      Alert.alert('Acceso denegado', 'No tienes permisos para actualizar notificaciones.');
-      return;
-    }
-    const success = localItem.is_read
-      ? await markAsUnread(localItem.id)
-      : await markAsRead(localItem.id);
-    if (!success) {
-      Alert.alert('Error', 'No se pudo actualizar el estado de lectura.');
-    }
-  }, [canMarkNotification, localItem, markAsRead, markAsUnread]);
+  useEffect(() => {
+    if (!localItem || localItem.is_read || !canMarkNotification) return;
+    void markAsRead(localItem.id).then(success => {
+      if (!success) {
+        Alert.alert('Error', 'No se pudo marcar la notificación como leída.');
+      }
+    });
+  }, [canMarkNotification, localItem, markAsRead]);
 
   if (notificationId === null) {
     return (
@@ -160,12 +155,11 @@ const NotificationDetailScreen = () => {
             </View>
           ) : null}
 
-          <View style={styles.actionsRow}> 
-            <ThemedButton
-              title={localItem.is_read ? 'Marcar como no leída' : 'Marcar como leída'}
-              onPress={() => void toggleRead()}
-            />
-            <ThemedButton title="Recargar" onPress={() => void refreshNotifications()} />
+          <View style={styles.actionsRow}>
+            <ThemedText style={[styles.subtitle, { color: mutedText }]}>
+              Al abrir se marca como leída automáticamente si tienes permisos.
+            </ThemedText>
+            <ThemedButton title="Recargar" onPress={() => void refreshNotifications('read')} />
           </View>
         </View>
       </ScrollView>
