@@ -220,12 +220,15 @@ const extractSingleNotification = (payload: any): NotificationEntry | null => {
   return first ?? null;
 };
 
-const sortNotifications = (items: NotificationEntry[]): NotificationEntry[] =>
-  ensureSortedByNewest(
-    items,
-    item => item.timestamps.created_at ?? item.timestamps.sent_at ?? item.timestamps.scheduled_at,
+const sortNotifications = (items: NotificationEntry[]): NotificationEntry[] => {
+  const sanitized = items.filter((item): item is NotificationEntry => Boolean(item));
+
+  return ensureSortedByNewest(
+    sanitized,
+    item => item.timestamps?.created_at ?? item.timestamps?.sent_at ?? item.timestamps?.scheduled_at,
     item => item.id,
   );
+};
 
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { token, checkConnection } = useContext(AuthContext);
