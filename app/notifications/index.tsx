@@ -5,6 +5,8 @@ import {
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
+  Modal,
+  Pressable,
   View,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -62,17 +64,13 @@ const formatDateTime = (value?: string | null): string => {
 
 const NotificationCard = ({
   item,
-  onMarkRead,
   onHide,
-  canMarkRead,
   canHide,
   accent,
   border,
 }: {
   item: NotificationEntry;
-  onMarkRead: (id: number) => void;
   onHide: (id: number) => void;
-  canMarkRead: boolean;
   canHide: boolean;
   accent: string;
   border: string;
@@ -122,15 +120,8 @@ const NotificationCard = ({
         </ThemedText>
       )}
 
-      {(canMarkRead || canHide) && (
+      {canHide && (
         <View style={styles.actionsRow}>
-          {canMarkRead && !state.is_read && (
-            <ThemedButton
-              title="Marcar como leída"
-              onPress={() => onMarkRead(item.id)}
-              style={[styles.actionButton, { backgroundColor: accent }]}
-            />
-          )}
           {canHide && !state.is_hidden && (
             <ThemedButton
               title="Ocultar"
@@ -160,6 +151,8 @@ const NotificationsScreen = () => {
 
   const [selectedStatus, setSelectedStatus] = useState<NotificationStatus>(filters.status ?? 'all');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<NotificationEntry | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
@@ -168,10 +161,6 @@ const NotificationsScreen = () => {
 
   const canList = useMemo(
     () => userId === '1' || permissions.includes('listNotifications'),
-    [permissions, userId],
-  );
-  const canMarkRead = useMemo(
-    () => userId === '1' || permissions.includes('markNotificationRead'),
     [permissions, userId],
   );
   const canHide = useMemo(
@@ -203,13 +192,6 @@ const NotificationsScreen = () => {
       setRefreshing(false);
     }
   }, [canList, loadNotifications, selectedStatus]);
-
-  const handleMarkRead = useCallback(
-    (id: number) => {
-      void markAsRead(id, { read: true, read_at: new Date().toISOString() });
-    },
-    [markAsRead],
-  );
 
   const handleHide = useCallback(
     (id: number) => {
@@ -244,6 +226,22 @@ const NotificationsScreen = () => {
     () => filteredNotifications.filter(item => !item.state.is_read && !item.state.is_hidden).length,
     [filteredNotifications],
   );
+
+  const handleOpenNotification = useCallback(
+    (item: NotificationEntry) => {
+      setSelectedNotification(item);
+      setModalVisible(true);
+      if (!item.state.is_read) {
+        void markAsRead(item.id, { read: true, read_at: new Date().toISOString() });
+      }
+    },
+    [markAsRead],
+  );
+
+  const closeModal = useCallback(() => {
+    setModalVisible(false);
+    setSelectedNotification(null);
+  }, []);
 
   if (!canList) {
     return (
@@ -323,15 +321,15 @@ const NotificationsScreen = () => {
           data={filteredNotifications}
           keyExtractor={item => `${item.id}`}
           renderItem={({ item }) => (
-            <NotificationCard
-              item={item}
-              onMarkRead={handleMarkRead}
-              onHide={handleHide}
-              canMarkRead={canMarkRead}
-              canHide={canHide}
-              accent={tintColor}
-              border={borderColor}
-            />
+            <TouchableOpacity onPress={() => handleOpenNotification(item)} activeOpacity={0.9}>
+              <NotificationCard
+                item={item}
+                onHide={handleHide}
+                canHide={canHide}
+                accent={tintColor}
+                border={borderColor}
+              />
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
           refreshControl={
@@ -345,6 +343,23 @@ const NotificationsScreen = () => {
           ListFooterComponent={<View style={{ height: 60 }} />}
         />
       )}
+
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
+        <Pressable style={styles.modalBackdrop} onPress={closeModal}>
+          <Pressable
+            style={[styles.modalContent, { backgroundColor }]}
+            onPress={event => event.stopPropagation()}
+          >
+            <ThemedText style={styles.modalTitle}>
+              {selectedNotification?.title ?? 'Notificación'}
+            </ThemedText>
+            <ThemedText style={styles.modalBody}>
+              {selectedNotification?.body ?? 'Sin descripción disponible para esta notificación.'}
+            </ThemedText>
+            <ThemedButton title="Cerrar" onPress={closeModal} style={styles.modalButton} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ThemedView>
   );
 };
@@ -489,6 +504,30 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 16,
+    padding: 20,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  modalBody: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  modalButton: {
+    marginTop: 6,
   },
   blockedTitle: {
     fontSize: 20,

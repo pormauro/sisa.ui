@@ -347,6 +347,19 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     ): Promise<NotificationEntry | null> => {
       try {
         const requestPayload = { read: true, ...payload };
+        const optimisticReadAt = requestPayload.read_at ?? new Date().toISOString();
+
+        setNotifications(prev =>
+          prev.map(item =>
+            item.id === id
+              ? {
+                  ...item,
+                  state: { ...item.state, is_read: true, read_at: optimisticReadAt },
+                }
+              : item,
+          ),
+        );
+
         const response = await authorizedFetch(`${BASE_URL}/notifications/${id}/read`, {
           method: 'PATCH',
           body: JSON.stringify(requestPayload),
@@ -385,7 +398,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         return null;
       }
     },
-    [authorizedFetch, mergeNotification],
+    [authorizedFetch, mergeNotification, setNotifications],
   );
 
   const hideNotification = useCallback(
