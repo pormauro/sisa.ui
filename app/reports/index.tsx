@@ -15,6 +15,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { FileContext } from '@/contexts/FilesContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import {
@@ -24,6 +25,7 @@ import {
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
+import { openAttachment } from '@/utils/files/openAttachment';
 
 const formatDateParam = (date: Date): string => date.toISOString().split('T')[0];
 
@@ -55,6 +57,7 @@ const PaymentReportsScreen = () => {
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { reports, loadReports, addReport, upsertReport } = useContext(ReportsContext);
+  const { getFile, getFileMetadata } = useContext(FileContext);
 
   const [startDate, setStartDate] = useState(() => {
     const today = new Date();
@@ -180,6 +183,8 @@ const PaymentReportsScreen = () => {
         download_url: downloadUrl,
       });
 
+      await getFile(fileId);
+
       if (!created && fileId) {
         upsertReport({
           id: Date.now(),
@@ -206,16 +211,52 @@ const PaymentReportsScreen = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [addReport, canGenerate, canListReports, endDate, loadReports, startDate, token, upsertReport]);
+  }, [
+    addReport,
+    canGenerate,
+    canListReports,
+    endDate,
+    getFile,
+    loadReports,
+    startDate,
+    token,
+    upsertReport,
+  ]);
 
-  const handleOpenReport = useCallback(async (report: ReportRecord) => {
-    const url = resolveDownloadUrl(report);
-    if (!url) {
-      Alert.alert('Descarga no disponible', 'No se pudo resolver la URL del PDF.');
-      return;
-    }
-    await WebBrowser.openBrowserAsync(url);
-  }, []);
+  const handleOpenReport = useCallback(
+    async (report: ReportRecord) => {
+      const fileId = Number(report.file_id);
+      if (!Number.isFinite(fileId)) {
+        Alert.alert('Descarga no disponible', 'No se pudo resolver el archivo del reporte.');
+        return;
+      }
+
+      try {
+        const [uri, meta] = await Promise.all([getFile(fileId), getFileMetadata(fileId)]);
+
+        if (!uri) {
+          throw new Error('No se pudo descargar el archivo del reporte.');
+        }
+
+        await openAttachment({
+          uri,
+          mimeType: meta?.file_type ?? 'application/pdf',
+          fileName: meta?.original_name ?? `reporte_${fileId}.pdf`,
+          kind: 'pdf',
+          onInAppOpen: async () => {
+            const fallbackUrl = resolveDownloadUrl(report);
+            if (fallbackUrl) {
+              await WebBrowser.openBrowserAsync(fallbackUrl);
+            }
+          },
+        });
+      } catch (error) {
+        console.error('Error opening report file:', error);
+        Alert.alert('Error', 'No se pudo abrir el PDF almacenado.');
+      }
+    },
+    [getFile, getFileMetadata],
+  );
 
   const renderReportItem = useCallback(
     ({ item }: { item: ReportRecord }) => {
