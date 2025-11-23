@@ -8,22 +8,22 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Notificaciones (`NotificationsContext`)
 ### Modelo y estado compartido
-- `NotificationEntry` normaliza ID, compañía, tipo, título, cuerpo, severidad, enlaces de origen, payload y banderas `is_read`/`is_hidden` para manejar tanto eventos leídos como pendientes.【F:contexts/NotificationsContext.tsx†L17-L73】
-- El estado global cacheado se limpia al cambiar de usuario para evitar filtrados entre sesiones y mantiene un contador derivado de no leídas (`unreadCount`).【F:contexts/NotificationsContext.tsx†L107-L161】【F:contexts/NotificationsContext.tsx†L242-L251】
+- `NotificationEntry` refleja la especificación de base de datos del módulo (campos de evento, severidad, enlaces de origen y banderas `is_read`/`is_hidden` con sus marcas de tiempo) para consumir directamente los endpoints descritos en la nueva arquitectura.【F:contexts/NotificationsContext.tsx†L15-L75】
+- El estado cacheado se segrega por usuario y recalcula el contador de no leídas omitiendo cualquier notificación oculta.【F:contexts/NotificationsContext.tsx†L87-L153】【F:contexts/NotificationsContext.tsx†L223-L228】
 
 ### Métodos del contexto
-- `refreshNotifications(filter)` combina `/notifications?status=unread` y `/notifications/read` según el filtro activo y ordena el resultado por fecha antes de almacenarlo.【F:contexts/NotificationsContext.tsx†L163-L234】
-- `markAsRead(id)` ejecuta `PATCH /notifications/{id}/read` y actualiza la caché aunque el backend devuelva un cuerpo vacío; la reversión a no leído ya no está disponible en el cliente.【F:contexts/NotificationsContext.tsx†L236-L271】
-- `markAllAsRead()` ejecuta `POST /notifications/mark-all-read` y marca el store local completo como leído si no se devuelven objetos individuales.【F:contexts/NotificationsContext.tsx†L273-L299】
+- `refreshNotifications(status, options)` consulta `/notifications` o `/notifications/read` con Bearer token, permitiendo filtrar por compañía, límite y marca de tiempo para alinear el listado con los filtros de estado `unread|read|all`.【F:contexts/NotificationsContext.tsx†L103-L153】
+- `markAsRead(id)` marca el estado del usuario autenticado vía `PATCH /notifications/{id}/read` y rellena `read_at` cuando el backend no envía cuerpo.【F:contexts/NotificationsContext.tsx†L155-L191】
+- `markAllAsRead(options)` y `hideNotification(id)` implementan los endpoints `POST /notifications/mark-all-read` y `PATCH /notifications/{id}/hide`, actualizando las marcas locales de lectura u ocultamiento según la respuesta o con marcas de tiempo de respaldo.【F:contexts/NotificationsContext.tsx†L193-L221】【F:contexts/NotificationsContext.tsx†L231-L262】
 
 ### Permisos requeridos
 - El botón del menú se muestra con `listNotifications` o, en su defecto, con los permisos de marcado masivo o individual (`markNotificationRead`, `markAllNotificationsRead`).【F:constants/menuSections.ts†L78-L85】
-- La pantalla de permisos ya agrupa las capacidades de listado y marcado dentro del grupo "Notifications".【F:app/permission/PermissionScreen.tsx†L80-L86】
-- Las pantallas rechazan el acceso si el usuario no cuenta con alguno de esos permisos y bloquean los toggles de lectura cuando falta `markNotificationRead` o `markAllNotificationsRead`.【F:app/notifications/index.tsx†L72-L137】【F:app/notifications/[id].tsx†L26-L65】
+- La pantalla de permisos agrupa las capacidades de listado, marcado, registro de dispositivo y envío manual (`sendNotifications`).【F:app/permission/PermissionScreen.tsx†L78-L87】
+- Las pantallas rechazan el acceso si el usuario no cuenta con alguno de esos permisos y bloquean acciones como el ocultamiento cuando faltan permisos de lectura/listado.【F:app/notifications/index.tsx†L66-L125】【F:app/notifications/[id].tsx†L26-L77】
 
 ### Pantallas relacionadas
-- `app/notifications/index.tsx` lista y filtra por no leídas o leídas con chips iconográficos, y permite marcar todas como leídas cuando el permiso está disponible.【F:app/notifications/index.tsx†L1-L210】
-- `app/notifications/[id].tsx` muestra el detalle, metadatos y marca automáticamente como leída al abrir si el usuario cuenta con permisos, manteniendo opciones de recarga y validaciones de acceso.【F:app/notifications/[id].tsx†L1-L182】
+- `app/notifications/index.tsx` lista con filtros `No leídas`, `Leídas` y `Todas`, además de un botón de marcado masivo condicionado por permisos.【F:app/notifications/index.tsx†L1-L210】
+- `app/notifications/[id].tsx` muestra detalle, marca automáticamente como leída si corresponde y permite ocultar la notificación actual cuando el usuario tiene permisos de acceso.【F:app/notifications/[id].tsx†L1-L182】
 
 ## Clientes (`ClientsContext`)
 ### Modelo

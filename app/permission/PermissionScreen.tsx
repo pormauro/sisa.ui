@@ -82,7 +82,13 @@ const PERMISSION_GROUPS = [
   { group: "Comments", permissions: ['listComments', 'addComment', 'respondComment'] },
   {
     group: "Notifications",
-    permissions: ['listNotifications', 'markNotificationRead', 'markAllNotificationsRead', 'registerDevice'],
+    permissions: [
+      'listNotifications',
+      'markNotificationRead',
+      'markAllNotificationsRead',
+      'registerDevice',
+      'sendNotifications',
+    ],
   },
   { group: "Statuses", permissions: ['listStatuses', 'getStatus', 'addStatus', 'updateStatus', 'deleteStatus', 'reorderStatuses'] },
 ];

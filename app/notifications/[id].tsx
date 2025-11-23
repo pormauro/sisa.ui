@@ -29,7 +29,8 @@ const NotificationDetailScreen = () => {
     return Number.isNaN(parsed) ? null : parsed;
   }, [paramId]);
 
-  const { notifications, refreshNotifications, markAsRead } = useContext(NotificationsContext);
+  const { notifications, refreshNotifications, markAsRead, hideNotification } =
+    useContext(NotificationsContext);
   const { permissions } = useContext(PermissionsContext);
   const [loading, setLoading] = useState(false);
   const [localItem, setLocalItem] = useState<NotificationEntry | undefined>(undefined);
@@ -46,6 +47,7 @@ const NotificationDetailScreen = () => {
     permissions.includes('markNotificationRead') ||
     permissions.includes('markAllNotificationsRead');
   const canMarkNotification = permissions.includes('markNotificationRead');
+  const canHideNotification = canListNotifications;
 
   useEffect(() => {
     if (permissions.length === 0) return;
@@ -64,7 +66,7 @@ const NotificationDetailScreen = () => {
   useEffect(() => {
     if (notificationId === null || !canListNotifications) return;
     setLoading(true);
-    void refreshNotifications().finally(() => setLoading(false));
+    void refreshNotifications('all').finally(() => setLoading(false));
   }, [canListNotifications, notificationId, refreshNotifications]);
 
   useEffect(() => {
@@ -103,7 +105,7 @@ const NotificationDetailScreen = () => {
       <ThemedView style={[styles.screen, { backgroundColor }]}> 
         <View style={[styles.card, { backgroundColor: cardColor, borderColor }]}> 
           <ThemedText style={styles.title}>No encontramos la notificación.</ThemedText>
-          <ThemedButton title="Recargar" onPress={() => void refreshNotifications()} style={styles.backButton} />
+          <ThemedButton title="Recargar" onPress={() => void refreshNotifications('all')} style={styles.backButton} />
           <ThemedButton title="Volver" onPress={() => router.back()} style={styles.backButton} />
         </View>
       </ThemedView>
@@ -125,6 +127,9 @@ const NotificationDetailScreen = () => {
           <ThemedText style={[styles.subtitle, { color: mutedText }]}>Estado: {localItem.is_read ? 'Leída' : 'Pendiente'}</ThemedText>
           {localItem.is_read && (
             <ThemedText style={[styles.subtitle, { color: mutedText }]}>Leída el: {formatDateTime(localItem.read_at)}</ThemedText>
+          )}
+          {localItem.is_hidden && (
+            <ThemedText style={[styles.subtitle, { color: mutedText }]}>Ocultada el: {formatDateTime(localItem.hidden_at)}</ThemedText>
           )}
 
           <View style={styles.section}>
@@ -159,7 +164,25 @@ const NotificationDetailScreen = () => {
             <ThemedText style={[styles.subtitle, { color: mutedText }]}>
               Al abrir se marca como leída automáticamente si tienes permisos.
             </ThemedText>
-            <ThemedButton title="Recargar" onPress={() => void refreshNotifications('read')} />
+            <ThemedButton title="Recargar" onPress={() => void refreshNotifications('all')} />
+            <ThemedButton
+              title="Ocultar"
+              onPress={() => {
+                if (!canHideNotification) {
+                  Alert.alert('Acceso denegado', 'No tienes permisos para modificar notificaciones.');
+                  return;
+                }
+                void hideNotification(localItem.id).then(success => {
+                  if (!success) {
+                    Alert.alert('Error', 'No se pudo ocultar la notificación.');
+                    return;
+                  }
+                  Alert.alert('Notificación ocultada', 'Se movió fuera del listado visible.');
+                  router.back();
+                });
+              }}
+              disabled={!canHideNotification || localItem.is_hidden}
+            />
           </View>
         </View>
       </ScrollView>

@@ -12,9 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { NotificationsContext, type NotificationEntry, type NotificationFilter } from '@/contexts/NotificationsContext';
+import {
+  NotificationsContext,
+  type NotificationEntry,
+  type NotificationStatus,
+} from '@/contexts/NotificationsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { ConfigContext } from '@/contexts/ConfigContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedButton } from '@/components/ThemedButton';
@@ -79,8 +82,7 @@ const NotificationsScreen = () => {
   const { notifications, loading, refreshNotifications, markAllAsRead, unreadCount } =
     useContext(NotificationsContext);
   const { permissions } = useContext(PermissionsContext);
-  const configContext = useContext(ConfigContext);
-  const [filter, setFilter] = useState<NotificationFilter>('unread');
+  const [filter, setFilter] = useState<NotificationStatus>('unread');
   const [refreshing, setRefreshing] = useState(false);
 
   const backgroundColor = useThemeColor({}, 'background');
@@ -88,8 +90,6 @@ const NotificationsScreen = () => {
   const borderColor = useThemeColor({ light: '#dedede', dark: '#433357' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
   const helperTextColor = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
-  const hideBellWhenNoUnread = configContext?.configDetails?.clear_notifications_when_unread_empty ?? false;
-
   const filteredNotifications = useMemo(
     () =>
       notifications.filter(notification => {
@@ -97,7 +97,10 @@ const NotificationsScreen = () => {
         if (filter === 'unread') {
           return !notification.is_read;
         }
-        return notification.is_read;
+        if (filter === 'read') {
+          return notification.is_read;
+        }
+        return true;
       }),
     [filter, notifications]
   );
@@ -124,7 +127,7 @@ const NotificationsScreen = () => {
     setRefreshing(true);
     try {
       if (canListNotifications) {
-        await refreshNotifications(filter, { applyUnreadVisibilityRule: true });
+        await refreshNotifications(filter);
       }
     } finally {
       setRefreshing(false);
@@ -136,7 +139,7 @@ const NotificationsScreen = () => {
       if (!canListNotifications) {
         return;
       }
-      void refreshNotifications(filter, { applyUnreadVisibilityRule: true });
+      void refreshNotifications(filter);
     }, [canListNotifications, filter, refreshNotifications])
   );
 
@@ -178,6 +181,19 @@ const NotificationsScreen = () => {
             <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>Leídas</ThemedText>
           </View>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, filter === 'all' && { backgroundColor: tintColor }]}
+          onPress={() => setFilter('all')}
+        >
+          <View style={styles.filterContent}>
+            <Ionicons
+              name="notifications-outline"
+              size={16}
+              color={filter === 'all' ? '#ffffff' : helperTextColor}
+            />
+            <ThemedText style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>Todas</ThemedText>
+          </View>
+        </TouchableOpacity>
         <ThemedButton
           title="Marcar todas"
           onPress={() =>
@@ -191,9 +207,7 @@ const NotificationsScreen = () => {
         />
       </View>
       <ThemedText style={[styles.helperText, { color: helperTextColor }]}>
-        Usa los botones para ver solo las pendientes o las que ya leíste. {hideBellWhenNoUnread
-          ? 'Si activaste la opción "Ocultar notificaciones cuando no queden sin leer", el ícono solo se ocultará cuando el filtro "No leídas" esté activo y realmente no haya pendientes.'
-          : 'El ícono de notificaciones se mantiene visible aunque no haya pendientes, así puedes revisar el historial cuando lo necesites.'}
+        Usa los botones para ver solo las pendientes, las que ya leíste o todo el historial disponible.
       </ThemedText>
     </View>
   );
@@ -221,11 +235,11 @@ const NotificationsScreen = () => {
                 <ThemedText style={styles.emptyTitle}>Sin notificaciones</ThemedText>
                 <ThemedText style={styles.emptyDescription}>
                   No encontramos notificaciones
-                  {filter === 'unread' ? ' sin leer' : ' leídas'}.
+                  {filter === 'unread' ? ' sin leer' : filter === 'read' ? ' leídas' : ''}.
                 </ThemedText>
                 <ThemedButton
                   title="Recargar"
-                  onPress={() => void refreshNotifications(filter, { applyUnreadVisibilityRule: true })}
+                  onPress={() => void refreshNotifications(filter)}
                 />
               </View>
             }
