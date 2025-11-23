@@ -23,6 +23,7 @@ import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { CommentsProvider } from '@/contexts/CommentsContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { Stack, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
@@ -100,20 +101,22 @@ export default function RootLayout() {
                                                 <PaymentTemplatesProvider>
                                                   <PaymentsProvider>
                                                     <InvoicesProvider>
-                                                      <ReceiptsProvider>
-                                                        <FoldersProvider>
-                                                          <CommentsProvider>
+                                                    <ReceiptsProvider>
+                                                      <FoldersProvider>
+                                                        <CommentsProvider>
+                                                          <NotificationsProvider>
                                                             <PendingSelectionProvider>
                                                               <>
                                                                 <RootLayoutContent />
                                                                 <LogOverlay />
                                                               </>
                                                             </PendingSelectionProvider>
-                                                          </CommentsProvider>
-                                                        </FoldersProvider>
-                                                      </ReceiptsProvider>
-                                                    </InvoicesProvider>
-                                                  </PaymentsProvider>
+                                                          </NotificationsProvider>
+                                                        </CommentsProvider>
+                                                      </FoldersProvider>
+                                                    </ReceiptsProvider>
+                                                  </InvoicesProvider>
+                                                </PaymentsProvider>
                                               </PaymentTemplatesProvider>
                                               </AppointmentsProvider>
                                             </JobsProvider>
