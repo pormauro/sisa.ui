@@ -36,7 +36,7 @@ export const NotificationsBell = () => {
 
   useEffect(() => {
     if (authLoading || !username || !canListNotifications) return;
-    void refreshNotifications('unread');
+    void refreshNotifications();
   }, [authLoading, canListNotifications, refreshNotifications, username]);
 
   const buttonColor = useThemeColor({ light: '#ffffff', dark: 'rgba(17, 24, 39, 0.9)' }, 'background');

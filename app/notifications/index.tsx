@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { NotificationsContext, type NotificationEntry, type NotificationFilter } from '@/contexts/NotificationsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { ConfigContext } from '@/contexts/ConfigContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { ThemedButton } from '@/components/ThemedButton';
@@ -90,6 +91,7 @@ const NotificationsScreen = () => {
   const { notifications, loading, refreshNotifications, markAsRead, markAsUnread, markAllAsRead, unreadCount } =
     useContext(NotificationsContext);
   const { permissions } = useContext(PermissionsContext);
+  const configContext = useContext(ConfigContext);
   const [filter, setFilter] = useState<NotificationFilter>('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -97,6 +99,8 @@ const NotificationsScreen = () => {
   const tintColor = useThemeColor({}, 'tint');
   const borderColor = useThemeColor({ light: '#dedede', dark: '#433357' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
+  const helperTextColor = useThemeColor({ light: '#4b5563', dark: '#d1d5db' }, 'text');
+  const hideBellWhenNoUnread = configContext?.configDetails?.clear_notifications_when_unread_empty ?? false;
 
   const filteredNotifications = useMemo(
     () =>
@@ -136,7 +140,7 @@ const NotificationsScreen = () => {
     setRefreshing(true);
     try {
       if (canListNotifications) {
-        await refreshNotifications(filter);
+        await refreshNotifications(filter, { applyUnreadVisibilityRule: true });
       }
     } finally {
       setRefreshing(false);
@@ -148,7 +152,7 @@ const NotificationsScreen = () => {
       if (!canListNotifications) {
         return;
       }
-      void refreshNotifications(filter);
+      void refreshNotifications(filter, { applyUnreadVisibilityRule: true });
     }, [canListNotifications, filter, refreshNotifications])
   );
 
@@ -179,40 +183,47 @@ const NotificationsScreen = () => {
   );
 
   const listHeader = (
-    <View style={[styles.filterRow, { borderColor }]}>
-      <TouchableOpacity
-        style={[styles.filterChip, filter === 'all' && { backgroundColor: tintColor }]}
-        onPress={() => setFilter('all')}
-      >
-        <ThemedText style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>Todas</ThemedText>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.filterChip, filter === 'unread' && { backgroundColor: tintColor }]}
-        onPress={() => setFilter('unread')}
-      >
-        <ThemedText style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
-          No leídas ({unreadCount})
-        </ThemedText>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.filterChip, filter === 'read' && { backgroundColor: tintColor }]}
-        onPress={() => setFilter('read')}
-      >
-        <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>
-          Leídas
-        </ThemedText>
-      </TouchableOpacity>
-      <ThemedButton
-        title="Marcar todas"
-        onPress={() =>
-          canMarkAllNotifications
-            ? void markAllAsRead()
-            : Alert.alert('Acceso denegado', 'No tienes permisos para marcar todas las notificaciones como leídas.')
-        }
-        style={[styles.markAllButton, { backgroundColor: tintColor }]}
-        textStyle={styles.markAllText}
-        disabled={!canMarkAllNotifications}
-      />
+    <View style={[styles.filterHeader, { borderColor }]}> 
+      <View style={styles.filterRow}>
+        <TouchableOpacity
+          style={[styles.filterChip, filter === 'all' && { backgroundColor: tintColor }]}
+          onPress={() => setFilter('all')}
+        >
+          <ThemedText style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>Todas</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, filter === 'unread' && { backgroundColor: tintColor }]}
+          onPress={() => setFilter('unread')}
+        >
+          <ThemedText style={[styles.filterText, filter === 'unread' && styles.filterTextActive]}>
+            No leídas ({unreadCount})
+          </ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterChip, filter === 'read' && { backgroundColor: tintColor }]}
+          onPress={() => setFilter('read')}
+        >
+          <ThemedText style={[styles.filterText, filter === 'read' && styles.filterTextActive]}>
+            Leídas
+          </ThemedText>
+        </TouchableOpacity>
+        <ThemedButton
+          title="Marcar todas"
+          onPress={() =>
+            canMarkAllNotifications
+              ? void markAllAsRead()
+              : Alert.alert('Acceso denegado', 'No tienes permisos para marcar todas las notificaciones como leídas.')
+          }
+          style={[styles.markAllButton, { backgroundColor: tintColor }]}
+          textStyle={styles.markAllText}
+          disabled={!canMarkAllNotifications}
+        />
+      </View>
+      <ThemedText style={[styles.helperText, { color: helperTextColor }]}>
+        Usa los botones para ver todas las notificaciones, solo las pendientes o las que ya leíste. {hideBellWhenNoUnread
+          ? 'Si activaste la opción "Ocultar notificaciones cuando no queden sin leer", el ícono solo se ocultará cuando el filtro "No leídas" esté activo y realmente no haya pendientes.'
+          : 'El ícono de notificaciones se mantiene visible aunque no haya pendientes, así puedes revisar el historial cuando lo necesites.'}
+      </ThemedText>
     </View>
   );
 
@@ -241,7 +252,10 @@ const NotificationsScreen = () => {
                   No encontramos notificaciones
                   {filter === 'unread' ? ' sin leer' : filter === 'read' ? ' leídas' : ' cargadas'}.
                 </ThemedText>
-                <ThemedButton title="Recargar" onPress={() => void refreshNotifications(filter)} />
+                <ThemedButton
+                  title="Recargar"
+                  onPress={() => void refreshNotifications(filter, { applyUnreadVisibilityRule: true })}
+                />
               </View>
             }
             refreshControl={
@@ -284,6 +298,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: 12,
   },
+  filterHeader: {
+    borderBottomWidth: 1,
+    paddingBottom: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
   filterChip: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -305,6 +325,10 @@ const styles = StyleSheet.create({
   },
   markAllText: {
     fontSize: 14,
+  },
+  helperText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   listContent: {
     paddingBottom: 40,

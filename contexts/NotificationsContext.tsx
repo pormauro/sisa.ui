@@ -36,7 +36,10 @@ interface NotificationsContextValue {
   notifications: NotificationEntry[];
   loading: boolean;
   unreadCount: number;
-  refreshNotifications: (filter?: NotificationFilter) => Promise<void>;
+  refreshNotifications: (
+    filter?: NotificationFilter,
+    options?: { applyUnreadVisibilityRule?: boolean }
+  ) => Promise<void>;
   markAsRead: (notificationId: number) => Promise<boolean>;
   markAsUnread: (notificationId: number) => Promise<boolean>;
   markAllAsRead: () => Promise<boolean>;
@@ -228,7 +231,10 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   );
 
   const refreshNotifications = useCallback(
-    async (filter: NotificationFilter = 'all') => {
+    async (
+      filter: NotificationFilter = 'all',
+      options: { applyUnreadVisibilityRule?: boolean } = { applyUnreadVisibilityRule: false }
+    ) => {
       if (!token) {
         return;
       }
@@ -242,7 +248,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         }
         const parsed = extractNotificationArray(data);
         const shouldClearWhenNoUnread =
-          configContext?.configDetails?.clear_notifications_when_unread_empty ?? false;
+          options.applyUnreadVisibilityRule &&
+          filter === 'unread' &&
+          (configContext?.configDetails?.clear_notifications_when_unread_empty ?? false);
         setNotifications(prev => {
           const merged = sortNotifications([
             ...parsed,
