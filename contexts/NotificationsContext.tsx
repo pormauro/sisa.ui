@@ -24,9 +24,14 @@ export interface NotificationEntry {
   body: string;
   source_table: string | null;
   source_id: number | null;
+  source_history_id?: number | null;
+  created_by_user_id?: number | null;
   payload: any;
   severity: NotificationSeverity;
   created_at: string;
+  scheduled_at?: string | null;
+  sent_at?: string | null;
+  expires_at?: string | null;
   is_read: boolean;
   read_at?: string | null;
   is_hidden: boolean;
@@ -91,9 +96,15 @@ const parsePayload = (rawPayload: any) => {
 
 const normalizeNotification = (raw: any): NotificationEntry => {
   const id = Number(raw?.id ?? raw?.notification_id ?? raw?.notif_id ?? 0);
-  const createdAt = raw?.created_at ?? raw?.inserted_at ?? new Date().toISOString();
-  const isRead = parseBoolean(raw?.is_read ?? raw?.read ?? raw?.leido);
-  const isHidden = parseBoolean(raw?.is_hidden ?? raw?.hidden ?? raw?.descartada);
+  const createdAt =
+    raw?.timestamps?.created_at ?? raw?.created_at ?? raw?.inserted_at ?? new Date().toISOString();
+  const isRead = parseBoolean(raw?.state?.is_read ?? raw?.is_read ?? raw?.read ?? raw?.leido);
+  const isHidden = parseBoolean(
+    raw?.state?.is_hidden ?? raw?.is_hidden ?? raw?.hidden ?? raw?.descartada
+  );
+
+  const source = raw?.source ?? {};
+  const timestamps = raw?.timestamps ?? {};
 
   const resolved: NotificationEntry = {
     id: Number.isFinite(id) ? id : Date.now(),
@@ -104,18 +115,34 @@ const normalizeNotification = (raw: any): NotificationEntry => {
     type: raw?.type ?? raw?.category ?? raw?.kind ?? null,
     title: raw?.title ?? raw?.subject ?? 'Sin título',
     body: raw?.body ?? raw?.message ?? raw?.detail ?? '',
-    source_table: raw?.source_table ?? raw?.table ?? raw?.origin_table ?? null,
+    source_table: source.table ?? raw?.source_table ?? raw?.table ?? raw?.origin_table ?? null,
     source_id:
-      raw?.source_id !== undefined && raw?.source_id !== null
-        ? Number(raw.source_id)
-        : raw?.sourceId !== undefined && raw?.sourceId !== null
-          ? Number(raw.sourceId)
+      source.id !== undefined && source.id !== null
+        ? Number(source.id)
+        : raw?.source_id !== undefined && raw?.source_id !== null
+          ? Number(raw.source_id)
+          : raw?.sourceId !== undefined && raw?.sourceId !== null
+            ? Number(raw.sourceId)
+            : null,
+    source_history_id:
+      source.history_id !== undefined && source.history_id !== null
+        ? Number(source.history_id)
+        : raw?.source_history_id !== undefined && raw?.source_history_id !== null
+          ? Number(raw.source_history_id)
           : null,
+    created_by_user_id:
+      raw?.created_by_user_id !== undefined && raw?.created_by_user_id !== null
+        ? Number(raw.created_by_user_id)
+        : null,
     payload: parsePayload(raw?.payload ?? raw?.data ?? null),
     severity: parseSeverity(raw?.severity ?? raw?.level ?? raw?.status),
     created_at: createdAt,
+    scheduled_at: timestamps.scheduled_at ?? raw?.timestamps?.scheduled_at ?? raw?.scheduled_at ?? null,
+    sent_at: timestamps.sent_at ?? raw?.timestamps?.sent_at ?? raw?.sent_at ?? null,
+    expires_at: timestamps.expires_at ?? raw?.timestamps?.expires_at ?? raw?.expires_at ?? null,
     is_read: isRead,
-    read_at: raw?.read_at ?? raw?.leido_en ?? (isRead ? raw?.updated_at ?? null : null),
+    read_at:
+      raw?.state?.read_at ?? raw?.read_at ?? raw?.leido_en ?? (isRead ? raw?.updated_at ?? null : null),
     is_hidden: isHidden,
   };
 
