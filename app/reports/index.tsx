@@ -134,6 +134,9 @@ const PaymentReportsScreen = () => {
       end_date: formatDateParam(endDate),
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     try {
       const response = await fetch(`${BASE_URL}/payments/report/pdf`, {
         method: 'POST',
@@ -143,6 +146,7 @@ const PaymentReportsScreen = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
       await ensureAuthResponse(response, { silent: false });
 
@@ -177,12 +181,20 @@ const PaymentReportsScreen = () => {
         await loadReports({ report_type: 'payments' });
       }
     } catch (error) {
+      if ((error as Error)?.name === 'AbortError') {
+        Alert.alert(
+          'Tiempo de espera agotado',
+          'No hubo respuesta del servidor al generar el PDF. Verificá tu conexión e intentá de nuevo.',
+        );
+        return;
+      }
       if (isTokenExpiredError(error)) {
         return;
       }
       console.error('Error generating payment report:', error);
       Alert.alert('Error', 'No se pudo generar el reporte de pagos.');
     } finally {
+      clearTimeout(timeoutId);
       setIsGenerating(false);
     }
   }, [
