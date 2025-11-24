@@ -52,7 +52,7 @@ export default function CompaniesListPage() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
 
   const canList = permissions.includes('listCompanies');
-  const canCreate = permissions.includes('addCompany');
+  const canCreate = permissions.includes('createCompany');
   const { refreshing, handleRefresh } = usePullToRefresh(loadCompanies, canList);
 
   const background = useThemeColor({}, 'background');

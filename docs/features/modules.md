@@ -60,7 +60,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Permisos requeridos
 - `listCompanies` habilita el listado y la navegación desde el menú principal.【F:app/companies/index.tsx†L57-L99】【F:constants/menuSections.ts†L48-L62】
-- `addCompany`, `updateCompany`, `deleteCompany` controlan accesos a formularios de alta, edición y baja en las pantallas protegidas.【F:app/companies/create.tsx†L61-L105】【F:app/companies/[id].tsx†L136-L157】【F:app/companies/viewModal.tsx†L11-L45】
+- `createCompany`, `updateCompany`, `deleteCompany` controlan accesos a formularios de alta, edición y baja en las pantallas protegidas.【F:app/companies/create.tsx†L61-L105】【F:app/companies/[id].tsx†L136-L157】【F:app/companies/viewModal.tsx†L11-L45】
 - Los IDs listados en `administrator_ids` (y el superadministrador) habilitan el acceso al editor y al modal incluso si el usuario no posee el permiso `updateCompany`. El listado valida esta bandera antes de permitir el gesto de edición prolongado.【F:app/companies/index.tsx†L150-L210】【F:app/companies/viewModal.tsx†L37-L120】【F:app/companies/[id].tsx†L210-L270】
 - Ese arreglo se alimenta automáticamente del campo `admin_users` de la tabla `empresas`, que guarda un JSON con los IDs de las personas administradoras (por ejemplo `[1,25,64]`). Al sincronizar compañías se normaliza ese valor y se expone como `administrator_ids`, por lo que basta con mantener la columna `admin_users` actualizada para liberar la edición desde la app.【F:contexts/CompaniesContext.tsx†L548-L604】
 
@@ -97,7 +97,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `POST ${BASE_URL}/companies/{companyId}/memberships` / `invite` / `{membershipId}/(accept|cancel-invitation|approve|reject|leave|suspend|remove)` — ciclo de vida completo de solicitudes, invitaciones y bajas, siempre protegido por token Bearer.【F:contexts/CompanyMembershipsContext.tsx†L754-L912】
 
 ### Permisos requeridos
-- El grupo "Company Memberships" en la pantalla de permisos agrupa `listCompanyMemberships`, `manageCompanyMemberships`, `inviteCompanyMembers`, `cancelCompanyInvitations`, `approveCompanyMembership`, `rejectCompanyMembership`, `acceptCompanyInvitation`, `requestCompanyMembership`, `leaveCompanyMembership`, `suspendCompanyMember`, `removeCompanyMember` y `listCompanyMembershipHistory`.【F:app/permission/PermissionScreen.tsx†L20-L38】
+- El grupo "Company Memberships" en la pantalla de permisos agrupa `listCompanyMembers`, `listUserCompanyMemberships`, `manageCompanyMemberships`, `inviteCompanyMembers`, `cancelCompanyInvitations`, `reactivateCompanyMember`, `acceptCompanyInvitation`, `requestCompanyMembership`, `leaveCompanyMembership`, `suspendCompanyMember` y `removeCompanyMember`.【F:app/permission/PermissionScreen.tsx†L20-L38】
 
 ### Colección de Postman
 - La carpeta "Company Memberships" dentro de `docs/postman/sisa-api.postman_collection.json` documenta cada endpoint con cuerpos de ejemplo y variables (`company_id`, `membership_id`, `invited_user_id`, `membership_token`) para auditar el flujo sin reescribir IDs manualmente.【F:docs/postman/sisa-api.postman_collection.json†L2300-L2717】
@@ -204,7 +204,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `listPayments` habilita la vista general.【F:app/Home.tsx†L20-L37】【F:app/payments/index.tsx†L41-L133】
 - `addPayment`, `updatePayment`, `deletePayment` gobiernan formularios y acciones destructivas.【F:app/payments/create.tsx†L166-L206】【F:app/payments/[id].tsx†L29-L120】【F:app/payments/index.tsx†L145-L187】
 - `generatePaymentReport` permite solicitar el PDF consolidado de comprobantes de pagos con adjuntos de factura real.【F:docs/features/payments-report.md†L6-L35】
-- `deletePaymentReport` habilita la eliminación de reportes de comprobantes desde la app, previa confirmación del usuario.【F:app/reports/index.tsx†L120-L191】
+- `deleteReport` habilita la eliminación de reportes de comprobantes desde la app, previa confirmación del usuario.【F:app/reports/index.tsx†L120-L191】
 
 ### Pantallas relacionadas
 - `app/payments/index.tsx` — listado con búsqueda y accesos a detalle/modales.【F:app/payments/index.tsx†L1-L187】
@@ -418,9 +418,9 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Métodos del contexto
 - `loadMyComments()`: sincroniza los comentarios enviados por el usuario autenticado.【F:contexts/CommentsContext.tsx†L214-L239】
-- `loadAllComments()`: recupera todos los comentarios para usuarios con permisos de respuesta.【F:contexts/CommentsContext.tsx†L241-L268】
+- `loadAllComments()`: recupera todos los comentarios para usuarios con permisos de revisión global.【F:contexts/CommentsContext.tsx†L241-L268】
 - `submitComment(payload)`: registra un nuevo comentario del usuario y actualiza las colecciones en caché.【F:contexts/CommentsContext.tsx†L270-L306】
-- `respondComment(id, response)`: guarda la respuesta del superusuario y refresca los listados.【F:contexts/CommentsContext.tsx†L308-L340】
+- `respondComment(id, response)`: guarda la respuesta del superusuario y refresca los listados para quienes tengan permisos de moderación.【F:contexts/CommentsContext.tsx†L308-L340】
 
 ### Endpoints consumidos
 - `GET ${BASE_URL}/comments/mine` — listado personal del usuario.【F:contexts/CommentsContext.tsx†L226-L235】
@@ -429,9 +429,9 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `POST ${BASE_URL}/comments/{id}/respond` — registro/actualización de la respuesta del superusuario.【F:contexts/CommentsContext.tsx†L308-L340】
 
 ### Permisos requeridos
-- `listComments` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar comentarios deberían contar con él).【F:constants/menuSections.ts†L63-L70】
+- `listComments` habilita el acceso al módulo desde el menú (todos los usuarios que puedan enviar comentarios deberían contar con él) y destraba la vista consolidada.【F:constants/menuSections.ts†L63-L70】【F:app/comments/index.tsx†L53-L113】
 - `addComment` controla la visibilidad del formulario de envío en la app móvil.【F:app/comments/index.tsx†L53-L84】【F:app/comments/create.tsx†L32-L99】
-- `respondComment` habilita la vista consolidada y la posibilidad de responder comentarios ajenos.【F:app/comments/index.tsx†L53-L113】【F:app/comments/[id].tsx†L69-L170】
+- `markCommentSeen` habilita la moderación (ver todos los mensajes, marcar como visto o responder) en las pantallas protegidas.【F:app/comments/index.tsx†L53-L113】【F:app/comments/[id].tsx†L69-L170】
 
 ### Pantallas relacionadas
 - `app/comments/index.tsx` — listado personal/global con filtros por permiso y acceso a detalles.【F:app/comments/index.tsx†L1-L214】

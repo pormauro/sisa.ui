@@ -507,7 +507,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   );
 
   const canListMemberships = useMemo(
-    () => canManageMemberships || hasAnyPermission('listCompanyMemberships'),
+    () =>
+      canManageMemberships ||
+      hasAnyPermission(['listCompanyMembers', 'listUserCompanyMemberships']),
     [canManageMemberships, hasAnyPermission],
   );
 
@@ -522,14 +524,11 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   );
 
   const canApproveMemberships = useMemo(
-    () => canManageMemberships || hasAnyPermission('approveCompanyMembership'),
+    () => canManageMemberships || hasAnyPermission('reactivateCompanyMember'),
     [canManageMemberships, hasAnyPermission],
   );
 
-  const canRejectMemberships = useMemo(
-    () => canManageMemberships || hasAnyPermission('rejectCompanyMembership'),
-    [canManageMemberships, hasAnyPermission],
-  );
+  const canRejectMemberships = useMemo(() => canManageMemberships, [canManageMemberships]);
 
   const canAcceptInvitations = useMemo(
     () => canManageMemberships || hasAnyPermission('acceptCompanyInvitation'),
@@ -556,10 +555,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
     [canManageMemberships, hasAnyPermission],
   );
 
-  const canViewHistory = useMemo(
-    () => canManageMemberships || hasAnyPermission('listCompanyMembershipHistory'),
-    [canManageMemberships, hasAnyPermission],
-  );
+  const canViewHistory = useMemo(() => canManageMemberships, [canManageMemberships]);
 
   const getMembershipsFromStore = useCallback(
     (companyId: number, status: MembershipStatusFilter = 'approved') => {

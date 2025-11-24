@@ -4,6 +4,7 @@ El `CompanyMembershipsContext` consolida los estados `pending`, `invited`, `appr
 
 ## Permisos y visibilidad
 El contexto cruza los permisos provenientes de `PermissionsContext` con banderas derivadas como `canManageMemberships`, `canInviteMembers`, `canLeaveCompany` o `canViewHistory`, por lo que los componentes sólo necesitan leer estas propiedades antes de mostrar acciones sensibles.【F:contexts/CompanyMembershipsContext.tsx†L489-L555】Además, los métodos de lectura devuelven inmediatamente lo último cacheado cuando el usuario carece del permiso (`loadMemberships`/`loadMembershipHistory`) evitando peticiones innecesarias.【F:contexts/CompanyMembershipsContext.tsx†L557-L709】
+La API usa `listCompanyMembers`/`listUserCompanyMemberships` para habilitar listados, `inviteCompanyMembers` y `cancelCompanyInvitations` para administrar invitaciones, `reactivateCompanyMember` para reactivar o aprobar y `manageCompanyMemberships` para rechazos, suspensiones, bajas y auditorías, por lo que el contexto se apoya en esas claves al calcular cada bandera.【F:contexts/CompanyMembershipsContext.tsx†L489-L555】【F:app/permission/PermissionScreen.tsx†L20-L38】
 
 ## Operaciones expuestas
 - `loadMemberships(companyId, status)` arma la URL con `status` (incluido `all`), ejecuta `GET /companies/{id}/memberships` con token Bearer y ordena el resultado por las marcas temporales `created_at`/`updated_at`.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】

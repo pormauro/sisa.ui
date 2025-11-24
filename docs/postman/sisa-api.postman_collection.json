@@ -38,8 +38,8 @@
               ]
             },
             "description": "Devuelve el token Bearer utilizado en los módulos autenticados."
-          },
-          "response": []
+            },
+            "response": []
         }
       ]
     },
@@ -195,48 +195,9 @@
             "description": "Genera el PDF con comprobantes adjuntos marcados como factura real dentro del período indicado. Requiere el permiso generatePaymentReport y responde 404 cuando no existen pagos válidos en el rango."
           },
           "response": []
-        },
-        {
-          "name": "Eliminar reporte de comprobantes de pagos",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "type": "string",
-                  "value": "{{token}}"
-                }
-              ]
-            },
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/payments/report/{{file_id}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "payments",
-                "report",
-                "{{file_id}}"
-              ]
-            },
-            "description": "Elimina un PDF de comprobantes generado y borra su registro en la tabla de archivos. Requiere el permiso deletePaymentReport y autenticación Bearer."
-          },
-          "response": []
-        }
-      ]
-    },
+          }
+        ]
+      },
     {
       "name": "Plantillas de pago",
       "description": "Endpoints para administrar las plantillas reutilizables.",

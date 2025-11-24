@@ -70,8 +70,8 @@ const CommentDetailScreen = () => {
   const canRespond = useMemo(
     () =>
       userId === '1' ||
-      permissions.includes('respondComment') ||
-      permissions.includes('respondFeedback'),
+      permissions.includes('listComments') ||
+      permissions.includes('markCommentSeen'),
     [permissions, userId]
   );
 

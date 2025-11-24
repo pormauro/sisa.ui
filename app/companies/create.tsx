@@ -104,7 +104,7 @@ export default function CreateCompanyPage() {
   const submittingRef = useRef(false);
 
   useEffect(() => {
-    if (!permissions.includes('addCompany')) {
+    if (!permissions.includes('createCompany')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para crear empresas.');
       router.back();
     }

@@ -14,10 +14,11 @@ interface PermissionsContextProps {
 const PERMISSION_ALIASES: Record<string, string[]> = {
   listFeedbacks: ['listComments'],
   addFeedback: ['addComment'],
-  respondFeedback: ['respondComment'],
   listComments: ['listFeedbacks'],
   addComment: ['addFeedback'],
-  respondComment: ['respondFeedback'],
+  markCommentSeen: ['respondComment', 'respondFeedback'],
+  respondComment: ['markCommentSeen'],
+  respondFeedback: ['markCommentSeen'],
 };
 
 const expandWithAliases = (values: string[]): string[] => {
