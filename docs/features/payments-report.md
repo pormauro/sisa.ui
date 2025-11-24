@@ -16,6 +16,8 @@ El backend expone un endpoint dedicado a generar un PDF con los comprobantes mar
 ```
 
 El backend completa el inicio y cierre de cada día antes de procesar el reporte.
+La app aborta la solicitud si no hay respuesta en 25 segundos y avisa al usuario para evitar que el botón quede esperando
+indefinidamente.
 
 ## Respuesta y manejo de resultados
 - Si existen pagos con adjuntos marcados como factura real, la API crea el PDF dentro de `uploads/reports/` y devuelve el identificador de archivo junto con la URL de descarga.
