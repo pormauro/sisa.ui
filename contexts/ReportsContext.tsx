@@ -139,13 +139,18 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
         });
         await ensureAuthResponse(response);
         const data = await response.json();
-        const items: any[] = Array.isArray(data?.reports)
+        const itemsPayload = Array.isArray(data?.reports)
           ? data.reports
           : Array.isArray(data)
           ? data
           : Array.isArray(data?.data)
           ? data.data
+          : Array.isArray(data?.reports?.data)
+          ? data.reports.data
+          : Array.isArray(data?.data?.data)
+          ? data.data.data
           : [];
+        const items: any[] = itemsPayload.filter(Boolean);
         const normalized = items
           .map(normalizeReport)
           .filter((item): item is ReportRecord => Boolean(item));
