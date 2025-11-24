@@ -3111,6 +3111,191 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Reportes",
+      "description": "Controladores y rutas para la tabla reports sin claves foráneas. Todas las operaciones requieren token Bearer salvo autenticación.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{authToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Listar reportes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            },
+            "description": "**GET {{baseUrl}}/reports**\n\nLista reportes almacenados en la tabla de metadatos. Soporta filtros opcionales `report_type`, `status`, `file_id` y `search`. Los estados válidos son `draft`, `generated` y `archived`."
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener reporte",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "{{reportId}}"
+              ]
+            },
+            "description": "**GET {{baseUrl}}/reports/{id}**\n\nRecupera un reporte por su identificador y devuelve los metadatos incluyendo `metadata` como JSON cuando corresponde."
+          },
+          "response": []
+        },
+        {
+          "name": "Historial de reporte",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "{{reportId}}",
+                "history"
+              ]
+            },
+            "description": "**GET {{baseUrl}}/reports/{id}/history**\n\nDevuelve la secuencia de operaciones (`CREATION`, `UPDATE`, `DELETION`) con los metadatos almacenados para el reporte indicado."
+          },
+          "response": []
+        },
+        {
+          "name": "Crear reporte",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"file_id\": 15,\n  \"title\": \"Reporte de finanzas Q2\",\n  \"report_type\": \"finanzas\",\n  \"description\": \"Resumen de ingresos y egresos\",\n  \"status\": \"generated\",\n  \"metadata\": {\"period\": \"2025-Q2\", \"currency\": \"USD\"}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/reports**\n\nCrea un nuevo registro de reporte enlazado a un archivo. Campos obligatorios: `file_id`, `title` y `report_type`. Opcionales: `description`, `status` (`draft`, `generated`, `archived`) y `metadata` en formato JSON."
+          },
+          "response": []
+        },
+        {
+          "name": "Actualizar reporte",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Reporte de finanzas Q2 (actualizado)\",\n  \"status\": \"archived\",\n  \"metadata\": {\"period\": \"2025-Q2\", \"notes\": \"Revisado\"}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "{{reportId}}"
+              ]
+            },
+            "description": "**PUT {{baseUrl}}/reports/{id}**\n\nActualiza los campos enviados para el reporte indicado. `metadata` debe ser JSON válido."
+          },
+          "response": []
+        },
+        {
+          "name": "Eliminar reporte",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reports",
+                "{{reportId}}"
+              ]
+            },
+            "description": "**DELETE {{baseUrl}}/reports/{id}**\n\nElimina un reporte por su ID únicamente de la tabla de metadatos. El archivo asociado no se elimina de disco ni de la tabla `files`; se conserva el historial en `reports_history`."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "variable": [
@@ -3128,6 +3313,10 @@
     },
     {
       "key": "templateId",
+      "value": "1"
+    },
+    {
+      "key": "reportId",
       "value": "1"
     },
     {
