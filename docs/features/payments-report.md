@@ -31,6 +31,13 @@ El backend completa el inicio y cierre de cada día antes de procesar el reporte
 
 Cuando el rango no devuelve pagos ni adjuntos válidos, el servicio responde con `404` y un mensaje descriptivo para evitar reportes vacíos.
 
+## Eliminación del reporte generado
+- **Ruta:** `DELETE /payments/report/{file_id}`.
+- **Autenticación:** encabezado `Authorization: Bearer <token>` obligatorio.
+- **Permiso requerido:** `deletePaymentReport`.
+- **Efecto:** elimina el PDF almacenado en `uploads/reports/` y limpia la entrada asociada en la tabla `files`.
+- La app solicita confirmación antes de enviar la petición y elimina el registro local una vez que el backend responde exitosamente.
+
 ## Formato del PDF
 - Incluye toda la metadata disponible del pago: fecha, importe, cuenta de pago, categoría, tipo de acreedor, cliente asociado y detalle.
 - Cada comprobante se renderiza sin saltos internos (`page-break-inside: avoid`) y con márgenes reducidos.

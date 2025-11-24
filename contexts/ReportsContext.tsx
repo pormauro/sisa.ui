@@ -43,6 +43,7 @@ interface ReportsContextValue {
   loadReports: (filters?: ReportFilters) => Promise<void>;
   addReport: (payload: ReportPayload) => Promise<ReportRecord | null>;
   upsertReport: (report: ReportRecord) => void;
+  removeReport: (reportId: number) => void;
 }
 
 export const ReportsContext = createContext<ReportsContextValue>({
@@ -50,6 +51,7 @@ export const ReportsContext = createContext<ReportsContextValue>({
   loadReports: async () => {},
   addReport: async () => null,
   upsertReport: () => {},
+  removeReport: () => {},
 });
 
 const normalizeMetadata = (metadata: unknown): Record<string, unknown> | null => {
@@ -141,6 +143,13 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
     [setReports],
   );
 
+  const removeReport = useCallback(
+    (reportId: number) => {
+      setReports(prev => prev.filter(report => report.id !== reportId));
+    },
+    [setReports],
+  );
+
   const loadReports = useCallback(
     async (filters?: ReportFilters) => {
       try {
@@ -228,7 +237,7 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <ReportsContext.Provider value={{ reports, loadReports, addReport, upsertReport }}>
+    <ReportsContext.Provider value={{ reports, loadReports, addReport, upsertReport, removeReport }}>
       {children}
     </ReportsContext.Provider>
   );

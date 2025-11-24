@@ -56,7 +56,7 @@ const PaymentReportsScreen = () => {
   const router = useRouter();
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
-  const { reports, loadReports, addReport, upsertReport } = useContext(ReportsContext);
+  const { reports, loadReports, addReport, upsertReport, removeReport } = useContext(ReportsContext);
   const { getFile, getFileMetadata } = useContext(FileContext);
 
   const [startDate, setStartDate] = useState(() => {
@@ -70,12 +70,15 @@ const PaymentReportsScreen = () => {
 
   const canGenerate = permissions.includes('generatePaymentReport');
   const canListReports = permissions.includes('listReports');
+  const canDeleteReports =
+    permissions.includes('deletePaymentReport') || permissions.includes('deleteReport');
 
   const themedBackground = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#fff', dark: '#1f1f1f' }, 'background');
   const borderColor = useThemeColor({ light: '#e2e2e2', dark: '#3a3a3a' }, 'background');
   const textColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'tint');
+  const destructiveColor = useThemeColor({ light: '#d32f2f', dark: '#ff6b6b' }, 'text');
   const secondaryText = useThemeColor({ light: '#555', dark: '#aaa' }, 'text');
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const buttonColor = useThemeColor({}, 'button');
@@ -223,6 +226,65 @@ const PaymentReportsScreen = () => {
     upsertReport,
   ]);
 
+  const handleDeleteReport = useCallback(
+    (report: ReportRecord) => {
+      if (!canDeleteReports) {
+        Alert.alert('Permiso requerido', 'No podés eliminar reportes de pagos.');
+        return;
+      }
+
+      Alert.alert(
+        'Eliminar reporte',
+        '¿Querés borrar este PDF y su registro? Esta acción no se puede deshacer.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              const fileId = Number(report.file_id);
+              if (!Number.isFinite(fileId)) {
+                Alert.alert('Operación no disponible', 'No se pudo identificar el archivo a eliminar.');
+                return;
+              }
+
+              try {
+                const response = await fetch(`${BASE_URL}/payments/report/${fileId}`, {
+                  method: 'DELETE',
+                  headers: {
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
+
+                await ensureAuthResponse(response, { silent: false });
+
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(errorText || 'No se pudo eliminar el reporte.');
+                }
+
+                removeReport(report.id);
+                if (canListReports) {
+                  await loadReports({ report_type: 'payments' });
+                }
+                Alert.alert('Reporte eliminado', 'Se borró el PDF y su registro asociado.');
+              } catch (error) {
+                if (isTokenExpiredError(error)) {
+                  return;
+                }
+                console.error('Error deleting payment report:', error);
+                Alert.alert('Error', 'No se pudo eliminar el reporte de pagos.');
+              }
+            },
+          },
+        ],
+        { cancelable: true },
+      );
+    },
+    [canDeleteReports, canListReports, loadReports, removeReport, token],
+  );
+
   const handleOpenReport = useCallback(
     async (report: ReportRecord) => {
       const fileId = Number(report.file_id);
@@ -282,11 +344,28 @@ const PaymentReportsScreen = () => {
             >
               <ThemedText style={{ color: accentColor }}>Abrir PDF</ThemedText>
             </TouchableOpacity>
+            {canDeleteReports && (
+              <TouchableOpacity
+                style={[styles.linkButton, styles.deleteButton, { borderColor: destructiveColor }]}
+                onPress={() => handleDeleteReport(item)}
+              >
+                <ThemedText style={{ color: destructiveColor }}>Eliminar</ThemedText>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       );
     },
-    [accentColor, borderColor, cardBackground, handleOpenReport, secondaryText],
+    [
+      accentColor,
+      borderColor,
+      canDeleteReports,
+      cardBackground,
+      destructiveColor,
+      handleDeleteReport,
+      handleOpenReport,
+      secondaryText,
+    ],
   );
 
   const listHeader = (
@@ -462,12 +541,16 @@ const styles = StyleSheet.create({
     marginTop: 10,
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    columnGap: 10,
   },
   linkButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
     borderWidth: 1,
+  },
+  deleteButton: {
+    borderStyle: 'solid',
   },
   emptyState: {
     padding: 18,
