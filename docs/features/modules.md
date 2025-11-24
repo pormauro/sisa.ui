@@ -198,11 +198,13 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `PUT ${BASE_URL}/payments/{id}` — actualización.【F:contexts/PaymentsContext.tsx†L227-L246】
 - `DELETE ${BASE_URL}/payments/{id}` — baja.【F:contexts/PaymentsContext.tsx†L262-L274】
 - `POST ${BASE_URL}/payments/report/pdf` — genera el PDF consolidado de comprobantes reales adjuntos a pagos dentro de un rango de fechas, ahora centralizado en este módulo.【F:docs/features/payments-report.md†L6-L35】
+- `DELETE ${BASE_URL}/payments/report/{file_id}` — elimina el PDF de comprobantes generado y limpia su registro de archivos, con confirmación en la app.【F:docs/features/payments-report.md†L37-L44】【F:app/reports/index.tsx†L120-L191】
 
 ### Permisos requeridos
 - `listPayments` habilita la vista general.【F:app/Home.tsx†L20-L37】【F:app/payments/index.tsx†L41-L133】
 - `addPayment`, `updatePayment`, `deletePayment` gobiernan formularios y acciones destructivas.【F:app/payments/create.tsx†L166-L206】【F:app/payments/[id].tsx†L29-L120】【F:app/payments/index.tsx†L145-L187】
 - `generatePaymentReport` permite solicitar el PDF consolidado de comprobantes de pagos con adjuntos de factura real.【F:docs/features/payments-report.md†L6-L35】
+- `deletePaymentReport` habilita la eliminación de reportes de comprobantes desde la app, previa confirmación del usuario.【F:app/reports/index.tsx†L120-L191】
 
 ### Pantallas relacionadas
 - `app/payments/index.tsx` — listado con búsqueda y accesos a detalle/modales.【F:app/payments/index.tsx†L1-L187】
