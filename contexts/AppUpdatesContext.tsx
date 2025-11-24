@@ -1,8 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import Constants from 'expo-constants';
 import { Alert } from 'react-native';
 
-import { BASE_URL } from '@/config/Index';
+import { APP_VERSION, BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useCachedState } from '@/hooks/useCachedState';
@@ -32,10 +31,21 @@ const defaultContext: AppUpdatesContextProps = {
   refreshLatestUpdate: async () => {},
 };
 
-const resolveCurrentVersion = (): string => {
-  const explicitVersion = Constants?.expoConfig?.version ?? Constants?.manifest?.version;
-  const extraVersion = (Constants?.expoConfig as any)?.extra?.appVersion;
-  return explicitVersion || extraVersion || '0.0.0';
+const isVersionNewer = (candidate: string, current: string): boolean => {
+  const parse = (value: string) => value.split('.').map(part => Number(part) || 0);
+  const candidateParts = parse(candidate);
+  const currentParts = parse(current);
+  const maxLength = Math.max(candidateParts.length, currentParts.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const candidateValue = candidateParts[index] ?? 0;
+    const currentValue = currentParts[index] ?? 0;
+
+    if (candidateValue > currentValue) return true;
+    if (candidateValue < currentValue) return false;
+  }
+
+  return false;
 };
 
 export const AppUpdatesContext = createContext<AppUpdatesContextProps>(defaultContext);
@@ -44,10 +54,6 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [latestUpdate, setLatestUpdate, latestHydrated] = useCachedState<LatestAppUpdate | null>(
     'appUpdates.latestUpdate',
     null
-  );
-  const [updateAvailable, setUpdateAvailable, availabilityHydrated] = useCachedState<boolean>(
-    'appUpdates.updateAvailable',
-    false
   );
   const [lastCheckedAt, setLastCheckedAt] = useCachedState<string | null>(
     'appUpdates.lastCheckedAt',
@@ -58,7 +64,12 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { token, checkConnection } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
 
-  const currentVersion = useMemo(resolveCurrentVersion, []);
+  const currentVersion = APP_VERSION;
+
+  const updateAvailable = useMemo(
+    () => (latestUpdate ? isVersionNewer(latestUpdate.version_code, currentVersion) : false),
+    [currentVersion, latestUpdate]
+  );
 
   const refreshLatestUpdate = useCallback(async (): Promise<void> => {
     if (!token || !permissions.includes('listAppUpdates')) {
@@ -102,7 +113,6 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         : null;
 
       setLatestUpdate(latest);
-      setUpdateAvailable(Boolean(payload?.update_available ?? latest));
       setLastCheckedAt(new Date().toISOString());
     } catch (error: any) {
       console.log('Error buscando actualizaciones de la app:', error);
@@ -113,13 +123,13 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     } finally {
       setIsChecking(false);
     }
-  }, [checkConnection, currentVersion, permissions, setLastCheckedAt, setLatestUpdate, setUpdateAvailable, token]);
+  }, [checkConnection, currentVersion, permissions, setLastCheckedAt, setLatestUpdate, token]);
 
   useEffect(() => {
-    if (token && latestHydrated && availabilityHydrated) {
+    if (token && latestHydrated) {
       void refreshLatestUpdate();
     }
-  }, [availabilityHydrated, latestHydrated, refreshLatestUpdate, token]);
+  }, [latestHydrated, refreshLatestUpdate, token]);
 
   return (
     <AppUpdatesContext.Provider
