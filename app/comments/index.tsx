@@ -53,11 +53,11 @@ const CommentsListScreen = () => {
   const sectionBorder = useThemeColor({ light: '#dedede', dark: '#433357' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
 
-  const canRespond = useMemo(
+  const canReview = useMemo(
     () =>
       userId === '1' ||
-      permissions.includes('respondComment') ||
-      permissions.includes('respondFeedback'),
+      permissions.includes('listComments') ||
+      permissions.includes('markCommentSeen'),
     [permissions, userId]
   );
   const canSubmit = useMemo(
@@ -70,34 +70,34 @@ const CommentsListScreen = () => {
     [permissions, userId]
   );
 
-  const [activeTab, setActiveTab] = useState<'mine' | 'all'>(canRespond ? 'all' : 'mine');
+  const [activeTab, setActiveTab] = useState<'mine' | 'all'>(canReview ? 'all' : 'mine');
   const [refreshing, setRefreshing] = useState(false);
 
   const dataset = useMemo(() => {
     if (!listingAvailable) {
       return [];
     }
-    if (canRespond && activeTab === 'all') {
+    if (canReview && activeTab === 'all') {
       return allComments;
     }
     return myComments;
-  }, [activeTab, allComments, canRespond, listingAvailable, myComments]);
+  }, [activeTab, allComments, canReview, listingAvailable, myComments]);
 
   useEffect(() => {
-    if (!canRespond && activeTab === 'all') {
+    if (!canReview && activeTab === 'all') {
       setActiveTab('mine');
     }
-  }, [activeTab, canRespond]);
+  }, [activeTab, canReview]);
 
   const isLoading = useMemo(() => {
     if (!listingAvailable) {
       return false;
     }
-    if (canRespond && activeTab === 'all') {
+    if (canReview && activeTab === 'all') {
       return loadingAllComments;
     }
     return loadingMyComments;
-  }, [activeTab, canRespond, listingAvailable, loadingAllComments, loadingMyComments]);
+  }, [activeTab, canReview, listingAvailable, loadingAllComments, loadingMyComments]);
 
   const emptyState = useMemo(() => {
     if (!listingAvailable) {
@@ -107,13 +107,13 @@ const CommentsListScreen = () => {
           'El servicio remoto no admite la consulta del historial. Solo es posible registrar nuevos comentarios.',
       };
     }
-    if (canRespond && activeTab === 'all') {
+    if (canReview && activeTab === 'all') {
       return {
         title: 'Sin comentarios recibidos',
         description: 'Todavía no se registraron comentarios para revisar.',
       };
     }
-    if (canRespond && activeTab === 'mine') {
+    if (canReview && activeTab === 'mine') {
       return {
         title: 'No enviaste comentarios todavía',
         description: canSubmit
@@ -127,7 +127,7 @@ const CommentsListScreen = () => {
         ? 'Usa el botón "Nuevo comentario" para enviar tus dudas o mejoras.'
         : 'No tenés permisos para cargar comentarios. Contactá al administrador.',
     };
-  }, [activeTab, canRespond, canSubmit, listingAvailable]);
+  }, [activeTab, canReview, canSubmit, listingAvailable]);
 
   const handleRefresh = useCallback(async () => {
     if (!listingAvailable) {
@@ -135,7 +135,7 @@ const CommentsListScreen = () => {
     }
     setRefreshing(true);
     try {
-      if (canRespond && activeTab === 'all') {
+      if (canReview && activeTab === 'all') {
         await loadAllComments();
       } else {
         await loadMyComments();
@@ -143,7 +143,7 @@ const CommentsListScreen = () => {
     } finally {
       setRefreshing(false);
     }
-  }, [activeTab, canRespond, listingAvailable, loadAllComments, loadMyComments]);
+  }, [activeTab, canReview, listingAvailable, loadAllComments, loadMyComments]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,10 +151,10 @@ const CommentsListScreen = () => {
         return;
       }
       void loadMyComments();
-      if (canRespond) {
+      if (canReview) {
         void loadAllComments();
       }
-    }, [canRespond, listingAvailable, loadAllComments, loadMyComments])
+    }, [canReview, listingAvailable, loadAllComments, loadMyComments])
   );
 
   const renderItem = useCallback(
@@ -182,7 +182,7 @@ const CommentsListScreen = () => {
               </ThemedText>
             </View>
           </View>
-          {canRespond ? (
+          {canReview ? (
             <ThemedText style={styles.metaText} numberOfLines={1}>
               Enviado por: {item.user_name || `Usuario #${item.user_id}`}
             </ThemedText>
@@ -196,7 +196,7 @@ const CommentsListScreen = () => {
         </TouchableOpacity>
       );
     },
-    [cardBorderColor, canRespond, pendingBackground, pendingTextColor, respondedBackground, respondedTextColor, router]
+    [cardBorderColor, canReview, pendingBackground, pendingTextColor, respondedBackground, respondedTextColor, router]
   );
 
   return (
@@ -208,7 +208,7 @@ const CommentsListScreen = () => {
         ) : null}
       </View>
 
-      {canRespond ? (
+      {canReview ? (
         <View style={[styles.tabSelector, { borderColor: sectionBorder }]}>
           <TouchableOpacity
             style={[

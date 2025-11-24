@@ -26,7 +26,7 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 - **Perfil** — Ruta: `/user/ProfileScreen`. Disponible para todos los usuarios autenticados.
 - **Configuración** — Ruta: `/user/ConfigScreen`. Disponible para todos los usuarios autenticados.
 - **Notificaciones** — Ruta: `/notifications`. Permiso: `listNotifications` (el superusuario siempre lo ve).
-- **Comentarios** — Ruta: `/comments`. Permiso: `listComments` (muestra envío propio; el permiso `respondComment` habilita la bandeja global).
+- **Comentarios** — Ruta: `/comments`. Permiso: `listComments` (muestra envío propio; las claves `listComments` o `markCommentSeen` habilitan la bandeja global y acciones de moderación).
 - **Permisos** — Ruta: `/permission`. Permiso: `listPermissions` (siempre visible para el usuario maestro con `userId === '1'`).
 
 ## Atajos

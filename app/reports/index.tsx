@@ -70,7 +70,7 @@ const PaymentReportsScreen = () => {
 
   const canGenerate = permissions.includes('generatePaymentReport');
   const canListReports = permissions.includes('listReports');
-  const canDeleteReports = permissions.includes('deletePaymentReport');
+  const canDeleteReports = permissions.includes('deleteReport');
 
   const themedBackground = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#fff', dark: '#1f1f1f' }, 'background');
