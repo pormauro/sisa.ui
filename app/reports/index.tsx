@@ -223,14 +223,14 @@ const PaymentReportsScreen = () => {
             text: 'Eliminar',
             style: 'destructive',
             onPress: async () => {
-              const reportId = Number(report.id);
-              if (!Number.isFinite(reportId)) {
-                Alert.alert('Operación no disponible', 'No se pudo identificar el reporte a eliminar.');
+              const fileId = Number(report.file_id);
+              if (!Number.isFinite(fileId)) {
+                Alert.alert('Operación no disponible', 'No se pudo identificar el archivo a eliminar.');
                 return;
               }
 
               try {
-                const response = await fetch(`${BASE_URL}/reports/${reportId}`, {
+                const response = await fetch(`${BASE_URL}/payments/report/${fileId}`, {
                   method: 'DELETE',
                   headers: {
                     Accept: 'application/json',
