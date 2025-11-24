@@ -1,8 +1,8 @@
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { useRouter } from 'expo-router';
-import React, { useContext } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useContext } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
@@ -11,11 +11,13 @@ import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
+import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
 
 const Menu: React.FC = () => {
   const router = useRouter();
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
+  const { latestUpdate, updateAvailable, refreshLatestUpdate, currentVersion } = useContext(AppUpdatesContext);
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
@@ -36,6 +38,25 @@ const Menu: React.FC = () => {
     return false;
   };
 
+  const handleUpdatePress = useCallback(async () => {
+    if (!latestUpdate?.download_url) {
+      Alert.alert('Descarga no disponible', 'No encontramos el enlace de actualización.');
+      return;
+    }
+
+    try {
+      const supported = await Linking.canOpenURL(latestUpdate.download_url);
+      if (!supported) {
+        Alert.alert('Descarga no disponible', 'No pudimos abrir el enlace de actualización.');
+        return;
+      }
+      await Linking.openURL(latestUpdate.download_url);
+    } catch (error) {
+      console.log('No fue posible abrir el enlace de descarga.', error);
+      Alert.alert('Error', 'Ocurrió un problema al abrir el enlace de descarga.');
+    }
+  }, [latestUpdate]);
+
   const visibleShortcutsSection = {
     ...SHORTCUTS_SECTION,
     items: SHORTCUTS_SECTION.items.filter(isEnabled),
@@ -51,6 +72,16 @@ const Menu: React.FC = () => {
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
+  const shouldShowUpdateButton =
+    permissions.includes('listAppUpdates') && updateAvailable && Boolean(latestUpdate);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (permissions.includes('listAppUpdates')) {
+        void refreshLatestUpdate();
+      }
+    }, [permissions, refreshLatestUpdate])
+  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
@@ -59,6 +90,17 @@ const Menu: React.FC = () => {
           <ThemedText style={styles.title}>Menú Principal</ThemedText>
           <NotificationMenuBadge />
         </View>
+        {shouldShowUpdateButton && latestUpdate ? (
+          <View style={styles.updateContainer}>
+            <MenuButton
+              icon="download-outline"
+              title={`Actualizar aplicación a la versión ${latestUpdate.version_code}`}
+              subtitle={`Versión instalada ${currentVersion}`}
+              showChevron={false}
+              onPress={handleUpdatePress}
+            />
+          </View>
+        ) : null}
         <View style={styles.sectionsContainer}>
           {visibleSections.length === 0 ? (
             <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
@@ -95,6 +137,9 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
+  },
+  updateContainer: {
+    marginBottom: 12,
   },
   header: {
     flexDirection: 'row',
