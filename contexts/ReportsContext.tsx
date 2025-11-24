@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useEffect, ReactNode } from 'react';
-import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
@@ -28,20 +27,9 @@ export interface ReportFilters {
   search?: string;
 }
 
-export interface ReportPayload {
-  file_id: number;
-  title: string;
-  report_type: string;
-  description?: string | null;
-  status?: ReportStatus;
-  metadata?: Record<string, unknown> | null;
-  download_url?: string | null;
-}
-
 interface ReportsContextValue {
   reports: ReportRecord[];
   loadReports: (filters?: ReportFilters) => Promise<void>;
-  addReport: (payload: ReportPayload) => Promise<ReportRecord | null>;
   upsertReport: (report: ReportRecord) => void;
   removeReport: (reportId: number) => void;
 }
@@ -49,7 +37,6 @@ interface ReportsContextValue {
 export const ReportsContext = createContext<ReportsContextValue>({
   reports: [],
   loadReports: async () => {},
-  addReport: async () => null,
   upsertReport: () => {},
   removeReport: () => {},
 });
@@ -78,16 +65,6 @@ const toNullableNumber = (value: unknown): number | null => {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-};
-
-const resolveReportId = (data: any): number | null => {
-  if (!data || typeof data !== 'object') return null;
-  if (typeof data.id === 'number') return data.id;
-  if (typeof data.report_id === 'number') return data.report_id;
-  if (typeof data.reportId === 'number') return data.reportId;
-  if (typeof data.report?.id === 'number') return data.report.id;
-  const numericId = toNullableNumber(data.id ?? data.report_id ?? data.reportId);
-  return numericId;
 };
 
 const normalizeReport = (record: any): ReportRecord | null => {
@@ -184,62 +161,8 @@ export const ReportsProvider = ({ children }: { children: ReactNode }) => {
     [setReports, token],
   );
 
-  const addReport = useCallback(
-    async (payload: ReportPayload): Promise<ReportRecord | null> => {
-      try {
-        const response = await fetch(`${BASE_URL}/reports`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        await ensureAuthResponse(response);
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => ({}));
-          const errorMessage =
-            typeof errorBody?.message === 'string'
-              ? errorBody.message
-              : 'No se pudo registrar el reporte generado.';
-          Alert.alert('Error', errorMessage);
-          return null;
-        }
-
-        const data = await response.json().catch(() => ({}));
-        const id = resolveReportId(data);
-        if (id === null) {
-          Alert.alert(
-            'Reporte registrado sin ID',
-            'El servidor confirmó la creación pero no envió un identificador explícito.',
-          );
-        }
-        const newReport: ReportRecord = {
-          id: id ?? Date.now(),
-          ...payload,
-          status: payload.status ?? 'generated',
-          metadata: normalizeMetadata(payload.metadata),
-          created_at: typeof data?.created_at === 'string' ? data.created_at : null,
-          updated_at: typeof data?.updated_at === 'string' ? data.updated_at : null,
-        };
-        upsertReport(newReport);
-        return newReport;
-      } catch (error) {
-        if (isTokenExpiredError(error)) {
-          console.warn('Token expirado al crear un reporte, se solicitará uno nuevo.');
-          return null;
-        }
-        console.error('Error creating report:', error);
-        Alert.alert('Error', 'No se pudo registrar el reporte generado.');
-        return null;
-      }
-    },
-    [token, upsertReport],
-  );
-
   return (
-    <ReportsContext.Provider value={{ reports, loadReports, addReport, upsertReport, removeReport }}>
+    <ReportsContext.Provider value={{ reports, loadReports, upsertReport, removeReport }}>
       {children}
     </ReportsContext.Provider>
   );

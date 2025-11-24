@@ -56,7 +56,7 @@ const PaymentReportsScreen = () => {
   const router = useRouter();
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
-  const { reports, loadReports, addReport, upsertReport, removeReport } = useContext(ReportsContext);
+  const { reports, loadReports, removeReport } = useContext(ReportsContext);
   const { getFile, getFileMetadata } = useContext(FileContext);
 
   const [startDate, setStartDate] = useState(() => {
@@ -164,41 +164,13 @@ const PaymentReportsScreen = () => {
       const data = await response.json();
       const resolvedFileId = Number(data?.file_id ?? data?.id ?? data?.report_id);
       const fileId = Number.isFinite(resolvedFileId) ? resolvedFileId : null;
-      const downloadUrl = typeof data?.download_url === 'string' ? data.download_url : null;
-      const reportTitle = `Comprobantes de pagos ${payload.start_date} a ${payload.end_date}`;
 
       if (fileId === null) {
         Alert.alert('Respuesta incompleta', 'El backend no devolvió el archivo generado.');
         return;
       }
 
-      const created = await addReport({
-        file_id: fileId,
-        title: reportTitle,
-        report_type: 'payments',
-        description:
-          typeof data?.message === 'string'
-            ? data.message
-            : 'Reporte de comprobantes de pagos generado desde la app.',
-        status: 'generated',
-        metadata: payload,
-        download_url: downloadUrl,
-      });
-
       await getFile(fileId);
-
-      if (!created && fileId) {
-        upsertReport({
-          id: Date.now(),
-          file_id: fileId,
-          title: reportTitle,
-          report_type: 'payments',
-          description: 'Registro local del reporte generado.',
-          status: 'generated',
-          metadata: payload,
-          download_url: downloadUrl,
-        });
-      }
 
       Alert.alert('Reporte listo', 'El PDF se generó correctamente.');
       if (canListReports) {
@@ -214,7 +186,6 @@ const PaymentReportsScreen = () => {
       setIsGenerating(false);
     }
   }, [
-    addReport,
     canGenerate,
     canListReports,
     endDate,
@@ -222,7 +193,6 @@ const PaymentReportsScreen = () => {
     loadReports,
     startDate,
     token,
-    upsertReport,
   ]);
 
   const handleDeleteReport = useCallback(
@@ -241,14 +211,14 @@ const PaymentReportsScreen = () => {
             text: 'Eliminar',
             style: 'destructive',
             onPress: async () => {
-              const fileId = Number(report.file_id);
-              if (!Number.isFinite(fileId)) {
-                Alert.alert('Operación no disponible', 'No se pudo identificar el archivo a eliminar.');
+              const reportId = Number(report.id);
+              if (!Number.isFinite(reportId)) {
+                Alert.alert('Operación no disponible', 'No se pudo identificar el reporte a eliminar.');
                 return;
               }
 
               try {
-                const response = await fetch(`${BASE_URL}/payments/report/${fileId}`, {
+                const response = await fetch(`${BASE_URL}/reports/${reportId}`, {
                   method: 'DELETE',
                   headers: {
                     Accept: 'application/json',
