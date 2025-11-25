@@ -2,9 +2,11 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from 're
 import { useLocalSearchParams } from 'expo-router';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
@@ -111,6 +113,8 @@ export default function CompanyMembershipsScreen() {
   const borderColor = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
   const badgeTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
+  const actionBackground = useThemeColor({}, 'button');
+  const actionText = useThemeColor({}, 'buttonText');
 
   const company = useMemo(
     () => companies.find(item => item.id === validCompanyId) ?? null,
@@ -221,6 +225,12 @@ export default function CompanyMembershipsScreen() {
     }
   }, [canListMemberships, loadMemberships, validCompanyId]);
 
+  const handleRequest = useCallback((type: 'administrator' | 'membership') => {
+    const title =
+      type === 'administrator' ? 'Solicitud para administrador' : 'Solicitud de membresía';
+    Alert.alert(title, 'Próximamente podrás enviar esta solicitud desde la app.');
+  }, []);
+
   if (!validCompanyId || !company) {
     return (
       <View style={[styles.container, { backgroundColor: background }]}>
@@ -264,9 +274,17 @@ export default function CompanyMembershipsScreen() {
         ) : (
           <ThemedText style={styles.emptyText}>Sin administradores declarados.</ThemedText>
         )}
+
+        <TouchableOpacity
+          style={[styles.requestButton, { backgroundColor: actionBackground }]}
+          activeOpacity={0.85}
+          onPress={() => handleRequest('administrator')}
+        >
+          <ThemedText style={[styles.requestButtonText, { color: actionText }]}>Solicitar ser administrador</ThemedText>
+        </TouchableOpacity>
       </View>
 
-      <View style={[styles.card, { borderColor }]}> 
+      <View style={[styles.card, { borderColor }]}>
         <ThemedText style={styles.sectionTitle}>Miembros y solicitudes</ThemedText>
         {initialLoading ? (
           <View style={styles.loaderWrapper}>
@@ -330,6 +348,14 @@ export default function CompanyMembershipsScreen() {
         ) : (
           <ThemedText style={styles.emptyText}>No hay solicitudes ni miembros registrados.</ThemedText>
         )}
+
+        <TouchableOpacity
+          style={[styles.requestButton, { backgroundColor: actionBackground }]}
+          activeOpacity={0.85}
+          onPress={() => handleRequest('membership')}
+        >
+          <ThemedText style={[styles.requestButtonText, { color: actionText }]}>Solicitar ser miembro</ThemedText>
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -440,5 +466,15 @@ const styles = StyleSheet.create({
   metaValue: {
     fontSize: 14,
     fontWeight: '500',
+  },
+  requestButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  requestButtonText: {
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

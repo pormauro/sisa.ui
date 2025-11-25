@@ -92,7 +92,6 @@ export default function ViewCompanyModal() {
 
   const generalFields = (
     [
-      { label: 'Nombre Comercial', value: company.name },
       { label: 'Razón Social', value: company.legal_name },
       { label: 'Sitio Web', value: company.website },
       { label: 'Teléfono', value: company.phone },
@@ -236,6 +235,7 @@ export default function ViewCompanyModal() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
+      <ThemedText style={styles.companyName}>{company.name}</ThemedText>
       <CircleImagePicker
         fileId={company.profile_file_id ? String(company.profile_file_id) : null}
         size={180}
@@ -264,27 +264,12 @@ export default function ViewCompanyModal() {
 
       {generalFields.length ? (
         <View>
-          <ThemedText style={styles.sectionTitle}>Datos Generales</ThemedText>
           {generalFields.map(field => (
             <React.Fragment key={field.label}>
               <ThemedText style={styles.label}>{field.label}</ThemedText>
               <ThemedText style={styles.value}>{String(field.value)}</ThemedText>
             </React.Fragment>
           ))}
-        </View>
-      ) : null}
-
-      {administratorIds.length ? (
-        <View>
-          <ThemedText style={styles.sectionTitle}>Administradores declarados</ThemedText>
-          <View style={styles.chipGroup}>
-            {administratorIds.map(adminId => (
-              <View key={adminId} style={[styles.chip, { borderColor: cardBorder }]}>
-                <ThemedText style={styles.chipLabel}>ID</ThemedText>
-                <ThemedText style={styles.chipValue}>{adminId}</ThemedText>
-              </View>
-            ))}
-          </View>
         </View>
       ) : null}
 
@@ -356,6 +341,11 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     gap: 16,
+  },
+  companyName: {
+    fontSize: 26,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   socialButton: {
     borderWidth: 1,
