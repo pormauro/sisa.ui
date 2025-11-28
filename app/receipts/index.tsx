@@ -18,11 +18,13 @@ import { ReceiptsContext, Receipt } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { DaySeparator } from '@/components/DaySeparator';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 
 type ReceiptSortOption = 'date' | 'amount' | 'payer' | 'description';
 
@@ -208,25 +210,35 @@ export default function ReceiptsScreen() {
     [sortDirection]
   );
 
-  const renderItem = ({ item }: { item: ReceiptListItem }) => {
-    const total = item.price;
+  const receiptsWithSeparators = useMemo(
+    () => withDaySeparators(filteredReceipts, receipt => receipt.receipt_date ?? receipt.created_at ?? null),
+    [filteredReceipts]
+  );
+
+  const renderItem = ({ item }: { item: DaySeparatedItem<ReceiptListItem> }) => {
+    if (item.type === 'separator') {
+      return <DaySeparator label={item.label} />;
+    }
+
+    const receipt = item.value;
+    const total = receipt.price;
     return (
       <TouchableOpacity
         style={[styles.item, { borderColor: itemBorderColor }]}
-        onPress={() => router.push(`/receipts/viewModal?id=${item.id}`)}
-        onLongPress={() => router.push(`/receipts/${item.id}`)}
+        onPress={() => router.push(`/receipts/viewModal?id=${receipt.id}`)}
+        onLongPress={() => router.push(`/receipts/${receipt.id}`)}
       >
         <View style={styles.itemInfo}>
-          <ThemedText style={styles.name}>{item.payerDisplayName}</ThemedText>
-          <ThemedText>{item.description || 'Sin descripción'}</ThemedText>
+          <ThemedText style={styles.name}>{receipt.payerDisplayName}</ThemedText>
+          <ThemedText>{receipt.description || 'Sin descripción'}</ThemedText>
           <ThemedText>Total: ${total}</ThemedText>
         </View>
         {canDelete && (
           <TouchableOpacity
             style={styles.deleteBtn}
-            onPress={() => handleDelete(item.id)}
+            onPress={() => handleDelete(receipt.id)}
           >
-            {loadingId === item.id ? (
+            {loadingId === receipt.id ? (
               <ActivityIndicator color={spinnerColor} />
             ) : (
               <ThemedText style={styles.deleteText}>🗑️</ThemedText>
@@ -277,8 +289,10 @@ export default function ReceiptsScreen() {
         </ThemedText>
       </View>
       <FlatList
-        data={filteredReceipts}
-        keyExtractor={(item) => item.id.toString()}
+        data={receiptsWithSeparators}
+        keyExtractor={(item) =>
+          item.type === 'separator' ? `separator-${item.id}` : item.value.id.toString()
+        }
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}
