@@ -2,6 +2,7 @@
 import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { DaySeparator } from '@/components/DaySeparator';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -18,6 +19,7 @@ import { FoldersContext } from '@/contexts/FoldersContext';
 import { formatTimeInterval } from '@/utils/time';
 import { sortByNewest } from '@/utils/sort';
 import { formatCurrency } from '@/utils/currency';
+import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 
 type SortField = 'updatedAt' | 'jobDate' | 'clientName';
 type SortDirection = 'asc' | 'desc';
@@ -176,10 +178,20 @@ export default function JobsScreen() {
     ]);
   };
 
-  const renderItem = ({ item }: { item: Job }) => {
-    const jobStatus = getJobStatus(item);
-    const clientName = getClientName(item.client_id); // Usamos client_id para obtener el nombre del cliente
-    const folderName = item.folder_id ? folders.find(folder => folder.id === item.folder_id)?.name : null;
+  const jobsWithSeparators = useMemo(
+    () => withDaySeparators(sortedJobs, job => job.job_date ?? job.updated_at ?? job.created_at ?? null),
+    [sortedJobs]
+  );
+
+  const renderItem = ({ item }: { item: DaySeparatedItem<Job> }) => {
+    if (item.type === 'separator') {
+      return <DaySeparator label={item.label} />;
+    }
+
+    const job = item.value;
+    const jobStatus = getJobStatus(job);
+    const clientName = getClientName(job.client_id); // Usamos client_id para obtener el nombre del cliente
+    const folderName = job.folder_id ? folders.find(folder => folder.id === job.folder_id)?.name : null;
     const extractDate = (d?: string | null) => (d && d.includes(' ') ? d.split(' ')[0] : d || '');
     const extractTime = (t?: string | null) => {
       if (!t) return '';
@@ -189,17 +201,17 @@ export default function JobsScreen() {
       const [hours, minutes] = rawTime.split(':');
       return minutes != null ? `${hours}:${minutes}` : rawTime;
     };
-    const dateStr = extractDate(item.job_date);
-    const startStr = extractTime(item.start_time);
-    const endStr = extractTime(item.end_time);
+    const dateStr = extractDate(job.job_date);
+    const startStr = extractTime(job.start_time);
+    const endStr = extractTime(job.end_time);
     const intervalStr = formatTimeInterval(startStr, endStr);
     const manualRate =
-      typeof item.manual_amount === 'number' && Number.isFinite(item.manual_amount)
-        ? item.manual_amount
+      typeof job.manual_amount === 'number' && Number.isFinite(job.manual_amount)
+        ? job.manual_amount
         : null;
 
-    const tariffRate = item.tariff_id
-      ? tariffs.find(t => t.id === item.tariff_id)?.amount ?? null
+    const tariffRate = job.tariff_id
+      ? tariffs.find(t => t.id === job.tariff_id)?.amount ?? null
       : null;
 
     const hasExplicitRate = manualRate !== null || tariffRate !== null;
@@ -227,8 +239,8 @@ export default function JobsScreen() {
           styles.itemContainer,
           { borderColor: itemBorderColor, backgroundColor: jobStatus ? jobStatus.background_color : itemBackground }
         ]}
-        onPress={() => router.push(`/jobs/viewModal?id=${item.id}`)}
-        onLongPress={() => router.push(`/jobs/${item.id}`)}
+        onPress={() => router.push(`/jobs/viewModal?id=${job.id}`)}
+        onLongPress={() => router.push(`/jobs/${job.id}`)}
       >
         <View style={styles.itemContent}>
           {/* Cliente */}
@@ -237,8 +249,8 @@ export default function JobsScreen() {
           </ThemedText>
 
           {/* Descripción */}
-          {item.description ? (
-            <ThemedText style={[styles.subTitle, itemTextStyle]}>{item.description}</ThemedText>
+          {job.description ? (
+            <ThemedText style={[styles.subTitle, itemTextStyle]}>{job.description}</ThemedText>
           ) : null}
 
           {/* Carpeta */}
@@ -256,10 +268,10 @@ export default function JobsScreen() {
         </View>
         <View style={styles.itemRight}>
           <ThemedText style={[styles.statusText, itemTextStyle]}>
-            {jobStatus ? jobStatus.label : `Estado: ${item.status_id ?? 'N/A'}`}
+            {jobStatus ? jobStatus.label : `Estado: ${job.status_id ?? 'N/A'}`}
           </ThemedText>
-          <TouchableOpacity onPress={() => handleDelete(item.id)}>
-            {loadingId === item.id ? (
+          <TouchableOpacity onPress={() => handleDelete(job.id)}>
+            {loadingId === job.id ? (
               <ActivityIndicator color={spinnerColor} />
             ) : (
               <ThemedText style={[styles.trash, itemTextStyle]}>🗑️</ThemedText>
@@ -312,8 +324,10 @@ export default function JobsScreen() {
         </ThemedText>
       </View>
       <FlatList
-        data={sortedJobs}
-        keyExtractor={(item) => item.id.toString()}
+        data={jobsWithSeparators}
+        keyExtractor={(item) =>
+          item.type === 'separator' ? `separator-${item.id}` : item.value.id.toString()
+        }
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: 120 }} />}

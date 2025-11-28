@@ -18,11 +18,13 @@ import { PaymentsContext, Payment } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
+import { DaySeparator } from '@/components/DaySeparator';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 
 type PaymentSortOption = 'date' | 'amount' | 'creditor' | 'description';
 
@@ -238,25 +240,35 @@ export default function PaymentsScreen() {
     [sortDirection]
   );
 
-  const renderItem = ({ item }: { item: PaymentListItem }) => {
-    const total = item.price;
+  const paymentsWithSeparators = useMemo(
+    () => withDaySeparators(filteredPayments, payment => payment.payment_date ?? payment.created_at ?? null),
+    [filteredPayments]
+  );
+
+  const renderItem = ({ item }: { item: DaySeparatedItem<PaymentListItem> }) => {
+    if (item.type === 'separator') {
+      return <DaySeparator label={item.label} />;
+    }
+
+    const payment = item.value;
+    const total = payment.price;
     return (
       <TouchableOpacity
         style={[styles.item, { borderColor: itemBorderColor }]}
-        onPress={() => router.push(`/payments/viewModal?id=${item.id}`)}
-        onLongPress={() => router.push(`/payments/${item.id}`)}
+        onPress={() => router.push(`/payments/viewModal?id=${payment.id}`)}
+        onLongPress={() => router.push(`/payments/${payment.id}`)}
       >
         <View style={styles.itemInfo}>
-          <ThemedText style={styles.name}>{item.creditorDisplayName}</ThemedText>
-          <ThemedText>{item.description || 'Sin descripción'}</ThemedText>
+          <ThemedText style={styles.name}>{payment.creditorDisplayName}</ThemedText>
+          <ThemedText>{payment.description || 'Sin descripción'}</ThemedText>
           <ThemedText>Total: ${total}</ThemedText>
         </View>
         {canDelete && (
           <TouchableOpacity
             style={styles.deleteBtn}
-            onPress={() => handleDelete(item.id)}
+            onPress={() => handleDelete(payment.id)}
           >
-            {loadingId === item.id ? (
+            {loadingId === payment.id ? (
               <ActivityIndicator color={spinnerColor} />
             ) : (
               <ThemedText style={styles.deleteText}>🗑️</ThemedText>
@@ -307,8 +319,10 @@ export default function PaymentsScreen() {
         </ThemedText>
       </View>
       <FlatList
-        data={filteredPayments}
-        keyExtractor={(item) => item.id.toString()}
+        data={paymentsWithSeparators}
+        keyExtractor={(item) =>
+          item.type === 'separator' ? `separator-${item.id}` : item.value.id.toString()
+        }
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListFooterComponent={<View style={{ height: canAdd ? 120 : 0 }} />}

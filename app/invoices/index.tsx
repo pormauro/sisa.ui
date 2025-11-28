@@ -19,6 +19,8 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
+import { DaySeparator } from '@/components/DaySeparator';
+import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 
 type InvoiceListItem = Invoice & {
   jobReferences: string;
@@ -189,6 +191,15 @@ export default function InvoicesScreen() {
     });
   }, [invoices, tintColor]);
 
+  const invoicesWithSeparators = useMemo(
+    () =>
+      withDaySeparators(
+        enrichedInvoices,
+        invoice => invoice.invoice_date ?? invoice.issue_date ?? invoice.created_at ?? null,
+      ),
+    [enrichedInvoices],
+  );
+
   const handleCreate = useCallback(() => {
     if (!canCreate) {
       return;
@@ -248,42 +259,47 @@ export default function InvoicesScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }: { item: InvoiceListItem }) => {
+    ({ item }: { item: DaySeparatedItem<InvoiceListItem> }) => {
+      if (item.type === 'separator') {
+        return <DaySeparator label={item.label} />;
+      }
+
+      const invoice = item.value;
       return (
         <TouchableOpacity
           style={[styles.card, { backgroundColor: cardBackground, borderColor }]}
-          onPress={() => handleEdit(item)}
+          onPress={() => handleEdit(invoice)}
           disabled={!canUpdate}
         >
           <View style={styles.cardHeader}>
             <ThemedText style={styles.invoiceNumber} numberOfLines={1}>
-              {item.invoice_number ? `#${item.invoice_number}` : `Factura ${item.id}`}
+              {invoice.invoice_number ? `#${invoice.invoice_number}` : `Factura ${invoice.id}`}
             </ThemedText>
-            <View style={[styles.statusPill, { backgroundColor: item.statusColor }]}>
+            <View style={[styles.statusPill, { backgroundColor: invoice.statusColor }]}>
               <ThemedText style={styles.statusText} lightColor="#FFFFFF" darkColor="#FFFFFF">
-                {item.statusLabel}
+                {invoice.statusLabel}
               </ThemedText>
             </View>
           </View>
 
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Fecha</ThemedText>
-          <ThemedText style={styles.cardValue}>{item.formattedIssueDate}</ThemedText>
+          <ThemedText style={styles.cardValue}>{invoice.formattedIssueDate}</ThemedText>
 
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Importe</ThemedText>
-          <ThemedText style={styles.cardValue}>{item.formattedTotal}</ThemedText>
+          <ThemedText style={styles.cardValue}>{invoice.formattedTotal}</ThemedText>
 
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Trabajos vinculados</ThemedText>
-          <ThemedText style={styles.cardValue}>{item.jobReferences}</ThemedText>
+          <ThemedText style={styles.cardValue}>{invoice.jobReferences}</ThemedText>
 
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Conceptos</ThemedText>
-          <ThemedText style={styles.cardValue}>{item.conceptsLabel}</ThemedText>
+          <ThemedText style={styles.cardValue}>{invoice.conceptsLabel}</ThemedText>
 
-          {canVoid && !['void', 'canceled'].includes(item.status ? item.status.toLowerCase() : '') && (
+          {canVoid && !['void', 'canceled'].includes(invoice.status ? invoice.status.toLowerCase() : '') && (
             <TouchableOpacity
               style={[styles.voidButton, { backgroundColor: dangerColor }]}
-              onPress={() => requestVoid(item)}
+              onPress={() => requestVoid(invoice)}
             >
-              {voidingId === item.id ? (
+              {voidingId === invoice.id ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <ThemedText style={styles.voidButtonText} lightColor="#FFFFFF" darkColor="#FFFFFF">
@@ -335,8 +351,10 @@ export default function InvoicesScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <FlatList
-        data={enrichedInvoices}
-        keyExtractor={item => item.id.toString()}
+        data={invoicesWithSeparators}
+        keyExtractor={item =>
+          item.type === 'separator' ? `separator-${item.id}` : item.value.id.toString()
+        }
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={listHeaderComponent}
