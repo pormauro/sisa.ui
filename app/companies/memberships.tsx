@@ -17,6 +17,7 @@ import { ThemedButton } from '@/components/ThemedButton';
 import { ThemedTextInput } from '@/components/ThemedTextInput';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { AuthContext } from '@/contexts/AuthContext';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
 import {
   CompanyMembership,
@@ -103,19 +104,31 @@ export default function CompanyMembershipsScreen() {
   const companyId = Number(id);
   const validCompanyId = Number.isFinite(companyId) ? companyId : null;
 
+  const { userId } = useContext(AuthContext);
   const { companies } = useContext(CompaniesContext);
   const {
     membershipsByCompany,
     loadMemberships,
     requestMembership,
+    acceptInvitation,
+    leaveMembership,
+    suspendMember,
+    removeMember,
     approveMembership,
     rejectMembership,
     cancelInvitation,
+    loadMembershipHistory,
+    getMembershipHistory,
     canListMemberships,
     canRequestMembership,
+    canAcceptInvitations,
+    canLeaveCompany,
+    canSuspendMembers,
+    canRemoveMembers,
     canApproveMemberships,
     canRejectMemberships,
     canCancelInvitations,
+    canViewHistory,
   } = useContext(CompanyMembershipsContext);
   const { profiles, getProfile } = useContext(ProfilesContext);
 
@@ -128,6 +141,11 @@ export default function CompanyMembershipsScreen() {
   const [requestPosition, setRequestPosition] = useState('');
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [membershipActionLoading, setMembershipActionLoading] = useState<number | null>(null);
+  const [acceptingMembership, setAcceptingMembership] = useState<CompanyMembership | null>(null);
+  const [acceptToken, setAcceptToken] = useState('');
+  const [acceptSubmitting, setAcceptSubmitting] = useState(false);
+  const [historyMembership, setHistoryMembership] = useState<CompanyMembership | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
@@ -145,6 +163,14 @@ export default function CompanyMembershipsScreen() {
     () => companies.find(item => item.id === validCompanyId) ?? null,
     [companies, validCompanyId],
   );
+
+  const currentUserId = useMemo(() => {
+    if (!userId) {
+      return null;
+    }
+    const parsed = Number(userId);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [userId]);
 
   const administratorIds = useMemo(
     () => normalizeAdministratorIds(company?.administrator_ids),
@@ -411,9 +437,148 @@ export default function CompanyMembershipsScreen() {
     [cancelInvitation, canCancelInvitations, refreshAfterMutation, validCompanyId],
   );
 
+  const handleAcceptInvitation = useCallback(
+    (membership: CompanyMembership) => {
+      if (!canAcceptInvitations || membership.status !== 'invited') {
+        return;
+      }
+      setAcceptingMembership(membership);
+      setAcceptToken('');
+    },
+    [canAcceptInvitations],
+  );
+
+  const handleSubmitAcceptance = useCallback(async () => {
+    if (!validCompanyId || !acceptingMembership) {
+      return;
+    }
+    setAcceptSubmitting(true);
+    try {
+      const ok = await acceptInvitation(validCompanyId, acceptingMembership.id, acceptToken.trim());
+      if (ok) {
+        Alert.alert('Invitación aceptada', 'Tu membresía fue activada exitosamente.');
+        setAcceptingMembership(null);
+        setAcceptToken('');
+        await refreshAfterMutation();
+      } else {
+        Alert.alert('Error', 'No se pudo aceptar la invitación. Verifica el token e inténtalo nuevamente.');
+      }
+    } finally {
+      setAcceptSubmitting(false);
+    }
+  }, [acceptInvitation, acceptToken, acceptingMembership, refreshAfterMutation, validCompanyId]);
+
+  const handleLeaveMembership = useCallback(
+    (membership: CompanyMembership) => {
+      if (!validCompanyId || !canLeaveCompany) {
+        return;
+      }
+      Alert.alert('Abandonar empresa', '¿Seguro que deseas darte de baja de esta empresa?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          style: 'destructive',
+          onPress: async () => {
+            setMembershipActionLoading(membership.id);
+            try {
+              const ok = await leaveMembership(validCompanyId, membership.id);
+              if (ok) {
+                Alert.alert('Baja registrada', 'Tu membresía quedó en estado "left".');
+                await refreshAfterMutation();
+              } else {
+                Alert.alert('Error', 'No se pudo procesar la baja.');
+              }
+            } finally {
+              setMembershipActionLoading(null);
+            }
+          },
+        },
+      ]);
+    },
+    [canLeaveCompany, leaveMembership, refreshAfterMutation, validCompanyId],
+  );
+
+  const handleSuspendMember = useCallback(
+    (membership: CompanyMembership) => {
+      if (!validCompanyId || !canSuspendMembers) {
+        return;
+      }
+      Alert.alert('Suspender miembro', '¿Quieres suspender temporalmente esta membresía?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Suspender',
+          style: 'destructive',
+          onPress: async () => {
+            setMembershipActionLoading(membership.id);
+            try {
+              const ok = await suspendMember(validCompanyId, membership.id);
+              if (ok) {
+                Alert.alert('Membresía suspendida', 'El usuario quedó sin acceso hasta nuevo aviso.');
+                await refreshAfterMutation();
+              } else {
+                Alert.alert('Error', 'No se pudo suspender la membresía.');
+              }
+            } finally {
+              setMembershipActionLoading(null);
+            }
+          },
+        },
+      ]);
+    },
+    [canSuspendMembers, refreshAfterMutation, suspendMember, validCompanyId],
+  );
+
+  const handleRemoveMember = useCallback(
+    (membership: CompanyMembership) => {
+      if (!validCompanyId || !canRemoveMembers) {
+        return;
+      }
+      Alert.alert('Remover miembro', 'Esta acción revocará definitivamente el acceso. ¿Continuar?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            setMembershipActionLoading(membership.id);
+            try {
+              const ok = await removeMember(validCompanyId, membership.id);
+              if (ok) {
+                Alert.alert('Membresía removida', 'La persona ya no forma parte de la empresa.');
+                await refreshAfterMutation();
+              } else {
+                Alert.alert('Error', 'No se pudo remover la membresía.');
+              }
+            } finally {
+              setMembershipActionLoading(null);
+            }
+          },
+        },
+      ]);
+    },
+    [canRemoveMembers, refreshAfterMutation, removeMember, validCompanyId],
+  );
+
+  const handleViewHistory = useCallback(
+    async (membership: CompanyMembership) => {
+      if (!validCompanyId || !canViewHistory) {
+        return;
+      }
+      setHistoryMembership(membership);
+      setHistoryLoading(true);
+      try {
+        await loadMembershipHistory(validCompanyId, membership.id);
+      } finally {
+        setHistoryLoading(false);
+      }
+    },
+    [canViewHistory, loadMembershipHistory, validCompanyId],
+  );
+
   const renderActions = useCallback(
     (membership: CompanyMembership) => {
       const actions: { label: string; onPress: () => void; variant: 'success' | 'danger' | 'neutral' }[] = [];
+
+      const isSelf = currentUserId !== null && currentUserId === membership.user_id;
 
       if (membership.status === 'pending') {
         if (canApproveMemberships) {
@@ -426,6 +591,26 @@ export default function CompanyMembershipsScreen() {
 
       if (membership.status === 'invited' && canCancelInvitations) {
         actions.push({ label: 'Cancelar invitación', onPress: () => void handleCancelInvitation(membership), variant: 'danger' });
+      }
+
+      if (membership.status === 'invited' && isSelf && canAcceptInvitations) {
+        actions.push({ label: 'Aceptar invitación', onPress: () => handleAcceptInvitation(membership), variant: 'success' });
+      }
+
+      if (isSelf && canLeaveCompany && (membership.status === 'approved' || membership.status === 'suspended')) {
+        actions.push({ label: 'Abandonar empresa', onPress: () => handleLeaveMembership(membership), variant: 'neutral' });
+      }
+
+      if (canSuspendMembers && membership.status === 'approved') {
+        actions.push({ label: 'Suspender', onPress: () => handleSuspendMember(membership), variant: 'danger' });
+      }
+
+      if (canRemoveMembers && (membership.status === 'approved' || membership.status === 'suspended')) {
+        actions.push({ label: 'Remover', onPress: () => handleRemoveMember(membership), variant: 'danger' });
+      }
+
+      if (canViewHistory) {
+        actions.push({ label: 'Ver historial', onPress: () => handleViewHistory(membership), variant: 'neutral' });
       }
 
       if (!actions.length) {
@@ -461,16 +646,27 @@ export default function CompanyMembershipsScreen() {
       );
     },
     [
+      canAcceptInvitations,
       canApproveMemberships,
       canCancelInvitations,
+      canLeaveCompany,
+      canRemoveMembers,
+      canSuspendMembers,
       canRejectMemberships,
       dangerBackground,
+      handleAcceptInvitation,
       handleApproveMembership,
       handleCancelInvitation,
+      handleLeaveMembership,
+      handleRemoveMember,
+      handleSuspendMember,
+      handleViewHistory,
       handleRejectMembership,
       membershipActionLoading,
       neutralBackground,
+      canViewHistory,
       successBackground,
+      currentUserId,
     ],
   );
 
@@ -551,6 +747,146 @@ export default function CompanyMembershipsScreen() {
     requestSubmitting,
     requestType,
     resetRequestForm,
+  ]);
+
+  const renderAcceptModal = useCallback(() => {
+    if (!acceptingMembership) {
+      return null;
+    }
+    const keyboardOffset = Platform.OS === 'ios' ? 80 : 0;
+    return (
+      <Modal visible transparent animationType="fade" onRequestClose={() => setAcceptingMembership(null)}>
+        <View style={[styles.modalOverlay, { backgroundColor: modalOverlay }]}>
+          <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={keyboardOffset} style={{ flex: 1 }}>
+            <View style={[styles.modalCard, { backgroundColor: cardBackground, borderColor }]}>
+              <ThemedText style={styles.modalTitle}>Aceptar invitación</ThemedText>
+              <ThemedText style={styles.modalSubtitle}>
+                Ingresa el token enviado por correo o notificación para activar tu membresía.
+              </ThemedText>
+              <ThemedText style={styles.label}>Token de invitación</ThemedText>
+              <ThemedTextInput
+                value={acceptToken}
+                onChangeText={setAcceptToken}
+                placeholder="Ej: 123456"
+                autoCapitalize="none"
+              />
+
+              <View style={styles.modalActions}>
+                <ThemedButton title="Cancelar" onPress={() => setAcceptingMembership(null)} style={styles.modalButton} />
+                <ThemedButton
+                  title={acceptSubmitting ? 'Validando...' : 'Aceptar'}
+                  onPress={handleSubmitAcceptance}
+                  disabled={acceptSubmitting || !acceptToken.trim().length}
+                  style={[styles.modalButton, { backgroundColor: actionBackground }]}
+                  textStyle={{ color: actionText }}
+                />
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    );
+  }, [
+    acceptSubmitting,
+    acceptToken,
+    acceptingMembership,
+    actionBackground,
+    actionText,
+    borderColor,
+    cardBackground,
+    handleSubmitAcceptance,
+    modalOverlay,
+  ]);
+
+  const renderHistoryModal = useCallback(() => {
+    if (!historyMembership || !validCompanyId) {
+      return null;
+    }
+
+    const entries = getMembershipHistory(validCompanyId, historyMembership.id);
+
+    return (
+      <Modal visible transparent animationType="fade" onRequestClose={() => setHistoryMembership(null)}>
+        <View style={[styles.modalOverlay, { backgroundColor: modalOverlay }]}>
+          <View style={[styles.historyCard, { backgroundColor: cardBackground, borderColor }]}>
+            <View style={styles.historyHeader}>
+              <ThemedText style={styles.modalTitle}>Historial de cambios</ThemedText>
+              <TouchableOpacity onPress={() => setHistoryMembership(null)}>
+                <ThemedText style={styles.closeText}>Cerrar</ThemedText>
+              </TouchableOpacity>
+            </View>
+            {historyLoading ? (
+              <View style={styles.loaderWrapper}>
+                <ActivityIndicator size="small" color={spinnerColor} />
+              </View>
+            ) : entries.length ? (
+              <ScrollView style={styles.historyList}>
+                {entries.map(entry => (
+                  <View key={`history-${entry.id ?? `${entry.changed_at}-${entry.operation_type}`}`} style={[styles.historyItem, { borderColor }]}>
+                    <View style={styles.historyRow}>
+                      <ThemedText style={styles.historyLabel}>Evento</ThemedText>
+                      <ThemedText style={styles.historyValue}>{entry.operation_type}</ThemedText>
+                    </View>
+                    {entry.changed_at ? (
+                      <View style={styles.historyRow}>
+                        <ThemedText style={styles.historyLabel}>Fecha</ThemedText>
+                        <ThemedText style={styles.historyValue}>{formatDate(entry.changed_at) ?? entry.changed_at}</ThemedText>
+                      </View>
+                    ) : null}
+                    {(entry.previous_state || entry.new_state) && (
+                      <View style={styles.historyRow}>
+                        <ThemedText style={styles.historyLabel}>Estado</ThemedText>
+                        <ThemedText style={styles.historyValue}>
+                          {entry.previous_state ? `${entry.previous_state} → ` : ''}
+                          {entry.new_state ?? ''}
+                        </ThemedText>
+                      </View>
+                    )}
+                    {entry.changed_by ? (
+                      <View style={styles.historyRow}>
+                        <ThemedText style={styles.historyLabel}>Usuario</ThemedText>
+                        <ThemedText style={styles.historyValue}>#{entry.changed_by}</ThemedText>
+                      </View>
+                    ) : null}
+                    {hasContent(entry.reason) ? (
+                      <View style={styles.historyRow}>
+                        <ThemedText style={styles.historyLabel}>Motivo</ThemedText>
+                        <ThemedText style={styles.historyValue}>{entry.reason}</ThemedText>
+                      </View>
+                    ) : null}
+                    {hasContent(entry.notes) ? (
+                      <View style={styles.historyRow}>
+                        <ThemedText style={styles.historyLabel}>Notas</ThemedText>
+                        <ThemedText style={styles.historyValue}>{entry.notes}</ThemedText>
+                      </View>
+                    ) : null}
+                    {entry.metadata_snapshot ? (
+                      <View style={styles.historyMetadata}>
+                        <ThemedText style={styles.historyLabel}>Metadata</ThemedText>
+                        <ThemedText style={styles.metadataValue}>
+                          {JSON.stringify(entry.metadata_snapshot, null, 2)}
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <ThemedText style={styles.emptyText}>Sin actividad registrada.</ThemedText>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  }, [
+    borderColor,
+    cardBackground,
+    getMembershipHistory,
+    historyLoading,
+    historyMembership,
+    modalOverlay,
+    spinnerColor,
+    validCompanyId,
   ]);
 
   if (!validCompanyId || !company) {
@@ -681,6 +1017,8 @@ export default function CompanyMembershipsScreen() {
         </TouchableOpacity>
       </View>
       {renderRequestModal()}
+      {renderAcceptModal()}
+      {renderHistoryModal()}
     </ScrollView>
   );
 }
@@ -855,5 +1193,56 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     flex: 1,
+  },
+  historyCard: {
+    maxHeight: '80%',
+    width: '100%',
+    maxWidth: 480,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  closeText: {
+    fontWeight: '700',
+  },
+  historyList: {
+    maxHeight: 420,
+  },
+  historyItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    gap: 6,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  historyLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  historyValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  historyMetadata: {
+    marginTop: 4,
+  },
+  metadataValue: {
+    fontSize: 12,
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
 });
