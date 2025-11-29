@@ -396,6 +396,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
 
+      if (shouldAttachAuth && pendingRefresh) {
+        await ensureAuthRefresh();
+      }
+
       let effectiveInit = init ?? {};
 
       if (shouldAttachAuth) {
