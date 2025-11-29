@@ -250,34 +250,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const autoLogin = useCallback(async () => {
-    try {
-      const keys = ['username', 'password', 'token', 'email', 'user_id'];
-      const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId] =
-        await getInitialItems(keys);
+    const keys = ['username', 'password', 'token', 'email', 'user_id'];
+    const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId] =
+      await getInitialItems(keys);
 
-      if (storedUsername) {
-        setUsername(storedUsername);
-      }
-      if (storedPassword) {
-        setPassword(storedPassword);
-      }
-      if (storedEmail) {
-        setEmail(storedEmail);
-      }
-      if (storedUserId) {
-        setUserId(storedUserId);
-      }
-      if (storedToken) {
-        setToken(storedToken);
-      }
+    const tokenValid = storedToken ? await checkTokenValidity() : false;
+    const effectiveToken = tokenValid ? storedToken : null;
+    const shouldLogin = Boolean(storedUsername && storedPassword && !effectiveToken);
 
-      const tokenValid = storedToken ? await checkTokenValidity() : false;
+    setUsername(storedUsername ?? null);
+    setPassword(storedPassword ?? null);
+    setEmail(storedEmail ?? null);
+    setUserId(storedUserId ?? null);
+    setToken(effectiveToken);
+    setIsOffline(false);
+    setIsLoading(false);
 
-      if (storedUsername && storedPassword && (!storedToken || !tokenValid)) {
-        await performLogin(storedUsername, storedPassword);
-      }
-    } finally {
-      setIsLoading(false);
+    if (shouldLogin && storedUsername && storedPassword) {
+      await performLogin(storedUsername, storedPassword);
     }
   }, [checkTokenValidity, performLogin]);
 
