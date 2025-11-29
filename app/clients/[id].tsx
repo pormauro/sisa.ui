@@ -11,7 +11,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
-import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
+import { Company } from '@/contexts/CompaniesContext';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 
 
 export default function ClientDetailPage() {
@@ -25,7 +26,7 @@ export default function ClientDetailPage() {
   const clientId = Number(id);
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
-  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { companies, loadFromStorage } = useCompanyContext();
   const {
     beginSelection,
     completeSelection,
@@ -95,9 +96,9 @@ export default function ClientDetailPage() {
 
   useEffect(() => {
     if (!companies.length) {
-      loadCompanies();
+      loadFromStorage();
     }
-  }, [companies.length, loadCompanies]);
+  }, [companies.length, loadFromStorage]);
 
   useEffect(() => () => {
     cancelSelection();

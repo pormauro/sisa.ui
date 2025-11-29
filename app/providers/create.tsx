@@ -7,14 +7,15 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
-import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
+import { Company } from '@/contexts/CompaniesContext';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 import { SearchableSelect } from '@/components/SearchableSelect';
 
 export default function CreateProvider() {
   const router = useRouter();
   const { addProvider } = useContext(ProvidersContext);
   const { permissions } = useContext(PermissionsContext);
-  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { companies, loadFromStorage } = useCompanyContext();
   const { completeSelection, cancelSelection } = usePendingSelection();
 
   const screenBackground = useThemeColor({}, 'background');
@@ -36,9 +37,9 @@ export default function CreateProvider() {
 
   useEffect(() => {
     if (!companies.length) {
-      loadCompanies();
+      loadFromStorage();
     }
-  }, [companies.length, loadCompanies]);
+  }, [companies.length, loadFromStorage]);
 
   useEffect(
     () => () => {
