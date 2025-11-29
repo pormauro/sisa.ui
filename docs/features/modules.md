@@ -354,8 +354,9 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `GET ${BASE_URL}/cash_boxes/{id}/history` — historial (consulta opcional).【F:contexts/CashBoxesContext.tsx†L136-L147】
 
 ### Permisos requeridos
-- `listCashBoxes` para acceder a la sección.【F:app/Home.tsx†L28-L36】【F:app/cash_boxes/index.tsx†L38-L46】
-- `addCashBox`, `updateCashBox`, `deleteCashBox` determinan las acciones CRUD.【F:app/cash_boxes/create.tsx†L29-L41】【F:app/cash_boxes/[id].tsx†L31-L112】【F:app/cash_boxes/index.tsx†L55-L126】
+- `listCashBoxes` para acceder a la sección.【F:app/Home.tsx†L22-L39】【F:app/cash_boxes/index.tsx†L70-L137】
+- `addCashBox`, `updateCashBox`, `deleteCashBox` determinan las acciones CRUD.【F:app/cash_boxes/create.tsx†L17-L133】【F:app/cash_boxes/[id].tsx†L18-L238】【F:app/cash_boxes/index.tsx†L139-L237】
+- Las acciones de alta/edición/baja requieren que el usuario sea administrador de la empresa o el usuario maestro (`userId === 1`).【F:hooks/useCompanyAdminPrivileges.ts†L1-L20】【F:app/cash_boxes/index.tsx†L139-L237】【F:app/cash_boxes/[id].tsx†L37-L238】
 
 ### Pantallas relacionadas
 - `app/cash_boxes/index.tsx` — listado con filtros y eliminación.【F:app/cash_boxes/index.tsx†L1-L126】

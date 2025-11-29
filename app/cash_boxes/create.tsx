@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useCompanyAdminPrivileges } from '@/hooks/useCompanyAdminPrivileges';
 
 export default function CreateCashBox() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function CreateCashBox() {
   const { permissions } = useContext(PermissionsContext);
   const { completeSelection, cancelSelection } = usePendingSelection();
   const { userId } = useContext(AuthContext);
+  const { hasPrivilegedAccess } = useCompanyAdminPrivileges();
   
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
@@ -38,11 +40,11 @@ export default function CreateCashBox() {
   }, [userId]);
 
   useEffect(() => {
-    if (!permissions.includes('addCashBox')) {
+    if (!permissions.includes('addCashBox') || !hasPrivilegedAccess) {
       Alert.alert('Acceso denegado', 'No tienes permiso para crear cajas.');
       router.back();
     }
-  }, [permissions]);
+  }, [hasPrivilegedAccess, permissions, router]);
 
   useEffect(() => {
     return () => {
@@ -61,6 +63,14 @@ export default function CreateCashBox() {
       Alert.alert('Error', 'El nombre es obligatorio');
       return;
     }
+    if (!hasPrivilegedAccess) {
+      Alert.alert(
+        'Acción restringida',
+        'Solo los administradores de la empresa o el usuario maestro pueden crear cajas.'
+      );
+      return;
+    }
+
     setLoading(true);
     const newCashBox = await addCashBox({ name, image_file_id: imageFileId, assigned_user_ids: assignedUsers });
     await loadCashBoxes();
@@ -105,7 +115,11 @@ export default function CreateCashBox() {
       <ThemedText style={[styles.helperText, { color: placeholderColor }]}>Los usuarios seleccionados recibirán notificaciones y podrán acceder a esta caja.</ThemedText>
 
       <TouchableOpacity
-        style={[styles.submitButton, { backgroundColor: buttonColor }]}
+        style={[
+          styles.submitButton,
+          { backgroundColor: buttonColor },
+          !hasPrivilegedAccess && styles.disabledAction,
+        ]}
         onPress={handleSubmit}
         disabled={loading}
       >
@@ -126,4 +140,7 @@ const styles = StyleSheet.create({
   helperText: { marginBottom: 12, fontSize: 12 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
+  disabledAction: {
+    opacity: 0.6,
+  },
 });

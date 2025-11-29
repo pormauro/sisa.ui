@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/[id].tsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CashBoxesContext, CashBox } from '@/contexts/CashBoxesContext';
@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
+import { useCompanyAdminPrivileges } from '@/hooks/useCompanyAdminPrivileges';
 
 export default function CashBoxDetail() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function CashBoxDetail() {
   const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
   const { completeSelection, cancelSelection } = usePendingSelection();
+  const { hasPrivilegedAccess } = useCompanyAdminPrivileges();
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
   const [assignedUsers, setAssignedUsers] = useState<number[]>([]);
@@ -32,17 +34,36 @@ export default function CashBoxDetail() {
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
-  const canEdit = permissions.includes('updateCashBox');
-  const canDelete = permissions.includes('deleteCashBox');
+  const canEditPermission = permissions.includes('updateCashBox');
+  const canDeletePermission = permissions.includes('deleteCashBox');
+  const canEdit = canEditPermission && hasPrivilegedAccess;
+  const canDelete = canDeletePermission && hasPrivilegedAccess;
+  const showRestrictedActionAlert = useCallback(() => {
+    Alert.alert(
+      'Acción restringida',
+      'Solo los administradores de la empresa o el usuario maestro pueden editar o eliminar cajas.'
+    );
+  }, []);
 
   const cashBox = cashBoxes.find(cb => cb.id === cashBoxId);
 
   useEffect(() => {
-    if (!canEdit && !canDelete) {
+    if (!canEditPermission && !canDeletePermission) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a esta caja.');
       router.back();
+      return;
     }
-  }, [permissions]);
+
+    if (!hasPrivilegedAccess && (canEditPermission || canDeletePermission)) {
+      showRestrictedActionAlert();
+    }
+  }, [
+    canDeletePermission,
+    canEditPermission,
+    hasPrivilegedAccess,
+    router,
+    showRestrictedActionAlert,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -76,6 +97,10 @@ export default function CashBoxDetail() {
   }, [cashBox, hasAttemptedLoad, isFetchingItem, loadCashBoxes]);
 
   const handleUpdate = () => {
+    if (!canEdit) {
+      showRestrictedActionAlert();
+      return;
+    }
     if (!name) {
       Alert.alert('Error', 'El nombre es obligatorio');
       return;
@@ -109,6 +134,10 @@ export default function CashBoxDetail() {
   };
 
   const handleDelete = () => {
+    if (!canDelete) {
+      showRestrictedActionAlert();
+      return;
+    }
     Alert.alert(
       'Eliminar',
       '¿Eliminar esta caja?',
@@ -175,10 +204,15 @@ export default function CashBoxDetail() {
       />
       <ThemedText style={[styles.helperText, { color: placeholderColor }]}>Los usuarios seleccionados recibirán notificaciones y podrán acceder a esta caja.</ThemedText>
 
-      {canEdit && (
+      {canEditPermission && (
         <TouchableOpacity
-          style={[styles.submitButton, { backgroundColor: buttonColor }]}
+          style={[
+            styles.submitButton,
+            { backgroundColor: buttonColor },
+            !canEdit && styles.disabledAction,
+          ]}
           onPress={handleUpdate}
+          disabled={loading || !canEdit}
         >
           {loading ? (
             <ActivityIndicator color={buttonTextColor} />
@@ -188,8 +222,12 @@ export default function CashBoxDetail() {
         </TouchableOpacity>
       )}
 
-      {canDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+      {canDeletePermission && (
+        <TouchableOpacity
+          style={[styles.deleteButton, !canDelete && styles.disabledDeleteButton]}
+          onPress={handleDelete}
+          disabled={loading || !canDelete}
+        >
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -210,4 +248,10 @@ const styles = StyleSheet.create({
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  disabledAction: {
+    opacity: 0.6,
+  },
+  disabledDeleteButton: {
+    opacity: 0.7,
+  },
 });

@@ -9,6 +9,7 @@ interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
   loading: boolean;
   refreshPermissions: () => Promise<void>;
+  isCompanyAdmin: boolean;
 }
 
 const PERMISSION_ALIASES: Record<string, string[]> = {
@@ -36,6 +37,7 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
   permissions: [],
   loading: false,
   refreshPermissions: async () => {},
+  isCompanyAdmin: false,
 });
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,6 +47,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     []
   );
   const [loading, setLoading] = useState<boolean>(false);
+  const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
 
   const clearCachedPermissions = useCallback(() => {
@@ -58,6 +61,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     if (!authIsLoading && !userId) {
       clearCachedPermissions();
+      setIsCompanyAdmin(false);
       previousUserIdRef.current = null;
       return;
     }
@@ -158,6 +162,51 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
       setPermissions(expandWithAliases(mergedPermissions));
+
+      const normalizeBooleanCandidate = (candidate: any): boolean | undefined => {
+        if (typeof candidate === 'boolean') {
+          return candidate;
+        }
+
+        if (typeof candidate === 'string') {
+          const normalized = candidate.trim().toLowerCase();
+          if (['true', '1', 'yes', 'si', 'sí'].includes(normalized)) {
+            return true;
+          }
+          if (['false', '0', 'no'].includes(normalized)) {
+            return false;
+          }
+        }
+
+        if (typeof candidate === 'number') {
+          if (candidate === 1) return true;
+          if (candidate === 0) return false;
+        }
+
+        return undefined;
+      };
+
+      const deriveIsCompanyAdmin = (...candidates: any[]): boolean => {
+        for (const candidate of candidates) {
+          const normalized = normalizeBooleanCandidate(candidate);
+          if (typeof normalized === 'boolean') {
+            return normalized;
+          }
+        }
+        return false;
+      };
+
+      const adminFlag = deriveIsCompanyAdmin(
+        userData?.is_company_admin,
+        userData?.isCompanyAdmin,
+        userData?.company_admin,
+        userData?.is_admin,
+        globalData?.is_company_admin,
+        globalData?.isCompanyAdmin,
+        globalData?.company_admin,
+        globalData?.is_admin,
+      );
+      setIsCompanyAdmin(adminFlag);
     } catch (error: any) {
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
@@ -209,7 +258,9 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [fetchPermissions]);
 
   return (
-    <PermissionsContext.Provider value={{ permissions, loading, refreshPermissions: fetchPermissions }}>
+    <PermissionsContext.Provider
+      value={{ permissions, loading, refreshPermissions: fetchPermissions, isCompanyAdmin }}
+    >
       {children}
     </PermissionsContext.Provider>
   );
