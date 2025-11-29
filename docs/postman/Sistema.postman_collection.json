@@ -9818,6 +9818,206 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "Accounts & Accounting Entries",
+      "description": "Gestión de cuentas contables, transferencias internas y consulta de asientos. Todos los endpoints requieren token Bearer; el super usuario (ID=1) puede consultar todas las compañías sin restricciones.",
+      "item": [
+        {
+          "name": "Listar cuentas",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts?company_id={{company_id}}&page=1&per_page=20&search=bank&types=asset,liability&with_totals=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "bank"
+                },
+                {
+                  "key": "types",
+                  "value": "asset,liability"
+                },
+                {
+                  "key": "with_totals",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "**GET {{base_url}}/accounts**\n\nLista cuentas contables dentro de la compañía seleccionada. Requiere encabezado Authorization con `Bearer {{auth_token}}` y el scope de la empresa (`company_id`), salvo que se use el token del super usuario (ID=1).\n\nParámetros de filtro y paginación disponibles:\n- `company_id` (obligatorio para usuarios no super admin).\n- `search`: filtra por nombre, número o alias.\n- `types`: lista separada por comas (asset, liability, equity, income, expense).\n- `page` y `per_page` para paginación.\n- `with_totals`: true para incluir `debit`, `credit` y `net` acumulados de la cuenta.\n\nEjemplo de respuesta con totales:\n```json\n{\n  \"data\": [\n    {\n      \"id\": 24,\n      \"company_id\": {{company_id}},\n      \"name\": \"Cuenta Banco\",\n      \"number\": \"1101\",\n      \"type\": \"asset\",\n      \"totals\": {\"debit\": 1500.0, \"credit\": 500.0, \"net\": 1000.0}\n    }\n  ],\n  \"pagination\": {\"page\": 1, \"per_page\": 20}\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Crear cuenta",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounts"
+              ]
+            },
+            "description": "**POST {{base_url}}/accounts**\n\nCrea una cuenta contable dentro de la empresa activa. Requiere token Bearer y permisos sobre la compañía; el super usuario puede omitir `company_id` y quedará asociada automáticamente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"name\": \"Caja Principal\",\n  \"number\": \"1000\",\n  \"type\": \"asset\",\n  \"alias\": \"Caja local\",\n  \"currency\": \"ARS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Crear transferencia",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/transfers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "transfers"
+              ]
+            },
+            "description": "**POST {{base_url}}/transfers**\n\nGenera una transferencia entre dos cuentas de la misma compañía. Requiere token Bearer y scopes de la empresa. Guarda el `transfer_id` devuelto para rastrear asientos asociados.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"from_account_id\": \"{{from_account_id}}\",\n  \"to_account_id\": \"{{to_account_id}}\",\n  \"amount\": 500.0,\n  \"reference\": \"Transferencia interna\",\n  \"transfered_at\": \"2024-05-01\",\n  \"notes\": \"Movimiento entre cuentas propias\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar asientos contables",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounting-entries?company_id={{company_id}}&account_id={{account_id}}&origin_type=Transfer&origin_id={{transfer_id}}&start_date=2024-01-01&end_date=2024-12-31&page=1&per_page=50&with_totals=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounting-entries"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                },
+                {
+                  "key": "account_id",
+                  "value": "{{account_id}}"
+                },
+                {
+                  "key": "origin_type",
+                  "value": "Transfer"
+                },
+                {
+                  "key": "origin_id",
+                  "value": "{{transfer_id}}"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-01-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-12-31"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "50"
+                },
+                {
+                  "key": "with_totals",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "**GET {{base_url}}/accounting-entries**\n\nConsulta asientos contables con filtros por compañía y origen. Requiere token Bearer; el super usuario (ID=1) puede ver todas las compañías.\n\nParámetros de filtro y paginación:\n- `company_id` (obligatorio salvo super user).\n- `account_id`: restringe al mayor de una cuenta específica.\n- `origin_type` y `origin_id`: permiten filtrar por entidad origen (por ejemplo, Transfer o Invoice).\n- `start_date` y `end_date`: rango de fechas del asiento.\n- `page` y `per_page` para paginación.\n- `with_totals`: true para incluir `debit`, `credit` y `net` sumados.\n\nEjemplo de asientos generados para una transferencia:\n```json\n{\n  \"data\": [\n    {\n      \"id\": 301,\n      \"company_id\": {{company_id}},\n      \"account_id\": {{from_account_id}},\n      \"debit\": 0,\n      \"credit\": 500,\n      \"origin_type\": \"Transfer\",\n      \"origin_id\": {{transfer_id}}\n    },\n    {\n      \"id\": 302,\n      \"company_id\": {{company_id}},\n      \"account_id\": {{to_account_id}},\n      \"debit\": 500,\n      \"credit\": 0,\n      \"origin_type\": \"Transfer\",\n      \"origin_id\": {{transfer_id}}\n    }\n  ],\n  \"totals\": {\"debit\": 500, \"credit\": 500, \"net\": 0}\n}\n```"
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "auth": {
@@ -9967,6 +10167,42 @@
       "type": "string",
       "description": {
         "content": "Token del super usuario (ID=1) con acceso total sin restricciones.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "account_id",
+      "value": "",
+      "type": "string",
+      "description": {
+        "content": "ID de la cuenta contable a consultar; respeta los límites de compañía salvo super usuario (ID=1).",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "from_account_id",
+      "value": "",
+      "type": "string",
+      "description": {
+        "content": "ID de la cuenta de origen para transferencias internas de la compañía.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "to_account_id",
+      "value": "",
+      "type": "string",
+      "description": {
+        "content": "ID de la cuenta destino para transferencias internas de la compañía.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "transfer_id",
+      "value": "",
+      "type": "string",
+      "description": {
+        "content": "Identificador de la transferencia creada; se usa para filtrar asientos `origin_id`.",
         "type": "text/plain"
       }
     }
