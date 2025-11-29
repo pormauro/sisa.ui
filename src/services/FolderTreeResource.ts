@@ -1,7 +1,7 @@
 // src/services/FolderTreeResource.ts
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BASE_URL } from "../config/index";
 import { isAuthErrorStatus } from "@/utils/auth/tokenGuard";
+import { getItem } from "@/utils/auth/secureStore";
 
 interface FolderTreeNode {
   id: string;
@@ -53,7 +53,7 @@ class FolderTreeResource {
    */
   async load(): Promise<FolderTree> {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
       // Obtener clientes
@@ -158,7 +158,7 @@ class FolderTreeResource {
     parentId: string | null,
   ): Promise<FolderTreeNode | null> {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
       // Se envía el payload al endpoint; se espera que el servidor retorne la carpeta creada
@@ -238,7 +238,7 @@ class FolderTreeResource {
     updatedData: Record<string, unknown>,
   ): Promise<FolderTreeNode | null> {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
       const response = await fetch(`${BASE_URL}/folders/${folderId}`, {
@@ -303,7 +303,7 @@ class FolderTreeResource {
    */
   async deleteFolder(folderId: string | number): Promise<boolean> {
     try {
-      const token = await AsyncStorage.getItem("token");
+      const token = await getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
       const response = await fetch(`${BASE_URL}/folders/${folderId}`, {

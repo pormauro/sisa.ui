@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   Text
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
 import { BASE_URL } from '../config/index';
+import { getItem } from '@/utils/auth/secureStore';
 
 /**
  * Componente para mostrar la imagen en un círculo. Puede ser:
@@ -56,7 +56,7 @@ export default function CircleImagePicker({
     try {
       setLoading(true);
       setHasError(false);
-      const token = await AsyncStorage.getItem('token');
+      const token = await getItem('token');
       if (!token) {
         setHasError(true);
         setLoading(false);
@@ -107,7 +107,7 @@ export default function CircleImagePicker({
         setLoading(false);
         return;
       }
-      const token = await AsyncStorage.getItem('token');
+      const token = await getItem('token');
       if (!token) {
         Alert.alert('Error', 'No se encontró token');
         setLoading(false);
