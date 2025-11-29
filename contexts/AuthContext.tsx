@@ -4,6 +4,8 @@ import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
 import { buildAuthorizedHeaders } from '@/utils/auth/headers';
+import { clearAllDataCaches } from '@/utils/cache';
+import { clearLocalFileStorage } from '@/utils/files/cleanup';
 
 interface AuthContextProps {
   userId: string | null;
@@ -72,6 +74,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setEmail(null);
     setIsOffline(false);
   };
+
+  const clearCachesAndFiles = useCallback(async () => {
+    await Promise.all([clearAllDataCaches(), clearLocalFileStorage()]);
+  }, []);
 
   const restoreOfflineSession = useCallback(
     async (loginUsername: string, loginPassword: string) => {
@@ -276,8 +282,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [checkTokenValidity, performLogin]);
 
   const logout = useCallback(async () => {
+    await clearCachesAndFiles();
     await clearCredentials();
-  }, []);
+  }, [clearCachesAndFiles]);
 
   const checkConnection = useCallback(async () => {
     if (!token) {
