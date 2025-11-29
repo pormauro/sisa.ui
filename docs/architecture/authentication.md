@@ -1,8 +1,8 @@
 # Autenticación
 
 ## Resumen del AuthContext
-- `AuthContext` expone el identificador de usuario, datos básicos, estado de carga, indicador de conectividad, token, y las operaciones de inicio/cierre de sesión y verificación de conexión, lo que permite a las pantallas conocer y reaccionar ante el estado de autenticación actual.【F:contexts/AuthContext.tsx†L6-L28】
-- El `AuthProvider` inicializa estados locales para gestionar token, usuario, correo, credenciales y bandera offline, encapsulando la lógica de autenticación y poniéndola a disposición del árbol de componentes mediante el contexto.【F:contexts/AuthContext.tsx†L49-L72】【F:contexts/AuthContext.tsx†L275-L291】
+- `AuthContext` expone el identificador de usuario, datos básicos, estado de carga, indicador de conectividad, token, y las operaciones de inicio/cierre de sesión y verificación de conexión, lo que permite a las pantallas conocer y reaccionar ante el estado de autenticación actual.【F:contexts/AuthContext.tsx†L10-L32】
+- El `AuthProvider` inicializa estados locales para gestionar token, usuario, correo, credenciales y bandera offline, encapsulando la lógica de autenticación y poniéndola a disposición del árbol de componentes mediante el contexto.【F:contexts/AuthContext.tsx†L53-L77】【F:contexts/AuthContext.tsx†L274-L291】
 
 ## Inicio de sesión resiliente
 - La configuración de resiliencia establece tres reintentos máximos, demoras de 10 segundos entre reintentos y tiempos de espera de 10 segundos por petición, implementados mediante `fetchWithTimeout` para abortar solicitudes lentas.【F:contexts/AuthContext.tsx†L30-L47】
@@ -11,13 +11,13 @@
 - Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; cuando la respuesta falla por motivos distintos, se limpia el estado y se informa al usuario mediante alertas.【F:contexts/AuthContext.tsx†L135-L152】
 
 ## Persistencia segura de credenciales
-- El proveedor delega la persistencia en `utils/auth/secureStore`, que usa `expo-secure-store` cuando la plataforma lo soporta y recurre a `localStorage` (o `AsyncStorage` en su defecto) al ejecutar en la web, garantizando un almacenamiento disponible en cada entorno con manejo homogéneo de errores.【F:utils/auth/secureStore.ts†L1-L139】【F:contexts/AuthContext.tsx†L49-L57】
-- Durante la carga inicial se leen las claves mediante `getInitialItems`, que abstrae la elección entre SecureStore y el almacenamiento alternativo en web antes de restaurar el estado de la sesión.【F:utils/auth/secureStore.ts†L125-L139】【F:contexts/AuthContext.tsx†L173-L203】
-- Tras un inicio de sesión válido se persisten token, usuario, credenciales y expiración; `clearCredentials` elimina estos valores durante cierres de sesión o fallas críticas para evitar residuos de información sensible.【F:contexts/AuthContext.tsx†L58-L72】【F:contexts/AuthContext.tsx†L116-L131】
+- El proveedor delega la persistencia en `utils/auth/secureStore`, que usa `expo-secure-store` cuando la plataforma lo soporta y recurre a `localStorage` (o `AsyncStorage` en su defecto) al ejecutar en la web, garantizando un almacenamiento disponible en cada entorno con manejo homogéneo de errores.【F:utils/auth/secureStore.ts†L1-L139】【F:contexts/AuthContext.tsx†L53-L77】
+- Durante la carga inicial se leen las claves mediante `getInitialItems`, se descarta cualquier token expirado y se restablecen los estados locales de usuario antes de liberar la pantalla de carga, de modo que los reintentos de login suceden en segundo plano en lugar de bloquear el arranque.【F:utils/auth/secureStore.ts†L125-L139】【F:contexts/AuthContext.tsx†L252-L272】
+- Tras un inicio de sesión válido se persisten token, usuario, credenciales y expiración; `clearCredentials` elimina estos valores durante cierres de sesión o fallas críticas para evitar residuos de información sensible.【F:contexts/AuthContext.tsx†L62-L77】【F:contexts/AuthContext.tsx†L180-L195】
 
 ## Renovación y vigencia de sesión
-- `checkTokenValidity` comprueba el tiempo de expiración almacenado antes de reutilizar un token; si caducó, la sesión no se reutiliza.【F:contexts/AuthContext.tsx†L165-L171】
-- `autoLogin` lee las credenciales y token almacenados para restaurar sesiones válidas o, en su defecto, relanza `performLogin`, lo que permite recuperación automática tras reinicios de la aplicación.【F:contexts/AuthContext.tsx†L173-L203】
+- `checkTokenValidity` comprueba el tiempo de expiración almacenado antes de reutilizar un token; si caducó, la sesión no se reutiliza.【F:contexts/AuthContext.tsx†L244-L250】
+- `autoLogin` descarta tokens caducados, restaura inmediatamente el estado local y, sólo cuando faltan credenciales válidas en memoria, lanza `performLogin` en segundo plano para que la interfaz no quede esperando el request inicial.【F:contexts/AuthContext.tsx†L252-L272】
 - Un efecto periódico cada cinco minutos revalida la expiración y dispara un nuevo login cuando caduca; otro intervalo cada dos minutos ejecuta `checkConnection` y relanza el login si el dispositivo pasó a modo offline con credenciales conocidas.【F:contexts/AuthContext.tsx†L252-L274】
 
 ## Control de conexión y requisitos de API
