@@ -34,6 +34,8 @@ const PERMISSION_GROUPS = [
     permissions: [
       'searchCompanies',
       'listCompanies',
+      'listAdminCompanies',
+      'listMemberCompanies',
       'getCompany',
       'createCompany',
       'updateCompany',

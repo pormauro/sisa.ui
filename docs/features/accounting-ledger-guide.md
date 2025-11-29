@@ -1,6 +1,6 @@
 # Guía de cuentas, asientos y transferencias
 
-Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `accounting_entries` y `transfers` en `sisa.api`. Todos los ejemplos asumen autenticación por token Bearer (`Authorization: Bearer <token>`), salvo el login. El super usuario (ID = 1) puede saltar cualquier restricción de compañía o de estado activo. La versión alineada es la `1.3.5` definida en `config/Index.ts` y debe mantenerse sincronizada con `config/version.json` en `sisa.api`.
+Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `accounting_entries` y `transfers` en `sisa.api`. Todos los ejemplos asumen autenticación por token Bearer (`Authorization: Bearer <token>`), salvo el login. El super usuario (ID = 1) puede saltar cualquier restricción de compañía o de estado activo. La versión alineada es la `1.3.7` definida en `config/Index.ts` y debe mantenerse sincronizada con `config/version.json` en `sisa.api`.
 
 ## Scopes de permisos
 - `accounts.read` para listar cuentas.
@@ -64,7 +64,7 @@ Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `a
 - Validaciones activas: `per_page` ≤ 200, `page` ≥ 1, montos positivos, cuentas en `status=active` y unicidad lógica `(company_id, code)` para cuentas.
 - Sin FOREIGN KEY en tablas o migraciones nuevas; referencias cruzadas documentadas con `origin_type`/`origin_id`.
 - Backfill de cajas respetado: cuentas `CASHBOX-<cash_box_id>` con `related_cashbox_id` y `company_id` correcto.
-- Documentación y Postman actualizados a la versión en `config/Index.ts` (v1.3.5) y reflejados en `config/version.json` de `sisa.api`.
+- Documentación y Postman actualizados a la versión en `config/Index.ts` (v1.3.7) y reflejados en `config/version.json` de `sisa.api`.
 
 ## Paginación segura
 - Utiliza paginación basada en parámetros explícitos (`page` y `per_page` o `limit`/`offset`) y orden determinista (`created_at DESC` o `id DESC`).

@@ -16,10 +16,8 @@ import {
   CompaniesProvider,
   Company,
 } from '@/contexts/CompaniesContext';
-import {
-  CompanyMembershipsContext,
-  CompanyMembershipsProvider,
-} from '@/contexts/CompanyMembershipsContext';
+import { CompanyMembershipsProvider } from '@/contexts/CompanyMembershipsContext';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ensureSortedByNewest, getDefaultSortValue } from '@/utils/sort';
 import { setTrackedCompanyId } from '@/utils/auth/companyTracker';
 import { getItem, removeItem, saveItem } from '@/utils/auth/secureStore';
@@ -49,14 +47,43 @@ export const CompanyContext = createContext<CompanyContextValue>(defaultContext)
 const CompanyContextManager = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
   const { userId } = useContext(AuthContext);
-  const { companies: rawCompanies, loadCompanies } = useContext(CompaniesContext);
-  const { loadMemberships } = useContext(CompanyMembershipsContext);
+  const { permissions } = useContext(PermissionsContext);
+  const { companies: rawCompanies, loadCompanies, loadAdminCompanies, loadMemberCompanies } =
+    useContext(CompaniesContext);
 
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompany, setActiveCompanyState] = useState<Company | null>(null);
   const companiesRef = useRef<Company[]>([]);
 
   const isSuperUser = useMemo(() => userId === '1' || userId === 1, [userId]);
+
+  const canListAllCompanies = useMemo(
+    () => isSuperUser || permissions.includes('listCompanies'),
+    [isSuperUser, permissions]
+  );
+  const canListAdminCompanies = useMemo(
+    () => permissions.includes('listAdminCompanies'),
+    [permissions]
+  );
+  const canListMemberCompanies = useMemo(
+    () => permissions.includes('listMemberCompanies'),
+    [permissions]
+  );
+
+  const mergeUniqueCompanies = useCallback((collections: (Company[] | void)[]): Company[] => {
+    const map = new Map<number, Company>();
+    collections.forEach(collection => {
+      collection?.forEach(company => {
+        if (company?.id === undefined || company?.id === null) {
+          return;
+        }
+        if (!map.has(company.id)) {
+          map.set(company.id, company);
+        }
+      });
+    });
+    return ensureSortedByNewest(Array.from(map.values()), getDefaultSortValue);
+  }, []);
 
   useEffect(() => {
     companiesRef.current = companies;
@@ -77,37 +104,51 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
 
   const filterAccessibleCompanies = useCallback(
     async (source: Company[]): Promise<Company[]> => {
-      if (!source.length) {
-        return [];
-      }
-
-      if (isSuperUser) {
+      if (canListAllCompanies) {
+        const refreshed = await loadCompanies();
+        if (refreshed && refreshed.length) {
+          return refreshed;
+        }
         return ensureSortedByNewest(source, getDefaultSortValue);
       }
 
-      const allowedCompanyIds = new Set<number>();
-      await Promise.all(
-        source.map(async company => {
-          const memberships = await loadMemberships(company.id, 'approved');
-          const belongs = memberships.some(membership => String(membership.user_id) === String(userId));
-          if (belongs) {
-            allowedCompanyIds.add(company.id);
-          }
-        }),
-      );
+      const scopedCollections: (Company[] | void)[] = [];
 
-      return ensureSortedByNewest(
-        source.filter(company => allowedCompanyIds.has(company.id)),
-        getDefaultSortValue,
-      );
+      if (canListAdminCompanies) {
+        scopedCollections.push(await loadAdminCompanies());
+      }
+
+      if (canListMemberCompanies) {
+        scopedCollections.push(await loadMemberCompanies());
+      }
+
+      const merged = mergeUniqueCompanies(scopedCollections);
+      if (merged.length) {
+        return merged;
+      }
+
+      if (source?.length && (canListAdminCompanies || canListMemberCompanies)) {
+        return mergeUniqueCompanies([source]);
+      }
+
+      return [];
     },
-    [isSuperUser, loadMemberships, userId],
+    [
+      canListAdminCompanies,
+      canListAllCompanies,
+      canListMemberCompanies,
+      loadAdminCompanies,
+      loadCompanies,
+      loadMemberCompanies,
+      mergeUniqueCompanies,
+    ],
   );
 
   const refreshCompanies = useCallback(async () => {
-    const updatedCompanies = await loadCompanies();
-    if (updatedCompanies && updatedCompanies.length) {
-      return updatedCompanies;
+    const filtered = await filterAccessibleCompanies(rawCompanies);
+    if (filtered.length) {
+      setCompanies(filtered);
+      return filtered;
     }
 
     if (companiesRef.current.length) {
@@ -115,11 +156,11 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
     }
 
     if (rawCompanies.length) {
-      return rawCompanies;
+      return ensureSortedByNewest(rawCompanies, getDefaultSortValue);
     }
 
     return undefined;
-  }, [loadCompanies, rawCompanies]);
+  }, [filterAccessibleCompanies, rawCompanies]);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,15 +194,24 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
         return null;
       }
 
-      if (isSuperUser) {
+      if (isSuperUser || canListAllCompanies) {
         return company;
       }
 
-      const memberships = await loadMemberships(company.id, 'approved');
-      const belongs = memberships.some(membership => String(membership.user_id) === String(userId));
-      return belongs ? company : null;
+      if (canListAdminCompanies || canListMemberCompanies) {
+        return company;
+      }
+
+      return null;
     },
-    [getCompanyById, isSuperUser, loadMemberships, refreshCompanies, userId],
+    [
+      canListAdminCompanies,
+      canListAllCompanies,
+      canListMemberCompanies,
+      getCompanyById,
+      isSuperUser,
+      refreshCompanies,
+    ],
   );
 
   const loadFromStorage = useCallback(async () => {
