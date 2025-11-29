@@ -15,7 +15,7 @@ The following routes are intentionally public and do not require bearer tokens o
 ## Routes missing permission checks
 The routes below are protected by `CheckUserBlockedMiddleware` but **do not** currently apply `PermissionsMiddleware`. If these endpoints should be limited by role-based permissions, consider adding the corresponding permission keys.
 
-- `GET /profile` (permission hint in code is commented out: `getProfile`).
+- `GET /user_profile` (permission hint in code is commented out: `getProfile`).
 - `PUT /user_profile` and `DELETE /user_profile` (no permission specified; related routes use `addUserProfile`, `getUserProfile`, `listUserProfiles`).
 - `PUT /user_configurations` and `DELETE /user_configurations` (creation and fetching use `addUserConfigurations` and `getUserConfigurations`).
 

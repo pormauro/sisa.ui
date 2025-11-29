@@ -13,7 +13,7 @@ El archivo [`src/config/index.js`](../src/config/index.js) centraliza dos consta
 
 ## 2. Manejo de credenciales y autenticación
 
-- El [`AuthContext`](../contexts/AuthContext.tsx) solicita el token al endpoint `/login`, valida su vigencia contra `/profile` y lo persiste (junto a `user_id`, `username`, contraseña y e-mail) mediante `expo-secure-store`, lo que asegura un almacenamiento cifrado en dispositivos físicos.
+- El [`AuthContext`](../contexts/AuthContext.tsx) solicita el token al endpoint `/login`, valida su vigencia contra `/user_profile` y lo persiste (junto a `user_id`, `username`, contraseña y e-mail) mediante `expo-secure-store`, lo que asegura un almacenamiento cifrado en dispositivos físicos.
 - El contexto actualiza el token en memoria y lo expone a los demás providers, que lo incluyen de forma obligatoria en el header `Authorization: Bearer <token>` de cada request. El login es la **única** ruta donde no se adjunta el Bearer token.
 - Componentes legacy que todavía leen el token desde `AsyncStorage` (por ejemplo, `CircleImagePicker`) siguen accediendo a la clave `token`. Si necesitas compatibilidad con ellos, sincroniza el valor de SecureStore hacia `AsyncStorage` tras el login o refactoriza dichas piezas para que consuman el contexto de autenticación.
 - `AsyncStorage` continúa siendo la capa de persistencia para cachés offline (`useCachedState`, metadatos de archivos, historiales). No guardes secretos sensibles allí.

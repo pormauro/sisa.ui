@@ -47,7 +47,7 @@ La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de
 
 ### `AuthContext`
 
-- Realiza el login contra `/login`, extrae el token `Bearer` del encabezado `Authorization` y recupera el perfil con `/profile` antes de considerar la sesión válida.
+- Realiza el login contra `/login`, extrae el token `Bearer` del encabezado `Authorization` y recupera el perfil con `/user_profile` antes de considerar la sesión válida.
 - Persiste `token`, credenciales y metadatos en `SecureStore`, valida la expiración y reintenta autenticaciones cuando detecta desconexiones o expiraciones.
 - Expone banderas como `isLoading` (para bloquear la UI inicial) y `isOffline`, así como métodos `login`, `logout` y `checkConnection` utilizados por las pantallas y otros contextos.
 
@@ -74,7 +74,7 @@ Todas las peticiones (excepto el login inicial) incluyen el encabezado `Authoriz
 
 ```
 AuthContext --login--> /login
-  │             └─ usa credenciales para obtener token y perfil (/profile)
+  │             └─ usa credenciales para obtener token y perfil (/user_profile)
   ↓
 PermissionsContext --fetch--> /permissions/user/:id y /permissions/global
   ↓

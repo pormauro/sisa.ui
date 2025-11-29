@@ -130,7 +130,7 @@ credenciales y el token se guardan en `SecureStore`, lo que permite reintentos
 posteriores sin intervención del usuario y habilita `autoLogin` al iniciar la
 aplicación sin bloquear la carga inicial.【F:contexts/AuthContext.tsx†L53-L272】
 
-El método `checkConnection` consulta `/profile` con el token actual; si recibe un
+El método `checkConnection` consulta `/user_profile` con el token actual; si recibe un
 `401`, relanza el proceso de autenticación con las credenciales almacenadas y, en
 cualquier otro error, marca el estado offline. Además, se ejecutan dos tareas
 periódicas: validar el vencimiento del token cada cinco minutos y verificar la
