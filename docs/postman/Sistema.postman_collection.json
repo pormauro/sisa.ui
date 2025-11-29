@@ -3425,6 +3425,406 @@
       ]
     },
     {
+      "name": "Accounts & Ledger",
+      "description": "Endpoints de cuentas, transferencias y asientos. Requieren token Bearer salvo login; el super usuario (ID=1) puede omitir filtros de compañía y estado activo. No se usan FOREIGN KEY y los montos deben ser positivos.",
+      "item": [
+        {
+          "name": "List Accounts",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounts?company_id=10&page=1&per_page=20&active=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "active",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "**GET {{baseUrl}}/accounts**\n\nLista cuentas activas por compañía con paginación segura. Requiere Authorization Bearer; el super usuario (ID=1) ignora validación de compañía y estado activo."
+          },
+          "response": [
+            {
+              "name": "Example",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 18,\n      \"company_id\": 10,\n      \"code\": \"CAJA-001\",\n      \"name\": \"Caja principal\",\n      \"active\": true,\n      \"current_balance\": 15400.0\n    },\n    {\n      \"id\": 19,\n      \"company_id\": 10,\n      \"code\": \"BANCO-USD\",\n      \"name\": \"Cuenta USD\",\n      \"active\": true,\n      \"current_balance\": 9800.5\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 20,\n  \"total\": 2\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Account",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/accounts**\n\nCrea una cuenta con código único por compañía. Requiere Authorization Bearer. Montos y validaciones de activos se controlan en servicio; sin FOREIGN KEY."
+          },
+          "response": [
+            {
+              "name": "Example",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"id\": 18,\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"active\": true\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "accounts"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Transfers",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/transfers?company_id=10&page=1&per_page=10&status=posted",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfers"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "10"
+                },
+                {
+                  "key": "status",
+                  "value": "posted"
+                }
+              ]
+            },
+            "description": "**GET {{baseUrl}}/transfers**\n\nLista transferencias con paginación segura. Requiere Authorization Bearer; montos siempre positivos y filtrados por compañía (excepto super usuario ID=1)."
+          },
+          "response": [
+            {
+              "name": "Example",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 33,\n      \"company_id\": 10,\n      \"from_account_id\": 18,\n      \"to_account_id\": 19,\n      \"amount\": 1200.0,\n      \"status\": \"posted\",\n      \"transfer_date\": \"2024-06-01\"\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 10,\n  \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Transfer",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": 10,\n  \"from_account_id\": 18,\n  \"to_account_id\": 19,\n  \"amount\": 1200.0,\n  \"currency\": \"USD\",\n  \"reference\": \"Transferencia a cuenta USD\",\n  \"status\": \"posted\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfers"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/transfers**\n\nCrea una transferencia con monto positivo y estado `draft`/`posted`/`void`. Requiere Authorization Bearer. Registra enlaces lógicos sin FOREIGN KEY para los asientos generados."
+          },
+          "response": [
+            {
+              "name": "Example",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"id\": 33,\n  \"company_id\": 10,\n  \"status\": \"posted\",\n  \"origin_entry_ids\": [\n    210,\n    211\n  ]\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company_id\": 10,\n  \"from_account_id\": 18,\n  \"to_account_id\": 19,\n  \"amount\": 1200.0,\n  \"currency\": \"USD\",\n  \"reference\": \"Transferencia a cuenta USD\",\n  \"status\": \"posted\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "transfers"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Accounting Entries",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/accounting-entries?company_id=10&page=1&per_page=25&origin_type=transfer&origin_id=33",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounting-entries"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "10"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "per_page",
+                  "value": "25"
+                },
+                {
+                  "key": "origin_type",
+                  "value": "transfer"
+                },
+                {
+                  "key": "origin_id",
+                  "value": "33"
+                }
+              ]
+            },
+            "description": "**GET {{baseUrl}}/accounting-entries**\n\nLista asientos contables activos con paginación y filtro de origen lógico (`origin_type`/`origin_id`). Requiere Authorization Bearer; el super usuario (ID=1) ignora el filtro de compañía."
+          },
+          "response": [
+            {
+              "name": "Example",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 210,\n      \"company_id\": 10,\n      \"account_id\": 18,\n      \"entry_type\": \"credit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33,\n      \"description\": \"Salida de caja\",\n      \"entry_date\": \"2024-06-01\",\n      \"active\": true\n    },\n    {\n      \"id\": 211,\n      \"company_id\": 10,\n      \"account_id\": 19,\n      \"entry_type\": \"debit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33,\n      \"description\": \"Ingreso a cuenta USD\",\n      \"entry_date\": \"2024-06-01\",\n      \"active\": true\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 25,\n  \"total\": 2\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Accounting Entry",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"description\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\",\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounting-entries",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounting-entries"
+              ]
+            },
+            "description": "**POST {{baseUrl}}/accounting-entries**\n\nCrea un asiento con monto positivo y referencia opcional (`origin_type`/`origin_id`) sin FOREIGN KEY. Requiere Authorization Bearer; el super usuario (ID=1) puede omitir `company_id` si necesita abarcar todo."
+          },
+          "response": [
+            {
+              "name": "Example",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"id\": 250,\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"description\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\",\n  \"active\": true\n}",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"description\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\",\n  \"active\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/accounting-entries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "accounting-entries"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Permisos",
       "item": [
         {
