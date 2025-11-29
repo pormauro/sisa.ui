@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await removeItem('password');
     await removeItem('token_expiration');
     await removeItem('email');
+    await removeItem('activeCompanyId');
     setToken(null);
     setUserId(null);
     setUsername(null);
