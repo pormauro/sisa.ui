@@ -127,7 +127,23 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } catch {
             // Ignoramos errores al leer el cuerpo para no enmascarar la causa original.
           }
+
           const authorizationError = response.status === 401 || response.status === 403;
+          const isTokenMismatchMessage = () => {
+            const errorMessage =
+              (typeof errorPayload?.error === 'string' && errorPayload.error) ||
+              (typeof errorPayload?.message === 'string' && errorPayload.message) ||
+              '';
+            return errorMessage.toLowerCase().includes('el token no coincide');
+          };
+
+          // Si los permisos globales no están autorizados, continuamos sin bloquear el flujo
+          // para seguir mostrando los permisos de usuario.
+          if (scope === 'global' && response.status === 403) {
+            console.log('Permisos globales no disponibles para este usuario. Continuando sin ellos.');
+            return { permissions: [] };
+          }
+
           if (authorizationError) {
             try {
               await checkConnection();
@@ -138,6 +154,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
               );
             }
           }
+
           const error: Error & {
             status?: number;
             scope?: string;
@@ -147,13 +164,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           );
           error.status = response.status;
           error.scope = scope;
-          const errorMessage =
-            (typeof errorPayload?.error === 'string' && errorPayload.error) ||
-            (typeof errorPayload?.message === 'string' && errorPayload.message) ||
-            '';
-          if (errorMessage.toLowerCase().includes('el token no coincide')) {
-            error.tokenMismatch = true;
-          }
+          error.tokenMismatch = isTokenMismatchMessage();
           throw error;
         }
 
@@ -164,8 +175,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       };
 
-      // Se realizan ambas peticiones de forma concurrente:
-      const [userData, globalData] = await Promise.all([
+      const [userResult, globalResult] = await Promise.allSettled([
         fetch(`${BASE_URL}/permissions/user/${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -179,6 +189,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           },
         }).then(response => parsePermissionsResponse(response, 'global')),
       ]);
+
+      if (userResult.status === 'rejected' && globalResult.status === 'rejected') {
+        throw userResult.reason || globalResult.reason;
+      }
+
+      const userData = userResult.status === 'fulfilled' ? userResult.value : { permissions: [] };
+      const globalData = globalResult.status === 'fulfilled' ? globalResult.value : { permissions: [] };
 
       // Suponemos que la respuesta tiene la forma: { permissions: [ { id, sector, ... }, ... ] }
       const userPerms: string[] = userData.permissions?.map((p: any) => p.sector) || [];
