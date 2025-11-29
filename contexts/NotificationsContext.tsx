@@ -276,13 +276,23 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     [checkConnection, token],
   );
 
+  const haveFiltersChanged = useCallback((prev: NotificationFilters, next: NotificationFilters) => {
+    const keys = new Set([...Object.keys(prev), ...Object.keys(next)] as Array<keyof NotificationFilters>);
+    for (const key of keys) {
+      if (prev[key] !== next[key]) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
   const loadNotifications = useCallback(
     async (override?: NotificationFilters) => {
       if (!token) {
         return;
       }
       const mergedFilters: NotificationFilters = { ...filters, ...(override ?? {}) };
-      setFilters(mergedFilters);
+      setFilters(prev => (haveFiltersChanged(prev, mergedFilters) ? mergedFilters : prev));
       setLoading(true);
       try {
         const params = new URLSearchParams();
@@ -335,7 +345,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         setLoading(false);
       }
     },
-    [authorizedFetch, filters, setNotifications, token],
+    [authorizedFetch, filters, haveFiltersChanged, setNotifications, token],
   );
 
   const mergeNotification = useCallback(
