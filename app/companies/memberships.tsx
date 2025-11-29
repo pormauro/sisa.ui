@@ -172,11 +172,6 @@ export default function CompanyMembershipsScreen() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [userId]);
 
-  const administratorIds = useMemo(
-    () => normalizeAdministratorIds(company?.administrator_ids),
-    [company],
-  );
-
   const membershipList = useMemo(() => {
     if (!validCompanyId) {
       return [] as CompanyMembership[];
@@ -188,6 +183,22 @@ export default function CompanyMembershipsScreen() {
     const allMemberships = byCompany.all ?? [];
     return Array.isArray(allMemberships) ? (allMemberships as CompanyMembership[]) : [];
   }, [membershipsByCompany, validCompanyId]);
+
+  const administratorIds = useMemo(() => {
+    const fromCompany = normalizeAdministratorIds(company?.administrator_ids);
+    const fromMemberships = membershipList
+      .filter(member => {
+        const normalizedRole = member.role?.trim().toLowerCase();
+        return (
+          member.user_id &&
+          (normalizedRole === 'admin' || normalizedRole === 'administrator' || normalizedRole === 'owner') &&
+          member.status !== 'removed'
+        );
+      })
+      .map(member => String(member.user_id));
+
+    return Array.from(new Set([...fromCompany, ...fromMemberships]));
+  }, [company?.administrator_ids, membershipList]);
 
   const administratorUserIds = useMemo(() => {
     return administratorIds
@@ -954,10 +965,21 @@ export default function CompanyMembershipsScreen() {
               const statusData = STATUS_LABELS[member.status];
               const details = buildMembershipDetails(member);
               const profile = profiles[member.user_id];
-              const displayName =
-                profile?.full_name?.trim()?.length
-                  ? profile.full_name.trim()
-                  : `Usuario #${member.user_id || 'Desconocido'}`;
+              const displayName = (() => {
+                const profileName = profile?.full_name?.trim();
+                if (profileName?.length) {
+                  return profileName;
+                }
+                const embeddedName = member.user_full_name?.trim();
+                if (embeddedName?.length) {
+                  return embeddedName;
+                }
+                const embeddedUsername = member.username?.trim();
+                if (embeddedUsername?.length) {
+                  return embeddedUsername;
+                }
+                return `Usuario #${member.user_id || 'Desconocido'}`;
+              })();
               const avatarFileId = profile?.profile_file_id
                 ? String(profile.profile_file_id)
                 : undefined;

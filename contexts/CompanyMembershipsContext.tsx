@@ -32,6 +32,9 @@ export interface CompanyMembership {
   id: number;
   company_id: number;
   user_id: number;
+  user_full_name?: string | null;
+  username?: string | null;
+  user_email?: string | null;
   role: string | null;
   status: CompanyMembershipStatus;
   position_title?: string | null;
@@ -283,24 +286,38 @@ const normalizeMembership = (raw: unknown): CompanyMembership | null => {
   }
 
   const companyId =
-    pickNumericValue(record, ['company_id', 'companyId']) ??
+    pickNumericValue(record, ['company_id', 'companyId', 'empresa_id']) ??
     pickNumericValue(nestedCompany, ['id']);
   const userId =
-    pickNumericValue(record, ['user_id', 'userId']) ??
+    pickNumericValue(record, ['user_id', 'userId', 'usuario_id']) ??
     pickNumericValue(nestedUser, ['id']);
 
   return {
     id,
     company_id: companyId ?? 0,
     user_id: userId ?? 0,
+    user_full_name:
+      toNullableString(record.user_full_name) ??
+      toNullableString(nestedUser.full_name) ??
+      toNullableString(nestedUser.name),
+    username:
+      toNullableString(record.username) ??
+      toNullableString(record.user_name) ??
+      toNullableString(nestedUser.username) ??
+      toNullableString(nestedUser.user_name),
+    user_email:
+      toNullableString(record.user_email) ??
+      toNullableString(nestedUser.email) ??
+      toNullableString(nestedUser.user_email),
     role:
       toNullableString(record.role) ??
       toNullableString(record.role_name) ??
       toNullableString(record['roleName']) ??
+      toNullableString(record.rol) ??
       null,
     status:
       parseMembershipStatus(
-        record.status ?? record.state ?? record['membership_status'],
+        record.status ?? record.state ?? record['membership_status'] ?? record.estado,
       ),
     position_title:
       toNullableString(record.position_title) ??

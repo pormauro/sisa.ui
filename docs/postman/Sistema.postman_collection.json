@@ -6278,16 +6278,28 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/companies/memberships",
+              "raw": "{{baseUrl}}/companies/member?status=approved&role=owner,admin",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "companies",
-                "memberships"
+                "member"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "approved",
+                  "description": "Filtra por estado de la membresía (approved, pending, suspended, etc.)."
+                },
+                {
+                  "key": "role",
+                  "value": "owner,admin",
+                  "description": "Permite acotar por rol (owner, admin, member)."
+                }
               ]
             },
-            "description": "**GET {baseUrl}/companies/memberships**\n\nDescripción: Lista las empresas en las que el usuario tiene una membresía aprobada o activa.\n\n> Comentario: Requiere encabezado Authorization: Bearer {{auth_token}} y el permiso `listMemberCompanies`; el usuario maestro (ID = 1) ignora las restricciones."
+            "description": "**GET {baseUrl}/companies/member**\n\nDescripción: Lista las empresas donde el usuario autenticado posee membresía, incluyendo los administradores declarados (`admin`/`owner`) y su rol. Acepta filtros opcionales por `status` y `role` para poblar el selector inferior de la app.\n\n> Comentario: Requiere encabezado Authorization: Bearer {{auth_token}} y el permiso `listMemberCompanies`; el usuario maestro (ID = 1) ignora las restricciones."
           },
           "response": []
         },
