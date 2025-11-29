@@ -3478,7 +3478,7 @@
                 }
               ]
             },
-            "description": "**GET {{baseUrl}}/accounts**\n\nLista cuentas por compañía con paginación (per_page máximo 200), permitiendo filtros por `status`, `type` y búsqueda parcial en nombre/código. Requiere Authorization Bearer y scope `accounts.read`; el super usuario (ID=1) ignora el filtro de compañía y el scope."
+            "description": "**GET {{baseUrl}}/accounts**\n\nLista cuentas por compañía con paginación (per_page máximo 200), permitiendo filtros por `status`, `type` y búsqueda parcial en nombre/código. Requiere Authorization Bearer y scope `accounts.read`; valida el `company_id` antes de paginar y el super usuario (ID=1) puede omitir el filtro y el scope."
           },
           "response": [
             {
@@ -3525,7 +3525,7 @@
                 "accounts"
               ]
             },
-            "description": "**POST {{baseUrl}}/accounts**\n\nCrea una cuenta con código único por compañía, tipos `asset/liability/equity/income/expense` y estado `active/inactive`. Requiere Authorization Bearer y scope `accounts.write`. Se respeta el mapeo `related_cashbox_id` sin FOREIGN KEY."
+            "description": "**POST {{baseUrl}}/accounts**\n\nCrea una cuenta con código único por compañía, tipos `asset/liability/equity/income/expense` y estado `active/inactive`. Requiere Authorization Bearer y scope `accounts.write`; valida que `company_id` coincida con el usuario (salvo super usuario ID=1) y mantiene el mapeo `related_cashbox_id` sin FOREIGN KEY."
           },
           "response": [
             {
@@ -3612,7 +3612,7 @@
                 }
               ]
             },
-            "description": "**GET {{baseUrl}}/transfers**\n\nLista transferencias con paginación segura (per_page máximo 200) y rango de fechas. Requiere Authorization Bearer y scopes de lectura aplicables a la sección; valida que las cuentas estén activas, pertenezcan a la misma compañía y que el super usuario (ID=1) pueda saltar el filtro y los scopes."
+            "description": "**GET {{baseUrl}}/transfers**\n\nLista transferencias con paginación segura (per_page máximo 200) y rango de fechas. Requiere Authorization Bearer y scopes de lectura aplicables a la sección; valida `company_id` antes de paginar y mantiene la regla de cuentas activas dentro de la misma compañía, con bypass para el super usuario (ID=1)."
           },
           "response": [
             {
@@ -3659,7 +3659,7 @@
                 "transfers"
               ]
             },
-            "description": "**POST {{baseUrl}}/transfers**\n\nCrea una transferencia con monto positivo y genera los asientos asociados (débito en destino, crédito en origen). Requiere Authorization Bearer y scope `transfers.write`. Valida que ambas cuentas estén `active`, pertenezcan a la misma compañía y que el super usuario (ID=1) pueda operar sin filtro ni scopes."
+            "description": "**POST {{baseUrl}}/transfers**\n\nCrea una transferencia con monto positivo y genera los asientos asociados (débito en destino, crédito en origen) enlazados con `origin_type/origin_id`. Requiere Authorization Bearer y scope `transfers.write`; valida que ambas cuentas estén `active`, pertenezcan a la misma compañía y aplica bypass completo para el super usuario (ID=1)."
           },
           "response": [
             {

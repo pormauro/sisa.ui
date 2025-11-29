@@ -1,6 +1,6 @@
 # Guía de cuentas, asientos y transferencias
 
-Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `accounting_entries` y `transfers` en `sisa.api`. Todos los ejemplos asumen autenticación por token Bearer (`Authorization: Bearer <token>`), salvo el login. El super usuario (ID = 1) puede saltar cualquier restricción de compañía o de estado activo. La versión alineada es la `1.3.5` definida en `config/Index.ts`.
+Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `accounting_entries` y `transfers` en `sisa.api`. Todos los ejemplos asumen autenticación por token Bearer (`Authorization: Bearer <token>`), salvo el login. El super usuario (ID = 1) puede saltar cualquier restricción de compañía o de estado activo. La versión alineada es la `1.3.5` definida en `config/Index.ts` y debe mantenerse sincronizada con `config/version.json` en `sisa.api`.
 
 ## Scopes de permisos
 - `accounts.read` para listar cuentas.
@@ -9,6 +9,8 @@ Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `a
 - `accounting_entries.read` para consultar asientos.
 - `accounting_entries.write` para generar asientos manuales o vinculados.
 > Nota: el super usuario (ID=1) ignora los scopes anteriores pero el resto de perfiles debe tenerlos habilitados.
+
+> Al crear nuevas secciones o endpoints contables, registra sus scopes en PERMISOS, actualiza los seeds correspondientes y refleja el cambio en la colección de Postman con ejemplos de autorización Bearer.
 
 ## Esquemas de tablas
 
@@ -47,6 +49,13 @@ Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `a
 - **Paginación segura:** `page` mínimo 1 y `per_page` máximo 200, ordenando por `entry_date` o `id` para resultados deterministas.
 - **Sin FOREIGN KEY:** la integridad se controla a nivel de aplicación/servicio, nunca con claves foráneas en la base `sisa.api`.
 - **Backfill de cajas:** los seeds deben mapear `cash_boxes` a cuentas `CASHBOX-<cash_box_id>` rellenando `related_cashbox_id` para mantener la unicidad lógica por compañía.
+
+## Instalación y despliegues
+- **install.php completo:** cualquier cambio estructural debe reflejar el esquema íntegro en `install.php` de `sisa.api`.
+- **update_install.php incremental:** agrega pasos al final sin modificar los anteriores, manteniendo compatibilidad con instalaciones existentes.
+- **Sin FOREIGN KEY:** aplica tanto en migraciones nuevas como en los archivos de instalación.
+- **Sincronización de versión:** actualiza `config/version.json` en `sisa.api` junto con `config/Index.ts` en la UI y documenta la versión en esta guía.
+- **Colección de Postman:** toda nueva operación contable debe añadirse a `docs/postman/Sistema.postman_collection.json` con ejemplos y scopes.
 
 ## Paginación segura
 - Utiliza paginación basada en parámetros explícitos (`page` y `per_page` o `limit`/`offset`) y orden determinista (`created_at DESC` o `id DESC`).
