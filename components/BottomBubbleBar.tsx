@@ -1,7 +1,7 @@
 import React, { useContext, useMemo, useRef, useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthContext } from '@/contexts/AuthContext';
@@ -14,93 +14,34 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
-const Bubble = ({
-  children,
-  onPress,
-  size = 68,
-  elevated = true,
-  disabled = false,
-}: {
-  children: React.ReactNode;
-  onPress?: () => void;
-  size?: number;
-  elevated?: boolean;
+interface NavItem {
+  key: string;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  activeIcon?: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
   disabled?: boolean;
-}) => {
-  const background = useThemeColor({ light: '#ffffff', dark: '#1f1f23' }, 'background');
-  const shadowColor = useThemeColor({ light: '#000', dark: '#000' }, 'text');
+  badgeValue?: number;
+  isActive?: boolean;
+  isPrimary?: boolean;
+  renderIcon?: () => React.ReactNode;
+}
 
-  return (
-    <TouchableOpacity
-      style={[
-        styles.bubble,
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: background,
-        },
-        elevated && {
-          shadowColor,
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 8,
-        },
-      ]}
-      disabled={disabled}
-      onPress={onPress}
-      activeOpacity={0.9}
-    >
-      {children}
-    </TouchableOpacity>
-  );
-};
-
-const BubbleBadge = ({ value }: { value: number }) => {
-  const textColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
-  const background = useThemeColor({}, 'tint');
+const NavBadge = ({ value, color }: { value: number; color: string }) => {
   const displayValue = value > 99 ? '99+' : value.toString();
 
   return (
-    <View style={[styles.badge, { backgroundColor: background }]}>
-      <ThemedText style={[styles.badgeText, { color: textColor }]}>{displayValue}</ThemedText>
+    <View style={[styles.badge, { backgroundColor: color }]}>
+      <ThemedText style={styles.badgeText}>{displayValue}</ThemedText>
     </View>
-  );
-};
-
-const ActiveCompanyBubble = ({ onPress }: { onPress: () => void }) => {
-  const { activeCompany } = useContext(CompanyContext);
-  const logoUri = useCompanyLogo(activeCompany?.profile_file_id);
-  const background = useThemeColor({ light: '#f4f4f5', dark: '#1f1f23' }, 'background');
-  const textColor = useThemeColor({ light: '#111827', dark: '#f3f4f6' }, 'text');
-  const accent = useThemeColor({}, 'tint');
-
-  const initials = useMemo(() => {
-    if (!activeCompany?.name) return 'S';
-    const words = activeCompany.name.trim().split(/\s+/).slice(0, 2);
-    return words.map((word) => word.charAt(0).toUpperCase()).join('') || 'S';
-  }, [activeCompany?.name]);
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.9} style={styles.companyBubbleContent}>
-      <View style={[styles.companyCircle, { backgroundColor: background }]}>
-        {logoUri ? (
-          <Image source={{ uri: logoUri }} style={styles.companyImage} />
-        ) : (
-          <ThemedText style={[styles.companyInitials, { color: textColor }]}>{initials}</ThemedText>
-        )}
-      </View>
-      <ThemedText style={[styles.companyLabel, { color: accent }]} numberOfLines={1}>
-        {activeCompany?.name ?? 'Seleccionar empresa'}
-      </ThemedText>
-    </TouchableOpacity>
   );
 };
 
 export const BottomBubbleBar: React.FC = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { username, userId } = useContext(AuthContext);
+  const { activeCompany } = useContext(CompanyContext);
   const { permissions } = useContext(PermissionsContext);
   const { notifications, loadNotifications } = useContext(NotificationsContext);
   const configContext = useContext(ConfigContext);
@@ -109,14 +50,19 @@ export const BottomBubbleBar: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   const tintColor = useThemeColor({}, 'tint');
-  const background = useThemeColor({ light: '#f9fafb', dark: '#0f0f14' }, 'background');
+  const navBackground = useThemeColor({ light: '#ffffff', dark: '#0f0f14' }, 'background');
+  const navBorder = useThemeColor({ light: '#e5e7eb', dark: '#1f2937' }, 'background');
+  const mutedColor = useThemeColor({ light: '#6b7280', dark: '#9ca3af' }, 'text');
+  const cardShadow = useThemeColor({ light: '#00000020', dark: '#00000090' }, 'text');
+
+  const companyLogo = useCompanyLogo(activeCompany?.profile_file_id);
+  const companyLabel = activeCompany?.name ?? 'Empresas';
 
   const canListNotifications = userId === '1' || permissions.includes('listNotifications');
   const showBadgeSetting = configContext?.configDetails?.show_notifications_badge ?? true;
 
   const unreadCount = useMemo(
-    () =>
-      notifications.filter((item) => !item.state.is_read && !item.state.is_hidden).length,
+    () => notifications.filter((item) => !item.state.is_read && !item.state.is_hidden).length,
     [notifications],
   );
 
@@ -131,6 +77,98 @@ export const BottomBubbleBar: React.FC = () => {
     return null;
   }
 
+  const navItems: NavItem[] = [
+    {
+      key: 'home',
+      label: 'Inicio',
+      icon: 'home-outline',
+      activeIcon: 'home',
+      onPress: () => router.replace('/Home'),
+      isActive: pathname === '/Home',
+    },
+    {
+      key: 'notifications',
+      label: 'Avisos',
+      icon: 'notifications-outline',
+      activeIcon: 'notifications',
+      onPress: () => router.push('/notifications'),
+      disabled: !canListNotifications,
+      badgeValue: canListNotifications && showBadgeSetting ? unreadCount : 0,
+      isActive: pathname?.startsWith('/notifications'),
+    },
+    {
+      key: 'company',
+      label: companyLabel,
+      icon: 'briefcase-outline',
+      activeIcon: 'briefcase',
+      onPress: () => setModalVisible(true),
+      isPrimary: true,
+      renderIcon: companyLogo
+        ? () => <Image source={{ uri: companyLogo }} style={styles.companyImage} />
+        : undefined,
+    },
+    {
+      key: 'profile',
+      label: 'Perfil',
+      icon: 'person-outline',
+      activeIcon: 'person',
+      onPress: () => router.push('/user/ProfileScreen'),
+      isActive: pathname?.startsWith('/user/ProfileScreen'),
+    },
+    {
+      key: 'settings',
+      label: 'Ajustes',
+      icon: 'settings-outline',
+      activeIcon: 'settings',
+      onPress: () => router.push('/user/ConfigScreen'),
+      isActive: pathname?.includes('Config'),
+    },
+  ];
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive = Boolean(item.isActive);
+    const isDisabled = Boolean(item.disabled);
+    const iconColor = item.isPrimary ? '#ffffff' : isDisabled ? mutedColor : isActive ? tintColor : mutedColor;
+    const labelColor = item.isPrimary ? '#ffffff' : isDisabled ? mutedColor : isActive ? tintColor : mutedColor;
+    const iconName = isActive && item.activeIcon ? item.activeIcon : item.icon;
+
+    return (
+      <TouchableOpacity
+        key={item.key}
+        style={[styles.navItem, item.isPrimary && styles.navItemPrimary]}
+        onPress={item.onPress}
+        disabled={isDisabled}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isActive, disabled: isDisabled }}
+      >
+        <View
+          style={[
+            styles.iconWrapper,
+            item.isPrimary && [styles.iconWrapperPrimary, { backgroundColor: tintColor }],
+          ]}
+        >
+          {item.renderIcon ? (
+            <View style={styles.companyIconWrapper}>{item.renderIcon()}</View>
+          ) : (
+            <Ionicons name={iconName} size={22} color={iconColor} />
+          )}
+          {item.badgeValue && item.badgeValue > 0 ? <NavBadge value={item.badgeValue} color={tintColor} /> : null}
+        </View>
+        <ThemedText
+          style={[
+            styles.navLabel,
+            { color: labelColor },
+            isDisabled && styles.navLabelDisabled,
+            item.isPrimary && styles.navLabelPrimary,
+          ]}
+          numberOfLines={1}
+        >
+          {item.label}
+        </ThemedText>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <>
       <View
@@ -138,26 +176,21 @@ export const BottomBubbleBar: React.FC = () => {
           styles.container,
           {
             paddingBottom: Math.max(insets.bottom, 12),
-            paddingHorizontal: 32,
           },
         ]}
         pointerEvents="box-none"
       >
-        <View style={[styles.bar, { backgroundColor: background }]}> 
-          <Bubble onPress={() => router.push('/notifications')} disabled={!canListNotifications}>
-            <Ionicons name="notifications" size={28} color={tintColor} />
-            {canListNotifications && showBadgeSetting && unreadCount > 0 ? (
-              <BubbleBadge value={unreadCount} />
-            ) : null}
-          </Bubble>
-
-          <Bubble onPress={() => setModalVisible(true)} size={82}>
-            <ActiveCompanyBubble onPress={() => setModalVisible(true)} />
-          </Bubble>
-
-          <Bubble onPress={() => router.push('/user/ProfileScreen')}>
-            <Ionicons name="person" size={28} color={tintColor} />
-          </Bubble>
+        <View
+          style={[
+            styles.bar,
+            {
+              backgroundColor: navBackground,
+              borderColor: navBorder,
+              shadowColor: cardShadow,
+            },
+          ]}
+        >
+          {navItems.map(renderNavItem)}
         </View>
       </View>
 
@@ -173,26 +206,61 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   bar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
-    borderRadius: 50,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    columnGap: 18,
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: -2 },
+    shadowRadius: 8,
+    elevation: 10,
+    columnGap: 6,
   },
-  bubble: {
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  navItemPrimary: {
+    paddingVertical: 2,
+  },
+  iconWrapper: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#f3f4f6',
     position: 'relative',
+  },
+  iconWrapperPrimary: {
+    width: 58,
+    height: 58,
+    borderRadius: 16,
+    marginTop: -12,
+  },
+  navLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  navLabelPrimary: {
+    marginTop: -2,
+  },
+  navLabelDisabled: {
+    opacity: 0.4,
   },
   badge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -6,
+    right: -6,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
@@ -203,32 +271,17 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
+    color: '#fff',
   },
-  companyBubbleContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  companyCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+  companyIconWrapper: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     overflow: 'hidden',
-  },
-  companyInitials: {
-    fontSize: 18,
-    fontWeight: '700',
   },
   companyImage: {
     width: '100%',
     height: '100%',
-  },
-  companyLabel: {
-    maxWidth: 120,
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
+    resizeMode: 'cover',
   },
 });
