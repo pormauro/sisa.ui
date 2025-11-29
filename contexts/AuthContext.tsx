@@ -428,10 +428,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
 
-      if (shouldAttachAuth && pendingRefresh) {
-        await ensureAuthRefresh();
-      }
-
+      // No bloqueamos nuevas peticiones mientras se renueva el token; si el backend
+      // devuelve un 401 igualmente, el flujo de retry de más abajo reintentará con
+      // el token fresco.
       let effectiveInit = init ?? {};
 
       if (shouldAttachAuth) {
