@@ -17,6 +17,7 @@ export interface CashBox {
   name: string;
   image_file_id: string | null;
   user_id: number;
+  assigned_users?: number[];
   assigned_user_ids?: number[];
   created_at?: string | null;
   updated_at?: string | null;
@@ -65,10 +66,13 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.cash_boxes) {
-        const normalized = data.cash_boxes.map((cb: CashBox) => ({
-          ...cb,
-          assigned_user_ids: cb.assigned_user_ids ?? []
-        }));
+        const normalized = data.cash_boxes.map((cb: CashBox) => {
+          const assignedUsers = cb.assigned_user_ids ?? cb.assigned_users ?? [];
+          return {
+            ...cb,
+            assigned_user_ids: assignedUsers
+          };
+        });
         setCashBoxes(sortByNewest(normalized, getDefaultSortValue));
       }
     } catch (error) {
@@ -87,7 +91,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify({
             ...cashBoxData,
-            assigned_user_ids: cashBoxData.assigned_user_ids ?? []
+            assigned_users: cashBoxData.assigned_user_ids ?? cashBoxData.assigned_users ?? []
           })
         });
         const data = await response.json();
@@ -95,7 +99,7 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
           const newCashBox: CashBox = {
             id: parseInt(data.cash_box_id, 10),
             user_id: 0,
-            assigned_user_ids: cashBoxData.assigned_user_ids ?? [],
+            assigned_user_ids: cashBoxData.assigned_user_ids ?? cashBoxData.assigned_users ?? [],
             ...cashBoxData
           };
           setCashBoxes(prev => ensureSortedByNewest([...prev, newCashBox], getDefaultSortValue));
@@ -121,20 +125,25 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
           },
           body: JSON.stringify({
             ...cashBoxData,
-            assigned_user_ids: cashBoxData.assigned_user_ids ?? []
+            assigned_users: cashBoxData.assigned_user_ids ?? cashBoxData.assigned_users ?? []
           })
         });
         const data = await response.json();
         if (data.message === 'Cash box updated successfully') {
-          setCashBoxes(prev =>
-            ensureSortedByNewest(
-              prev.map(cb =>
-                cb.id === id
-                  ? { ...cb, ...cashBoxData, assigned_user_ids: cashBoxData.assigned_user_ids ?? [] }
-                  : cb
-              ),
-              getDefaultSortValue
-            )
+              setCashBoxes(prev =>
+                ensureSortedByNewest(
+                  prev.map(cb =>
+                    cb.id === id
+                      ? {
+                          ...cb,
+                          ...cashBoxData,
+                          assigned_user_ids:
+                            cashBoxData.assigned_user_ids ?? cashBoxData.assigned_users ?? []
+                        }
+                      : cb
+                  ),
+                  getDefaultSortValue
+                )
           );
           await loadCashBoxes();
           return true;
