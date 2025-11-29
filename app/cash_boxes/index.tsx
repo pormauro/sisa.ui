@@ -21,6 +21,7 @@ import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useCachedState } from '@/hooks/useCachedState';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { useCompanyAdminPrivileges } from '@/hooks/useCompanyAdminPrivileges';
 
 type CashBoxSortOption = 'name' | 'created' | 'updated';
 
@@ -42,6 +43,7 @@ const getTimestamp = (value?: string | null): number => {
 export default function CashBoxesScreen() {
   const { cashBoxes, loadCashBoxes, deleteCashBox } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
+  const { hasPrivilegedAccess } = useCompanyAdminPrivileges();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useCachedState<string>('cashBoxesFilters.searchQuery', '');
   const [selectedSort, setSelectedSort] = useCachedState<CashBoxSortOption>(
@@ -135,6 +137,14 @@ export default function CashBoxesScreen() {
   }, [cashBoxes, fuse, searchQuery, selectedSort, sortDirection]);
 
   const canDeleteCashBox = permissions.includes('deleteCashBox');
+  const hasManagementAccess = hasPrivilegedAccess;
+
+  const showRestrictedActionAlert = useCallback(() => {
+    Alert.alert(
+      'Acción restringida',
+      'Solo los administradores de la empresa o el usuario maestro pueden gestionar cajas.'
+    );
+  }, []);
 
   const handleDelete = useCallback(
     (id: number) => {
@@ -195,7 +205,12 @@ export default function CashBoxesScreen() {
         <ThemedText style={styles.itemTitle}>{item.name}</ThemedText>
       </View>
       {canDeleteCashBox && (
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
+        <TouchableOpacity
+          style={[styles.deleteButton, !hasManagementAccess && styles.disabledAction]}
+          onPress={() =>
+            hasManagementAccess ? handleDelete(item.id) : showRestrictedActionAlert()
+          }
+        >
           {loadingId === item.id ? (
             <ActivityIndicator color={spinnerColor} />
           ) : (
@@ -258,8 +273,14 @@ export default function CashBoxesScreen() {
         onRefresh={handleRefresh}
       />
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: addButtonColor }]}
-        onPress={() => router.push('/cash_boxes/create')}
+        style={[
+          styles.addButton,
+          { backgroundColor: addButtonColor },
+          !hasManagementAccess && styles.disabledAction,
+        ]}
+        onPress={() =>
+          hasManagementAccess ? router.push('/cash_boxes/create') : showRestrictedActionAlert()
+        }
       >
         <ThemedText style={[styles.addButtonText, { color: addButtonTextColor }]}>➕ Agregar Caja</ThemedText>
       </TouchableOpacity>
@@ -402,6 +423,9 @@ const styles = StyleSheet.create({
   },
   modalOptionText: {
     fontSize: 15,
+  },
+  disabledAction: {
+    opacity: 0.6,
   },
   modalCloseButton: {
     borderRadius: 999,
