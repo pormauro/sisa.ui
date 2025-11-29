@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useContext, useCallback, useState, useRef } from 'react';
+import React, { createContext, useEffect, useContext, useCallback, useState, useRef, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -10,6 +10,7 @@ interface PermissionsContextProps {
   loading: boolean;
   refreshPermissions: () => Promise<void>;
   isCompanyAdmin: boolean;
+  isSuperUser: boolean;
 }
 
 const PERMISSION_ALIASES: Record<string, string[]> = {
@@ -38,6 +39,7 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
   loading: false,
   refreshPermissions: async () => {},
   isCompanyAdmin: false,
+  isSuperUser: false,
 });
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -49,6 +51,23 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [loading, setLoading] = useState<boolean>(false);
   const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
+  const isSuperUser = useMemo(() => String(userId ?? '') === '1', [userId]);
+
+  const allAccessPermissions = useMemo(() => {
+    if (!isSuperUser) {
+      return permissions;
+    }
+
+    const basePermissions = permissions.length > 0 ? permissions : ['*'];
+    return new Proxy(basePermissions, {
+      get(target, prop, receiver) {
+        if (prop === 'includes') {
+          return () => true;
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+  }, [isSuperUser, permissions]);
 
   const clearCachedPermissions = useCallback(() => {
     setPermissions(prev => (prev.length > 0 ? [] : prev));
@@ -76,6 +95,12 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
 
   const fetchPermissions = useCallback(async () => {
+    if (isSuperUser) {
+      setPermissions(prev => (prev.length > 0 ? prev : ['*']));
+      setIsCompanyAdmin(true);
+      return;
+    }
+
     // Si no hay token o userId disponible, conservamos la información en caché.
     if (!token || !userId) {
       return;
@@ -236,7 +261,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, setPermissions, token, userId]);
+  }, [checkConnection, isSuperUser, setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();
@@ -259,7 +284,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   return (
     <PermissionsContext.Provider
-      value={{ permissions, loading, refreshPermissions: fetchPermissions, isCompanyAdmin }}
+      value={{
+        permissions: allAccessPermissions,
+        loading,
+        refreshPermissions: fetchPermissions,
+        isCompanyAdmin,
+        isSuperUser,
+      }}
     >
       {children}
     </PermissionsContext.Provider>
