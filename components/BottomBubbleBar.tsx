@@ -117,11 +117,11 @@ export const BottomBubbleBar: React.FC = () => {
     },
     {
       key: 'settings',
-      label: 'Ajustes',
-      icon: 'settings-outline',
-      activeIcon: 'settings',
-      onPress: () => router.push('/user/ConfigScreen'),
-      isActive: pathname?.includes('Config'),
+      label: 'Atajos',
+      icon: 'flash-outline',
+      activeIcon: 'flash',
+      onPress: () => router.push('/shortcuts/payment_templates'),
+      isActive: pathname?.startsWith('/shortcuts'),
     },
   ];
 

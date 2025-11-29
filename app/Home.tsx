@@ -13,7 +13,6 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
-import { CompanyContext } from '@/contexts/CompanyContext';
 import { ProfileContext } from '@/contexts/ProfileContext';
 import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
@@ -22,7 +21,6 @@ const Menu: React.FC = () => {
   const { userId, username } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { latestUpdate, updateAvailable, refreshLatestUpdate, currentVersion } = useContext(AppUpdatesContext);
-  const { activeCompany, openSelector } = useContext(CompanyContext);
   const profileContext = useContext(ProfileContext);
   const profileDetails = profileContext?.profileDetails ?? null;
   const loadProfile = profileContext?.loadProfile;
@@ -83,7 +81,6 @@ const Menu: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
   const heroBackground = useThemeColor({ light: '#ffd54f', dark: '#2d2635' }, 'background');
   const heroForeground = useThemeColor({ light: '#1f1b2d', dark: '#f8fafc' }, 'text');
-  const cardBackground = useThemeColor({ light: '#fff7d6', dark: '#3b3240' }, 'background');
   const shouldShowUpdateButton =
     permissions.includes('listAppUpdates') && updateAvailable && Boolean(latestUpdate);
 
@@ -119,7 +116,12 @@ const Menu: React.FC = () => {
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
         <View style={[styles.hero, { backgroundColor: heroBackground }]}>
           <View style={styles.heroHeader}>
-            <View style={styles.heroUser}>
+            <TouchableOpacity
+              style={styles.heroUser}
+              onPress={() => router.push('/user/ProfileScreen')}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir configuración de perfil"
+            >
               <View style={[styles.avatar, { borderColor: heroForeground }]}>
                 {avatarUri ? (
                   <Image source={{ uri: avatarUri }} style={styles.avatarImage} resizeMode="cover" />
@@ -135,39 +137,16 @@ const Menu: React.FC = () => {
                   Centraliza tus cobros, ventas y reportes
                 </ThemedText>
               </View>
-            </View>
+            </TouchableOpacity>
             <View style={styles.heroActions}>
               <NotificationMenuBadge />
               <TouchableOpacity
                 style={[styles.roundAction, { borderColor: heroForeground }]}
-                onPress={() => router.push('/shortcuts/payment_templates')}
+                onPress={() => router.push('/user/ConfigScreen')}
                 accessibilityRole="button"
-                accessibilityLabel="Abrir atajos"
+                accessibilityLabel="Abrir ajustes"
               >
-                <Ionicons name="flash-outline" size={22} color={heroForeground} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={[styles.heroCard, { backgroundColor: cardBackground }]}>
-            <View style={styles.heroCardContent}>
-              <View style={styles.heroCardText}>
-                <ThemedText style={[styles.cardLabel, { color: heroForeground }]}>Empresa activa</ThemedText>
-                <ThemedText style={[styles.cardTitle, { color: heroForeground }]} numberOfLines={1}>
-                  {activeCompany?.name ?? 'Selecciona tu empresa'}
-                </ThemedText>
-                <ThemedText style={[styles.cardSubtitle, { color: heroForeground }]}>
-                  Cambia de empresa para ver tus movimientos y permisos correspondientes
-                </ThemedText>
-              </View>
-              <TouchableOpacity
-                style={[styles.heroCTA, { backgroundColor: heroForeground }]}
-                onPress={openSelector}
-                accessibilityRole="button"
-                accessibilityLabel="Cambiar empresa activa"
-              >
-                <Ionicons name="swap-horizontal" size={20} color={heroBackground} />
-                <ThemedText style={[styles.ctaText, { color: heroBackground }]}>Cambiar</ThemedText>
+                <Ionicons name="settings-outline" size={22} color={heroForeground} />
               </TouchableOpacity>
             </View>
           </View>
@@ -290,47 +269,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#ffffff40',
-  },
-  heroCard: {
-    borderRadius: 16,
-    padding: 16,
-  },
-  heroCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  heroCardText: {
-    flex: 1,
-    gap: 6,
-  },
-  cardLabel: {
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontWeight: '700',
-    opacity: 0.8,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.85,
-  },
-  heroCTA: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  ctaText: {
-    fontWeight: '800',
-    fontSize: 14,
   },
   sectionsContainer: {
     flexDirection: 'row',
