@@ -2207,7 +2207,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Caja Principal\",\n    \"image_file_id\": null,\n    \"assigned_users\": [2, 3]\n}",
+              "raw": "{\n    \"name\": \"Caja Principal\",\n    \"image_file_id\": null,\n    \"assigned_users\": [2, 3],\n    \"admin_permissions\": {\n      \"can_assign_users\": true,\n      \"can_manage_permissions\": true\n    }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2223,7 +2223,7 @@
                 "cash_boxes"
               ]
             },
-            "description": "**POST {{base_url}}/cash_boxes**\n\nDescripción: Endpoint `Crear Cash Box` dentro de Cash Boxes.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."
+            "description": "**POST {{base_url}}/cash_boxes**\n\nDescripción: Endpoint `Crear Cash Box` dentro de Cash Boxes. Permite definir `assigned_users` y `admin_permissions` para documentar quién opera o administra la caja.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."
           },
           "response": []
         },
@@ -2250,7 +2250,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Caja Actualizada\",\n    \"image_file_id\": null,\n    \"assigned_users\": [5]\n}",
+              "raw": "{\n    \"name\": \"Caja Actualizada\",\n    \"image_file_id\": null,\n    \"assigned_users\": [5],\n    \"admin_permissions\": {\n      \"can_assign_users\": true,\n      \"can_manage_permissions\": false\n    }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2267,7 +2267,7 @@
                 "1"
               ]
             },
-            "description": "**PUT {{base_url}}/cash_boxes/1**\n\nDescripción: Endpoint `Actualizar Cash Box` dentro de Cash Boxes.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."
+            "description": "**PUT {{base_url}}/cash_boxes/1**\n\nDescripción: Endpoint `Actualizar Cash Box` dentro de Cash Boxes, incluyendo cambios en usuarios asignados o permisos administrativos.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."
           },
           "response": []
         },

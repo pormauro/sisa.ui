@@ -60,7 +60,19 @@ const PERMISSION_GROUPS = [
   { group: "Files", permissions: ['uploadFile', 'downloadFile'] },
   { group: "Clients", permissions: ['getClient', 'addClient', 'updateClient', 'deleteClient', 'listClients'] },
   { group: "Folders", permissions: ['listFolders', 'getFolder', 'addFolder', 'updateFolder', 'deleteFolder', 'listFolderHistory', 'listFoldersByClient'] },
-  { group: "Cash Boxes", permissions: ['listCashBoxes', 'getCashBox', 'addCashBox', 'updateCashBox', 'deleteCashBox', 'listCashBoxHistory'] },
+  {
+    group: "Cash Boxes",
+    permissions: [
+      'listCashBoxes',
+      'getCashBox',
+      'addCashBox',
+      'updateCashBox',
+      'deleteCashBox',
+      'listCashBoxHistory',
+      'assignCashBoxUsers',
+      'manageCashBoxPermissions',
+    ],
+  },
   { group: "Payments", permissions: ['listPayments', 'getPayment', 'addPayment', 'updatePayment', 'deletePayment', 'listPaymentHistory', 'generatePaymentReport'] },
   {
     group: "Invoices",

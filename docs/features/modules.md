@@ -337,25 +337,26 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ## Cajas (`CashBoxesContext`)
 ### Modelo
-- `CashBox`: nombre, imagen asociada y usuario responsable.【F:contexts/CashBoxesContext.tsx†L13-L19】
+- `CashBox`: nombre, imagen asociada, usuario responsable, `assigned_user_ids` para habilitar operadores y `admin_permissions` para documentar banderas administrativas como asignación de usuarios o gestión avanzada.【F:contexts/CashBoxesContext.tsx†L13-L25】
 
 ### Métodos del contexto
-- `loadCashBoxes()` carga y cachea el inventario de cajas.【F:contexts/CashBoxesContext.tsx†L46-L57】
-- `addCashBox(data)` crea cajas y fuerza recarga.【F:contexts/CashBoxesContext.tsx†L63-L85】
-- `updateCashBox(id, data)` actualiza nombre/imagen.【F:contexts/CashBoxesContext.tsx†L89-L107】
-- `deleteCashBox(id)` elimina la caja en backend y estado local.【F:contexts/CashBoxesContext.tsx†L116-L128】
-- `listCashBoxHistory(id)` obtiene histórico de movimientos desde la API.【F:contexts/CashBoxesContext.tsx†L136-L151】
+- `loadCashBoxes()` carga y cachea el inventario de cajas, normalizando usuarios asignados y permisos administrativos.【F:contexts/CashBoxesContext.tsx†L46-L77】
+- `addCashBox(data)` crea cajas, envía `assigned_users`/`admin_permissions` y fuerza recarga.【F:contexts/CashBoxesContext.tsx†L83-L112】
+- `updateCashBox(id, data)` actualiza nombre, imagen y permisos/admins asociados.【F:contexts/CashBoxesContext.tsx†L116-L158】
+- `deleteCashBox(id)` elimina la caja en backend y estado local.【F:contexts/CashBoxesContext.tsx†L160-L188】
+- `listCashBoxHistory(id)` obtiene histórico de movimientos desde la API.【F:contexts/CashBoxesContext.tsx†L194-L209】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/cash_boxes` — listado.【F:contexts/CashBoxesContext.tsx†L46-L55】
-- `POST ${BASE_URL}/cash_boxes` — creación.【F:contexts/CashBoxesContext.tsx†L63-L74】
-- `PUT ${BASE_URL}/cash_boxes/{id}` — actualización.【F:contexts/CashBoxesContext.tsx†L89-L103】
-- `DELETE ${BASE_URL}/cash_boxes/{id}` — baja.【F:contexts/CashBoxesContext.tsx†L116-L127】
-- `GET ${BASE_URL}/cash_boxes/{id}/history` — historial (consulta opcional).【F:contexts/CashBoxesContext.tsx†L136-L147】
+- `GET ${BASE_URL}/cash_boxes` — listado con usuarios asignados y banderas administrativas.【F:contexts/CashBoxesContext.tsx†L46-L77】
+- `POST ${BASE_URL}/cash_boxes` — creación con payload de asignaciones y permisos.【F:contexts/CashBoxesContext.tsx†L83-L105】
+- `PUT ${BASE_URL}/cash_boxes/{id}` — actualización de nombre, imagen y permisos administrativos.【F:contexts/CashBoxesContext.tsx†L116-L147】
+- `DELETE ${BASE_URL}/cash_boxes/{id}` — baja.【F:contexts/CashBoxesContext.tsx†L160-L185】
+- `GET ${BASE_URL}/cash_boxes/{id}/history` — historial (consulta opcional).【F:contexts/CashBoxesContext.tsx†L194-L205】
 
 ### Permisos requeridos
 - `listCashBoxes` para acceder a la sección.【F:app/Home.tsx†L22-L39】【F:app/cash_boxes/index.tsx†L70-L137】
 - `addCashBox`, `updateCashBox`, `deleteCashBox` determinan las acciones CRUD.【F:app/cash_boxes/create.tsx†L17-L133】【F:app/cash_boxes/[id].tsx†L18-L238】【F:app/cash_boxes/index.tsx†L139-L237】
+- `assignCashBoxUsers` y `manageCashBoxPermissions` documentan la trazabilidad de asignaciones y banderas administrativas en la pantalla de permisos.【F:app/permission/PermissionScreen.tsx†L53-L82】
 - Las acciones de alta/edición/baja requieren que el usuario sea administrador de la empresa o el usuario maestro (`userId === 1`).【F:hooks/useCompanyAdminPrivileges.ts†L1-L20】【F:app/cash_boxes/index.tsx†L139-L237】【F:app/cash_boxes/[id].tsx†L37-L238】
 
 ### Pantallas relacionadas
