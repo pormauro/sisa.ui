@@ -3,6 +3,8 @@ import { Alert } from 'react-native';
 import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
+import { buildAuthorizedHeaders } from '@/utils/auth/headers';
+import { getTrackedCompanyId } from '@/utils/auth/companyTracker';
 
 interface AuthContextProps {
   userId: string | null;
@@ -385,32 +387,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    const cloneHeadersWithToken = (
-      headersInit: RequestInit['headers'] | undefined,
-      tokenValue: string
-    ): RequestInit['headers'] => {
-      const bearerValue = `Bearer ${tokenValue}`;
-
-      if (!headersInit) {
-        return { Authorization: bearerValue };
-      }
-
-      if (headersInit instanceof Headers) {
-        const cloned = new Headers(headersInit);
-        cloned.set('Authorization', bearerValue);
-        return cloned;
-      }
-
-      if (Array.isArray(headersInit)) {
-        const filtered = headersInit.filter(([key]) => key?.toLowerCase() !== 'authorization');
-        return [...filtered, ['Authorization', bearerValue]] as RequestInit['headers'];
-      }
-
-      return { ...(headersInit as Record<string, string>), Authorization: bearerValue };
-    };
-
     const guardedFetch: typeof fetch = async (input, init) => {
-      let response = await originalFetch(input as any, init as any);
+      const shouldAttachAuth = shouldHandleRequest(input);
+      const companyId = getTrackedCompanyId();
+
+      let effectiveInit = init ?? {};
+
+      if (shouldAttachAuth) {
+        const nextToken = token ?? (await getItem('token'));
+        const enrichedHeaders = buildAuthorizedHeaders(effectiveInit.headers, nextToken, companyId ?? null);
+
+        if (!enrichedHeaders || !companyId) {
+          console.warn('Skipping request without active company or token', input);
+          return new Response(
+            JSON.stringify({ message: 'Missing authentication or active company' }),
+            { status: 428, headers: { 'Content-Type': 'application/json' } },
+          ) as unknown as Response;
+        }
+
+        effectiveInit = { ...effectiveInit, headers: enrichedHeaders };
+      }
+
+      let response = await originalFetch(input as any, effectiveInit as any);
 
       if (isAuthErrorStatus(response.status) && shouldHandleRequest(input)) {
         await ensureAuthRefresh();
@@ -419,9 +417,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const hasStringInput = typeof input === 'string';
 
         if (latestToken && hasStringInput) {
+          const retryHeaders = buildAuthorizedHeaders(init?.headers, latestToken, companyId ?? null);
+
+          if (!retryHeaders) {
+            return response;
+          }
+
           const retryInit: RequestInit = {
-            ...(init ?? {}),
-            headers: cloneHeadersWithToken(init?.headers, latestToken),
+            ...(effectiveInit ?? {}),
+            headers: retryHeaders,
           };
 
           const retriedResponse = await originalFetch(input as any, retryInit as any);

@@ -21,6 +21,7 @@ import {
   CompanyMembershipsProvider,
 } from '@/contexts/CompanyMembershipsContext';
 import { ensureSortedByNewest, getDefaultSortValue } from '@/utils/sort';
+import { setTrackedCompanyId } from '@/utils/auth/companyTracker';
 import { getItem, removeItem, saveItem } from '@/utils/auth/secureStore';
 
 interface CompanyContextValue {
@@ -211,6 +212,10 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
 
     revalidateStoredSelection();
   }, [activeCompany, companies, validateCompanyAccess]);
+
+  useEffect(() => {
+    setTrackedCompanyId(activeCompany?.id ?? null);
+  }, [activeCompany]);
 
   const value = useMemo(
     () => ({
