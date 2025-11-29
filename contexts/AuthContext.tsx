@@ -4,7 +4,6 @@ import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
 import { buildAuthorizedHeaders } from '@/utils/auth/headers';
-import { getTrackedCompanyId } from '@/utils/auth/companyTracker';
 
 interface AuthContextProps {
   userId: string | null;
@@ -389,23 +388,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
-      const companyId = getTrackedCompanyId();
 
       let effectiveInit = init ?? {};
 
       if (shouldAttachAuth) {
         const nextToken = token ?? (await getItem('token'));
-        const enrichedHeaders = buildAuthorizedHeaders(effectiveInit.headers, nextToken, companyId ?? null);
+        const enrichedHeaders = buildAuthorizedHeaders(effectiveInit.headers, nextToken);
 
-        if (!enrichedHeaders || !companyId) {
-          console.warn('Skipping request without active company or token', input);
-          return new Response(
-            JSON.stringify({ message: 'Missing authentication or active company' }),
-            { status: 428, headers: { 'Content-Type': 'application/json' } },
-          ) as unknown as Response;
+        if (enrichedHeaders) {
+          effectiveInit = { ...effectiveInit, headers: enrichedHeaders };
         }
-
-        effectiveInit = { ...effectiveInit, headers: enrichedHeaders };
       }
 
       let response = await originalFetch(input as any, effectiveInit as any);
@@ -417,7 +409,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const hasStringInput = typeof input === 'string';
 
         if (latestToken && hasStringInput) {
-          const retryHeaders = buildAuthorizedHeaders(init?.headers, latestToken, companyId ?? null);
+          const retryHeaders = buildAuthorizedHeaders(init?.headers, latestToken);
 
           if (!retryHeaders) {
             return response;
