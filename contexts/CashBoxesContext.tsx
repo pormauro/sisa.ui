@@ -17,6 +17,7 @@ export interface CashBox {
   name: string;
   image_file_id: string | null;
   user_id: number;
+  assigned_user_ids?: number[];
   created_at?: string | null;
   updated_at?: string | null;
   // Puedes agregar más campos si los requiere tu API
@@ -64,7 +65,11 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (data.cash_boxes) {
-        setCashBoxes(sortByNewest(data.cash_boxes, getDefaultSortValue));
+        const normalized = data.cash_boxes.map((cb: CashBox) => ({
+          ...cb,
+          assigned_user_ids: cb.assigned_user_ids ?? []
+        }));
+        setCashBoxes(sortByNewest(normalized, getDefaultSortValue));
       }
     } catch (error) {
       console.error("Error loading cash boxes:", error);
@@ -80,11 +85,19 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify(cashBoxData)
+          body: JSON.stringify({
+            ...cashBoxData,
+            assigned_user_ids: cashBoxData.assigned_user_ids ?? []
+          })
         });
         const data = await response.json();
         if (data.cash_box_id) {
-          const newCashBox: CashBox = { id: parseInt(data.cash_box_id, 10), user_id: 0, ...cashBoxData };
+          const newCashBox: CashBox = {
+            id: parseInt(data.cash_box_id, 10),
+            user_id: 0,
+            assigned_user_ids: cashBoxData.assigned_user_ids ?? [],
+            ...cashBoxData
+          };
           setCashBoxes(prev => ensureSortedByNewest([...prev, newCashBox], getDefaultSortValue));
           await loadCashBoxes();
           return newCashBox;
@@ -106,13 +119,20 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify(cashBoxData)
+          body: JSON.stringify({
+            ...cashBoxData,
+            assigned_user_ids: cashBoxData.assigned_user_ids ?? []
+          })
         });
         const data = await response.json();
         if (data.message === 'Cash box updated successfully') {
           setCashBoxes(prev =>
             ensureSortedByNewest(
-              prev.map(cb => (cb.id === id ? { ...cb, ...cashBoxData } : cb)),
+              prev.map(cb =>
+                cb.id === id
+                  ? { ...cb, ...cashBoxData, assigned_user_ids: cashBoxData.assigned_user_ids ?? [] }
+                  : cb
+              ),
               getDefaultSortValue
             )
           );

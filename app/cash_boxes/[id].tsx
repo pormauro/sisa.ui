@@ -8,6 +8,7 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 
 export default function CashBoxDetail() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function CashBoxDetail() {
   const { completeSelection, cancelSelection } = usePendingSelection();
   const [name, setName] = useState('');
   const [imageFileId, setImageFileId] = useState<string | null>(null);
+  const [assignedUsers, setAssignedUsers] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
@@ -58,6 +60,7 @@ export default function CashBoxDetail() {
       }
       setName(cashBox.name);
       setImageFileId(cashBox.image_file_id);
+      setAssignedUsers(cashBox.assigned_user_ids ?? []);
       return;
     }
 
@@ -86,7 +89,11 @@ export default function CashBoxDetail() {
           text: 'Actualizar',
           onPress: async () => {
             setLoading(true);
-            const success = await updateCashBox(cashBoxId, { name, image_file_id: imageFileId });
+            const success = await updateCashBox(cashBoxId, {
+              name,
+              image_file_id: imageFileId,
+              assigned_user_ids: assignedUsers,
+            });
             setLoading(false);
             if (success) {
               completeSelection(cashBoxId.toString());
@@ -160,6 +167,14 @@ export default function CashBoxDetail() {
         placeholderTextColor={placeholderColor}
       />
 
+      <ThemedText style={styles.label}>Usuarios asignados</ThemedText>
+      <ParticipantsBubbles
+        participants={assignedUsers}
+        onChange={canEdit ? setAssignedUsers : undefined}
+        editable={canEdit}
+      />
+      <ThemedText style={[styles.helperText, { color: placeholderColor }]}>Los usuarios seleccionados recibirán notificaciones y podrán acceder a esta caja.</ThemedText>
+
       {canEdit && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -190,6 +205,7 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  helperText: { marginBottom: 12, fontSize: 12 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
