@@ -7,7 +7,7 @@
 ## Inicio de sesión resiliente
 - La configuración de resiliencia establece tres reintentos máximos, demoras de 10 segundos entre reintentos y tiempos de espera de 10 segundos por petición, implementados mediante `fetchWithTimeout` para abortar solicitudes lentas.【F:contexts/AuthContext.tsx†L30-L47】
 - `performLogin` envía las credenciales a `/login` con control de timeout y, tras una respuesta válida, extrae el token Bearer del encabezado `Authorization` (rechazando la sesión si está ausente).【F:contexts/AuthContext.tsx†L74-L134】
-- El flujo de autenticación continúa solicitando `/profile` con el token recién emitido, consolidando el identificador y el correo del usuario, calculando una expiración de una hora y marcando el estado como en línea solo cuando ambos pasos tienen éxito.【F:contexts/AuthContext.tsx†L97-L131】
+- El flujo de autenticación continúa solicitando `/user_profile` con el token recién emitido, consolidando el identificador y el correo del usuario (o nulo si la API no lo expone), calculando una expiración de una hora y marcando el estado como en línea solo cuando ambos pasos tienen éxito.【F:contexts/AuthContext.tsx†L120-L220】
 - Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; cuando la respuesta falla por motivos distintos, se limpia el estado y se informa al usuario mediante alertas.【F:contexts/AuthContext.tsx†L135-L152】
 
 ## Persistencia segura de credenciales
@@ -21,7 +21,7 @@
 - Un efecto periódico cada cinco minutos revalida la expiración y dispara un nuevo login cuando caduca; otro intervalo cada dos minutos ejecuta `checkConnection` y relanza el login si el dispositivo pasó a modo offline con credenciales conocidas.【F:contexts/AuthContext.tsx†L252-L274】
 
 ## Control de conexión y requisitos de API
-- `checkConnection` consulta `/profile` con el token Bearer actual y marca la aplicación como offline si la verificación falla; ante un `401` intenta autenticarse de nuevo usando las credenciales almacenadas, reforzando la continuidad de la sesión.【F:contexts/AuthContext.tsx†L209-L246】
+- `checkConnection` consulta `/user_profile` con el token Bearer actual y marca la aplicación como offline si la verificación falla; ante un `401` intenta autenticarse de nuevo usando las credenciales almacenadas, reforzando la continuidad de la sesión.【F:contexts/AuthContext.tsx†L311-L348】
 - Todas las operaciones posteriores al login reutilizan el token guardado en SecureStore y adjuntan el encabezado `Authorization: Bearer`, mientras que la llamada inicial a `/login` es la única exenta del uso de Bearer para alinearse con el flujo de autenticación requerido.【F:contexts/AuthContext.tsx†L74-L147】【F:contexts/AuthContext.tsx†L219-L235】
 
 ## Integración con las pantallas de `app/login`
@@ -36,5 +36,5 @@
 
 ## Consideraciones de seguridad
 - Aunque se utiliza SecureStore para proteger los secretos, el flujo almacena tanto el token como la contraseña en texto plano para facilitar reintentos automáticos; conviene evaluar cifrado adicional, políticas de rotación o el uso de tokens de refresco para minimizar el riesgo si el dispositivo es comprometido.【F:contexts/AuthContext.tsx†L84-L152】【F:contexts/AuthContext.tsx†L264-L274】
-- La expiración forzada a una hora y las verificaciones periódicas de `/profile` reducen la ventana de uso de tokens robados, pero obligan a garantizar que la API responda oportunamente y que las llamadas usen HTTPS para proteger encabezados Bearer en tránsito.【F:contexts/AuthContext.tsx†L114-L274】
+- La expiración forzada a una hora y las verificaciones periódicas de `/user_profile` reducen la ventana de uso de tokens robados, pero obligan a garantizar que la API responda oportunamente y que las llamadas usen HTTPS para proteger encabezados Bearer en tránsito.【F:contexts/AuthContext.tsx†L120-L350】
 - Cualquier nueva petición protegida debe reutilizar el token del contexto y verificar el estado offline antes de intentar red, manteniendo la experiencia consistente con los mecanismos de tolerancia a fallos existentes.【F:contexts/AuthContext.tsx†L209-L274】

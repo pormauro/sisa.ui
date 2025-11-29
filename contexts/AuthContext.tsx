@@ -36,6 +36,7 @@ const MAX_RETRY = 3;
 const RETRY_DELAY = 10000; // 10 segundos de espera para reintentar
 const TIMEOUT_DURATION = 10000; // 10 segundos de timeout en las peticiones
 const PROFILE_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutos para revisar el perfil
+const USER_PROFILE_ENDPOINT = `${BASE_URL}/user_profile`;
 
 // Función auxiliar para hacer fetch con timeout
 const fetchWithTimeout = async (resource: string, options: any = {}) => {
@@ -160,7 +161,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           // Obtenemos el perfil para extraer el email y demás datos
-          const profileResponse = await fetchWithTimeout(`${BASE_URL}/profile`, {
+          const profileResponse = await fetchWithTimeout(USER_PROFILE_ENDPOINT, {
             method: 'GET',
             headers: {
               Authorization: `Bearer ${newToken}`,
@@ -174,21 +175,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           const profileData = await profileResponse.json();
-          const { id, email: userEmail } = profileData.user;
+          const profile =
+            (profileData && typeof profileData === 'object' ? profileData.profile : null) ??
+            (profileData && typeof profileData === 'object' ? profileData.user : null) ??
+            profileData;
+
+          const userIdFromProfile =
+            profile && typeof profile === 'object'
+              ? (profile.user_id ?? profile.id ?? null)
+              : null;
+
+          const userEmail =
+            profile && typeof profile === 'object' && 'email' in profile
+              ? (profile as { email?: string }).email ?? null
+              : responseData && typeof responseData === 'object' && 'email' in responseData
+                ? (responseData as { email?: string }).email ?? null
+                : null;
+
+          if (!userIdFromProfile) {
+            throw new Error('No se pudo obtener el perfil del usuario');
+          }
+
+          const normalizedUserId = userIdFromProfile.toString();
           const expirationTime = (Date.now() + 3600 * 1000).toString();
 
           await saveItem('token', newToken);
-          await saveItem('user_id', id.toString());
+          await saveItem('user_id', normalizedUserId);
           await saveItem('username', loginUsername);
           await saveItem('password', loginPassword);
           await saveItem('token_expiration', expirationTime);
-          await saveItem('email', userEmail);
+
+          if (userEmail) {
+            await saveItem('email', userEmail);
+          } else {
+            await removeItem('email');
+          }
 
           setToken(newToken);
-          setUserId(id.toString());
+          setUserId(normalizedUserId);
           setUsername(loginUsername);
           setPassword(loginPassword);
-          setEmail(userEmail);
+          setEmail(userEmail ?? null);
 
           // Conexión exitosa, marcar como online
           setIsOffline(false);
@@ -291,7 +318,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const response = await fetchWithTimeout(`${BASE_URL}/profile`, {
+      const response = await fetchWithTimeout(USER_PROFILE_ENDPOINT, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
