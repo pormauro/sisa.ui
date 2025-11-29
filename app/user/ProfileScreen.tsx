@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ProfileContext, ProfileForm } from '@/contexts/ProfileContext';
@@ -13,6 +14,7 @@ export default function ProfileScreen(): JSX.Element {
   // Ahora extraemos email desde AuthContext
   const { username, email, logout } = useContext(AuthContext);
   const { profileDetails, loadProfile, updateProfile, updateImage, deleteAccount } = useContext(ProfileContext)!;
+  const router = useRouter();
 
   // Estado local del formulario solo con campos editables (sin email)
   const [editProfile, setEditProfile] = useState<boolean>(false);
@@ -45,6 +47,7 @@ export default function ProfileScreen(): JSX.Element {
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
+  const linkColor = useThemeColor({}, 'tint');
 
   return (
     <ScrollView
@@ -126,6 +129,14 @@ export default function ProfileScreen(): JSX.Element {
       <View style={globalStyles.button}>
         <ThemedButton title="Cerrar Sesión" onPress={logout} />
       </View>
+      <TouchableOpacity
+        style={styles.settingsLink}
+        onPress={() => router.push('/user/ConfigScreen')}
+        accessibilityRole="button"
+        accessibilityLabel="Ir a ajustes"
+      >
+        <ThemedText style={[styles.settingsLinkText, { color: linkColor }]}>Ir a ajustes</ThemedText>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -152,4 +163,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   editButton: { marginTop: 10 },
+  settingsLink: {
+    marginTop: 14,
+    alignItems: 'center',
+  },
+  settingsLinkText: {
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
 });
