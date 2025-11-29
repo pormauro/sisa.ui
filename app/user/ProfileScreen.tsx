@@ -48,6 +48,7 @@ export default function ProfileScreen(): JSX.Element {
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const linkColor = useThemeColor({}, 'tint');
+  const dangerLinkColor = useThemeColor({ light: '#d9534f', dark: '#ff6b6b' }, 'tint');
 
   return (
     <ScrollView
@@ -123,9 +124,14 @@ export default function ProfileScreen(): JSX.Element {
       ) : (
         <ThemedText style={styles.infoText}>Cargando perfil...</ThemedText>
       )}
-      <View style={globalStyles.button}>
-        <ThemedButton title="Eliminar Cuenta" onPress={deleteAccount} lightColor="#d9534f" darkColor="#d9534f" />
-      </View>
+      <TouchableOpacity
+        style={styles.deleteLink}
+        onPress={deleteAccount}
+        accessibilityRole="button"
+        accessibilityLabel="Eliminar cuenta"
+      >
+        <ThemedText style={[styles.deleteLinkText, { color: dangerLinkColor }]}>Eliminar cuenta</ThemedText>
+      </TouchableOpacity>
       <View style={globalStyles.button}>
         <ThemedButton title="Cerrar Sesión" onPress={logout} />
       </View>
@@ -163,6 +169,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   editButton: { marginTop: 10 },
+  deleteLink: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  deleteLinkText: {
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
   settingsLink: {
     marginTop: 14,
     alignItems: 'center',
