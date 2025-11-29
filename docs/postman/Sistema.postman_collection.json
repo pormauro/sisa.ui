@@ -3426,7 +3426,7 @@
     },
     {
       "name": "Accounts & Ledger",
-      "description": "Endpoints de cuentas, transferencias y asientos. Requieren token Bearer salvo login; el super usuario (ID=1) puede omitir filtros de compañía y estado activo. No se usan FOREIGN KEY y los montos deben ser positivos.",
+      "description": "Endpoints de cuentas, transferencias y asientos. Requieren token Bearer salvo login; el super usuario (ID=1) puede omitir filtros de compañía, scopes y estado activo. No se usan FOREIGN KEY, los montos deben ser positivos y la paginación respeta per_page ≤ 200. Scopes mínimos: accounts.read/accounts.write, transfers.write, accounting_entries.read/accounting_entries.write. Versionado alineado a v1.3.5 (config/Index.ts) y reflejado en config/version.json en sisa.api.",
       "item": [
         {
           "name": "List Accounts",
@@ -3444,7 +3444,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/accounts?company_id=10&page=1&per_page=20&active=1",
+              "raw": "{{baseUrl}}/accounts?company_id=10&page=1&per_page=20&status=active&type=asset&search=caja",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3465,12 +3465,20 @@
                   "value": "20"
                 },
                 {
-                  "key": "active",
-                  "value": "1"
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "type",
+                  "value": "asset"
+                },
+                {
+                  "key": "search",
+                  "value": "caja"
                 }
               ]
             },
-            "description": "**GET {{baseUrl}}/accounts**\n\nLista cuentas activas por compañía con paginación segura. Requiere Authorization Bearer; el super usuario (ID=1) ignora validación de compañía y estado activo."
+            "description": "**GET {{baseUrl}}/accounts**\n\nLista cuentas por compañía con paginación (per_page máximo 200), permitiendo filtros por `status`, `type` y búsqueda parcial en nombre/código. Requiere Authorization Bearer y scope `accounts.read`; valida el `company_id` antes de paginar y el super usuario (ID=1) puede omitir el filtro y el scope."
           },
           "response": [
             {
@@ -3480,7 +3488,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-              "body": "{\n  \"data\": [\n    {\n      \"id\": 18,\n      \"company_id\": 10,\n      \"code\": \"CAJA-001\",\n      \"name\": \"Caja principal\",\n      \"active\": true,\n      \"current_balance\": 15400.0\n    },\n    {\n      \"id\": 19,\n      \"company_id\": 10,\n      \"code\": \"BANCO-USD\",\n      \"name\": \"Cuenta USD\",\n      \"active\": true,\n      \"current_balance\": 9800.5\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 20,\n  \"total\": 2\n}"
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 18,\n      \"company_id\": 10,\n      \"code\": \"CAJA-001\",\n      \"name\": \"Caja principal\",\n      \"type\": \"asset\",\n      \"status\": \"active\",\n      \"balance\": 15400.0,\n      \"related_cashbox_id\": 3\n    },\n    {\n      \"id\": 19,\n      \"company_id\": 10,\n      \"code\": \"BANCO-USD\",\n      \"name\": \"Cuenta USD\",\n      \"type\": \"asset\",\n      \"status\": \"active\",\n      \"balance\": 9800.5,\n      \"related_cashbox_id\": null\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 20,\n  \"total\": 2\n}"
             }
           ]
         },
@@ -3501,7 +3509,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"active\": true\n}",
+              "raw": "{\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"type\": \"asset\",\n  \"status\": \"active\",\n  \"related_cashbox_id\": 3\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3517,7 +3525,7 @@
                 "accounts"
               ]
             },
-            "description": "**POST {{baseUrl}}/accounts**\n\nCrea una cuenta con código único por compañía. Requiere Authorization Bearer. Montos y validaciones de activos se controlan en servicio; sin FOREIGN KEY."
+            "description": "**POST {{baseUrl}}/accounts**\n\nCrea una cuenta con código único por compañía, tipos `asset/liability/equity/income/expense` y estado `active/inactive`. Requiere Authorization Bearer y scope `accounts.write`; valida que `company_id` coincida con el usuario (salvo super usuario ID=1) y mantiene el mapeo `related_cashbox_id` sin FOREIGN KEY."
           },
           "response": [
             {
@@ -3527,7 +3535,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-              "body": "{\n  \"id\": 18,\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"active\": true\n}",
+              "body": "{\n  \"id\": 18,\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"type\": \"asset\",\n  \"status\": \"active\",\n  \"related_cashbox_id\": 3,\n  \"balance\": 0.0\n}",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3538,7 +3546,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"active\": true\n}",
+                  "raw": "{\n  \"company_id\": 10,\n  \"code\": \"CAJA-001\",\n  \"name\": \"Caja principal\",\n  \"type\": \"asset\",\n  \"status\": \"active\",\n  \"related_cashbox_id\": 3\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3574,7 +3582,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/transfers?company_id=10&page=1&per_page=10&status=posted",
+              "raw": "{{baseUrl}}/transfers?company_id=10&page=1&per_page=10&start_date=2024-06-01&end_date=2024-06-30",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3595,12 +3603,16 @@
                   "value": "10"
                 },
                 {
-                  "key": "status",
-                  "value": "posted"
+                  "key": "start_date",
+                  "value": "2024-06-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-06-30"
                 }
               ]
             },
-            "description": "**GET {{baseUrl}}/transfers**\n\nLista transferencias con paginación segura. Requiere Authorization Bearer; montos siempre positivos y filtrados por compañía (excepto super usuario ID=1)."
+            "description": "**GET {{baseUrl}}/transfers**\n\nLista transferencias con paginación segura (per_page máximo 200) y rango de fechas. Requiere Authorization Bearer y scopes de lectura aplicables a la sección; valida `company_id` antes de paginar y mantiene la regla de cuentas activas dentro de la misma compañía, con bypass para el super usuario (ID=1)."
           },
           "response": [
             {
@@ -3610,7 +3622,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-              "body": "{\n  \"data\": [\n    {\n      \"id\": 33,\n      \"company_id\": 10,\n      \"from_account_id\": 18,\n      \"to_account_id\": 19,\n      \"amount\": 1200.0,\n      \"status\": \"posted\",\n      \"transfer_date\": \"2024-06-01\"\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 10,\n  \"total\": 1\n}"
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 33,\n      \"company_id\": 10,\n      \"origin_account_id\": 18,\n      \"destination_account_id\": 19,\n      \"amount\": 1200.0,\n      \"transfer_date\": \"2024-06-01\",\n      \"reference\": \"Transferencia a cuenta USD\",\n      \"notes\": \"Planilla de cierre\"\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 10,\n  \"total\": 1\n}"
             }
           ]
         },
@@ -3631,7 +3643,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"company_id\": 10,\n  \"from_account_id\": 18,\n  \"to_account_id\": 19,\n  \"amount\": 1200.0,\n  \"currency\": \"USD\",\n  \"reference\": \"Transferencia a cuenta USD\",\n  \"status\": \"posted\"\n}",
+              "raw": "{\n  \"company_id\": 10,\n  \"origin_account_id\": 18,\n  \"destination_account_id\": 19,\n  \"amount\": 1200.0,\n  \"transfer_date\": \"2024-06-01\",\n  \"reference\": \"Transferencia a cuenta USD\",\n  \"notes\": \"Planilla de cierre\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3647,7 +3659,7 @@
                 "transfers"
               ]
             },
-            "description": "**POST {{baseUrl}}/transfers**\n\nCrea una transferencia con monto positivo y estado `draft`/`posted`/`void`. Requiere Authorization Bearer. Registra enlaces lógicos sin FOREIGN KEY para los asientos generados."
+            "description": "**POST {{baseUrl}}/transfers**\n\nCrea una transferencia con monto positivo y genera los asientos asociados (débito en destino, crédito en origen) enlazados con `origin_type/origin_id`. Requiere Authorization Bearer y scope `transfers.write`; valida que ambas cuentas estén `active`, pertenezcan a la misma compañía y aplica bypass completo para el super usuario (ID=1)."
           },
           "response": [
             {
@@ -3657,7 +3669,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-              "body": "{\n  \"id\": 33,\n  \"company_id\": 10,\n  \"status\": \"posted\",\n  \"origin_entry_ids\": [\n    210,\n    211\n  ]\n}",
+              "body": "{\n  \"id\": 33,\n  \"company_id\": 10,\n  \"transfer_date\": \"2024-06-01\",\n  \"origin_entries\": [\n    {\n      \"id\": 210,\n      \"account_id\": 18,\n      \"entry_type\": \"credit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33\n    },\n    {\n      \"id\": 211,\n      \"account_id\": 19,\n      \"entry_type\": \"debit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33\n    }\n  ]\n}",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3668,7 +3680,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"company_id\": 10,\n  \"from_account_id\": 18,\n  \"to_account_id\": 19,\n  \"amount\": 1200.0,\n  \"currency\": \"USD\",\n  \"reference\": \"Transferencia a cuenta USD\",\n  \"status\": \"posted\"\n}",
+                  "raw": "{\n  \"company_id\": 10,\n  \"origin_account_id\": 18,\n  \"destination_account_id\": 19,\n  \"amount\": 1200.0,\n  \"transfer_date\": \"2024-06-01\",\n  \"reference\": \"Transferencia a cuenta USD\",\n  \"notes\": \"Planilla de cierre\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3704,7 +3716,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/accounting-entries?company_id=10&page=1&per_page=25&origin_type=transfer&origin_id=33",
+              "raw": "{{baseUrl}}/accounting-entries?company_id=10&page=1&per_page=25&origin_type=transfer&origin_id=33&start_date=2024-06-01&end_date=2024-06-30",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3731,10 +3743,18 @@
                 {
                   "key": "origin_id",
                   "value": "33"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2024-06-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2024-06-30"
                 }
               ]
             },
-            "description": "**GET {{baseUrl}}/accounting-entries**\n\nLista asientos contables activos con paginación y filtro de origen lógico (`origin_type`/`origin_id`). Requiere Authorization Bearer; el super usuario (ID=1) ignora el filtro de compañía."
+            "description": "**GET {{baseUrl}}/accounting-entries**\n\nLista asientos contables con paginación (per_page máximo 200), filtros por origen lógico y rango de fechas. Incluye totales `debit/credit/net`. Requiere Authorization Bearer y scope `accounting_entries.read`; el super usuario (ID=1) ignora el filtro de compañía y el scope."
           },
           "response": [
             {
@@ -3744,7 +3764,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-              "body": "{\n  \"data\": [\n    {\n      \"id\": 210,\n      \"company_id\": 10,\n      \"account_id\": 18,\n      \"entry_type\": \"credit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33,\n      \"description\": \"Salida de caja\",\n      \"entry_date\": \"2024-06-01\",\n      \"active\": true\n    },\n    {\n      \"id\": 211,\n      \"company_id\": 10,\n      \"account_id\": 19,\n      \"entry_type\": \"debit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33,\n      \"description\": \"Ingreso a cuenta USD\",\n      \"entry_date\": \"2024-06-01\",\n      \"active\": true\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 25,\n  \"total\": 2\n}"
+              "body": "{\n  \"data\": [\n    {\n      \"id\": 210,\n      \"company_id\": 10,\n      \"account_id\": 18,\n      \"entry_type\": \"credit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33,\n      \"reference\": \"Planilla de cierre\",\n      \"notes\": \"Aplicado desde caja principal\",\n      \"entry_date\": \"2024-06-01\",\n      \"user_id\": 8\n    },\n    {\n      \"id\": 211,\n      \"company_id\": 10,\n      \"account_id\": 19,\n      \"entry_type\": \"debit\",\n      \"amount\": 1200.0,\n      \"origin_type\": \"transfer\",\n      \"origin_id\": 33,\n      \"reference\": \"Planilla de cierre\",\n      \"notes\": \"Aplicado a cuenta USD\",\n      \"entry_date\": \"2024-06-01\",\n      \"user_id\": 8\n    }\n  ],\n  \"page\": 1,\n  \"per_page\": 25,\n  \"total\": 2,\n  \"totals\": {\n    \"debit\": 1200.0,\n    \"credit\": 1200.0,\n    \"net\": 0.0\n  }\n}"
             }
           ]
         },
@@ -3763,15 +3783,15 @@
             },
             "method": "POST",
             "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"description\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\",\n  \"active\": true\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
+              "body": {
+                "mode": "raw",
+                "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
+                "options": {
+                  "raw": {
+                    "language": "json"
+                  }
                 }
-              }
-            },
+              },
             "url": {
               "raw": "{{baseUrl}}/accounting-entries",
               "host": [
@@ -3781,7 +3801,7 @@
                 "accounting-entries"
               ]
             },
-            "description": "**POST {{baseUrl}}/accounting-entries**\n\nCrea un asiento con monto positivo y referencia opcional (`origin_type`/`origin_id`) sin FOREIGN KEY. Requiere Authorization Bearer; el super usuario (ID=1) puede omitir `company_id` si necesita abarcar todo."
+            "description": "**POST {{baseUrl}}/accounting-entries**\n\nCrea un asiento con monto positivo y referencia opcional (`origin_type`/`origin_id`) sin FOREIGN KEY. Requiere Authorization Bearer y scope `accounting_entries.write`; valida que la cuenta esté `active` y respeta el scope de compañía (el super usuario ID=1 puede omitirlo y opera sin scope)."
           },
           "response": [
             {
@@ -3791,7 +3811,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-              "body": "{\n  \"id\": 250,\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"description\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\",\n  \"active\": true\n}",
+                "body": "{\n  \"id\": 250,\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3800,15 +3820,15 @@
                     "value": "Bearer {{auth_token}}"
                   }
                 ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"description\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\",\n  \"active\": true\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
+                  "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
+                    "options": {
+                      "raw": {
+                        "language": "json"
+                      }
                     }
-                  }
-                },
+                  },
                 "url": {
                   "raw": "{{baseUrl}}/accounting-entries",
                   "host": [
