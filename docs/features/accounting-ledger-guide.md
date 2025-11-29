@@ -57,6 +57,15 @@ Esta guía resume los esquemas de datos y el uso de los endpoints `accounts`, `a
 - **Sincronización de versión:** actualiza `config/version.json` en `sisa.api` junto con `config/Index.ts` en la UI y documenta la versión en esta guía.
 - **Colección de Postman:** toda nueva operación contable debe añadirse a `docs/postman/Sistema.postman_collection.json` con ejemplos y scopes.
 
+## Checklist de completitud funcional
+- Autenticación Bearer obligatoria en todos los endpoints (excepto login), declarada en ejemplos y en la colección de Postman.
+- Super usuario (ID=1) con bypass total de scopes, `company_id` y estado activo; el resto valida pertenencia de compañía antes de paginar o mutar.
+- Scopes mínimos configurados y seed-eados: `accounts.read`, `accounts.write`, `transfers.write`, `accounting_entries.read`, `accounting_entries.write`, extendiendo PERMISOS cuando aparezcan nuevas secciones.
+- Validaciones activas: `per_page` ≤ 200, `page` ≥ 1, montos positivos, cuentas en `status=active` y unicidad lógica `(company_id, code)` para cuentas.
+- Sin FOREIGN KEY en tablas o migraciones nuevas; referencias cruzadas documentadas con `origin_type`/`origin_id`.
+- Backfill de cajas respetado: cuentas `CASHBOX-<cash_box_id>` con `related_cashbox_id` y `company_id` correcto.
+- Documentación y Postman actualizados a la versión en `config/Index.ts` (v1.3.5) y reflejados en `config/version.json` de `sisa.api`.
+
 ## Paginación segura
 - Utiliza paginación basada en parámetros explícitos (`page` y `per_page` o `limit`/`offset`) y orden determinista (`created_at DESC` o `id DESC`).
 - Devuelve `total` o `total_count` para que el cliente sepa cuántas páginas hay.
