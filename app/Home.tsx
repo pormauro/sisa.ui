@@ -140,11 +140,11 @@ const Menu: React.FC = () => {
               <NotificationMenuBadge />
               <TouchableOpacity
                 style={[styles.roundAction, { borderColor: heroForeground }]}
-                onPress={() => router.push('/user/ConfigScreen')}
+                onPress={() => router.push('/shortcuts/payment_templates')}
                 accessibilityRole="button"
-                accessibilityLabel="Abrir configuración"
+                accessibilityLabel="Abrir atajos"
               >
-                <Ionicons name="help-circle-outline" size={22} color={heroForeground} />
+                <Ionicons name="flash-outline" size={22} color={heroForeground} />
               </TouchableOpacity>
             </View>
           </View>
