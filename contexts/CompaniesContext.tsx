@@ -102,7 +102,7 @@ export type CompanyPayload = {
 
 interface CompaniesContextValue {
   companies: Company[];
-  loadCompanies: () => void;
+  loadCompanies: () => Promise<Company[] | void>;
   addCompany: (company: CompanyPayload) => Promise<Company | null>;
   updateCompany: (id: number, company: CompanyPayload) => Promise<boolean>;
   deleteCompany: (id: number) => Promise<boolean>;
@@ -110,7 +110,7 @@ interface CompaniesContextValue {
 
 const defaultValue: CompaniesContextValue = {
   companies: [],
-  loadCompanies: () => {},
+  loadCompanies: async () => {},
   addCompany: async () => null,
   updateCompany: async () => false,
   deleteCompany: async () => false,
@@ -952,7 +952,7 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [setCompanies]);
 
-  const loadCompanies = useCallback(async () => {
+  const loadCompanies = useCallback(async (): Promise<Company[] | void> => {
     if (!token) {
       return;
     }
@@ -971,7 +971,7 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
         if (response.ok) {
           setCompanies([]);
         }
-        return;
+        return [];
       }
 
       const collection = extractCompanyCollection(data);
@@ -1092,7 +1092,9 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
         };
       });
 
-      setCompanies(sortByNewest(enriched, getDefaultSortValue));
+      const sortedCompanies = sortByNewest(enriched, getDefaultSortValue);
+      setCompanies(sortedCompanies);
+      return sortedCompanies;
     } catch (error) {
       console.error('Error loading companies:', error);
     }
