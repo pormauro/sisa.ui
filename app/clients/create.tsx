@@ -10,13 +10,14 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
-import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
+import { Company } from '@/contexts/CompaniesContext';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 
 export default function CreateClientPage() {
   const { permissions } = useContext(PermissionsContext);
   const { addClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
-  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { companies, loadFromStorage } = useCompanyContext();
   const router = useRouter();
   const {
     beginSelection,
@@ -76,9 +77,9 @@ export default function CreateClientPage() {
 
   useEffect(() => {
     if (!companies.length) {
-      loadCompanies();
+      loadFromStorage();
     }
-  }, [companies.length, loadCompanies]);
+  }, [companies.length, loadFromStorage]);
 
   useEffect(() => {
     if (

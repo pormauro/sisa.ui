@@ -8,7 +8,8 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
+import { Company } from '@/contexts/CompaniesContext';
+import { useCompanyContext } from '@/contexts/CompanyContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
 
 export default function ProviderDetailPage() {
@@ -20,7 +21,7 @@ export default function ProviderDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const providerId = Number(id);
   const { providers, loadProviders, updateProvider, deleteProvider } = useContext(ProvidersContext);
-  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { companies, loadFromStorage } = useCompanyContext();
   const { completeSelection, cancelSelection } = usePendingSelection();
 
   const provider = providers.find(p => p.id === providerId);
@@ -48,9 +49,9 @@ export default function ProviderDetailPage() {
 
   useEffect(() => {
     if (!companies.length) {
-      loadCompanies();
+      loadFromStorage();
     }
-  }, [companies.length, loadCompanies]);
+  }, [companies.length, loadFromStorage]);
 
   const companyItems = useMemo(() => {
     const formatter = (company: Company) => {
