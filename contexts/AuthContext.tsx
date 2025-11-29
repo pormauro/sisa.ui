@@ -275,7 +275,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const tokenValid = storedToken ? await checkTokenValidity() : false;
 
       if (storedUsername && storedPassword && (!storedToken || !tokenValid)) {
-        void performLogin(storedUsername, storedPassword);
+        await performLogin(storedUsername, storedPassword);
       }
     } finally {
       setIsLoading(false);
