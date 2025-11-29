@@ -49,6 +49,8 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Endpoints consumidos
 - `GET ${BASE_URL}/companies` — listado principal que dispara la hidratación del contexto.【F:contexts/CompaniesContext.tsx†L606-L748】
+- `GET ${BASE_URL}/companies/administered` — listado acotado a las compañías donde el usuario actúa como administrador, habilitado por el permiso `listAdminCompanies` y también disponible para el usuario maestro (ID=1).【F:contexts/CompaniesContext.tsx†L1045-L1110】
+- `GET ${BASE_URL}/companies/memberships` — retorna las empresas donde el usuario es miembro vigente (`approved`/`suspended`), respetando el permiso `listMemberCompanies`.【F:contexts/CompaniesContext.tsx†L1045-L1110】
 - `GET ${BASE_URL}/company-addresses` — domicilios normalizados vinculados por `empresa_id`.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `GET ${BASE_URL}/contacts` — catálogo maestro de contactos reutilizado en los pivotes de empresa.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `GET ${BASE_URL}/company-contacts` — relaciones empresa-contacto con departamento, notas y bandera principal.【F:contexts/CompaniesContext.tsx†L606-L748】
@@ -60,6 +62,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 
 ### Permisos requeridos
 - `listCompanies` habilita el listado y la navegación desde el menú principal.【F:app/companies/index.tsx†L57-L99】【F:constants/menuSections.ts†L48-L62】
+- `listAdminCompanies` y `listMemberCompanies` permiten hidratar el selector con las empresas donde el usuario actúa como administrador o miembro, incluso cuando no posee el permiso global de listado. Ambas rutas se protegen con token Bearer y permiten al super usuario saltar las restricciones.【F:contexts/CompanyContext.tsx†L47-L215】【F:contexts/CompaniesContext.tsx†L1069-L1123】【F:docs/postman/Sistema.postman_collection.json†L6222-L6279】
 - `createCompany`, `updateCompany`, `deleteCompany` controlan accesos a formularios de alta, edición y baja en las pantallas protegidas.【F:app/companies/create.tsx†L61-L105】【F:app/companies/[id].tsx†L136-L157】【F:app/companies/viewModal.tsx†L11-L45】
 - Los IDs listados en `administrator_ids` (y el superadministrador) habilitan el acceso al editor y al modal incluso si el usuario no posee el permiso `updateCompany`. El listado valida esta bandera antes de permitir el gesto de edición prolongado.【F:app/companies/index.tsx†L150-L210】【F:app/companies/viewModal.tsx†L37-L120】【F:app/companies/[id].tsx†L210-L270】
 - Ese arreglo se alimenta automáticamente del campo `admin_users` de la tabla `empresas`, que guarda un JSON con los IDs de las personas administradoras (por ejemplo `[1,25,64]`). Al sincronizar compañías se normaliza ese valor y se expone como `administrator_ids`, por lo que basta con mantener la columna `admin_users` actualizada para liberar la edición desde la app.【F:contexts/CompaniesContext.tsx†L548-L604】

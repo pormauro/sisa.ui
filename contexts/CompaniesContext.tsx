@@ -103,6 +103,8 @@ export type CompanyPayload = {
 interface CompaniesContextValue {
   companies: Company[];
   loadCompanies: () => Promise<Company[] | void>;
+  loadAdminCompanies: () => Promise<Company[] | void>;
+  loadMemberCompanies: () => Promise<Company[] | void>;
   addCompany: (company: CompanyPayload) => Promise<Company | null>;
   updateCompany: (id: number, company: CompanyPayload) => Promise<boolean>;
   deleteCompany: (id: number) => Promise<boolean>;
@@ -111,6 +113,8 @@ interface CompaniesContextValue {
 const defaultValue: CompaniesContextValue = {
   companies: [],
   loadCompanies: async () => {},
+  loadAdminCompanies: async () => {},
+  loadMemberCompanies: async () => {},
   addCompany: async () => null,
   updateCompany: async () => false,
   deleteCompany: async () => false,
@@ -952,153 +956,171 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [setCompanies]);
 
-  const loadCompanies = useCallback(async (): Promise<Company[] | void> => {
-    if (!token) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${BASE_URL}/companies`, {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await readJsonSafely(response);
-      if (data === null) {
-        if (response.ok) {
-          setCompanies([]);
-        }
-        return [];
+  const loadCompaniesFromEndpoint = useCallback(
+    async (path: string): Promise<Company[] | void> => {
+      if (!token) {
+        return;
       }
 
-      const collection = extractCompanyCollection(data);
-      const parsedCompanies = collection.map(parseCompany);
+      try {
+        const response = await fetch(`${BASE_URL}/${path}`, {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-      const [addresses, contacts, companyContacts, companyChannels, contactChannels] = await Promise.all([
-        fetchCollectionWithParser(token, 'company-addresses', parseAddress),
-        fetchCollectionWithParser(token, 'contacts', parseContact),
-        fetchCollectionWithParser(token, 'company-contacts', parseCompanyContactLink),
-        fetchCollectionWithParser(token, 'company-channels', parseChannel),
-        fetchCollectionWithParser(token, 'contact-channels', parseChannel),
-      ]);
-
-      const addressesByCompany = addresses.reduce<Map<number, CompanyAddress[]>>((acc, address) => {
-        if (!address.company_id) {
-          return acc;
+        const data = await readJsonSafely(response);
+        if (data === null) {
+          if (response.ok) {
+            setCompanies([]);
+          }
+          return [];
         }
-        const current = acc.get(address.company_id) ?? [];
-        acc.set(address.company_id, [...current, address]);
-        return acc;
-      }, new Map());
 
-      const companyChannelsByCompany = companyChannels.reduce<Map<number, CommunicationChannel[]>>(
-        (acc, channel) => {
-          if (!channel.company_id) {
+        const collection = extractCompanyCollection(data);
+        const parsedCompanies = collection.map(parseCompany);
+
+        const [addresses, contacts, companyContacts, companyChannels, contactChannels] = await Promise.all([
+          fetchCollectionWithParser(token, 'company-addresses', parseAddress),
+          fetchCollectionWithParser(token, 'contacts', parseContact),
+          fetchCollectionWithParser(token, 'company-contacts', parseCompanyContactLink),
+          fetchCollectionWithParser(token, 'company-channels', parseChannel),
+          fetchCollectionWithParser(token, 'contact-channels', parseChannel),
+        ]);
+
+        const addressesByCompany = addresses.reduce<Map<number, CompanyAddress[]>>((acc, address) => {
+          if (!address.company_id) {
             return acc;
           }
-          const current = acc.get(channel.company_id) ?? [];
-          acc.set(channel.company_id, mergeRecordCollections(current, [channel], channelComparator));
+          const current = acc.get(address.company_id) ?? [];
+          acc.set(address.company_id, [...current, address]);
           return acc;
-        },
-        new Map()
-      );
+        }, new Map());
 
-      const contactById = contacts.reduce<Map<number, CompanyContact>>((acc, contact) => {
-        if (contact.id) {
-          acc.set(contact.id, contact);
-        }
-        return acc;
-      }, new Map());
-
-      const contactChannelsByContact = contactChannels.reduce<Map<number, CommunicationChannel[]>>(
-        (acc, channel) => {
-          if (!channel.contact_id) {
+        const companyChannelsByCompany = companyChannels.reduce<Map<number, CommunicationChannel[]>>(
+          (acc, channel) => {
+            if (!channel.company_id) {
+              return acc;
+            }
+            const current = acc.get(channel.company_id) ?? [];
+            acc.set(channel.company_id, mergeRecordCollections(current, [channel], channelComparator));
             return acc;
-          }
-          const current = acc.get(channel.contact_id) ?? [];
-          acc.set(channel.contact_id, mergeChannels(current, [channel]));
-          return acc;
-        },
-        new Map()
-      );
-
-      const companyContactsByCompany = companyContacts.reduce<Map<number, CompanyContact[]>>(
-        (acc, link) => {
-          if (!link.company_id) {
-            return acc;
-          }
-          const contactId = link.contact_id ?? link.id;
-          const baseContact = contactId ? contactById.get(contactId) : undefined;
-          const aggregatedChannels = mergeChannels(
-            baseContact?.channels,
-            link.channels,
-            contactId ? contactChannelsByContact.get(contactId) : undefined
-          );
-          const normalizedName = (() => {
-            const candidates = [
-              link.name,
-              baseContact?.name,
-              [baseContact?.name, baseContact?.last_name].filter(Boolean).join(' '),
-            ].filter(candidate => typeof candidate === 'string' && candidate.trim().length) as string[];
-            return candidates.length ? candidates[0].trim() : '';
-          })();
-          const mergedContact: CompanyContact = {
-            ...baseContact,
-            ...link,
-            id: contactId ?? link.company_contact_id ?? link.id ?? baseContact?.id,
-            contact_id: contactId ?? baseContact?.contact_id,
-            company_contact_id: link.company_contact_id ?? baseContact?.company_contact_id,
-            company_id: link.company_id,
-            name: normalizedName || baseContact?.name || '',
-            channels: aggregatedChannels,
-          };
-          const current = acc.get(link.company_id) ?? [];
-          acc.set(link.company_id, mergeRecordCollections(current, [mergedContact], contactComparator));
-          return acc;
-        },
-        new Map()
-      );
-
-      const enriched = parsedCompanies.map(company => {
-        const enrichedAddresses = mergeRecordCollections(
-          company.addresses ?? [],
-          addressesByCompany.get(company.id) ?? [],
-          addressComparator
+          },
+          new Map()
         );
-        const enrichedCompanyChannels = mergeChannels(company.channels ?? [], companyChannelsByCompany.get(company.id));
-        const linkedContacts = companyContactsByCompany.get(company.id) ?? [];
-        const mergedContacts = mergeRecordCollections(company.contacts ?? [], linkedContacts, contactComparator).map(
-          contact => {
-            const contactId = contact.contact_id ?? contact.id;
+
+        const contactById = contacts.reduce<Map<number, CompanyContact>>((acc, contact) => {
+          if (contact.id) {
+            acc.set(contact.id, contact);
+          }
+          return acc;
+        }, new Map());
+
+        const contactChannelsByContact = contactChannels.reduce<Map<number, CommunicationChannel[]>>(
+          (acc, channel) => {
+            if (!channel.contact_id) {
+              return acc;
+            }
+            const current = acc.get(channel.contact_id) ?? [];
+            acc.set(channel.contact_id, mergeChannels(current, [channel]));
+            return acc;
+          },
+          new Map()
+        );
+
+        const companyContactsByCompany = companyContacts.reduce<Map<number, CompanyContact[]>>(
+          (acc, link) => {
+            if (!link.company_id) {
+              return acc;
+            }
+            const contactId = link.contact_id ?? link.id;
+            const baseContact = contactId ? contactById.get(contactId) : undefined;
             const aggregatedChannels = mergeChannels(
-              contact.channels,
+              baseContact?.channels,
+              link.channels,
               contactId ? contactChannelsByContact.get(contactId) : undefined
             );
-            return {
-              ...contact,
+            const normalizedName = (() => {
+              const candidates = [
+                link.name,
+                baseContact?.name,
+                [baseContact?.name, baseContact?.last_name].filter(Boolean).join(' '),
+              ].filter(candidate => typeof candidate === 'string' && candidate.trim().length) as string[];
+              return candidates.length ? candidates[0].trim() : '';
+            })();
+            const mergedContact: CompanyContact = {
+              ...baseContact,
+              ...link,
+              id: contactId ?? link.company_contact_id ?? link.id ?? baseContact?.id,
+              contact_id: contactId ?? baseContact?.contact_id,
+              company_contact_id: link.company_contact_id ?? baseContact?.company_contact_id,
+              company_id: link.company_id,
+              name: normalizedName || baseContact?.name || '',
               channels: aggregatedChannels,
             };
-          }
+            const current = acc.get(link.company_id) ?? [];
+            acc.set(link.company_id, mergeRecordCollections(current, [mergedContact], contactComparator));
+            return acc;
+          },
+          new Map()
         );
 
-        return {
-          ...company,
-          addresses: enrichedAddresses,
-          channels: enrichedCompanyChannels,
-          contacts: mergedContacts,
-        };
-      });
+        const enriched = parsedCompanies.map(company => {
+          const enrichedAddresses = mergeRecordCollections(
+            company.addresses ?? [],
+            addressesByCompany.get(company.id) ?? [],
+            addressComparator
+          );
+          const enrichedCompanyChannels = mergeChannels(company.channels ?? [], companyChannelsByCompany.get(company.id));
+          const linkedContacts = companyContactsByCompany.get(company.id) ?? [];
+          const mergedContacts = mergeRecordCollections(company.contacts ?? [], linkedContacts, contactComparator).map(
+            contact => {
+              const contactId = contact.contact_id ?? contact.id;
+              const aggregatedChannels = mergeChannels(
+                contact.channels,
+                contactId ? contactChannelsByContact.get(contactId) : undefined
+              );
+              return {
+                ...contact,
+                channels: aggregatedChannels,
+              };
+            }
+          );
 
-      const sortedCompanies = sortByNewest(enriched, getDefaultSortValue);
-      setCompanies(sortedCompanies);
-      return sortedCompanies;
-    } catch (error) {
-      console.error('Error loading companies:', error);
-    }
-  }, [setCompanies, token]);
+          return {
+            ...company,
+            addresses: enrichedAddresses,
+            channels: enrichedCompanyChannels,
+            contacts: mergedContacts,
+          };
+        });
+
+        const sortedCompanies = sortByNewest(enriched, getDefaultSortValue);
+        setCompanies(sortedCompanies);
+        return sortedCompanies;
+      } catch (error) {
+        console.error('Error loading companies:', error);
+      }
+    },
+    [setCompanies, token]
+  );
+
+  const loadCompanies = useCallback(
+    async (): Promise<Company[] | void> => loadCompaniesFromEndpoint('companies'),
+    [loadCompaniesFromEndpoint]
+  );
+
+  const loadAdminCompanies = useCallback(
+    async (): Promise<Company[] | void> => loadCompaniesFromEndpoint('companies/administered'),
+    [loadCompaniesFromEndpoint]
+  );
+
+  const loadMemberCompanies = useCallback(
+    async (): Promise<Company[] | void> => loadCompaniesFromEndpoint('companies/memberships'),
+    [loadCompaniesFromEndpoint]
+  );
 
   const addCompany = useCallback(
     async (companyData: CompanyPayload): Promise<Company | null> => {
@@ -1247,8 +1269,16 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   }, [loadCompanies, token]);
 
   const value = useMemo(
-    () => ({ companies, loadCompanies, addCompany, updateCompany, deleteCompany }),
-    [addCompany, companies, deleteCompany, loadCompanies, updateCompany]
+    () => ({
+      companies,
+      loadCompanies,
+      loadAdminCompanies,
+      loadMemberCompanies,
+      addCompany,
+      updateCompany,
+      deleteCompany,
+    }),
+    [addCompany, companies, deleteCompany, loadAdminCompanies, loadCompanies, loadMemberCompanies, updateCompany]
   );
 
   return <CompaniesContext.Provider value={value}>{children}</CompaniesContext.Provider>;
