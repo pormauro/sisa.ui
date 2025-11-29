@@ -37,6 +37,7 @@ const RETRY_DELAY = 10000; // 10 segundos de espera para reintentar
 const TIMEOUT_DURATION = 10000; // 10 segundos de timeout en las peticiones
 const PROFILE_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutos para revisar el perfil
 const USER_PROFILE_ENDPOINT = `${BASE_URL}/user_profile`;
+const STARTUP_FALLBACK_DELAY = 15000; // 15 segundos máximo para salir del loader inicial
 
 // Función auxiliar para hacer fetch con timeout
 const fetchWithTimeout = async (resource: string, options: any = {}) => {
@@ -302,6 +303,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setIsLoading(false);
     }
   }, [checkTokenValidity, performLogin]);
+
+  // Evita que la app quede indefinidamente en pantalla de carga si el autoLogin se cuelga
+  useEffect(() => {
+    const fallbackTimeout = setTimeout(() => {
+      setIsLoading(false);
+    }, STARTUP_FALLBACK_DELAY);
+
+    return () => clearTimeout(fallbackTimeout);
+  }, []);
 
   const logout = useCallback(async () => {
     await clearCachesAndFiles();
