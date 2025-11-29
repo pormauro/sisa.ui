@@ -56,6 +56,7 @@ La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de
 - Depende de `AuthContext` para obtener `token` y `userId`.
 - Fusiona los permisos específicos del usuario (`/permissions/user/:id`) con los permisos globales (`/permissions/global`) y actualiza el caché local mediante `useCachedState`.
 - Se refresca automáticamente cada cinco minutos para mantener los permisos sincronizados con el backend.
+- Si el `userId` es `1`, se considera superusuario y se expone un arreglo de permisos que siempre responde positivo a `includes`, habilitando toda la aplicación sin necesidad de configurar permisos individuales ni esperar las llamadas al backend.
 
 ### Contextos de dominio (`Clients`, `CashBoxes`, `Jobs`, etc.)
 
