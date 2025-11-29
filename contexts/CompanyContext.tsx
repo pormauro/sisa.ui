@@ -105,7 +105,8 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
   );
 
   const refreshCompanies = useCallback(async () => {
-    await loadCompanies();
+    const updatedCompanies = await loadCompanies();
+    return updatedCompanies;
   }, [loadCompanies]);
 
   useEffect(() => {
@@ -155,9 +156,13 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
     const storedId = await getItem(STORAGE_KEY);
     const parsedId = storedId ? Number(storedId) : null;
 
-    await refreshCompanies();
-    const filtered = await filterAccessibleCompanies(rawCompanies);
+    const freshCatalogue = await refreshCompanies();
+    const sourceCatalogue = freshCatalogue ?? rawCompanies;
+    const filtered = await filterAccessibleCompanies(sourceCatalogue);
     setCompanies(filtered);
+    if (!filtered.length && sourceCatalogue.length === 0) {
+      return;
+    }
     const validCompany = await validateCompanyAccess(parsedId, filtered);
     if (validCompany) {
       setActiveCompanyState(validCompany);
