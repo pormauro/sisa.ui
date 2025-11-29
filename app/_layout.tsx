@@ -35,6 +35,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { LogProvider } from '@/contexts/LogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
+import { BottomBubbleBar } from '@/components/BottomBubbleBar';
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
@@ -61,17 +62,20 @@ function RootLayoutContent() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { paddingTop: 30, paddingBottom: 30 },
-      }}
-    >
-      <Stack.Screen name="Index" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="Home" />
-      <Stack.Screen name="+not-found" />
-    </Stack>
+    <View style={[styles.contentContainer, { backgroundColor }]}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { paddingTop: 30, paddingBottom: 110 },
+        }}
+      >
+        <Stack.Screen name="Index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="Home" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      <BottomBubbleBar />
+    </View>
   );
 }
 
@@ -151,5 +155,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  contentContainer: {
+    flex: 1,
   },
 });
