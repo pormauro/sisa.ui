@@ -2,7 +2,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useContext, useMemo } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +14,8 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
 import { CompanyContext } from '@/contexts/CompanyContext';
+import { ProfileContext } from '@/contexts/ProfileContext';
+import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
 const Menu: React.FC = () => {
   const router = useRouter();
@@ -21,6 +23,10 @@ const Menu: React.FC = () => {
   const { permissions } = useContext(PermissionsContext);
   const { latestUpdate, updateAvailable, refreshLatestUpdate, currentVersion } = useContext(AppUpdatesContext);
   const { activeCompany, openSelector } = useContext(CompanyContext);
+  const profileContext = useContext(ProfileContext);
+  const profileDetails = profileContext?.profileDetails ?? null;
+  const loadProfile = profileContext?.loadProfile;
+  const avatarUri = useCompanyLogo(profileDetails?.profile_file_id ?? null);
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
@@ -82,14 +88,15 @@ const Menu: React.FC = () => {
     permissions.includes('listAppUpdates') && updateAvailable && Boolean(latestUpdate);
 
   const userInitials = useMemo(() => {
-    if (!username) return 'U';
-    return username
+    const sourceName = profileDetails?.full_name ?? username;
+    if (!sourceName) return 'U';
+    return sourceName
       .split(/\s+/)
       .filter(Boolean)
       .map(name => name[0]?.toUpperCase())
       .join('')
       .slice(0, 2);
-  }, [username]);
+  }, [profileDetails?.full_name, username]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,6 +106,14 @@ const Menu: React.FC = () => {
     }, [permissions, refreshLatestUpdate])
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!profileDetails && loadProfile) {
+        void loadProfile();
+      }
+    }, [profileDetails, loadProfile])
+  );
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
@@ -106,7 +121,11 @@ const Menu: React.FC = () => {
           <View style={styles.heroHeader}>
             <View style={styles.heroUser}>
               <View style={[styles.avatar, { borderColor: heroForeground }]}>
-                <ThemedText style={[styles.avatarText, { color: heroForeground }]}>{userInitials}</ThemedText>
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} resizeMode="cover" />
+                ) : (
+                  <ThemedText style={[styles.avatarText, { color: heroForeground }]}>{userInitials}</ThemedText>
+                )}
               </View>
               <View style={styles.heroTextGroup}>
                 <ThemedText style={[styles.heroGreeting, { color: heroForeground }]}>
@@ -248,6 +267,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
   avatarText: {
     fontSize: 18,
