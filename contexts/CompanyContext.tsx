@@ -22,7 +22,7 @@ import {
 } from '@/contexts/CompanyMembershipsContext';
 import { ensureSortedByNewest, getDefaultSortValue } from '@/utils/sort';
 import { setTrackedCompanyId } from '@/utils/auth/companyTracker';
-import { getItem, saveItem } from '@/utils/auth/secureStore';
+import { getItem, removeItem, saveItem } from '@/utils/auth/secureStore';
 
 interface CompanyContextValue {
   activeCompany: Company | null;
@@ -106,8 +106,20 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
 
   const refreshCompanies = useCallback(async () => {
     const updatedCompanies = await loadCompanies();
-    return updatedCompanies;
-  }, [loadCompanies]);
+    if (updatedCompanies && updatedCompanies.length) {
+      return updatedCompanies;
+    }
+
+    if (companiesRef.current.length) {
+      return companiesRef.current;
+    }
+
+    if (rawCompanies.length) {
+      return rawCompanies;
+    }
+
+    return undefined;
+  }, [loadCompanies, rawCompanies]);
 
   useEffect(() => {
     let cancelled = false;
