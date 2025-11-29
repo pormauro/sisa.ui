@@ -175,8 +175,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           const profileData = await profileResponse.json();
           const { id, email: userEmail } = profileData.user;
-          const nowInArgentina = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" }));
-          const expirationTime = (nowInArgentina.getTime() + 3600 * 1000).toString();
+          const expirationTime = (Date.now() + 3600 * 1000).toString();
 
           await saveItem('token', newToken);
           await saveItem('user_id', id.toString());
