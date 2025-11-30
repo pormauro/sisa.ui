@@ -449,7 +449,7 @@ const extractCollectionFromPayload = (payload: any): any[] => {
 const extractCompanyCollection = extractCollectionFromPayload;
 
 const parseCompany = (raw: any): Company => {
-  const baseId = raw?.id ?? raw?.company_id;
+  const baseId = raw?.id ?? raw?.company_id ?? raw?.empresa_id;
   const rawVersion = raw?.version ?? raw?.version_number ?? raw?.__v ?? 1;
 
   const legalName = pickString(raw?.legal_name, raw?.razon_social, raw?.business_name);
@@ -1118,7 +1118,8 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const loadMemberCompanies = useCallback(
-    async (): Promise<Company[] | void> => loadCompaniesFromEndpoint('companies/memberships'),
+    async (): Promise<Company[] | void> =>
+      loadCompaniesFromEndpoint('companies/member?status=approved&role=owner,admin,user'),
     [loadCompaniesFromEndpoint]
   );
 
