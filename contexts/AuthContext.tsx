@@ -213,13 +213,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return activeToken;
   }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, clearCredentials]);
 
+  const ensureTokenWithDeadline = useCallback(
+    async (reason: string): Promise<string | null> => {
+      const deadline = TIMEOUT_DURATION + 5000;
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+      try {
+        const guardedToken = await Promise.race<string | null>([
+          ensureTokenAvailability(),
+          new Promise<null>((_, reject) => {
+            timeoutHandle = setTimeout(() => {
+              reject(new Error(`Timeout renovando token (${reason})`));
+            }, deadline);
+          }),
+        ]);
+
+        if (!guardedToken) {
+          await clearCredentials();
+        }
+
+        return guardedToken;
+      } catch (error) {
+        console.error('Fallo al intentar renovar el token', error);
+        await clearCredentials();
+        return null;
+      } finally {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+      }
+    },
+    [clearCredentials, ensureTokenAvailability]
+  );
+
   const ensureTokenHealthAfterTimeout = useCallback(async () => {
-    const availableToken = await ensureTokenAvailability();
+    const availableToken = await ensureTokenWithDeadline('reintento tras timeout');
 
     if (!availableToken) {
       await clearCredentials();
     }
-  }, [clearCredentials, ensureTokenAvailability]);
+  }, [clearCredentials, ensureTokenWithDeadline]);
 
   const restoreOfflineSession = useCallback(
     async (loginUsername: string, loginPassword: string) => {
@@ -467,7 +500,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const hasValidToken = existingToken ? await checkTokenValidity() : false;
 
           if (!hasValidToken) {
-            await ensureTokenAvailability();
+            await ensureTokenWithDeadline('carga inicial');
           }
         } catch (error) {
           console.error('Error validating token during startup fallback', error);
@@ -483,7 +516,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isMounted = false;
       clearTimeout(fallbackTimeout);
     };
-  }, [checkTokenValidity, ensureTokenAvailability, restoreTokenFromCache, token]);
+  }, [checkTokenValidity, ensureTokenWithDeadline, restoreTokenFromCache, token]);
 
   const logout = useCallback(async () => {
     await clearCachesAndFiles();
@@ -495,14 +528,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLastProfileCheckAt(now);
     setNextProfileCheckAt(null);
 
-    const activeToken = await ensureTokenAvailability();
+    const activeToken = await ensureTokenWithDeadline('checkConnection');
 
     if (!activeToken) {
       return null;
     }
 
     return activeToken;
-  }, [ensureTokenAvailability]);
+  }, [ensureTokenWithDeadline]);
 
   useEffect(() => {
     const originalFetch = globalThis.fetch;
@@ -578,7 +611,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
 
-      let activeToken = shouldAttachAuth ? await ensureTokenAvailability() : token;
+      let activeToken = shouldAttachAuth ? await ensureTokenWithDeadline('solicitud protegida') : token;
 
       // No bloqueamos nuevas peticiones mientras se renueva el token; si el backend
       // devuelve un 401 igualmente, el flujo de retry de más abajo reintentará con
