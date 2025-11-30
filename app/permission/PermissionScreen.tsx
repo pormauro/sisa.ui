@@ -201,12 +201,7 @@ const PermissionScreen: React.FC = () => {
     [currentPermissions, isMasterUser],
   );
 
-  const canBrowseProfiles = useMemo(
-    () => isMasterUser || currentPermissions.includes('listAllProfiles'),
-    [currentPermissions, isMasterUser],
-  );
-
-  const canSelectOtherUsers = canBrowseProfiles && canViewOtherUsersPermissions;
+  const canSelectOtherUsers = canViewOtherUsersPermissions;
   const canSelectGlobal = canViewGlobalPermissions;
   const canChooseUser = canSelectOtherUsers || canSelectGlobal;
 
