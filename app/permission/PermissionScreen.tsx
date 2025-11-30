@@ -27,6 +27,7 @@ const PERMISSION_GROUPS = [
       'addPermission',
       'deletePermission',
       'listAllProfiles',
+      'viewAuthDiagnostics',
     ],
   },
   {
