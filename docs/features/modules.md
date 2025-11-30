@@ -50,7 +50,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 ### Endpoints consumidos
 - `GET ${BASE_URL}/companies` — listado principal que dispara la hidratación del contexto.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `GET ${BASE_URL}/companies/administered` — listado acotado a las compañías donde el usuario actúa como administrador, habilitado por el permiso `listAdminCompanies` y también disponible para el usuario maestro (ID=1).【F:contexts/CompaniesContext.tsx†L1045-L1110】
-- `GET ${BASE_URL}/companies/member` — devuelve las empresas donde el usuario tiene membresías vigentes y permite filtrar por `status` y `role` (ej. `?status=approved&role=owner,admin`), respetando el permiso `listMemberCompanies`.【F:contexts/CompaniesContext.tsx†L1045-L1110】
+- `GET ${BASE_URL}/companies/member` — devuelve las empresas donde el usuario tiene membresías vigentes y permite filtrar por `status` y `role` (ej. `?status=approved&role=owner,admin,user`), respetando el permiso `listMemberCompanies`.【F:contexts/CompaniesContext.tsx†L1045-L1110】
 - `GET ${BASE_URL}/company-addresses` — domicilios normalizados vinculados por `empresa_id`.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `GET ${BASE_URL}/contacts` — catálogo maestro de contactos reutilizado en los pivotes de empresa.【F:contexts/CompaniesContext.tsx†L606-L748】
 - `GET ${BASE_URL}/company-contacts` — relaciones empresa-contacto con departamento, notas y bandera principal.【F:contexts/CompaniesContext.tsx†L606-L748】
