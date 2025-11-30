@@ -32,7 +32,6 @@ import { InvoicesProvider } from '@/contexts/InvoicesContext';
 import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { ReportsProvider } from '@/contexts/ReportsContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
-import { CommentsProvider } from '@/contexts/CommentsContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { ThemeProvider } from '@/components/ThemeProvider';
@@ -105,16 +104,14 @@ function CompanyBoundProviders({ children }: { children: React.ReactNode }) {
                                           <InvoicesProvider>
                                             <ReceiptsProvider>
                                               <ReportsProvider>
-                                                <FoldersProvider>
-                                                  <CommentsProvider>
-                                                    <NotificationsProvider>
-                                                      <PendingSelectionProvider>
-                                                        {children}
-                                                      </PendingSelectionProvider>
-                                                    </NotificationsProvider>
-                                                  </CommentsProvider>
-                                                </FoldersProvider>
-                                              </ReportsProvider>
+                                              <FoldersProvider>
+                                                <NotificationsProvider>
+                                                  <PendingSelectionProvider>
+                                                    {children}
+                                                  </PendingSelectionProvider>
+                                                </NotificationsProvider>
+                                              </FoldersProvider>
+                                            </ReportsProvider>
                                             </ReceiptsProvider>
                                           </InvoicesProvider>
                                         </PaymentsProvider>
