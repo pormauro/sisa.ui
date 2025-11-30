@@ -69,6 +69,7 @@ export const CompanySelectorModal: React.FC<CompanySelectorModalProps> = ({ visi
 
   const renderItem = ({ item }: { item: Company }) => {
     const isActive = activeCompany?.id === item.id;
+    const displayName = item.name || item.legal_name || 'Empresa sin nombre';
     return (
       <TouchableOpacity
         style={[
@@ -81,14 +82,14 @@ export const CompanySelectorModal: React.FC<CompanySelectorModalProps> = ({ visi
         ]}
         onPress={() => handleSelect(item)}
         accessibilityRole="button"
-        accessibilityLabel={`Seleccionar empresa ${item.name}`}
+        accessibilityLabel={`Seleccionar empresa ${displayName}`}
       >
         <CompanyLogo company={item} />
         <View style={styles.companyInfo}>
           <ThemedText style={[styles.companyName, { color: textColor }]} numberOfLines={1}>
-            {item.name}
+            {displayName}
           </ThemedText>
-          {item.legal_name ? (
+          {item.legal_name && item.legal_name !== displayName ? (
             <ThemedText style={[styles.companyLegal, { color: subtleText }]} numberOfLines={1}>
               {item.legal_name}
             </ThemedText>

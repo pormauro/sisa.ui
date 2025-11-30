@@ -56,7 +56,7 @@ export const BottomBubbleBar: React.FC = () => {
   const cardShadow = useThemeColor({ light: '#00000020', dark: '#00000090' }, 'text');
 
   const companyLogo = useCompanyLogo(activeCompany?.profile_file_id);
-  const companyLabel = activeCompany?.name ?? 'Empresas';
+  const companyLabel = activeCompany?.name ?? activeCompany?.legal_name ?? 'Empresas';
 
   const canListNotifications = userId === '1' || permissions.includes('listNotifications');
   const showBadgeSetting = configContext?.configDetails?.show_notifications_badge ?? true;
