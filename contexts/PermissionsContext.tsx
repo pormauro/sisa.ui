@@ -48,10 +48,18 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     'permissions',
     []
   );
+  const [isCompanyAdmin, setIsCompanyAdmin, isCompanyAdminHydrated] = useCachedState<boolean>(
+    'permissions:isCompanyAdmin',
+    false
+  ); // Persistimos el rol administrativo para mantener el flujo incluso sin conexión.
   const [loading, setLoading] = useState<boolean>(false);
-  const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
   const isSuperUser = useMemo(() => String(userId ?? '') === '1', [userId]);
+
+  const isHydrated = useMemo(
+    () => permissionsHydrated && isCompanyAdminHydrated,
+    [permissionsHydrated, isCompanyAdminHydrated]
+  );
 
   const allAccessPermissions = useMemo(() => {
     if (!isSuperUser) {
@@ -71,10 +79,11 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const clearCachedPermissions = useCallback(() => {
     setPermissions(prev => (prev.length > 0 ? [] : prev));
-  }, [setPermissions]);
+    setIsCompanyAdmin(prev => (prev ? false : prev));
+  }, [setPermissions, setIsCompanyAdmin]);
 
   useEffect(() => {
-    if (!permissionsHydrated) {
+    if (!isHydrated) {
       return;
     }
 
@@ -92,7 +101,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (userId !== previousUserIdRef.current) {
       previousUserIdRef.current = userId ?? null;
     }
-  }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
+  }, [authIsLoading, clearCachedPermissions, isHydrated, userId]);
 
   const fetchPermissions = useCallback(async () => {
     if (isSuperUser) {
@@ -303,7 +312,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     <PermissionsContext.Provider
       value={{
         permissions: allAccessPermissions,
-        loading,
+        loading: loading || !isHydrated,
         refreshPermissions: fetchPermissions,
         isCompanyAdmin,
         isSuperUser,
