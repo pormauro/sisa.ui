@@ -41,6 +41,12 @@ const maskValue = (value: string | null) => {
   return `${value.slice(0, 12)}…${value.slice(-8)}`;
 };
 
+const StatusPill = ({ label, color }: { label: string; color: string }) => (
+  <View style={[styles.statusPill, { backgroundColor: color }]}>
+    <ThemedText style={styles.statusPillText}>{label}</ThemedText>
+  </View>
+);
+
 const ProgressBar = ({ progress, color }: { progress: number; color: string }) => {
   const normalizedProgress = Math.min(1, Math.max(0, progress));
   return (
@@ -153,6 +159,58 @@ const AuthDiagnosticsScreen = () => {
     void loadCache();
   }, []);
 
+  const expirationMs = useMemo(() => {
+    if (!tokenExpiration) return null;
+    const parsed = parseInt(tokenExpiration, 10);
+    if (Number.isNaN(parsed)) return null;
+    return parsed - now;
+  }, [now, tokenExpiration]);
+
+  const tokenStatus = useMemo(() => {
+    if (!token) {
+      return { label: 'Sin token en RAM', color: '#f97316' };
+    }
+    if (expirationMs === null) {
+      return { label: 'Token sin expiración calculada', color: '#3b82f6' };
+    }
+    if (expirationMs <= 0) {
+      return { label: 'Token expirado', color: '#ef4444' };
+    }
+    return { label: `Vigente (${formatDuration(expirationMs)})`, color: '#10b981' };
+  }, [expirationMs, token]);
+
+  const sourceStatus = useMemo(() => {
+    if (isOffline) return { label: 'Sesión restaurada offline', color: '#f59e0b' };
+    if (token) return { label: 'Sesión activa online', color: '#0ea5e9' };
+    if (cacheSnapshot.token) return { label: 'Solo en caché', color: '#a855f7' };
+    return { label: 'Sin sesión vigente', color: '#94a3b8' };
+  }, [cacheSnapshot.token, isOffline, token]);
+
+  const cacheConsistency = useMemo(() => {
+    const cacheMatchesMemory =
+      cacheSnapshot.token === token &&
+      cacheSnapshot.user_id === userId &&
+      cacheSnapshot.username === username &&
+      cacheSnapshot.email === email &&
+      cacheSnapshot.token_expiration === tokenExpiration;
+
+    if (cacheMatchesMemory) {
+      return 'Caché y memoria alineadas para reanudar sesión incluso si la app se reinicia sin conexión.';
+    }
+
+    if (cacheSnapshot.token && !token) {
+      return 'La caché conserva la última sesión aunque no esté cargada en memoria (se cargará al validar credenciales).';
+    }
+
+    return 'Hay diferencias entre caché y memoria; forzar login refrescará ambos estados.';
+  }, [cacheSnapshot.email, cacheSnapshot.token, cacheSnapshot.token_expiration, cacheSnapshot.user_id, cacheSnapshot.username, email, token, tokenExpiration, userId, username]);
+
+  const expirationLabel = useMemo(() => {
+    if (expirationMs === null) return 'Sin dato';
+    if (expirationMs <= 0) return 'Expirado';
+    return `${formatDuration(expirationMs)} restantes`;
+  }, [expirationMs]);
+
   if (userId && userId !== '1') {
     return null;
   }
@@ -174,7 +232,24 @@ const AuthDiagnosticsScreen = () => {
           </View>
         </View>
 
-        <ThemedView style={[styles.card, { borderColor }]}> 
+        <ThemedView style={[styles.card, { borderColor }]}>
+          <View style={styles.cardHeader}>
+            <ThemedText style={styles.cardTitle}>Resumen en vivo</ThemedText>
+            <View style={styles.statusRow}>
+              <StatusPill label={tokenStatus.label} color={tokenStatus.color} />
+              <StatusPill label={sourceStatus.label} color={sourceStatus.color} />
+            </View>
+          </View>
+          <ThemedText style={styles.cardDescription}>
+            Esta vista refleja el nuevo flujo: todas las peticiones salvo /login envían Bearer automáticamente y, si expira,
+            se vuelve a autenticar con las credenciales guardadas antes de propagar el error.
+          </ThemedText>
+          <ThemedText style={styles.metaText}>Tiempo restante del token: {expirationLabel}</ThemedText>
+          <ThemedText style={styles.metaText}>Última validación de expiración: {formatDateTime(lastTokenValidationAt)}</ThemedText>
+          <ThemedText style={styles.metaText}>Último ping de perfil: {formatDateTime(lastProfileCheckAt)}</ThemedText>
+        </ThemedView>
+
+        <ThemedView style={[styles.card, { borderColor }]}>
           <ThemedText style={styles.cardTitle}>Estado en memoria</ThemedText>
           <View style={styles.row}>
             <ThemedText style={styles.label}>Usuario</ThemedText>
@@ -225,6 +300,7 @@ const AuthDiagnosticsScreen = () => {
             <ThemedText style={styles.label}>Email cacheado</ThemedText>
             <ThemedText style={styles.value}>{cacheSnapshot.email ?? 'Sin dato'}</ThemedText>
           </View>
+          <ThemedText style={styles.metaText}>{cacheConsistency}</ThemedText>
         </ThemedView>
 
         <TimerCard
@@ -247,7 +323,19 @@ const AuthDiagnosticsScreen = () => {
           color={mutedColor}
         />
 
-        <ThemedView style={[styles.card, { borderColor }]}> 
+        <ThemedView style={[styles.card, { borderColor }]}>
+          <ThemedText style={styles.cardTitle}>Cobertura del bearer automático</ThemedText>
+          <ThemedText style={styles.cardDescription}>
+            El guardián de fetch adjunta Authorization: Bearer a toda URL del backend excepto /login y, ante 401/403/419,
+            dispara checkConnection para renovar la sesión con las credenciales persistidas antes de devolver la respuesta.
+          </ThemedText>
+          <ThemedText style={styles.metaText}>
+            Si la API está caída, se restaura la última sesión guardada en modo offline para el superusuario y se mantienen los
+            datos en caché hasta que vuelva la conectividad.
+          </ThemedText>
+        </ThemedView>
+
+        <ThemedView style={[styles.card, { borderColor }]}>
           <ThemedText style={styles.cardTitle}>Parámetros activos</ThemedText>
           <View style={styles.row}>
             <ThemedText style={styles.label}>Reintentos de login</ThemedText>
@@ -304,6 +392,21 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  statusPillText: {
+    color: 'white',
+    fontWeight: '700',
+    fontSize: 12,
   },
   card: {
     borderWidth: 1,
