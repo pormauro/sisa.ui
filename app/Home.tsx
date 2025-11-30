@@ -2,7 +2,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useContext, useMemo } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,6 +13,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
 import { ProfileContext } from '@/contexts/ProfileContext';
+import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
 const Menu: React.FC = () => {
   const router = useRouter();
@@ -22,6 +23,7 @@ const Menu: React.FC = () => {
   const profileContext = useContext(ProfileContext);
   const profileDetails = profileContext?.profileDetails ?? null;
   const loadProfile = profileContext?.loadProfile;
+  const profileImageUri = useCompanyLogo(profileDetails?.profile_file_id ?? null);
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
@@ -72,6 +74,7 @@ const Menu: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
   const heroBackground = useThemeColor({ light: '#ffd54f', dark: '#2d2635' }, 'background');
   const heroForeground = useThemeColor({ light: '#1f1b2d', dark: '#f8fafc' }, 'text');
+  const heroControlBackground = useThemeColor({ light: '#ffffff', dark: 'rgba(255,255,255,0.16)' }, 'background');
   const shouldShowUpdateButton =
     permissions.includes('listAppUpdates') && updateAvailable && Boolean(latestUpdate);
 
@@ -110,8 +113,20 @@ const Menu: React.FC = () => {
               accessibilityRole="button"
               accessibilityLabel="Abrir configuración de perfil"
             >
-              <View style={[styles.avatar, { borderColor: heroForeground }]}>
-                <Ionicons name="person-circle-outline" size={30} color={heroForeground} />
+              <View
+                style={[
+                  styles.avatar,
+                  {
+                    borderColor: heroForeground,
+                    backgroundColor: heroControlBackground,
+                  },
+                ]}
+              >
+                {profileImageUri ? (
+                  <Image source={{ uri: profileImageUri }} style={styles.avatarImage} />
+                ) : (
+                  <Ionicons name="person-circle-outline" size={30} color={heroForeground} />
+                )}
               </View>
               <View style={styles.heroTextGroup}>
                 <ThemedText style={[styles.heroGreeting, { color: heroForeground }]}>Hola{greetingName ? `, ${greetingName}` : ''}</ThemedText>
@@ -121,7 +136,10 @@ const Menu: React.FC = () => {
               </View>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.settingsButton, { borderColor: heroForeground }]}
+              style={[
+                styles.settingsButton,
+                { borderColor: heroForeground, backgroundColor: heroControlBackground },
+              ]}
               onPress={() => router.push('/user/ConfigScreen')}
               accessibilityRole="button"
               accessibilityLabel="Abrir configuración de usuario"
@@ -224,7 +242,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
   },
   settingsButton: {
     width: 44,
@@ -233,7 +255,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    backgroundColor: '#fff',
   },
   sectionsContainer: {
     flexDirection: 'row',
