@@ -46,7 +46,7 @@ export const AuthContext = createContext<AuthContextProps>({
 export const AUTH_TIMING_CONFIG = {
   MAX_RETRY: 3,
   RETRY_DELAY: 10000, // 10 segundos de espera para reintentar
-  TIMEOUT_DURATION: 10000, // 10 segundos de timeout en las peticiones
+  TIMEOUT_DURATION: 5000, // 5 segundos de timeout en las peticiones
   USER_PROFILE_ENDPOINT: `${BASE_URL}/user_profile`,
   STARTUP_FALLBACK_DELAY: 15000, // 15 segundos máximo para salir del loader inicial
 } as const;
@@ -168,6 +168,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearCachesAndFiles = useCallback(async () => {
     await Promise.all([clearAllDataCaches(), clearLocalFileStorage()]);
+  }, []);
+
+  const restoreTokenFromCache = useCallback(async () => {
+    const [storedToken, storedExpiration] = await getInitialItems(['token', 'token_expiration']);
+
+    if (!storedToken || !storedExpiration) {
+      return null;
+    }
+
+    const expirationTime = parseInt(storedExpiration, 10);
+    const now = Date.now();
+
+    if (Number.isNaN(expirationTime) || now >= expirationTime) {
+      return null;
+    }
+
+    setToken(storedToken);
+    setTokenExpiration(storedExpiration);
+
+    return storedToken;
   }, []);
 
   const restoreOfflineSession = useCallback(
@@ -424,9 +444,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLastProfileCheckAt(now);
     setNextProfileCheckAt(null);
 
+    const activeToken = token ?? (await restoreTokenFromCache());
     const isValid = await checkTokenValidity();
 
-    if (!token || !isValid) {
+    if (!activeToken || !isValid) {
       if (username && password) {
         const refreshed = await performLogin(username, password);
         return refreshed?.token ?? null;
@@ -438,8 +459,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     setIsOffline(false);
-    return token ?? null;
-  }, [token, username, password, performLogin, checkTokenValidity]);
+    return activeToken;
+  }, [token, username, password, performLogin, checkTokenValidity, restoreTokenFromCache]);
 
   useEffect(() => {
     const originalFetch = globalThis.fetch;
