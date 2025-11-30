@@ -3,7 +3,6 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useContext, useMemo } from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
@@ -123,24 +122,11 @@ const Menu: React.FC = () => {
                 )}
               </View>
               <View style={styles.heroTextGroup}>
-                <ThemedText style={[styles.heroGreeting, { color: heroForeground }]}>
-                  Hola, {username ?? 'Usuario'}
-                </ThemedText>
                 <ThemedText style={[styles.heroSubtitle, { color: heroForeground }]}>
                   Centraliza tus cobros, ventas y reportes
                 </ThemedText>
               </View>
             </TouchableOpacity>
-            <View style={styles.heroActions}>
-              <TouchableOpacity
-                style={[styles.roundAction, { borderColor: heroForeground }]}
-                onPress={() => router.push('/user/ConfigScreen')}
-                accessibilityRole="button"
-                accessibilityLabel="Abrir ajustes"
-              >
-                <Ionicons name="settings-outline" size={22} color={heroForeground} />
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
         {shouldShowUpdateButton && latestUpdate ? (
@@ -209,7 +195,7 @@ const styles = StyleSheet.create({
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     gap: 12,
   },
   heroUser: {
@@ -221,10 +207,6 @@ const styles = StyleSheet.create({
   heroTextGroup: {
     gap: 4,
     flex: 1,
-  },
-  heroGreeting: {
-    fontSize: 20,
-    fontWeight: '800',
   },
   heroSubtitle: {
     fontSize: 14,
@@ -247,20 +229,6 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 18,
     fontWeight: '700',
-  },
-  heroActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  roundAction: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff40',
   },
   sectionsContainer: {
     flexDirection: 'row',
