@@ -235,7 +235,6 @@ export default function ViewCompanyModal() {
 
   return (
     <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
-      <ThemedText style={styles.companyName}>{company.name}</ThemedText>
       <CircleImagePicker
         fileId={company.profile_file_id ? String(company.profile_file_id) : null}
         size={180}
@@ -341,11 +340,6 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     gap: 16,
-  },
-  companyName: {
-    fontSize: 26,
-    fontWeight: '800',
-    textAlign: 'center',
   },
   socialButton: {
     borderWidth: 1,
