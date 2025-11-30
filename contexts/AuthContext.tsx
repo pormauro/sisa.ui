@@ -48,7 +48,7 @@ export const AUTH_TIMING_CONFIG = {
   RETRY_DELAY: 10000, // 10 segundos de espera para reintentar
   TIMEOUT_DURATION: 5000, // 5 segundos de timeout en las peticiones
   USER_PROFILE_ENDPOINT: `${BASE_URL}/user_profile`,
-  STARTUP_FALLBACK_DELAY: 15000, // 15 segundos máximo para salir del loader inicial
+  STARTUP_FALLBACK_DELAY: 3000, // 3 segundos máximo para salir del loader inicial
 } as const;
 
 const {
@@ -212,6 +212,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsOffline(false);
     return activeToken;
   }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, clearCredentials]);
+
+  const ensureTokenHealthAfterTimeout = useCallback(async () => {
+    const availableToken = await ensureTokenAvailability();
+
+    if (!availableToken) {
+      await clearCredentials();
+    }
+  }, [clearCredentials, ensureTokenAvailability]);
 
   const restoreOfflineSession = useCallback(
     async (loginUsername: string, loginPassword: string) => {
@@ -450,12 +458,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Evita que la app quede indefinidamente en pantalla de carga si el autoLogin se cuelga
   useEffect(() => {
+    let isMounted = true;
+
     const fallbackTimeout = setTimeout(() => {
-      setIsLoading(false);
+      (async () => {
+        try {
+          const existingToken = token ?? (await restoreTokenFromCache());
+          const hasValidToken = existingToken ? await checkTokenValidity() : false;
+
+          if (!hasValidToken) {
+            await ensureTokenAvailability();
+          }
+        } catch (error) {
+          console.error('Error validating token during startup fallback', error);
+        } finally {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        }
+      })();
     }, STARTUP_FALLBACK_DELAY);
 
-    return () => clearTimeout(fallbackTimeout);
-  }, []);
+    return () => {
+      isMounted = false;
+      clearTimeout(fallbackTimeout);
+    };
+  }, [checkTokenValidity, ensureTokenAvailability, restoreTokenFromCache, token]);
 
   const logout = useCallback(async () => {
     await clearCachesAndFiles();
@@ -570,8 +598,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         response = await originalFetch(input as any, effectiveInit as any);
       } catch (error: any) {
-        if (error?.name === 'AbortError' && shouldAttachAuth) {
-          await ensureTokenAvailability();
+        if (
+          shouldAttachAuth &&
+          (error?.name === 'AbortError' || `${error?.message ?? ''}`.toLowerCase().includes('timeout'))
+        ) {
+          await ensureTokenHealthAfterTimeout();
         }
         throw error;
       }
