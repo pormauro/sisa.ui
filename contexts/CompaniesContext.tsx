@@ -1119,7 +1119,7 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
 
   const loadMemberCompanies = useCallback(
     async (): Promise<Company[] | void> =>
-      loadCompaniesFromEndpoint('companies/member?status=approved&role=owner,admin,user'),
+      loadCompaniesFromEndpoint('companies/member?status=approved&role=owner,admin,member'),
     [loadCompaniesFromEndpoint]
   );
 
