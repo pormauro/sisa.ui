@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
+import { Buffer } from 'buffer';
 import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
@@ -38,6 +39,38 @@ const TIMEOUT_DURATION = 10000; // 10 segundos de timeout en las peticiones
 const PROFILE_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutos para revisar el perfil
 const USER_PROFILE_ENDPOINT = `${BASE_URL}/user_profile`;
 const STARTUP_FALLBACK_DELAY = 15000; // 15 segundos máximo para salir del loader inicial
+
+const decodeJwtExpiration = (token: string): number | null => {
+  const [, payload] = token.split('.');
+  if (!payload) return null;
+
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+    const decodedPayload = Buffer.from(padded, 'base64').toString('utf-8');
+    const parsed = JSON.parse(decodedPayload);
+    return typeof parsed.exp === 'number' ? parsed.exp : null;
+  } catch (error) {
+    console.error('Error decoding JWT expiration', error);
+    return null;
+  }
+};
+
+const computeExpirationTime = (token: string, expiresIn?: number | null): string => {
+  const now = Date.now();
+  const expiresInMs = typeof expiresIn === 'number' && expiresIn > 0 ? expiresIn * 1000 : null;
+
+  if (expiresInMs) {
+    return (now + expiresInMs).toString();
+  }
+
+  const jwtExp = decodeJwtExpiration(token);
+  if (jwtExp) {
+    return (jwtExp * 1000).toString();
+  }
+
+  return (now + 3600 * 1000).toString();
+};
 
 // Función auxiliar para hacer fetch con timeout
 const fetchWithTimeout = async (resource: string, options: any = {}) => {
@@ -198,7 +231,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           const normalizedUserId = userIdFromProfile.toString();
-          const expirationTime = (Date.now() + 3600 * 1000).toString();
+          const expiresInFromResponse =
+            responseData && typeof responseData === 'object' && 'expires_in' in responseData
+              ? (responseData as { expires_in?: number | null }).expires_in ?? null
+              : null;
+          const expirationTime = computeExpirationTime(newToken, expiresInFromResponse);
 
           await saveItem('token', newToken);
           await saveItem('user_id', normalizedUserId);
