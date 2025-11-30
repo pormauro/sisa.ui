@@ -48,7 +48,7 @@ const CompanyLogo = ({ company }: { company: Company }) => {
 };
 
 export const CompanySelectorModal: React.FC<CompanySelectorModalProps> = ({ visible, onClose }) => {
-  const { companies, activeCompany, loadFromStorage } = useCompanyContext();
+  const { companies, activeCompany, loadFromStorage, setActiveCompany } = useCompanyContext();
   const cardBackground = useThemeColor({ light: '#fff', dark: '#1c1c1f' }, 'background');
   const borderColor = useThemeColor({ light: '#e5e7eb', dark: '#2f2f36' }, 'border');
   const textColor = useThemeColor({}, 'text');
@@ -62,7 +62,8 @@ export const CompanySelectorModal: React.FC<CompanySelectorModalProps> = ({ visi
     }
   }, [loadFromStorage, visible]);
 
-  const handleSelect = () => {
+  const handleSelect = (company: Company) => {
+    void setActiveCompany(company);
     onClose();
   };
 
@@ -78,7 +79,7 @@ export const CompanySelectorModal: React.FC<CompanySelectorModalProps> = ({ visi
             borderWidth: isActive ? 2 : 1,
           },
         ]}
-        onPress={handleSelect}
+        onPress={() => handleSelect(item)}
         accessibilityRole="button"
         accessibilityLabel={`Seleccionar empresa ${item.name}`}
       >
