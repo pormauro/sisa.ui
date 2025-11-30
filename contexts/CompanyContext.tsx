@@ -62,12 +62,12 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
     [isSuperUser, permissions]
   );
   const canListAdminCompanies = useMemo(
-    () => permissions.includes('listAdminCompanies'),
-    [permissions]
+    () => isSuperUser || permissions.includes('listAdminCompanies'),
+    [isSuperUser, permissions]
   );
   const canListMemberCompanies = useMemo(
-    () => permissions.includes('listMemberCompanies'),
-    [permissions]
+    () => isSuperUser || permissions.includes('listMemberCompanies'),
+    [isSuperUser, permissions]
   );
 
   const mergeUniqueCompanies = useCallback((collections: (Company[] | void)[]): Company[] => {
@@ -114,11 +114,11 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
 
       const scopedCollections: (Company[] | void)[] = [];
 
-      if (canListAdminCompanies) {
+      if (canListAdminCompanies || (!canListAllCompanies && !canListMemberCompanies)) {
         scopedCollections.push(await loadAdminCompanies());
       }
 
-      if (canListMemberCompanies) {
+      if (canListMemberCompanies || (!canListAllCompanies && !canListAdminCompanies)) {
         scopedCollections.push(await loadMemberCompanies());
       }
 
@@ -127,7 +127,7 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
         return merged;
       }
 
-      if (source?.length && (canListAdminCompanies || canListMemberCompanies)) {
+      if (source?.length) {
         return mergeUniqueCompanies([source]);
       }
 
@@ -194,11 +194,11 @@ const CompanyContextManager = ({ children }: { children: ReactNode }) => {
         return null;
       }
 
-      if (isSuperUser || canListAllCompanies) {
+      if (isSuperUser || canListAllCompanies || canListAdminCompanies || canListMemberCompanies) {
         return company;
       }
 
-      if (canListAdminCompanies || canListMemberCompanies) {
+      if (companiesRef.current.some(existing => existing.id === companyId)) {
         return company;
       }
 
