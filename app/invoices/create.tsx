@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { InvoicesContext, type InvoicePayload } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -128,9 +129,30 @@ interface InvoiceFormState {
   taxAmount: string;
 }
 
-const getToday = (): string => {
-  const today = new Date();
-  return today.toISOString().slice(0, 10);
+const formatDateForInput = (date: Date): string => date.toISOString().slice(0, 10);
+
+const getToday = (): string => formatDateForInput(new Date());
+
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const parseDateValue = (value: string): Date => {
+  const [year, month, day] = value.split('-').map(part => Number(part));
+  if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+    const date = new Date();
+    date.setFullYear(year, month - 1, day);
+    date.setHours(12, 0, 0, 0);
+    return date;
+  }
+  return new Date();
+};
+
+const getDefaultDueDate = (invoiceDate: string): string => {
+  const parsedDate = parseDateValue(invoiceDate || getToday());
+  return formatDateForInput(addDays(parsedDate, 30));
 };
 
 const createEmptyItem = (): InvoiceItemFormValue => ({
@@ -147,7 +169,7 @@ const createEmptyItem = (): InvoiceItemFormValue => ({
 const DEFAULT_FORM_STATE: InvoiceFormState = {
   id: '',
   invoiceDate: getToday(),
-  dueDate: '',
+  dueDate: getDefaultDueDate(getToday()),
   clientId: '',
   invoiceNumber: '',
   currencyCode: 'ARS',
@@ -190,6 +212,8 @@ export default function CreateInvoiceScreen() {
   const [clientsInitialized, setClientsInitialized] = useState(false);
   const initialClientsRef = useRef(clients);
   const [attachedFiles, setAttachedFiles] = useState<string>('');
+  const [showInvoiceDatePicker, setShowInvoiceDatePicker] = useState(false);
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -440,8 +464,21 @@ export default function CreateInvoiceScreen() {
     return true;
   }, [formState.clientId, items]);
 
+  const requiredLabel = (label: string) => `${label} *`;
+
   const handleChange = (key: keyof InvoiceFormState) => (value: string) => {
     setFormState(current => ({ ...current, [key]: value }));
+  };
+
+  const handleInvoiceDateSelection = (selectedDate: Date) => {
+    const formattedInvoiceDate = formatDateForInput(selectedDate);
+    const formattedDueDate = getDefaultDueDate(formattedInvoiceDate);
+    setFormState(current => ({ ...current, invoiceDate: formattedInvoiceDate, dueDate: formattedDueDate }));
+  };
+
+  const handleDueDateSelection = (selectedDate: Date) => {
+    const formattedDueDate = formatDateForInput(selectedDate);
+    setFormState(current => ({ ...current, dueDate: formattedDueDate }));
   };
 
   const handleFillTaxAmount = useCallback(() => {
@@ -670,25 +707,53 @@ export default function CreateInvoiceScreen() {
     >
       <ThemedText style={styles.sectionTitle}>Factura</ThemedText>
 
-      <ThemedText style={styles.label}>Fecha de emisión</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="AAAA-MM-DD"
-        placeholderTextColor={placeholderColor}
-        value={formState.invoiceDate}
-        onChangeText={handleChange('invoiceDate')}
-      />
+      <ThemedText style={styles.label}>{requiredLabel('Fecha de emisión')}</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { borderColor, backgroundColor: inputBackground }]}
+        onPress={() => setShowInvoiceDatePicker(true)}
+      >
+        <ThemedText style={{ color: formState.invoiceDate ? textColor : placeholderColor }}>
+          {formState.invoiceDate || 'Seleccionar fecha'}
+        </ThemedText>
+      </TouchableOpacity>
+      {showInvoiceDatePicker && (
+        <DateTimePicker
+          value={parseDateValue(formState.invoiceDate || getToday())}
+          mode="date"
+          display="default"
+          onChange={(_, selectedDate) => {
+            setShowInvoiceDatePicker(false);
+            if (selectedDate) {
+              handleInvoiceDateSelection(selectedDate);
+            }
+          }}
+        />
+      )}
 
-      <ThemedText style={styles.label}>Fecha de vencimiento</ThemedText>
-      <TextInput
-        style={[styles.input, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-        placeholder="AAAA-MM-DD"
-        placeholderTextColor={placeholderColor}
-        value={formState.dueDate}
-        onChangeText={handleChange('dueDate')}
-      />
+      <ThemedText style={styles.label}>{requiredLabel('Fecha de vencimiento')}</ThemedText>
+      <TouchableOpacity
+        style={[styles.input, { borderColor, backgroundColor: inputBackground }]}
+        onPress={() => setShowDueDatePicker(true)}
+      >
+        <ThemedText style={{ color: formState.dueDate ? textColor : placeholderColor }}>
+          {formState.dueDate || 'Seleccionar fecha'}
+        </ThemedText>
+      </TouchableOpacity>
+      {showDueDatePicker && (
+        <DateTimePicker
+          value={parseDateValue(formState.dueDate || getDefaultDueDate(formState.invoiceDate))}
+          mode="date"
+          display="default"
+          onChange={(_, selectedDate) => {
+            setShowDueDatePicker(false);
+            if (selectedDate) {
+              handleDueDateSelection(selectedDate);
+            }
+          }}
+        />
+      )}
 
-      <ThemedText style={styles.label}>Cliente</ThemedText>
+      <ThemedText style={styles.label}>{requiredLabel('Cliente')}</ThemedText>
       <SearchableSelect
         style={styles.select}
         items={clientItems}
@@ -826,7 +891,7 @@ export default function CreateInvoiceScreen() {
               </View>
             </View>
 
-            <ThemedText style={styles.label}>Descripción</ThemedText>
+            <ThemedText style={styles.label}>{requiredLabel('Descripción')}</ThemedText>
             <TextInput
               style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
               placeholder="Detalle del producto o servicio"
@@ -837,7 +902,7 @@ export default function CreateInvoiceScreen() {
 
             <View style={styles.itemRow}>
               <View style={styles.itemColumn}>
-                <ThemedText style={styles.label}>Cantidad</ThemedText>
+                <ThemedText style={styles.label}>{requiredLabel('Cantidad')}</ThemedText>
                 <TextInput
                   style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
                   placeholder="1"
@@ -848,7 +913,7 @@ export default function CreateInvoiceScreen() {
                 />
               </View>
               <View style={styles.itemColumn}>
-                <ThemedText style={styles.label}>Precio unitario</ThemedText>
+                <ThemedText style={styles.label}>{requiredLabel('Precio unitario')}</ThemedText>
                 <TextInput
                   style={[styles.input, styles.itemInput, { borderColor, backgroundColor: inputBackground, color: textColor }]}
                   placeholder="0.00"
