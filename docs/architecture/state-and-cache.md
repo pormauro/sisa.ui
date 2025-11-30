@@ -125,21 +125,21 @@ configuración para liberar espacio si el dispositivo lo requiere.【F:app/user/
 `AuthContext` es la fuente de verdad sobre el estado de la red. Implementa
 `fetchWithTimeout` para cortar peticiones que exceden los 10 segundos y reintenta
 el login hasta tres veces con un retardo entre intentos, marcando `isOffline`
-cuando detecta errores de red.【F:contexts/AuthContext.tsx†L34-L235】 Las
+cuando detecta errores de red.【F:contexts/AuthContext.tsx†L30-L222】 Las
 credenciales y el token se guardan en `SecureStore`, lo que permite reintentos
 posteriores sin intervención del usuario y habilita `autoLogin` al iniciar la
-aplicación sin bloquear la carga inicial.【F:contexts/AuthContext.tsx†L53-L272】
+aplicación sin bloquear la carga inicial.【F:contexts/AuthContext.tsx†L53-L406】
 
-El método `checkConnection` consulta `/user_profile` con el token actual; si recibe un
-`401`, relanza el proceso de autenticación con las credenciales almacenadas y, en
-cualquier otro error, marca el estado offline. Además, se ejecutan dos tareas
-periódicas: validar el vencimiento del token cada cinco minutos y verificar la
-sesión contra el backend cada dos minutos para reintentar el login en segundo
-plano.【F:contexts/AuthContext.tsx†L444-L469】 Los contextos consumidores acceden a
-`token` e `isOffline` para decidir si disparar sincronizaciones o trabajar con
-los datos cacheados hasta que la conexión se restablezca; `FilesContext`, por
-su parte, reutiliza el mismo token para garantizar que las descargas y subidas
-conserven la autenticación cuando la red vuelve a estar disponible.【F:contexts/FilesContext.tsx†L50-L177】【F:contexts/ClientsContext.tsx†L45-L138】
+`checkConnection` valida la vigencia del token y, si está ausente o expiró,
+reintenta el login con las credenciales almacenadas; cuando no hay credenciales
+limpia el estado y habilita el modo offline. La validación ocurre al preparar
+peticiones autenticadas y cuando el backend devuelve errores 401/403/419, en vez
+de usar intervalos periódicos.【F:contexts/AuthContext.tsx†L420-L562】 Los
+contextos consumidores acceden a `token` e `isOffline` para decidir si disparar
+sincronizaciones o trabajar con los datos cacheados hasta que la conexión se
+restablezca; `FilesContext`, por su parte, reutiliza el mismo token para
+garantizar que las descargas y subidas conserven la autenticación cuando la red
+vuelve a estar disponible.【F:contexts/FilesContext.tsx†L50-L177】【F:contexts/ClientsContext.tsx†L45-L138】
 
 En conjunto, `useCachedState`, la propagación de limpiezas y la integración con
 `AuthContext` permiten que la aplicación soporte cortes de red, limpiezas
