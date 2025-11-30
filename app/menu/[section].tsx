@@ -5,10 +5,12 @@ import { MenuButton } from '@/components/MenuButton';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useContext } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useContext } from 'react';
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ProfileContext } from '@/contexts/ProfileContext';
+import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
 const MenuGroupScreen: React.FC = () => {
   const { section: sectionParam } = useLocalSearchParams<{ section?: string }>();
@@ -17,6 +19,10 @@ const MenuGroupScreen: React.FC = () => {
 
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
+  const profileContext = useContext(ProfileContext);
+  const profileDetails = profileContext?.profileDetails ?? null;
+  const loadProfile = profileContext?.loadProfile;
+  const avatarUri = useCompanyLogo(profileDetails?.profile_file_id ?? null);
   const router = useRouter();
 
   const backgroundColor = useThemeColor({}, 'background');
@@ -53,6 +59,14 @@ const MenuGroupScreen: React.FC = () => {
         .filter(entry => entry.access.enabled)
     : [];
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!profileDetails && loadProfile) {
+        void loadProfile();
+      }
+    }, [profileDetails, loadProfile])
+  );
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -73,16 +87,25 @@ const MenuGroupScreen: React.FC = () => {
         {menuSection ? (
           visibleItems.length > 0 ? (
             <View style={styles.menuContainer}>
-              {visibleItems.map(({ item, access }) => (
-                <MenuButton
-                  key={item.route}
-                  icon={item.icon}
-                  title={item.title}
-                  layout="grid"
-                  showChevron={false}
-                  onPress={() => router.push(access.route as any)}
-                />
-              ))}
+              {visibleItems.map(({ item, access }) => {
+                const isProfileItem = item.route === '/user/ProfileScreen';
+                const customIcon =
+                  isProfileItem && avatarUri ? (
+                    <Image source={{ uri: avatarUri }} style={styles.profileAvatar} resizeMode="cover" />
+                  ) : undefined;
+
+                return (
+                  <MenuButton
+                    key={item.route}
+                    icon={item.icon}
+                    title={item.title}
+                    layout="grid"
+                    showChevron={false}
+                    onPress={() => router.push(access.route as any)}
+                    customIcon={customIcon}
+                  />
+                );
+              })}
             </View>
           ) : (
             <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
@@ -156,6 +179,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  profileAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 16,
   },
   menuContainer: {
     paddingBottom: 8,

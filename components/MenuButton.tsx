@@ -25,6 +25,7 @@ export interface MenuButtonProps {
   style?: StyleProp<ViewStyle>;
   accessibilityState?: AccessibilityState;
   layout?: 'row' | 'grid';
+  customIcon?: React.ReactNode;
 }
 
 export const MenuButton: React.FC<MenuButtonProps> = ({
@@ -37,6 +38,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
   style,
   accessibilityState,
   layout = 'row',
+  customIcon,
 }) => {
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
@@ -72,7 +74,9 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
           { backgroundColor: tintColor },
         ]}
       >
-        <Ionicons name={icon} size={isGridLayout ? 40 : 28} color={iconForegroundColor} />
+        {customIcon ?? (
+          <Ionicons name={icon} size={isGridLayout ? 40 : 28} color={iconForegroundColor} />
+        )}
       </View>
       <View style={[styles.textContainer, isGridLayout && styles.gridTextContainer]}>
         <ThemedText style={[styles.title, isGridLayout && styles.gridTitle]}>{title}</ThemedText>
