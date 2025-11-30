@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useRef, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
@@ -6,9 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthContext } from '@/contexts/AuthContext';
 import { CompanyContext } from '@/contexts/CompanyContext';
-import { ConfigContext } from '@/contexts/ConfigContext';
-import { NotificationsContext } from '@/contexts/NotificationsContext';
-import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CompanySelectorModal } from '@/components/CompanySelectorModal';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -21,32 +18,17 @@ interface NavItem {
   activeIcon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   disabled?: boolean;
-  badgeValue?: number;
   isActive?: boolean;
   isPrimary?: boolean;
   renderIcon?: () => React.ReactNode;
 }
 
-const NavBadge = ({ value, color }: { value: number; color: string }) => {
-  const displayValue = value > 99 ? '99+' : value.toString();
-
-  return (
-    <View style={[styles.badge, { backgroundColor: color }]}>
-      <ThemedText style={styles.badgeText}>{displayValue}</ThemedText>
-    </View>
-  );
-};
-
 export const BottomBubbleBar: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { username, userId } = useContext(AuthContext);
+  const { username } = useContext(AuthContext);
   const { activeCompany } = useContext(CompanyContext);
-  const { permissions } = useContext(PermissionsContext);
-  const { notifications, loadNotifications } = useContext(NotificationsContext);
-  const configContext = useContext(ConfigContext);
   const [modalVisible, setModalVisible] = useState(false);
-  const hasRequestedRef = useRef(false);
   const insets = useSafeAreaInsets();
 
   const tintColor = useThemeColor({}, 'tint');
@@ -58,20 +40,7 @@ export const BottomBubbleBar: React.FC = () => {
   const companyLogo = useCompanyLogo(activeCompany?.profile_file_id);
   const companyLabel = activeCompany?.name ?? activeCompany?.legal_name ?? 'Empresas';
 
-  const canListNotifications = userId === '1' || permissions.includes('listNotifications');
-  const showBadgeSetting = configContext?.configDetails?.show_notifications_badge ?? true;
-
-  const unreadCount = useMemo(
-    () => notifications.filter((item) => !item.state.is_read && !item.state.is_hidden).length,
-    [notifications],
-  );
-
   const shouldRender = Boolean(username);
-
-  if (shouldRender && canListNotifications && showBadgeSetting && !hasRequestedRef.current && notifications.length === 0) {
-    hasRequestedRef.current = true;
-    void loadNotifications({ status: 'unread' });
-  }
 
   if (!shouldRender) {
     return null;
@@ -85,16 +54,6 @@ export const BottomBubbleBar: React.FC = () => {
       activeIcon: 'home',
       onPress: () => router.replace('/Home'),
       isActive: pathname === '/Home',
-    },
-    {
-      key: 'notifications',
-      label: 'Avisos',
-      icon: 'notifications-outline',
-      activeIcon: 'notifications',
-      onPress: () => router.push('/notifications'),
-      disabled: !canListNotifications,
-      badgeValue: canListNotifications && showBadgeSetting ? unreadCount : 0,
-      isActive: pathname?.startsWith('/notifications'),
     },
     {
       key: 'company',
@@ -152,7 +111,6 @@ export const BottomBubbleBar: React.FC = () => {
           ) : (
             <Ionicons name={iconName} size={22} color={iconColor} />
           )}
-          {item.badgeValue && item.badgeValue > 0 ? <NavBadge value={item.badgeValue} color={tintColor} /> : null}
         </View>
         <ThemedText
           style={[
@@ -247,7 +205,7 @@ const styles = StyleSheet.create({
     marginTop: -12,
   },
   navLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -256,22 +214,6 @@ const styles = StyleSheet.create({
   },
   navLabelDisabled: {
     opacity: 0.4,
-  },
-  badge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
   },
   companyIconWrapper: {
     width: 34,

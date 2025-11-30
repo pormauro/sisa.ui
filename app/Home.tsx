@@ -7,7 +7,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
-import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -139,7 +138,6 @@ const Menu: React.FC = () => {
               </View>
             </TouchableOpacity>
             <View style={styles.heroActions}>
-              <NotificationMenuBadge />
               <TouchableOpacity
                 style={[styles.roundAction, { borderColor: heroForeground }]}
                 onPress={() => router.push('/user/ConfigScreen')}

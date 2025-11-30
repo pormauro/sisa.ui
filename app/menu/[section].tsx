@@ -9,7 +9,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
 
 const MenuGroupScreen: React.FC = () => {
   const { section: sectionParam } = useLocalSearchParams<{ section?: string }>();
@@ -69,7 +68,6 @@ const MenuGroupScreen: React.FC = () => {
             )}
             <ThemedText style={styles.headerTitle}>{menuSection?.title ?? 'Menú'}</ThemedText>
           </View>
-          <NotificationMenuBadge />
         </View>
 
         {menuSection ? (
