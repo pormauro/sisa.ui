@@ -6278,7 +6278,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/companies/member?status=approved&role=owner,admin,user",
+              "raw": "{{baseUrl}}/companies/member?status=approved&role=owner,admin,member",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -6294,7 +6294,7 @@
                 },
                 {
                   "key": "role",
-                  "value": "owner,admin,user",
+                  "value": "owner,admin,member",
                   "description": "Permite acotar por rol (owner, admin, member)."
                 }
               ]
