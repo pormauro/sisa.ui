@@ -20,6 +20,11 @@
 - `autoLogin` descarta tokens caducados, restaura inmediatamente el estado local y, sólo cuando faltan credenciales válidas en memoria, lanza `performLogin` en segundo plano para que la interfaz no quede esperando el request inicial.【F:contexts/AuthContext.tsx†L372-L406】
 - Las verificaciones ahora son bajo demanda: antes de adjuntar el encabezado Bearer se valida la vigencia y, si el token falta o expiró, se relanza el login con las credenciales persistidas; tras un `401/403/419` se reintenta la autenticación una única vez antes de propagar el error.【F:contexts/AuthContext.tsx†L484-L562】
 
+## Panel de diagnóstico para el superusuario
+- La pantalla `app/settings/auth-diagnostics.tsx` ofrece un resumen en vivo sólo visible para el usuario con ID 1, mostrando el estado actual del token, tiempo restante calculado y el origen de la sesión (online u offline restaurado desde caché).【F:app/settings/auth-diagnostics.tsx†L95-L154】【F:app/settings/auth-diagnostics.tsx†L168-L199】
+- Incluye indicadores de coherencia entre memoria y almacenamiento seguro/AsyncStorage, avisando cuando la caché conserva datos que aún no están cargados en RAM o cuando hay divergencias que requieren un login para sincronizarse.【F:app/settings/auth-diagnostics.tsx†L156-L189】
+- El panel también documenta el guardián que adjunta automáticamente el header Bearer a todas las peticiones (excepto `/login`) y explica el fallback a `checkConnection` para renovar la sesión antes de exponer errores de autenticación.【F:app/settings/auth-diagnostics.tsx†L59-L78】【F:app/settings/auth-diagnostics.tsx†L223-L236】
+
 ## Control de conexión y requisitos de API
 - `checkConnection` valida la vigencia del token y, si falta o caducó, relanza el login con las credenciales persistidas; si no hay credenciales se limpia el estado y se marca modo offline.【F:contexts/AuthContext.tsx†L420-L438】
 - Todas las operaciones posteriores al login reutilizan el token en memoria y adjuntan el encabezado `Authorization: Bearer`, mientras que la llamada inicial a `/login` es la única exenta del uso de Bearer para alinearse con el flujo de autenticación requerido.【F:contexts/AuthContext.tsx†L74-L147】【F:contexts/AuthContext.tsx†L500-L562】
