@@ -10,7 +10,7 @@ import { MenuButton } from '@/components/MenuButton';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
+import { MENU_SECTIONS, MenuItem } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
 import { ProfileContext } from '@/contexts/ProfileContext';
 import { useCompanyLogo } from '@/hooks/useCompanyLogo';
@@ -63,13 +63,7 @@ const Menu: React.FC = () => {
     }
   }, [latestUpdate]);
 
-  const visibleShortcutsSection = {
-    ...SHORTCUTS_SECTION,
-    items: SHORTCUTS_SECTION.items.filter(isEnabled),
-  };
-
   const visibleSections = [
-    ...(visibleShortcutsSection.items.length > 0 ? [visibleShortcutsSection] : []),
     ...MENU_SECTIONS.map((section) => ({
       ...section,
       items: section.items.filter(isEnabled),

@@ -56,6 +56,14 @@ export const BottomBubbleBar: React.FC = () => {
       isActive: pathname === '/Home',
     },
     {
+      key: 'notifications',
+      label: 'Notificaciones',
+      icon: 'notifications-outline',
+      activeIcon: 'notifications',
+      onPress: () => router.push('/notifications'),
+      isActive: pathname?.startsWith('/notifications'),
+    },
+    {
       key: 'company',
       label: companyLabel,
       icon: 'briefcase-outline',
@@ -79,8 +87,8 @@ export const BottomBubbleBar: React.FC = () => {
       label: 'Atajos',
       icon: 'flash-outline',
       activeIcon: 'flash',
-      onPress: () => router.push('/shortcuts/payment_templates'),
-      isActive: pathname?.startsWith('/shortcuts'),
+      onPress: () => router.push({ pathname: '/menu/[section]', params: { section: 'shortcuts' } }),
+      isActive: pathname?.startsWith('/menu/shortcuts'),
     },
   ];
 

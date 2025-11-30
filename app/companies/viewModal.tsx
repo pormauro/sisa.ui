@@ -1,5 +1,5 @@
-import React, { useContext, useMemo } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useContext, useLayoutEffect, useMemo } from 'react';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -17,6 +17,7 @@ export default function ViewCompanyModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const companyId = Number(id);
   const resolvedCompanyId = Number.isFinite(companyId) ? companyId : null;
+  const navigation = useNavigation();
   const router = useRouter();
 
   const { companies } = useContext(CompaniesContext);
@@ -25,6 +26,11 @@ export default function ViewCompanyModal() {
   const { canListMemberships } = useContext(CompanyMembershipsContext);
 
   const company = companies.find(item => item.id === resolvedCompanyId);
+
+  useLayoutEffect(() => {
+    const title = company?.name?.trim() || company?.legal_name?.trim() || 'Detalle de la Empresa';
+    navigation.setOptions({ title });
+  }, [company, navigation]);
 
   const administratorIds = useMemo(() => {
     if (!company || !Array.isArray(company.administrator_ids)) {
