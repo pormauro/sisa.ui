@@ -24,6 +24,23 @@ interface EnsureAuthResponseOptions {
   silent?: boolean;
 }
 
+const AUTH_ALERT_COOLDOWN_MS = 10_000;
+let lastAuthAlertAt = 0;
+
+const maybeShowTokenAlert = () => {
+  const now = Date.now();
+  if (now - lastAuthAlertAt < AUTH_ALERT_COOLDOWN_MS) {
+    return;
+  }
+
+  lastAuthAlertAt = now;
+
+  Alert.alert(
+    'Sesión expirada',
+    'El token dejó de ser válido. Se solicitará uno nuevo; volvé a intentar la acción.'
+  );
+};
+
 export const AUTH_ERROR_STATUS_CODES = [401, 403, 419] as const;
 const AUTH_ERROR_STATUSES = new Set<number>(AUTH_ERROR_STATUS_CODES);
 
@@ -36,7 +53,7 @@ export const isAuthErrorStatus = (status: number): boolean => AUTH_ERROR_STATUSE
  */
 export const ensureAuthResponse = async (
   response: Response,
-  { onUnauthorized, silent = true }: EnsureAuthResponseOptions = {}
+  { onUnauthorized, silent = false }: EnsureAuthResponseOptions = {}
 ): Promise<Response> => {
   if (AUTH_ERROR_STATUSES.has(response.status)) {
     if (onUnauthorized) {
@@ -44,10 +61,7 @@ export const ensureAuthResponse = async (
     }
 
     if (!silent) {
-      Alert.alert(
-        'Sesión expirada',
-        'El token dejó de ser válido. Se solicitará uno nuevo; volvé a intentar la acción.'
-      );
+      maybeShowTokenAlert();
     }
 
     throw new TokenExpiredError();
