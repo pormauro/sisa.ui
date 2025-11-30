@@ -190,6 +190,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return storedToken;
   }, []);
 
+  const ensureTokenAvailability = useCallback(async (): Promise<string | null> => {
+    let activeToken = token ?? (await restoreTokenFromCache());
+
+    const tokenIsValid = activeToken ? await checkTokenValidity() : false;
+
+    if (!activeToken || !tokenIsValid) {
+      if (username && password) {
+        const refreshed = await performLogin(username, password);
+        activeToken = refreshed?.token ?? null;
+      } else {
+        await clearCredentials();
+      }
+    }
+
+    if (!activeToken) {
+      setIsOffline(true);
+      return null;
+    }
+
+    setIsOffline(false);
+    return activeToken;
+  }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, clearCredentials]);
+
   const restoreOfflineSession = useCallback(
     async (loginUsername: string, loginPassword: string) => {
       const keys = ['token', 'user_id', 'username', 'password', 'token_expiration', 'email'];
@@ -444,23 +467,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLastProfileCheckAt(now);
     setNextProfileCheckAt(null);
 
-    const activeToken = token ?? (await restoreTokenFromCache());
-    const isValid = await checkTokenValidity();
+    const activeToken = await ensureTokenAvailability();
 
-    if (!activeToken || !isValid) {
-      if (username && password) {
-        const refreshed = await performLogin(username, password);
-        return refreshed?.token ?? null;
-      } else {
-        await clearCredentials();
-        setIsOffline(true);
-      }
+    if (!activeToken) {
       return null;
     }
 
-    setIsOffline(false);
     return activeToken;
-  }, [token, username, password, performLogin, checkTokenValidity, restoreTokenFromCache]);
+  }, [ensureTokenAvailability]);
 
   useEffect(() => {
     const originalFetch = globalThis.fetch;
@@ -536,19 +550,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
 
-      let activeToken = token;
-
-      if (shouldAttachAuth) {
-        const validToken = await checkTokenValidity();
-        if ((!activeToken || !validToken) && username && password) {
-          const refreshed = await performLogin(username, password);
-          if (!refreshed) {
-            setIsOffline(true);
-          } else {
-            activeToken = refreshed.token;
-          }
-        }
-      }
+      let activeToken = shouldAttachAuth ? await ensureTokenAvailability() : token;
 
       // No bloqueamos nuevas peticiones mientras se renueva el token; si el backend
       // devuelve un 401 igualmente, el flujo de retry de más abajo reintentará con
@@ -563,7 +565,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      let response = await originalFetch(input as any, effectiveInit as any);
+      let response: Response;
+
+      try {
+        response = await originalFetch(input as any, effectiveInit as any);
+      } catch (error: any) {
+        if (error?.name === 'AbortError' && shouldAttachAuth) {
+          await ensureTokenAvailability();
+        }
+        throw error;
+      }
 
       if (isAuthErrorStatus(response.status) && shouldHandleRequest(input)) {
         const refreshedToken = await ensureAuthRefresh();
