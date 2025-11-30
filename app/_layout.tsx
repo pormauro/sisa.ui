@@ -3,7 +3,6 @@ import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { LogProvider } from '@/contexts/LogContext';
@@ -36,6 +35,7 @@ import { FoldersProvider } from '@/contexts/FoldersContext';
 import { CommentsProvider } from '@/contexts/CommentsContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
@@ -89,51 +89,47 @@ function CompanyBoundProviders({ children }: { children: React.ReactNode }) {
           <ProfileProvider>
             <ProfilesProvider>
               <ProfilesListProvider>
-                <ConfigProvider>
-                  <ThemeProvider>
-                    <LogProvider>
-                      <ToastProvider>
-                        <CashBoxesProvider>
-                          <ClientsProvider>
-                            <ProvidersProvider>
-                              <CategoriesProvider>
-                                <ProductsServicesProvider>
-                                  <StatusesProvider>
-                                    <TariffsProvider>
-                                      <JobsProvider>
-                                        <AppointmentsProvider>
-                                          <PaymentTemplatesProvider>
-                                            <PaymentsProvider>
-                                              <InvoicesProvider>
-                                                <ReceiptsProvider>
-                                                  <ReportsProvider>
-                                                    <FoldersProvider>
-                                                      <CommentsProvider>
-                                                        <NotificationsProvider>
-                                                          <PendingSelectionProvider>
-                                                            {children}
-                                                          </PendingSelectionProvider>
-                                                        </NotificationsProvider>
-                                                      </CommentsProvider>
-                                                    </FoldersProvider>
-                                                  </ReportsProvider>
-                                                </ReceiptsProvider>
-                                              </InvoicesProvider>
-                                            </PaymentsProvider>
-                                          </PaymentTemplatesProvider>
-                                        </AppointmentsProvider>
-                                      </JobsProvider>
-                                    </TariffsProvider>
-                                  </StatusesProvider>
-                                </ProductsServicesProvider>
-                              </CategoriesProvider>
-                            </ProvidersProvider>
-                          </ClientsProvider>
-                        </CashBoxesProvider>
-                      </ToastProvider>
-                    </LogProvider>
-                  </ThemeProvider>
-                </ConfigProvider>
+                <LogProvider>
+                  <ToastProvider>
+                    <CashBoxesProvider>
+                      <ClientsProvider>
+                        <ProvidersProvider>
+                          <CategoriesProvider>
+                            <ProductsServicesProvider>
+                              <StatusesProvider>
+                                <TariffsProvider>
+                                  <JobsProvider>
+                                    <AppointmentsProvider>
+                                      <PaymentTemplatesProvider>
+                                        <PaymentsProvider>
+                                          <InvoicesProvider>
+                                            <ReceiptsProvider>
+                                              <ReportsProvider>
+                                                <FoldersProvider>
+                                                  <CommentsProvider>
+                                                    <NotificationsProvider>
+                                                      <PendingSelectionProvider>
+                                                        {children}
+                                                      </PendingSelectionProvider>
+                                                    </NotificationsProvider>
+                                                  </CommentsProvider>
+                                                </FoldersProvider>
+                                              </ReportsProvider>
+                                            </ReceiptsProvider>
+                                          </InvoicesProvider>
+                                        </PaymentsProvider>
+                                      </PaymentTemplatesProvider>
+                                    </AppointmentsProvider>
+                                  </JobsProvider>
+                                </TariffsProvider>
+                              </StatusesProvider>
+                            </ProductsServicesProvider>
+                          </CategoriesProvider>
+                        </ProvidersProvider>
+                      </ClientsProvider>
+                    </CashBoxesProvider>
+                  </ToastProvider>
+                </LogProvider>
               </ProfilesListProvider>
             </ProfilesProvider>
           </ProfileProvider>
@@ -148,12 +144,16 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <CompanyProvider>
-          <CompanyBoundProviders>
-            <>
-              <RootLayoutContent />
-              <LogOverlay />
-            </>
-          </CompanyBoundProviders>
+          <ConfigProvider>
+            <ThemeProvider>
+              <CompanyBoundProviders>
+                <>
+                  <RootLayoutContent />
+                  <LogOverlay />
+                </>
+              </CompanyBoundProviders>
+            </ThemeProvider>
+          </ConfigProvider>
         </CompanyProvider>
       </AuthProvider>
     </SafeAreaProvider>
