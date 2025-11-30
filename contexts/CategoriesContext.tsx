@@ -16,6 +16,8 @@ import {
   sortByNewest,
   toComparableNumber,
 } from '@/utils/sort';
+import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
+import { retryOnTokenExpiration } from '@/utils/auth/retry';
 
 type CategoryType = 'income' | 'expense';
 
@@ -219,9 +221,15 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     'categories',
     []
   );
-  const { token } = useContext(AuthContext);
+  const { token, checkConnection } = useContext(AuthContext);
   const ensuringDefaultsRef = useRef(false);
   const hasFetchedRef = useRef(false);
+
+  const runWithAuthRetry = useCallback(
+    async <T>(operation: () => Promise<T>) =>
+      retryOnTokenExpiration(operation, { onUnauthorized: checkConnection }),
+    [checkConnection]
+  );
 
   const applyFetchedCategories = useCallback(
     (items: Category[]) => {
@@ -243,6 +251,8 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
         Authorization: `Bearer ${token}`,
       },
     });
+
+    await ensureAuthResponse(response);
 
     try {
       const data = await response.json();
@@ -298,6 +308,8 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
               body: JSON.stringify(defaultCategory),
             });
 
+            await ensureAuthResponse(response);
+
             const data = await response.json();
             if (!response.ok || !data?.category_id) {
               console.error(
@@ -306,6 +318,9 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
               );
             }
           } catch (error) {
+            if (isTokenExpiredError(error)) {
+              throw error;
+            }
             console.error('Error ensuring default category:', error);
           }
         }
@@ -314,6 +329,9 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
           const refreshed = await fetchCategories();
           applyFetchedCategories(refreshed);
         } catch (error) {
+          if (isTokenExpiredError(error)) {
+            throw error;
+          }
           console.error('Error refreshing categories after ensuring defaults:', error);
         }
       } finally {
@@ -328,15 +346,23 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   }, [setCategories]);
 
   const loadCategories = useCallback(async () => {
-    try {
+    const performLoad = async () => {
       const fetched = await fetchCategories();
       hasFetchedRef.current = true;
       applyFetchedCategories(fetched);
       await ensureDefaultCategories(fetched);
+    };
+
+    try {
+      await runWithAuthRetry(performLoad);
     } catch (error) {
+      if (isTokenExpiredError(error)) {
+        console.warn('Token expirado al cargar categorías, se solicitará uno nuevo.');
+        return;
+      }
       console.error('Error loading categories:', error);
     }
-  }, [applyFetchedCategories, ensureDefaultCategories, fetchCategories]);
+  }, [applyFetchedCategories, ensureDefaultCategories, fetchCategories, runWithAuthRetry]);
 
   const addCategory = useCallback(
     async (category: Omit<Category, 'id'>): Promise<Category | null> => {

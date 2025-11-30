@@ -11,6 +11,7 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { toNumericValue } from '@/utils/currency';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
+import { retryOnTokenExpiration } from '@/utils/auth/retry';
 import {
   CompanySummary,
   coerceToNumber,
@@ -80,7 +81,13 @@ export const ClientsContext = createContext<ClientsContextValue>({
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useCachedState<Client[]>('clients', []);
-  const { token } = useContext(AuthContext);
+  const { token, checkConnection } = useContext(AuthContext);
+
+  const runWithAuthRetry = useCallback(
+    async <T>(operation: () => Promise<T>) =>
+      retryOnTokenExpiration(operation, { onUnauthorized: checkConnection }),
+    [checkConnection]
+  );
 
   useEffect(() => {
     setClients(prev =>
@@ -110,7 +117,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   }, [setClients]);
 
   const loadClients = useCallback(async () => {
-    try {
+    const fetchClients = async () => {
       const res = await fetch(`${BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -141,6 +148,10 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         });
         setClients(sortByNewest(fetchedClients, getDefaultSortValue));
       }
+    };
+
+    try {
+      await runWithAuthRetry(fetchClients);
     } catch (err) {
       if (isTokenExpiredError(err)) {
         console.warn('Token expirado al cargar clientes, se solicitará uno nuevo.');
@@ -148,7 +159,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       console.error('Error loading clients:', err);
     }
-  }, [setClients, token]);
+  }, [runWithAuthRetry, setClients, token]);
 
   const addClient = useCallback(
     async (clientData: ClientPayload): Promise<number | null> => {
@@ -160,20 +171,23 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
             : null,
       };
       try {
-        const res = await fetch(`${BASE_URL}/clients`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
+        return await runWithAuthRetry(async () => {
+          const res = await fetch(`${BASE_URL}/clients`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          });
+          await ensureAuthResponse(res);
+          const data = await res.json();
+          if (data.client_id) {
+            await loadClients();
+            return parseInt(data.client_id, 10);
+          }
+          return null;
         });
-        await ensureAuthResponse(res);
-        const data = await res.json();
-        if (data.client_id) {
-          await loadClients();
-          return parseInt(data.client_id, 10);
-        }
       } catch (err) {
         if (isTokenExpiredError(err)) {
           console.warn('Token expirado al agregar un cliente, se solicitará uno nuevo.');
@@ -183,7 +197,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [loadClients, token]
+    [loadClients, runWithAuthRetry, token]
   );
 
   const updateClient = useCallback(
@@ -200,19 +214,22 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
         body.tariff_id = tariffId;
       }
       try {
-        const res = await fetch(`${BASE_URL}/clients/${id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
+        return await runWithAuthRetry(async () => {
+          const res = await fetch(`${BASE_URL}/clients/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+          });
+          await ensureAuthResponse(res);
+          if (res.ok) {
+            await loadClients();
+            return true;
+          }
+          return false;
         });
-        await ensureAuthResponse(res);
-        if (res.ok) {
-          await loadClients();
-          return true;
-        }
       } catch (err) {
         if (isTokenExpiredError(err)) {
           console.warn('Token expirado al actualizar un cliente, se solicitará uno nuevo.');
@@ -222,21 +239,24 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [loadClients, token]
+    [loadClients, runWithAuthRetry, token]
   );
 
   const deleteClient = useCallback(async (id: number): Promise<boolean> => {
     try {
-      const res = await fetch(`${BASE_URL}/clients/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+      return await runWithAuthRetry(async () => {
+        const res = await fetch(`${BASE_URL}/clients/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        await ensureAuthResponse(res);
+        const data = await res.json();
+        if (data.message === 'Client deleted successfully') {
+          setClients(prev => prev.filter(c => c.id !== id));
+          return true;
+        }
+        return false;
       });
-      await ensureAuthResponse(res);
-      const data = await res.json();
-      if (data.message === 'Client deleted successfully') {
-        setClients(prev => prev.filter(c => c.id !== id));
-        return true;
-      }
     } catch (err) {
       if (isTokenExpiredError(err)) {
         console.warn('Token expirado al eliminar un cliente, se solicitará uno nuevo.');
@@ -245,7 +265,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error deleting client:', err);
     }
     return false;
-  }, [setClients, token]);
+  }, [runWithAuthRetry, setClients, token]);
 
   useEffect(() => {
     if (token) loadClients();
