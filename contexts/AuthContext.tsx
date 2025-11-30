@@ -22,7 +22,7 @@ interface AuthContextProps {
   nextProfileCheckAt: number | null;
   login: (loginUsername: string, loginPassword: string) => Promise<void>;
   logout: () => Promise<void>;
-  checkConnection: () => Promise<void>;
+  checkConnection: () => Promise<string | null>;
 }
 
 export const AuthContext = createContext<AuthContextProps>({
@@ -39,7 +39,7 @@ export const AuthContext = createContext<AuthContextProps>({
   nextProfileCheckAt: null,
   login: async () => {},
   logout: async () => {},
-  checkConnection: async () => {},
+  checkConnection: async () => null,
 });
 
 // Configuración de tiempos y reintentos (ajustables)
@@ -47,8 +47,6 @@ export const AUTH_TIMING_CONFIG = {
   MAX_RETRY: 3,
   RETRY_DELAY: 10000, // 10 segundos de espera para reintentar
   TIMEOUT_DURATION: 10000, // 10 segundos de timeout en las peticiones
-  PROFILE_CHECK_INTERVAL: 2 * 60 * 1000, // 2 minutos para revisar el perfil
-  TOKEN_VALIDATION_INTERVAL: 5 * 60 * 1000, // 5 minutos para revisar expiración del token
   USER_PROFILE_ENDPOINT: `${BASE_URL}/user_profile`,
   STARTUP_FALLBACK_DELAY: 15000, // 15 segundos máximo para salir del loader inicial
 } as const;
@@ -57,8 +55,6 @@ const {
   MAX_RETRY,
   RETRY_DELAY,
   TIMEOUT_DURATION,
-  PROFILE_CHECK_INTERVAL,
-  TOKEN_VALIDATION_INTERVAL,
   USER_PROFILE_ENDPOINT,
   STARTUP_FALLBACK_DELAY,
 } = AUTH_TIMING_CONFIG;
@@ -79,15 +75,41 @@ const decodeJwtExpiration = (token: string): number | null => {
   }
 };
 
-const computeExpirationTime = (token: string, expiresIn?: number | null): string => {
+const computeExpirationFromProfile = (profile: any): string => {
   const now = Date.now();
-  const expiresInMs = typeof expiresIn === 'number' && expiresIn > 0 ? expiresIn * 1000 : null;
 
-  if (expiresInMs) {
-    return (now + expiresInMs).toString();
+  const rawSessionExpiration =
+    profile && typeof profile === 'object' && 'session_expires' in profile
+      ? (profile as { session_expires?: string | null }).session_expires ?? null
+      : null;
+
+  if (rawSessionExpiration && typeof rawSessionExpiration === 'string') {
+    const parsed = new Date(`${rawSessionExpiration}Z`);
+    const adjusted = parsed.getTime() - 3 * 60 * 60 * 1000;
+    if (!Number.isNaN(adjusted)) {
+      return adjusted.toString();
+    }
   }
 
-  const jwtExp = decodeJwtExpiration(token);
+  const embeddedUser =
+    profile && typeof profile === 'object' && 'user' in profile
+      ? (profile as { user?: any }).user
+      : profile;
+
+  const profileExp =
+    embeddedUser && typeof embeddedUser === 'object' && 'exp' in embeddedUser
+      ? (embeddedUser as { exp?: number | null }).exp ?? null
+      : null;
+
+  if (typeof profileExp === 'number' && profileExp > 0) {
+    return (profileExp * 1000).toString();
+  }
+
+  const jwtExp =
+    embeddedUser && typeof embeddedUser === 'object' && 'token' in embeddedUser
+      ? decodeJwtExpiration((embeddedUser as { token?: string | null }).token ?? '')
+      : null;
+
   if (jwtExp) {
     return (jwtExp * 1000).toString();
   }
@@ -186,7 +208,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const performLogin = useCallback(
-    async (loginUsername: string, loginPassword: string, retryCount = 0) => {
+    async (
+      loginUsername: string,
+      loginPassword: string,
+      retryCount = 0,
+    ): Promise<{ token: string } | null> => {
       try {
         // Petición de login con timeout
         const response = await fetchWithTimeout(`${BASE_URL}/login`, {
@@ -205,22 +231,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           const authHeader = response.headers.get('Authorization');
-          let newToken =
+          const newToken =
             authHeader && authHeader.startsWith('Bearer ')
               ? authHeader.split(' ')[1]
               : null;
-
-          if (!newToken && responseData) {
-            const bodyToken =
-              typeof responseData === 'object' && responseData !== null
-                ? responseData.token || responseData.access_token || responseData.Authorization || responseData.authorization
-                : null;
-            if (typeof bodyToken === 'string' && bodyToken.length > 0) {
-              newToken = bodyToken.startsWith('Bearer ')
-                ? bodyToken.split(' ')[1]
-                : bodyToken;
-            }
-          }
 
           // Si el token está vacío, se considera que las credenciales fallaron
           if (!newToken) {
@@ -248,28 +262,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             (profileData && typeof profileData === 'object' ? profileData.user : null) ??
             profileData;
 
+          const embeddedUser =
+            profile && typeof profile === 'object' && 'user' in profile
+              ? (profile as { user?: any }).user
+              : profile;
+
           const userIdFromProfile =
-            profile && typeof profile === 'object'
-              ? (profile.user_id ?? profile.id ?? null)
+            embeddedUser && typeof embeddedUser === 'object'
+              ? (embeddedUser.user_id ?? embeddedUser.id ?? null)
               : null;
 
           const userEmail =
-            profile && typeof profile === 'object' && 'email' in profile
-              ? (profile as { email?: string }).email ?? null
-              : responseData && typeof responseData === 'object' && 'email' in responseData
-                ? (responseData as { email?: string }).email ?? null
-                : null;
+            embeddedUser && typeof embeddedUser === 'object' && 'email' in embeddedUser
+              ? (embeddedUser as { email?: string }).email ?? null
+              : null;
 
           if (!userIdFromProfile) {
             throw new Error('No se pudo obtener el perfil del usuario');
           }
 
           const normalizedUserId = userIdFromProfile.toString();
-          const expiresInFromResponse =
-            responseData && typeof responseData === 'object' && 'expires_in' in responseData
-              ? (responseData as { expires_in?: number | null }).expires_in ?? null
-              : null;
-          const expirationTime = computeExpirationTime(newToken, expiresInFromResponse);
+          const expirationTime = computeExpirationFromProfile(profileData);
 
           await saveItem('token', newToken);
           await saveItem('user_id', normalizedUserId);
@@ -289,14 +302,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setPassword(loginPassword);
           setEmail(userEmail ?? null);
           setTokenExpiration(expirationTime);
-          const now = Date.now();
-          setLastTokenValidationAt(now);
-          setNextTokenValidationAt(now + TOKEN_VALIDATION_INTERVAL);
-          setLastProfileCheckAt(now);
-          setNextProfileCheckAt(now + PROFILE_CHECK_INTERVAL);
 
           // Conexión exitosa, marcar como online
           setIsOffline(false);
+
+          return { token: newToken };
         } else {
           const errorResult = await response.json();
           throw new Error(errorResult.error || 'Error en el login');
@@ -314,8 +324,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         // Si es un error de red, marcar como offline
         const normalizedMessage = typeof error.message === 'string' ? error.message.toLowerCase() : '';
-        const isNetworkError =
-          normalizedMessage.includes('network') || normalizedMessage.includes('fetch');
+          const isNetworkError =
+            normalizedMessage.includes('network') || normalizedMessage.includes('fetch');
 
         if (isNetworkError) {
           setIsOffline(true);
@@ -334,6 +344,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           ? 'No se pudo conectar con el servidor. Verificá tu conexión e intentá nuevamente.'
           : error.message;
         Alert.alert('Error de Login', readableMessage ?? 'Error en el login');
+
+        return null;
       }
     },
     [restoreOfflineSession]
@@ -348,9 +360,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkTokenValidity = useCallback(async (): Promise<boolean> => {
     const storedExpiration = tokenExpiration ?? (await getItem('token_expiration'));
+    const now = new Date().getTime();
+    setLastTokenValidationAt(now);
+    setNextTokenValidationAt(null);
+
     if (!storedExpiration) return false;
     const expirationTime = parseInt(storedExpiration, 10);
-    const now = new Date().getTime();
     if (!tokenExpiration && storedExpiration) {
       setTokenExpiration(storedExpiration);
     }
@@ -378,11 +393,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (shouldLogin && storedUsername && storedPassword) {
         await performLogin(storedUsername, storedPassword);
       } else {
-        const now = Date.now();
-        setLastTokenValidationAt(now);
-        setNextTokenValidationAt(now + TOKEN_VALIDATION_INTERVAL);
-        setLastProfileCheckAt(now);
-        setNextProfileCheckAt(now + PROFILE_CHECK_INTERVAL);
+        setLastTokenValidationAt(null);
+        setNextTokenValidationAt(null);
+        setLastProfileCheckAt(null);
+        setNextProfileCheckAt(null);
       }
     } catch (error) {
       console.error('Error during auto login', error);
@@ -405,47 +419,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await clearCredentials();
   }, [clearCachesAndFiles]);
 
-  const checkConnection = useCallback(async () => {
-    if (!token) {
+  const checkConnection = useCallback(async (): Promise<string | null> => {
+    const now = Date.now();
+    setLastProfileCheckAt(now);
+    setNextProfileCheckAt(null);
+
+    const isValid = await checkTokenValidity();
+
+    if (!token || !isValid) {
       if (username && password) {
-        await performLogin(username, password);
+        const refreshed = await performLogin(username, password);
+        return refreshed?.token ?? null;
       } else {
+        await clearCredentials();
         setIsOffline(true);
       }
-      return;
+      return null;
     }
-    try {
-      const startedAt = Date.now();
-      setLastProfileCheckAt(startedAt);
-      setNextProfileCheckAt(startedAt + PROFILE_CHECK_INTERVAL);
-      const response = await fetchWithTimeout(USER_PROFILE_ENDPOINT, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: TIMEOUT_DURATION,
-      });
 
-      // Si recibimos 401, el token es inválido o ha expirado, se reintenta el login
-      if (response.status === 401) {
-        if (username && password) {
-          await performLogin(username, password);
-        } else {
-          setIsOffline(true);
-        }
-        return;
-      }
-
-      if (!response.ok) {
-        setIsOffline(true);
-      } else {
-        setIsOffline(false);
-      }
-    } catch (error) {
-      setIsOffline(true);
-    }
-  }, [token, username, password, performLogin]);
+    setIsOffline(false);
+    return token ?? null;
+  }, [token, username, password, performLogin, checkTokenValidity]);
 
   useEffect(() => {
     const originalFetch = globalThis.fetch;
@@ -454,7 +448,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     let isHandlingAuthError = false;
-    let pendingRefresh: Promise<void> | null = null;
+    let pendingRefresh: Promise<string | null> | null = null;
 
     type FetchInput = Parameters<typeof fetch>[0];
     const normalizedBaseUrl = BASE_URL.replace(/\/+$/, '').toLowerCase();
@@ -489,14 +483,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    const ensureAuthRefresh = async () => {
+    const ensureAuthRefresh = async (): Promise<string | null> => {
       if (!pendingRefresh) {
         pendingRefresh = (async () => {
           try {
             isHandlingAuthError = true;
-            await checkConnection();
+            return await checkConnection();
           } catch (refreshError) {
             console.error('Error refreshing auth token', refreshError);
+            return null;
           } finally {
             isHandlingAuthError = false;
           }
@@ -506,17 +501,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const currentTask = pendingRefresh;
       try {
         if (currentTask) {
-          await currentTask;
+          return await currentTask;
         }
       } finally {
         if (pendingRefresh === currentTask) {
           pendingRefresh = null;
         }
       }
+
+      return null;
     };
 
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
+
+      let activeToken = token;
+
+      if (shouldAttachAuth) {
+        const validToken = await checkTokenValidity();
+        if ((!activeToken || !validToken) && username && password) {
+          const refreshed = await performLogin(username, password);
+          if (!refreshed) {
+            setIsOffline(true);
+          } else {
+            activeToken = refreshed.token;
+          }
+        }
+      }
 
       // No bloqueamos nuevas peticiones mientras se renueva el token; si el backend
       // devuelve un 401 igualmente, el flujo de retry de más abajo reintentará con
@@ -524,8 +535,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       let effectiveInit = init ?? {};
 
       if (shouldAttachAuth) {
-        const nextToken = token ?? (await getItem('token'));
-        const enrichedHeaders = buildAuthorizedHeaders(effectiveInit.headers, nextToken);
+        const enrichedHeaders = buildAuthorizedHeaders(effectiveInit.headers, activeToken);
 
         if (enrichedHeaders) {
           effectiveInit = { ...effectiveInit, headers: enrichedHeaders };
@@ -535,9 +545,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       let response = await originalFetch(input as any, effectiveInit as any);
 
       if (isAuthErrorStatus(response.status) && shouldHandleRequest(input)) {
-        await ensureAuthRefresh();
+        const refreshedToken = await ensureAuthRefresh();
 
-        const latestToken = await getItem('token');
+        const latestToken = refreshedToken ?? activeToken ?? token;
         const hasStringInput = typeof input === 'string';
 
         if (latestToken && hasStringInput) {
@@ -575,47 +585,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     autoLogin();
   }, [autoLogin]);
-
-  // Chequeo periódico de la validez del token cada 5 minutos
-  useEffect(() => {
-    const runValidation = async () => {
-      const startedAt = Date.now();
-      setLastTokenValidationAt(startedAt);
-      setNextTokenValidationAt(startedAt + TOKEN_VALIDATION_INTERVAL);
-      const valid = await checkTokenValidity();
-      if (!valid && username && password) {
-        await performLogin(username, password);
-      }
-    };
-
-    void runValidation();
-
-    const interval = setInterval(() => {
-      void runValidation();
-    }, TOKEN_VALIDATION_INTERVAL);
-    return () => clearInterval(interval);
-  }, [checkTokenValidity, performLogin, username, password]);
-
-  // Chequeo periódico del perfil cada 2 minutos para confirmar que sigue logueado
-  useEffect(() => {
-    const runProfileCheck = async () => {
-      const startedAt = Date.now();
-      setLastProfileCheckAt(startedAt);
-      setNextProfileCheckAt(startedAt + PROFILE_CHECK_INTERVAL);
-      await checkConnection();
-      // Si no está online y hay credenciales almacenadas, se reintenta el login automáticamente
-      if (isOffline && username && password) {
-        await performLogin(username, password);
-      }
-    };
-
-    void runProfileCheck();
-
-    const interval = setInterval(() => {
-      void runProfileCheck();
-    }, PROFILE_CHECK_INTERVAL);
-    return () => clearInterval(interval);
-  }, [checkConnection, isOffline, username, password, performLogin]);
 
   return (
     <AuthContext.Provider
