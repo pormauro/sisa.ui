@@ -125,7 +125,7 @@ interface AssignedPermission {
 
 const PermissionScreen: React.FC = () => {
   const { token, userId, username } = useContext(AuthContext);
-  const { permissions: currentPermissions, refreshPermissions } = useContext(PermissionsContext);
+  const { permissions: currentPermissions, refreshPermissions, isSuperUser } = useContext(PermissionsContext);
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
@@ -137,7 +137,7 @@ const PermissionScreen: React.FC = () => {
 
   const numericUserId = useMemo(() => (userId ? Number(userId) : null), [userId]);
   const fallbackUsername = username ?? 'Mi usuario';
-  const isMasterUser = numericUserId === 1;
+  const isMasterUser = isSuperUser || numericUserId === 1;
 
   const shouldRefreshContext = useCallback(() => {
     if (!selectedUser) {

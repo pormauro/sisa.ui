@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { View, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Modal, FlatList, Pressable, Alert } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -30,31 +30,69 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect, includeGlobal = t
   useEffect(() => {
     if (!token) return;
 
-    fetch(`${BASE_URL}/profiles`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-      .then(response => response.json())
-      .then(data => {
-        const globalOption: Profile = {
-          id: 0,
-          username: 'Global',
-          email: '',
-          activated: 1,
-        };
-        const fetchedProfiles: Profile[] = data.profiles.map((profile: any) => ({
-          ...profile,
-          id: Number(profile.id),
-        })).filter((profile: Profile) => (filterProfiles ? filterProfiles(profile) : true));
+    const controller = new AbortController();
+
+    const globalOption: Profile = {
+      id: 0,
+      username: 'Global',
+      email: '',
+      activated: 1,
+    };
+
+    const fallbackProfiles = includeGlobal ? [globalOption] : [];
+
+    const loadProfiles = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/profiles`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(
+            `Error fetching profiles: HTTP ${response.status}${errorText ? ` - ${errorText}` : ''}`
+          );
+          Alert.alert(
+            'No se pudieron cargar los usuarios',
+            'Verificá que tengas permisos para listar perfiles o reintentá en unos instantes.'
+          );
+          setProfiles(fallbackProfiles);
+          return;
+        }
+
+        const data = await response.json();
+        const rawProfiles = Array.isArray(data?.profiles) ? data.profiles : [];
+        const fetchedProfiles: Profile[] = rawProfiles
+          .map((profile: any) => ({
+            ...profile,
+            id: Number(profile.id),
+          }))
+          .filter((profile: Profile) => (filterProfiles ? filterProfiles(profile) : true));
 
         const options = includeGlobal ? [globalOption, ...fetchedProfiles] : fetchedProfiles;
         setProfiles(options);
-      })
-      .catch(error => {
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
         console.error('Error fetching profiles:', error);
-      });
+        Alert.alert(
+          'No se pudieron cargar los usuarios',
+          'Revisá tu conexión o permisos e intenta nuevamente.'
+        );
+        setProfiles(fallbackProfiles);
+      }
+    };
+
+    void loadProfiles();
+
+    return () => {
+      controller.abort();
+    };
   }, [token, includeGlobal, filterProfiles]);
 
   const handleSelect = (profile: Profile) => {
