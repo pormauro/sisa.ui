@@ -2,8 +2,9 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useContext, useMemo } from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { MenuButton } from '@/components/MenuButton';
 
@@ -12,7 +13,6 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
 import { ProfileContext } from '@/contexts/ProfileContext';
-import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
 const Menu: React.FC = () => {
   const router = useRouter();
@@ -22,7 +22,6 @@ const Menu: React.FC = () => {
   const profileContext = useContext(ProfileContext);
   const profileDetails = profileContext?.profileDetails ?? null;
   const loadProfile = profileContext?.loadProfile;
-  const avatarUri = useCompanyLogo(profileDetails?.profile_file_id ?? null);
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
@@ -76,15 +75,12 @@ const Menu: React.FC = () => {
   const shouldShowUpdateButton =
     permissions.includes('listAppUpdates') && updateAvailable && Boolean(latestUpdate);
 
-  const userInitials = useMemo(() => {
-    const sourceName = profileDetails?.full_name ?? username;
-    if (!sourceName) return 'U';
-    return sourceName
-      .split(/\s+/)
-      .filter(Boolean)
-      .map(name => name[0]?.toUpperCase())
-      .join('')
-      .slice(0, 2);
+  const greetingName = useMemo(() => {
+    if (profileDetails?.full_name) {
+      const [firstName] = profileDetails.full_name.split(/\s+/).filter(Boolean);
+      if (firstName) return firstName;
+    }
+    return username ?? '';
   }, [profileDetails?.full_name, username]);
 
   useFocusEffect(
@@ -115,17 +111,22 @@ const Menu: React.FC = () => {
               accessibilityLabel="Abrir configuración de perfil"
             >
               <View style={[styles.avatar, { borderColor: heroForeground }]}>
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} resizeMode="cover" />
-                ) : (
-                  <ThemedText style={[styles.avatarText, { color: heroForeground }]}>{userInitials}</ThemedText>
-                )}
+                <Ionicons name="person-circle-outline" size={30} color={heroForeground} />
               </View>
               <View style={styles.heroTextGroup}>
+                <ThemedText style={[styles.heroGreeting, { color: heroForeground }]}>Hola{greetingName ? `, ${greetingName}` : ''}</ThemedText>
                 <ThemedText style={[styles.heroSubtitle, { color: heroForeground }]}>
                   Centraliza tus cobros, ventas y reportes
                 </ThemedText>
               </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.settingsButton, { borderColor: heroForeground }]}
+              onPress={() => router.push('/user/ConfigScreen')}
+              accessibilityRole="button"
+              accessibilityLabel="Abrir configuración de usuario"
+            >
+              <Ionicons name="settings-outline" size={20} color={heroForeground} />
             </TouchableOpacity>
           </View>
         </View>
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
     gap: 12,
   },
   heroUser: {
@@ -207,6 +208,10 @@ const styles = StyleSheet.create({
   heroTextGroup: {
     gap: 4,
     flex: 1,
+  },
+  heroGreeting: {
+    fontSize: 16,
+    fontWeight: '700',
   },
   heroSubtitle: {
     fontSize: 14,
@@ -221,14 +226,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
+  settingsButton: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '700',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    backgroundColor: '#fff',
   },
   sectionsContainer: {
     flexDirection: 'row',

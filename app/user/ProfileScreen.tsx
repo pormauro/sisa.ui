@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedButton } from '@/components/ThemedButton';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useCompanyLogo } from '@/hooks/useCompanyLogo';
 
 export default function ProfileScreen(): JSX.Element {
   // Ahora extraemos email desde AuthContext
@@ -47,8 +48,8 @@ export default function ProfileScreen(): JSX.Element {
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const placeholderTextColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
-  const linkColor = useThemeColor({}, 'tint');
   const dangerLinkColor = useThemeColor({ light: '#d9534f', dark: '#ff6b6b' }, 'tint');
+  const profileImageUri = useCompanyLogo(profileDetails?.profile_file_id ?? null);
 
   return (
     <ScrollView
@@ -62,7 +63,8 @@ export default function ProfileScreen(): JSX.Element {
       {profileDetails ? (
         <ThemedView style={styles.dataContainer} lightColor="#f5f5f5" darkColor="#1e1e1e">
           <CircleImagePicker
-            fileId={profileDetails.profile_file_id}
+            fileId={profileDetails.profile_file_id ? String(profileDetails.profile_file_id) : null}
+            imageUri={profileImageUri}
             editable={true}
             size={200}
             onImageChange={(newFileId) => updateImage(newFileId, profileForm)}
@@ -124,6 +126,16 @@ export default function ProfileScreen(): JSX.Element {
       ) : (
         <ThemedText style={styles.infoText}>Cargando perfil...</ThemedText>
       )}
+      <View style={styles.actionButton}>
+        <ThemedButton
+          title="Ir a ajustes"
+          onPress={() => router.push('/user/ConfigScreen')}
+          accessibilityLabel="Ir a ajustes"
+        />
+      </View>
+      <View style={globalStyles.button}>
+        <ThemedButton title="Cerrar Sesión" onPress={logout} />
+      </View>
       <TouchableOpacity
         style={styles.deleteLink}
         onPress={deleteAccount}
@@ -131,17 +143,6 @@ export default function ProfileScreen(): JSX.Element {
         accessibilityLabel="Eliminar cuenta"
       >
         <ThemedText style={[styles.deleteLinkText, { color: dangerLinkColor }]}>Eliminar cuenta</ThemedText>
-      </TouchableOpacity>
-      <View style={globalStyles.button}>
-        <ThemedButton title="Cerrar Sesión" onPress={logout} />
-      </View>
-      <TouchableOpacity
-        style={styles.settingsLink}
-        onPress={() => router.push('/user/ConfigScreen')}
-        accessibilityRole="button"
-        accessibilityLabel="Ir a ajustes"
-      >
-        <ThemedText style={[styles.settingsLinkText, { color: linkColor }]}>Ir a ajustes</ThemedText>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -177,12 +178,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textDecorationLine: 'underline',
   },
-  settingsLink: {
-    marginTop: 14,
-    alignItems: 'center',
-  },
-  settingsLinkText: {
-    fontSize: 14,
-    textDecorationLine: 'underline',
+  actionButton: {
+    marginTop: 16,
   },
 });
