@@ -117,6 +117,12 @@ export const MENU_SECTIONS: MenuSection[] = [
       { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
       { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
       {
+        title: 'Diagnóstico de token',
+        route: '/settings/auth-diagnostics',
+        icon: 'shield-checkmark',
+        requiredPermissions: ['viewAuthDiagnostics'],
+      },
+      {
         title: 'Notificaciones',
         route: '/notifications',
         icon: 'notifications-outline',

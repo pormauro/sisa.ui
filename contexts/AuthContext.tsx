@@ -15,6 +15,11 @@ interface AuthContextProps {
   email: string | null;
   isOffline: boolean;
   token: string | null;
+  tokenExpiration: string | null;
+  lastTokenValidationAt: number | null;
+  nextTokenValidationAt: number | null;
+  lastProfileCheckAt: number | null;
+  nextProfileCheckAt: number | null;
   login: (loginUsername: string, loginPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   checkConnection: () => Promise<void>;
@@ -27,18 +32,36 @@ export const AuthContext = createContext<AuthContextProps>({
   email: null,
   isOffline: false,
   token: null,
+  tokenExpiration: null,
+  lastTokenValidationAt: null,
+  nextTokenValidationAt: null,
+  lastProfileCheckAt: null,
+  nextProfileCheckAt: null,
   login: async () => {},
   logout: async () => {},
   checkConnection: async () => {},
 });
 
 // Configuración de tiempos y reintentos (ajustables)
-const MAX_RETRY = 3;
-const RETRY_DELAY = 10000; // 10 segundos de espera para reintentar
-const TIMEOUT_DURATION = 10000; // 10 segundos de timeout en las peticiones
-const PROFILE_CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutos para revisar el perfil
-const USER_PROFILE_ENDPOINT = `${BASE_URL}/user_profile`;
-const STARTUP_FALLBACK_DELAY = 15000; // 15 segundos máximo para salir del loader inicial
+export const AUTH_TIMING_CONFIG = {
+  MAX_RETRY: 3,
+  RETRY_DELAY: 10000, // 10 segundos de espera para reintentar
+  TIMEOUT_DURATION: 10000, // 10 segundos de timeout en las peticiones
+  PROFILE_CHECK_INTERVAL: 2 * 60 * 1000, // 2 minutos para revisar el perfil
+  TOKEN_VALIDATION_INTERVAL: 5 * 60 * 1000, // 5 minutos para revisar expiración del token
+  USER_PROFILE_ENDPOINT: `${BASE_URL}/user_profile`,
+  STARTUP_FALLBACK_DELAY: 15000, // 15 segundos máximo para salir del loader inicial
+} as const;
+
+const {
+  MAX_RETRY,
+  RETRY_DELAY,
+  TIMEOUT_DURATION,
+  PROFILE_CHECK_INTERVAL,
+  TOKEN_VALIDATION_INTERVAL,
+  USER_PROFILE_ENDPOINT,
+  STARTUP_FALLBACK_DELAY,
+} = AUTH_TIMING_CONFIG;
 
 const decodeJwtExpiration = (token: string): number | null => {
   const [, payload] = token.split('.');
@@ -93,6 +116,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [password, setPassword] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [tokenExpiration, setTokenExpiration] = useState<string | null>(null);
+  const [lastTokenValidationAt, setLastTokenValidationAt] = useState<number | null>(null);
+  const [nextTokenValidationAt, setNextTokenValidationAt] = useState<number | null>(null);
+  const [lastProfileCheckAt, setLastProfileCheckAt] = useState<number | null>(null);
+  const [nextProfileCheckAt, setNextProfileCheckAt] = useState<number | null>(null);
 
   // Función auxiliar para limpiar las credenciales (usada en logout y login fallido)
   const clearCredentials = async () => {
@@ -109,6 +137,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setPassword(null);
     setEmail(null);
     setIsOffline(false);
+    setTokenExpiration(null);
+    setLastTokenValidationAt(null);
+    setNextTokenValidationAt(null);
+    setLastProfileCheckAt(null);
+    setNextProfileCheckAt(null);
   };
 
   const clearCachesAndFiles = useCallback(async () => {
@@ -144,6 +177,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUsername(storedUsername);
       setPassword(storedPassword);
       setEmail(storedEmail ?? null);
+      setTokenExpiration(storedExpiration ?? null);
       setIsOffline(true);
 
       return true;
@@ -254,6 +288,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUsername(loginUsername);
           setPassword(loginPassword);
           setEmail(userEmail ?? null);
+          setTokenExpiration(expirationTime);
+          const now = Date.now();
+          setLastTokenValidationAt(now);
+          setNextTokenValidationAt(now + TOKEN_VALIDATION_INTERVAL);
+          setLastProfileCheckAt(now);
+          setNextProfileCheckAt(now + PROFILE_CHECK_INTERVAL);
 
           // Conexión exitosa, marcar como online
           setIsOffline(false);
@@ -307,17 +347,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const checkTokenValidity = useCallback(async (): Promise<boolean> => {
-    const expiration = await getItem('token_expiration');
-    if (!expiration) return false;
-    const expirationTime = parseInt(expiration, 10);
+    const storedExpiration = tokenExpiration ?? (await getItem('token_expiration'));
+    if (!storedExpiration) return false;
+    const expirationTime = parseInt(storedExpiration, 10);
     const now = new Date().getTime();
+    if (!tokenExpiration && storedExpiration) {
+      setTokenExpiration(storedExpiration);
+    }
     return now < expirationTime;
-  }, []);
+  }, [tokenExpiration]);
 
   const autoLogin = useCallback(async () => {
     try {
-      const keys = ['username', 'password', 'token', 'email', 'user_id'];
-      const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId] =
+      const keys = ['username', 'password', 'token', 'email', 'user_id', 'token_expiration'];
+      const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId, storedExpiration] =
         await getInitialItems(keys);
 
       const tokenValid = storedToken ? await checkTokenValidity() : false;
@@ -329,10 +372,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setEmail(storedEmail ?? null);
       setUserId(storedUserId ?? null);
       setToken(effectiveToken);
+      setTokenExpiration(storedExpiration ?? null);
       setIsOffline(false);
 
       if (shouldLogin && storedUsername && storedPassword) {
         await performLogin(storedUsername, storedPassword);
+      } else {
+        const now = Date.now();
+        setLastTokenValidationAt(now);
+        setNextTokenValidationAt(now + TOKEN_VALIDATION_INTERVAL);
+        setLastProfileCheckAt(now);
+        setNextProfileCheckAt(now + PROFILE_CHECK_INTERVAL);
       }
     } catch (error) {
       console.error('Error during auto login', error);
@@ -365,6 +415,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
+      const startedAt = Date.now();
+      setLastProfileCheckAt(startedAt);
+      setNextProfileCheckAt(startedAt + PROFILE_CHECK_INTERVAL);
       const response = await fetchWithTimeout(USER_PROFILE_ENDPOINT, {
         method: 'GET',
         headers: {
@@ -525,23 +578,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Chequeo periódico de la validez del token cada 5 minutos
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const runValidation = async () => {
+      const startedAt = Date.now();
+      setLastTokenValidationAt(startedAt);
+      setNextTokenValidationAt(startedAt + TOKEN_VALIDATION_INTERVAL);
       const valid = await checkTokenValidity();
       if (!valid && username && password) {
         await performLogin(username, password);
       }
-    }, 5 * 60 * 1000);
+    };
+
+    void runValidation();
+
+    const interval = setInterval(() => {
+      void runValidation();
+    }, TOKEN_VALIDATION_INTERVAL);
     return () => clearInterval(interval);
   }, [checkTokenValidity, performLogin, username, password]);
 
   // Chequeo periódico del perfil cada 2 minutos para confirmar que sigue logueado
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const runProfileCheck = async () => {
+      const startedAt = Date.now();
+      setLastProfileCheckAt(startedAt);
+      setNextProfileCheckAt(startedAt + PROFILE_CHECK_INTERVAL);
       await checkConnection();
       // Si no está online y hay credenciales almacenadas, se reintenta el login automáticamente
       if (isOffline && username && password) {
         await performLogin(username, password);
       }
+    };
+
+    void runProfileCheck();
+
+    const interval = setInterval(() => {
+      void runProfileCheck();
     }, PROFILE_CHECK_INTERVAL);
     return () => clearInterval(interval);
   }, [checkConnection, isOffline, username, password, performLogin]);
@@ -555,6 +626,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email,
         isOffline,
         token,
+        tokenExpiration,
+        lastTokenValidationAt,
+        nextTokenValidationAt,
+        lastProfileCheckAt,
+        nextProfileCheckAt,
         login,
         logout,
         checkConnection,
