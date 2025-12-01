@@ -381,7 +381,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
 
   const runWithAuthRetry = useCallback(
     async <T>(operation: () => Promise<T>) =>
-      retryOnTokenExpiration(operation, { onUnauthorized: checkConnection }),
+      retryOnTokenExpiration(operation, { onUnauthorized: () => checkConnection(true) }),
     [checkConnection]
   );
 

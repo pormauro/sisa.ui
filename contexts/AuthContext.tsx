@@ -6,7 +6,6 @@ import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/sec
 import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
 import { buildAuthorizedHeaders } from '@/utils/auth/headers';
 import { clearAllDataCaches } from '@/utils/cache';
-import { clearLocalFileStorage } from '@/utils/files/cleanup';
 
 interface AuthContextProps {
   userId: string | null;
@@ -22,7 +21,7 @@ interface AuthContextProps {
   nextProfileCheckAt: number | null;
   login: (loginUsername: string, loginPassword: string) => Promise<void>;
   logout: () => Promise<void>;
-  checkConnection: () => Promise<string | null>;
+  checkConnection: (forceRefresh?: boolean) => Promise<string | null>;
 }
 
 export const AuthContext = createContext<AuthContextProps>({
@@ -58,6 +57,8 @@ const {
   USER_PROFILE_ENDPOINT,
   STARTUP_FALLBACK_DELAY,
 } = AUTH_TIMING_CONFIG;
+
+const SKIP_AUTO_LOGIN_KEY = 'skip_auto_login';
 
 const decodeJwtExpiration = (token: string): number | null => {
   const [, payload] = token.split('.');
@@ -166,8 +167,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setNextProfileCheckAt(null);
   };
 
-  const clearCachesAndFiles = useCallback(async () => {
-    await Promise.all([clearAllDataCaches(), clearLocalFileStorage()]);
+  const clearCaches = useCallback(async () => {
+    await clearAllDataCaches();
   }, []);
 
   const restoreTokenFromCache = useCallback(async () => {
@@ -189,70 +190,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return storedToken;
   }, []);
-
-  const ensureTokenAvailability = useCallback(async (): Promise<string | null> => {
-    let activeToken = token ?? (await restoreTokenFromCache());
-
-    const tokenIsValid = activeToken ? await checkTokenValidity() : false;
-
-    if (!activeToken || !tokenIsValid) {
-      if (username && password) {
-        const refreshed = await performLogin(username, password);
-        activeToken = refreshed?.token ?? null;
-      } else {
-        await clearCredentials();
-      }
-    }
-
-    if (!activeToken) {
-      setIsOffline(true);
-      return null;
-    }
-
-    setIsOffline(false);
-    return activeToken;
-  }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, clearCredentials]);
-
-  const ensureTokenWithDeadline = useCallback(
-    async (reason: string): Promise<string | null> => {
-      const deadline = TIMEOUT_DURATION + 5000;
-      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
-
-      try {
-        const guardedToken = await Promise.race<string | null>([
-          ensureTokenAvailability(),
-          new Promise<null>((_, reject) => {
-            timeoutHandle = setTimeout(() => {
-              reject(new Error(`Timeout renovando token (${reason})`));
-            }, deadline);
-          }),
-        ]);
-
-        if (!guardedToken) {
-          await clearCredentials();
-        }
-
-        return guardedToken;
-      } catch (error) {
-        console.error('Fallo al intentar renovar el token', error);
-        await clearCredentials();
-        return null;
-      } finally {
-        if (timeoutHandle) {
-          clearTimeout(timeoutHandle);
-        }
-      }
-    },
-    [clearCredentials, ensureTokenAvailability]
-  );
-
-  const ensureTokenHealthAfterTimeout = useCallback(async () => {
-    const availableToken = await ensureTokenWithDeadline('reintento tras timeout');
-
-    if (!availableToken) {
-      await clearCredentials();
-    }
-  }, [clearCredentials, ensureTokenWithDeadline]);
 
   const restoreOfflineSession = useCallback(
     async (loginUsername: string, loginPassword: string) => {
@@ -373,6 +310,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           await saveItem('username', loginUsername);
           await saveItem('password', loginPassword);
           await saveItem('token_expiration', expirationTime);
+          await removeItem(SKIP_AUTO_LOGIN_KEY);
 
           if (userEmail) {
             await saveItem('email', userEmail);
@@ -456,11 +394,90 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return now < expirationTime;
   }, [tokenExpiration]);
 
+  const ensureTokenAvailability = useCallback(async (forceRefresh = false): Promise<string | null> => {
+    let activeToken = token ?? (await restoreTokenFromCache());
+
+    const tokenIsValid = forceRefresh ? false : activeToken ? await checkTokenValidity() : false;
+
+    if (!activeToken || !tokenIsValid) {
+      if (username && password) {
+        const refreshed = await performLogin(username, password);
+        activeToken = refreshed?.token ?? null;
+      } else {
+        await clearCredentials();
+      }
+    }
+
+    if (!activeToken) {
+      setIsOffline(true);
+      return null;
+    }
+
+    setIsOffline(false);
+    return activeToken;
+  }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, clearCredentials]);
+
+  const ensureTokenWithDeadline = useCallback(
+    async (reason: string, forceRefresh = false): Promise<string | null> => {
+      const deadline = TIMEOUT_DURATION + 5000;
+      let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+
+      try {
+        const guardedToken = await Promise.race<string | null>([
+          ensureTokenAvailability(forceRefresh),
+          new Promise<null>((_, reject) => {
+            timeoutHandle = setTimeout(() => {
+              reject(new Error(`Timeout renovando token (${reason})`));
+            }, deadline);
+          }),
+        ]);
+
+        if (!guardedToken) {
+          await clearCredentials();
+        }
+
+        return guardedToken;
+      } catch (error) {
+        console.error('Fallo al intentar renovar el token', error);
+        await clearCredentials();
+        return null;
+      } finally {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+      }
+    },
+    [clearCredentials, ensureTokenAvailability]
+  );
+
+  const ensureTokenHealthAfterTimeout = useCallback(async () => {
+    const availableToken = await ensureTokenWithDeadline('reintento tras timeout');
+
+    if (!availableToken) {
+      await clearCredentials();
+    }
+  }, [clearCredentials, ensureTokenWithDeadline]);
+
   const autoLogin = useCallback(async () => {
     try {
-      const keys = ['username', 'password', 'token', 'email', 'user_id', 'token_expiration'];
-      const [storedUsername, storedPassword, storedToken, storedEmail, storedUserId, storedExpiration] =
-        await getInitialItems(keys);
+      const keys = [
+        'username',
+        'password',
+        'token',
+        'email',
+        'user_id',
+        'token_expiration',
+        SKIP_AUTO_LOGIN_KEY,
+      ];
+      const [
+        storedUsername,
+        storedPassword,
+        storedToken,
+        storedEmail,
+        storedUserId,
+        storedExpiration,
+        skipAutoLogin,
+      ] = await getInitialItems(keys);
 
       const tokenValid = storedToken ? await checkTokenValidity() : false;
       const effectiveToken = tokenValid ? storedToken : null;
@@ -474,7 +491,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setTokenExpiration(storedExpiration ?? null);
       setIsOffline(false);
 
-      if (shouldLogin && storedUsername && storedPassword) {
+      if (skipAutoLogin === 'true') {
+        setLastTokenValidationAt(null);
+        setNextTokenValidationAt(null);
+        setLastProfileCheckAt(null);
+        setNextProfileCheckAt(null);
+      } else if (shouldLogin && storedUsername && storedPassword) {
         await performLogin(storedUsername, storedPassword);
       } else {
         setLastTokenValidationAt(null);
@@ -519,16 +541,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [checkTokenValidity, ensureTokenWithDeadline, restoreTokenFromCache, token]);
 
   const logout = useCallback(async () => {
-    await clearCachesAndFiles();
+    await clearCaches();
+    await saveItem(SKIP_AUTO_LOGIN_KEY, 'true');
     await clearCredentials();
-  }, [clearCachesAndFiles]);
+  }, [clearCaches]);
 
-  const checkConnection = useCallback(async (): Promise<string | null> => {
+  const checkConnection = useCallback(async (forceRefresh = false): Promise<string | null> => {
     const now = Date.now();
     setLastProfileCheckAt(now);
     setNextProfileCheckAt(null);
 
-    const activeToken = await ensureTokenWithDeadline('checkConnection');
+    const activeToken = await ensureTokenWithDeadline('checkConnection', forceRefresh);
 
     if (!activeToken) {
       return null;
@@ -584,7 +607,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         pendingRefresh = (async () => {
           try {
             isHandlingAuthError = true;
-            return await checkConnection();
+            return await checkConnection(true);
           } catch (refreshError) {
             console.error('Error refreshing auth token', refreshError);
             return null;

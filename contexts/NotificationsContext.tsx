@@ -270,7 +270,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
           ...(options?.headers ?? {}),
         },
       });
-      await ensureAuthResponse(response, { onUnauthorized: checkConnection });
+      await ensureAuthResponse(response, { onUnauthorized: () => checkConnection(true) });
       return response;
     },
     [checkConnection, token],
