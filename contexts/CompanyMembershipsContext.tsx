@@ -653,7 +653,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             },
           },
         );
-        await ensureAuthResponse(response, { onUnauthorized: checkConnection });
+        await ensureAuthResponse(response, { onUnauthorized: () => checkConnection(true) });
         if (!response.ok) {
           console.error('Error al listar membresías de empresa:', response.status);
           return getMembershipsFromStore(companyId, status);
@@ -701,7 +701,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             },
           },
         );
-        await ensureAuthResponse(response, { onUnauthorized: checkConnection });
+        await ensureAuthResponse(response, { onUnauthorized: () => checkConnection(true) });
         if (!response.ok) {
           console.error('Error al obtener el historial de membresía:', response.status);
           return getMembershipHistory(companyId, membershipId);
@@ -754,7 +754,7 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
             ...(options.headers ?? {}),
           },
         });
-        await ensureAuthResponse(response, { onUnauthorized: checkConnection });
+        await ensureAuthResponse(response, { onUnauthorized: () => checkConnection(true) });
         if (!response.ok) {
           const details = await parseJsonSafely(response);
           console.error('La API rechazó la operación sobre membresías.', details);
