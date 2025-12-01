@@ -10,7 +10,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 import { BottomBubbleBar } from '@/components/BottomBubbleBar';
 import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
-import { CompanyProvider, useCompanyContext } from '@/contexts/CompanyContext';
+import { CompanyProvider } from '@/contexts/CompanyContext';
 import { PermissionsProvider } from '@/contexts/PermissionsContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { ProfileProvider } from '@/contexts/ProfileContext';
@@ -79,10 +79,8 @@ function RootLayoutContent() {
 }
 
 function CompanyBoundProviders({ children }: { children: React.ReactNode }) {
-  const { activeCompany } = useCompanyContext();
-
   return (
-    <PermissionsProvider key={activeCompany?.id ?? 'no-company'}>
+    <PermissionsProvider>
       <AppUpdatesProvider>
         <FilesProvider>
           <ProfileProvider>
