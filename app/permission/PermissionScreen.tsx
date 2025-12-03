@@ -28,6 +28,7 @@ const PERMISSION_GROUPS = [
       'deletePermission',
       'listAllProfiles',
       'viewAuthDiagnostics',
+      'viewRequestQueue',
     ],
   },
   {

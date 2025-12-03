@@ -34,6 +34,7 @@ import { ReportsProvider } from '@/contexts/ReportsContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
+import { RequestQueueProvider } from '@/contexts/RequestQueueContext';
 import { ThemeProvider } from '@/components/ThemeProvider';
 
 function RootLayoutContent() {
@@ -142,10 +143,12 @@ export default function RootLayout() {
           <ConfigProvider>
             <ThemeProvider>
               <CompanyBoundProviders>
-                <>
-                  <RootLayoutContent />
-                  <LogOverlay />
-                </>
+                <RequestQueueProvider>
+                  <>
+                    <RootLayoutContent />
+                    <LogOverlay />
+                  </>
+                </RequestQueueProvider>
               </CompanyBoundProviders>
             </ThemeProvider>
           </ConfigProvider>
