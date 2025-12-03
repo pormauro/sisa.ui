@@ -31,6 +31,7 @@ import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatCurrency } from '@/utils/currency';
+import { formatDateForApi } from '@/utils/dateTime';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -122,7 +123,7 @@ export default function CreateJobScreen() {
   const [description, setDescription] = useState<string>('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [jobDate, setJobDate] = useState<string>(() =>
-    initialJobDateFromParam || new Date().toISOString().split('T')[0]
+    initialJobDateFromParam || formatDateForApi(new Date())
   );
   const defaultTime = useMemo(() => new Date().toTimeString().slice(0, 5), []);
   const [startTime, setStartTime] = useState<string>(defaultTime);
@@ -420,8 +421,7 @@ export default function CreateJobScreen() {
           onChange={(e, selected) => {
             setShowDatePicker(false);
             if (selected) {
-              const d = selected.toISOString().split('T')[0];
-              setJobDate(d);
+              setJobDate(formatDateForApi(selected));
             }
           }}
         />
