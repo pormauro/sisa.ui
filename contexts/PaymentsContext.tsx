@@ -201,7 +201,9 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           );
         }
         if (response.ok) {
-          await loadPayments();
+          if (!newPayment) {
+            await loadPayments();
+          }
           return true;
         }
       } catch (error) {
