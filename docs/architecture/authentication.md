@@ -8,17 +8,17 @@
 - La configuración de resiliencia establece tres reintentos máximos, demoras de 10 segundos entre reintentos y tiempos de espera de 10 segundos por petición, implementados mediante `fetchWithTimeout` para abortar solicitudes lentas.【F:contexts/AuthContext.tsx†L30-L47】
 - `performLogin` envía las credenciales a `/login` con control de timeout y, tras una respuesta válida, extrae exclusivamente el token Bearer del encabezado `Authorization` (rechazando la sesión si está ausente).【F:contexts/AuthContext.tsx†L74-L136】
 - El flujo continúa con `/user_profile` solo en este paso inicial para validar el token, consolidar `user_id` y `email` y calcular la expiración a partir de los datos del perfil (p. ej., `session_expires` ajustado a GMT-3 o el `exp` incluido en el payload).【F:contexts/AuthContext.tsx†L120-L222】【F:contexts/AuthContext.tsx†L48-L71】
-- Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; cuando la respuesta falla por motivos distintos, se limpia el estado y se informa al usuario mediante alertas.【F:contexts/AuthContext.tsx†L135-L152】
+- Los errores de red o expiración activan reintentos automáticos respetando el límite configurado; si la API no responde se restaura la sesión offline con los datos en caché y sólo se muestra una alerta sin cerrar la sesión guardada.【F:contexts/AuthContext.tsx†L135-L168】【F:contexts/AuthContext.tsx†L406-L437】
 
 ## Persistencia segura de credenciales
 - El proveedor delega la persistencia en `utils/auth/secureStore`, que usa `expo-secure-store` cuando la plataforma lo soporta y recurre a `localStorage` (o `AsyncStorage` en su defecto) al ejecutar en la web, garantizando un almacenamiento disponible en cada entorno con manejo homogéneo de errores.【F:utils/auth/secureStore.ts†L1-L139】【F:contexts/AuthContext.tsx†L53-L77】
 - Durante la carga inicial se leen las claves mediante `getInitialItems`, se descarta cualquier token expirado y se restablecen los estados locales de usuario antes de liberar la pantalla de carga, de modo que los reintentos de login suceden en segundo plano en lugar de bloquear el arranque.【F:utils/auth/secureStore.ts†L125-L139】【F:contexts/AuthContext.tsx†L252-L272】
-- Tras un inicio de sesión válido se persisten token, usuario, credenciales y expiración; `clearCredentials` elimina estos valores durante cierres de sesión o fallas críticas para evitar residuos de información sensible.【F:contexts/AuthContext.tsx†L62-L77】【F:contexts/AuthContext.tsx†L180-L195】
+- Tras un inicio de sesión válido se persisten token, usuario, credenciales y expiración; `clearCredentials` ahora se reserva para cierres de sesión iniciados por el usuario, manteniendo las credenciales almacenadas para relanzar el login cuando el token expira.【F:contexts/AuthContext.tsx†L62-L79】【F:contexts/AuthContext.tsx†L180-L197】【F:contexts/AuthContext.tsx†L406-L437】
 
 ## Renovación y vigencia de sesión
-- `checkTokenValidity` comprueba el tiempo de expiración almacenado antes de reutilizar un token y registra el instante de verificación; si caducó, la sesión no se reutiliza.【F:contexts/AuthContext.tsx†L361-L370】
-- `autoLogin` descarta tokens caducados, restaura inmediatamente el estado local y, sólo cuando faltan credenciales válidas en memoria, lanza `performLogin` en segundo plano para que la interfaz no quede esperando el request inicial.【F:contexts/AuthContext.tsx†L372-L406】
-- Las verificaciones ahora son bajo demanda: antes de adjuntar el encabezado Bearer se valida la vigencia y, si el token falta o expiró, se relanza el login con las credenciales persistidas; tras un `401/403/419` se reintenta la autenticación una única vez antes de propagar el error.【F:contexts/AuthContext.tsx†L484-L562】
+- `checkTokenValidity` comprueba el tiempo de expiración almacenado antes de reutilizar un token y registra el instante de verificación; si caducó, la sesión no se reutiliza.【F:contexts/AuthContext.tsx†L392-L403】
+- `autoLogin` descarta tokens caducados, restaura inmediatamente el estado local y, sólo cuando faltan credenciales válidas en memoria, lanza `performLogin` en segundo plano para que la interfaz no quede esperando el request inicial.【F:contexts/AuthContext.tsx†L461-L506】
+- Las verificaciones ahora son bajo demanda: antes de adjuntar el encabezado Bearer se valida la vigencia y, si el token falta o expiró, se relanza el login con las credenciales persistidas; tras un `401/403/419` se reintenta la autenticación una única vez antes de propagar el error, sin limpiar credenciales para permitir reautenticaciones sucesivas.【F:contexts/AuthContext.tsx†L439-L470】【F:contexts/AuthContext.tsx†L518-L594】
 
 ## Panel de diagnóstico para el superusuario
 - La pantalla `app/settings/auth-diagnostics.tsx` ofrece un resumen en vivo sólo visible para el usuario con ID 1, mostrando el estado actual del token, tiempo restante calculado y el origen de la sesión (online u offline restaurado desde caché).【F:app/settings/auth-diagnostics.tsx†L95-L154】【F:app/settings/auth-diagnostics.tsx†L168-L199】
@@ -26,7 +26,7 @@
 - El panel también documenta el guardián que adjunta automáticamente el header Bearer a todas las peticiones (excepto `/login`) y explica el fallback a `checkConnection` para renovar la sesión antes de exponer errores de autenticación.【F:app/settings/auth-diagnostics.tsx†L59-L78】【F:app/settings/auth-diagnostics.tsx†L223-L236】
 
 ## Control de conexión y requisitos de API
-- `checkConnection` valida la vigencia del token y, si falta o caducó, relanza el login con las credenciales persistidas; si no hay credenciales se limpia el estado y se marca modo offline.【F:contexts/AuthContext.tsx†L420-L438】
+- `checkConnection` valida la vigencia del token y, si falta o caducó, relanza el login con las credenciales persistidas; si no hay credenciales disponibles se marca modo offline pero se conservan los datos almacenados para reintentar más adelante.【F:contexts/AuthContext.tsx†L420-L437】【F:contexts/AuthContext.tsx†L506-L518】
 - Todas las operaciones posteriores al login reutilizan el token en memoria y adjuntan el encabezado `Authorization: Bearer`, mientras que la llamada inicial a `/login` es la única exenta del uso de Bearer para alinearse con el flujo de autenticación requerido.【F:contexts/AuthContext.tsx†L74-L147】【F:contexts/AuthContext.tsx†L500-L562】
 
 ## Integración con las pantallas de `app/login`

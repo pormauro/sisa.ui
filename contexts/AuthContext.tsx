@@ -171,6 +171,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await clearAllDataCaches();
   }, []);
 
+  const restoreCredentialsFromCache = useCallback(async () => {
+    const [storedUsername, storedPassword] = await getInitialItems(['username', 'password']);
+
+    return {
+      storedUsername: storedUsername ?? null,
+      storedPassword: storedPassword ?? null,
+    };
+  }, []);
+
   const restoreTokenFromCache = useCallback(async () => {
     const [storedToken, storedExpiration] = await getInitialItems(['token', 'token_expiration']);
 
@@ -396,15 +405,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const ensureTokenAvailability = useCallback(async (forceRefresh = false): Promise<string | null> => {
     let activeToken = token ?? (await restoreTokenFromCache());
+    let currentUsername = username;
+    let currentPassword = password;
+
+    if (!currentUsername || !currentPassword) {
+      const { storedUsername, storedPassword } = await restoreCredentialsFromCache();
+
+      currentUsername = currentUsername ?? storedUsername;
+      currentPassword = currentPassword ?? storedPassword;
+
+      if (storedUsername && !username) setUsername(storedUsername);
+      if (storedPassword && !password) setPassword(storedPassword);
+    }
 
     const tokenIsValid = forceRefresh ? false : activeToken ? await checkTokenValidity() : false;
 
     if (!activeToken || !tokenIsValid) {
-      if (username && password) {
-        const refreshed = await performLogin(username, password);
+      if (currentUsername && currentPassword) {
+        const refreshed = await performLogin(currentUsername, currentPassword);
         activeToken = refreshed?.token ?? null;
-      } else {
-        await clearCredentials();
       }
     }
 
@@ -415,7 +434,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     setIsOffline(false);
     return activeToken;
-  }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, clearCredentials]);
+  }, [token, username, password, restoreTokenFromCache, checkTokenValidity, performLogin, restoreCredentialsFromCache]);
 
   const ensureTokenWithDeadline = useCallback(
     async (reason: string, forceRefresh = false): Promise<string | null> => {
@@ -432,14 +451,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }),
         ]);
 
-        if (!guardedToken) {
-          await clearCredentials();
-        }
-
         return guardedToken;
       } catch (error) {
         console.error('Fallo al intentar renovar el token', error);
-        await clearCredentials();
+        setIsOffline(true);
         return null;
       } finally {
         if (timeoutHandle) {
@@ -447,16 +462,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     },
-    [clearCredentials, ensureTokenAvailability]
+    [ensureTokenAvailability]
   );
 
   const ensureTokenHealthAfterTimeout = useCallback(async () => {
-    const availableToken = await ensureTokenWithDeadline('reintento tras timeout');
-
-    if (!availableToken) {
-      await clearCredentials();
-    }
-  }, [clearCredentials, ensureTokenWithDeadline]);
+    await ensureTokenWithDeadline('reintento tras timeout');
+  }, [ensureTokenWithDeadline]);
 
   const autoLogin = useCallback(async () => {
     try {
