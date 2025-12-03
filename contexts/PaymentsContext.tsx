@@ -201,7 +201,9 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           );
         }
         if (response.ok) {
-          await loadPayments();
+          if (!newPayment) {
+            await loadPayments();
+          }
           return true;
         }
       } catch (error) {
@@ -213,7 +215,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [loadPayments, setPayments, token]
+    [setPayments, token]
   );
 
   const updatePayment = useCallback(
@@ -242,15 +244,18 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
           body: JSON.stringify(payload),
         });
         await ensureAuthResponse(response);
-        const data = await response.json();
-        if (data.message === 'Payment updated successfully' || response.ok) {
+        const data = await parseJsonSafely(response);
+        const updatedPayment = buildPaymentFromResponse(response, data, payload) ?? {
+          id,
+          ...payload,
+        };
+        if (response.ok) {
           setPayments(prev =>
             ensureSortedByNewest(
-              prev.map(p => (p.id === id ? { id, ...payload } : p)),
+              prev.map(p => (p.id === id ? updatedPayment : p)),
               getDefaultSortValue
             )
           );
-          await loadPayments();
           return true;
         }
       } catch (error) {
@@ -262,7 +267,7 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [loadPayments, setPayments, token]
+    [setPayments, token]
   );
 
   const deletePayment = async (id: number): Promise<boolean> => {
