@@ -4,9 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
-import { getCachedFileMeta, setCachedFileMeta } from '@/utils/cache';
+import {
+  clearFileCaches,
+  getCachedFileMeta,
+  setCachedFileMeta,
+} from '@/utils/cache';
 import { fileStorage } from '@/utils/files/storage';
-import { clearLocalFileStorage } from '@/utils/files/cleanup';
 
 // Tipo de archivo que devuelve el backend
 export interface FileData {
@@ -211,7 +214,30 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     return null;
   };
   const clearLocalFiles = async (): Promise<void> => {
-    await clearLocalFileStorage();
+    const keys = await AsyncStorage.getAllKeys();
+    const fileKeys = keys.filter(
+      key => key.startsWith('@sisa:file:') || key.startsWith('file_meta_')
+    );
+    const metas = await AsyncStorage.multiGet(fileKeys);
+    await Promise.all(
+      metas.map(async ([, value]) => {
+        if (value) {
+          try {
+            const meta = JSON.parse(value) as {
+              localUri?: string;
+              storagePath?: string;
+            };
+            const target = meta?.storagePath ?? meta?.localUri;
+            if (target) {
+              await fileStorage.delete(target);
+            }
+          } catch (error) {
+            console.log('Error clearing cached file', error);
+          }
+        }
+      })
+    );
+    await clearFileCaches();
   };
 
   return (

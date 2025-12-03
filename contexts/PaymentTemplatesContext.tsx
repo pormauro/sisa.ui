@@ -11,7 +11,6 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
-import { retryOnTokenExpiration } from '@/utils/auth/retry';
 
 export interface PaymentTemplate {
   id: number;
@@ -377,13 +376,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
     'paymentTemplates',
     []
   );
-  const { token, checkConnection } = useContext(AuthContext);
-
-  const runWithAuthRetry = useCallback(
-    async <T>(operation: () => Promise<T>) =>
-      retryOnTokenExpiration(operation, { onUnauthorized: () => checkConnection(true) }),
-    [checkConnection]
-  );
+  const { token } = useContext(AuthContext);
 
   useEffect(() => {
     setPaymentTemplates(prev => ensureSortedByNewest(prev, getDefaultSortValue));
@@ -393,7 +386,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
     if (!token) {
       return;
     }
-    const requestTemplates = async () => {
+    try {
       const response = await fetch(`${BASE_URL}/payment_templates`, {
         headers: {
           'Content-Type': 'application/json',
@@ -434,10 +427,6 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
           .filter((template): template is PaymentTemplate => Boolean(template));
         setPaymentTemplates(sortByNewest(normalized, getDefaultSortValue));
       }
-    };
-
-    try {
-      await runWithAuthRetry(requestTemplates);
     } catch (error) {
       if (isTokenExpiredError(error)) {
         console.warn('Token expirado al cargar plantillas de pago. Se solicitará un nuevo token.');
@@ -445,7 +434,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
       }
       console.error('Error loading payment templates:', error);
     }
-  }, [runWithAuthRetry, setPaymentTemplates, token]);
+  }, [setPaymentTemplates, token]);
 
   const addPaymentTemplate = useCallback(
     async (template: PaymentTemplateInput): Promise<PaymentTemplate | null> => {
@@ -453,31 +442,26 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
         return null;
       }
       try {
-        return await runWithAuthRetry(async () => {
-          const payload = toSerializablePayload(template);
-          const response = await fetch(`${BASE_URL}/payment_templates`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-          });
-          await ensureAuthResponse(response);
-          const data = (await parseJsonSafely(response)) as RawTemplate;
-          const newTemplate = buildTemplateFromResponse(response, data, payload);
-          if (newTemplate) {
-            setPaymentTemplates(prev =>
-              ensureSortedByNewest([...prev, newTemplate], getDefaultSortValue)
-            );
-            return newTemplate;
-          }
-          if (response.ok) {
-            await loadPaymentTemplates();
-          }
-          return null;
+        const payload = toSerializablePayload(template);
+        const response = await fetch(`${BASE_URL}/payment_templates`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(response);
+        const data = (await parseJsonSafely(response)) as RawTemplate;
+        const newTemplate = buildTemplateFromResponse(response, data, payload);
+        if (newTemplate) {
+          setPaymentTemplates(prev =>
+            ensureSortedByNewest([...prev, newTemplate], getDefaultSortValue)
+          );
+          await loadPaymentTemplates();
+          return newTemplate;
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al crear una plantilla de pago.');
@@ -487,7 +471,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
       }
       return null;
     },
-    [loadPaymentTemplates, runWithAuthRetry, setPaymentTemplates, token]
+    [loadPaymentTemplates, setPaymentTemplates, token]
   );
 
   const updatePaymentTemplate = useCallback(
@@ -496,52 +480,47 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
         return false;
       }
       try {
-        return await runWithAuthRetry(async () => {
-          const payload = toSerializablePayload(template);
-          const response = await fetch(`${BASE_URL}/payment_templates/${id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-          });
-          await ensureAuthResponse(response);
-          const data = (await parseJsonSafely(response)) as RawTemplate;
-          const updatedTemplate = buildTemplateFromResponse(response, data, payload);
-          const message = getStringProperty(data, 'message');
-          const normalizedMessage = message ? message.trim().toLowerCase() : null;
-          const successFlag = getBooleanProperty(data, 'success') === true;
-          const matchesVerboseMessage =
-            normalizedMessage === 'payment template updated successfully' ||
-            normalizedMessage === 'template updated successfully';
-          const okWithShortMessage = response.ok && normalizedMessage === 'template updated';
-          const hasNoPayload = data === null || typeof data === 'undefined';
-          const isSuccess =
-            successFlag ||
-            Boolean(updatedTemplate) ||
-            matchesVerboseMessage ||
-            okWithShortMessage ||
-            (response.ok && hasNoPayload);
-          if (isSuccess) {
-            setPaymentTemplates(prev =>
-              ensureSortedByNewest(
-                prev.map(templateItem =>
-                  templateItem.id === id
-                    ? updatedTemplate ?? { ...templateItem, ...payload, id }
-                    : templateItem
-                ),
-                getDefaultSortValue
-              )
-            );
-            if (!updatedTemplate) {
-              await loadPaymentTemplates();
-            }
-            return true;
-          }
-          return false;
+        const payload = toSerializablePayload(template);
+        const response = await fetch(`${BASE_URL}/payment_templates/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
         });
+        await ensureAuthResponse(response);
+        const data = (await parseJsonSafely(response)) as RawTemplate;
+        const updatedTemplate = buildTemplateFromResponse(response, data, payload);
+        const message = getStringProperty(data, 'message');
+        const normalizedMessage = message ? message.trim().toLowerCase() : null;
+        const successFlag = getBooleanProperty(data, 'success') === true;
+        const matchesVerboseMessage =
+          normalizedMessage === 'payment template updated successfully' ||
+          normalizedMessage === 'template updated successfully';
+        const okWithShortMessage = response.ok && normalizedMessage === 'template updated';
+        const hasNoPayload = data === null || typeof data === 'undefined';
+        const isSuccess =
+          successFlag ||
+          Boolean(updatedTemplate) ||
+          matchesVerboseMessage ||
+          okWithShortMessage ||
+          (response.ok && hasNoPayload);
+        if (isSuccess) {
+          setPaymentTemplates(prev =>
+            ensureSortedByNewest(
+              prev.map(templateItem =>
+                templateItem.id === id
+                  ? updatedTemplate ?? { ...templateItem, ...payload, id }
+                  : templateItem
+              ),
+              getDefaultSortValue
+            )
+          );
+          await loadPaymentTemplates();
+          return true;
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al actualizar una plantilla de pago.');
@@ -551,7 +530,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
       }
       return false;
     },
-    [loadPaymentTemplates, runWithAuthRetry, setPaymentTemplates, token]
+    [loadPaymentTemplates, setPaymentTemplates, token]
   );
 
   const deletePaymentTemplate = useCallback(
@@ -560,33 +539,30 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
         return false;
       }
       try {
-        return await runWithAuthRetry(async () => {
-          const response = await fetch(`${BASE_URL}/payment_templates/${id}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          await ensureAuthResponse(response);
-          const data = (await parseJsonSafely(response)) as RawTemplate;
-          const message = getStringProperty(data, 'message');
-          const normalizedMessage = message ? message.trim().toLowerCase() : null;
-          const successFlag = getBooleanProperty(data, 'success') === true;
-          const matchesVerboseMessage =
-            normalizedMessage === 'payment template deleted successfully' ||
-            normalizedMessage === 'template deleted successfully';
-          const okWithShortMessage = response.ok && normalizedMessage === 'template deleted';
-          const hasNoPayload = data === null || typeof data === 'undefined';
-          const isSuccess =
-            successFlag || matchesVerboseMessage || okWithShortMessage || (response.ok && hasNoPayload);
-          if (isSuccess) {
-            setPaymentTemplates(prev => prev.filter(templateItem => templateItem.id !== id));
-            return true;
-          }
-          return false;
+        const response = await fetch(`${BASE_URL}/payment_templates/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         });
+        await ensureAuthResponse(response);
+        const data = (await parseJsonSafely(response)) as RawTemplate;
+        const message = getStringProperty(data, 'message');
+        const normalizedMessage = message ? message.trim().toLowerCase() : null;
+        const successFlag = getBooleanProperty(data, 'success') === true;
+        const matchesVerboseMessage =
+          normalizedMessage === 'payment template deleted successfully' ||
+          normalizedMessage === 'template deleted successfully';
+        const okWithShortMessage = response.ok && normalizedMessage === 'template deleted';
+        const hasNoPayload = data === null || typeof data === 'undefined';
+        const isSuccess =
+          successFlag || matchesVerboseMessage || okWithShortMessage || (response.ok && hasNoPayload);
+        if (isSuccess) {
+          setPaymentTemplates(prev => prev.filter(templateItem => templateItem.id !== id));
+          return true;
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al eliminar una plantilla de pago.');
@@ -596,7 +572,7 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
       }
       return false;
     },
-    [runWithAuthRetry, setPaymentTemplates, token]
+    [setPaymentTemplates, token]
   );
 
   useEffect(() => {

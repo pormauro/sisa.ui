@@ -98,16 +98,9 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
             ? data.folder.id
             : null;
       if (newIdRaw != null) {
+        await loadFolders();
         const numericId = Number(newIdRaw);
-        if (!Number.isNaN(numericId)) {
-          const normalizedFolder: Folder = {
-            id: numericId,
-            user_id: 0,
-            ...folderData,
-          };
-          setFolders(prev => ensureSortedByNewest([...prev, normalizedFolder], getDefaultSortValue));
-          return numericId;
-        }
+        return Number.isNaN(numericId) ? null : numericId;
       }
     } catch (error) {
       if (isTokenExpiredError(error)) {
@@ -133,12 +126,7 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
       await ensureAuthResponse(response);
       const data = await response.json();
       if (data.message === 'Folder updated successfully') {
-        setFolders(prev =>
-          ensureSortedByNewest(
-            prev.map(folder => (folder.id === id ? { ...folder, ...folderData } : folder)),
-            getDefaultSortValue
-          )
-        );
+        await loadFolders();
         return true;
       }
     } catch (error) {

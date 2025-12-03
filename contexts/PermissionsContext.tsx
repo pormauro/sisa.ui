@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useContext, useCallback, useState, useRef, useMemo } from 'react';
+import React, { createContext, useEffect, useContext, useCallback, useState, useRef } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -9,8 +9,6 @@ interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
   loading: boolean;
   refreshPermissions: () => Promise<void>;
-  isCompanyAdmin: boolean;
-  isSuperUser: boolean;
 }
 
 const PERMISSION_ALIASES: Record<string, string[]> = {
@@ -38,8 +36,6 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
   permissions: [],
   loading: false,
   refreshPermissions: async () => {},
-  isCompanyAdmin: false,
-  isSuperUser: false,
 });
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -48,48 +44,20 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     'permissions',
     []
   );
-  const [isCompanyAdmin, setIsCompanyAdmin, isCompanyAdminHydrated] = useCachedState<boolean>(
-    'permissions:isCompanyAdmin',
-    false
-  ); // Persistimos el rol administrativo para mantener el flujo incluso sin conexión.
   const [loading, setLoading] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
-  const isSuperUser = useMemo(() => String(userId ?? '') === '1', [userId]);
-
-  const isHydrated = useMemo(
-    () => permissionsHydrated && isCompanyAdminHydrated,
-    [permissionsHydrated, isCompanyAdminHydrated]
-  );
-
-  const allAccessPermissions = useMemo(() => {
-    if (!isSuperUser) {
-      return permissions;
-    }
-
-    const basePermissions = permissions.length > 0 ? permissions : ['*'];
-    return new Proxy(basePermissions, {
-      get(target, prop, receiver) {
-        if (prop === 'includes') {
-          return () => true;
-        }
-        return Reflect.get(target, prop, receiver);
-      },
-    });
-  }, [isSuperUser, permissions]);
 
   const clearCachedPermissions = useCallback(() => {
     setPermissions(prev => (prev.length > 0 ? [] : prev));
-    setIsCompanyAdmin(prev => (prev ? false : prev));
-  }, [setPermissions, setIsCompanyAdmin]);
+  }, [setPermissions]);
 
   useEffect(() => {
-    if (!isHydrated) {
+    if (!permissionsHydrated) {
       return;
     }
 
     if (!authIsLoading && !userId) {
       clearCachedPermissions();
-      setIsCompanyAdmin(false);
       previousUserIdRef.current = null;
       return;
     }
@@ -101,15 +69,9 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (userId !== previousUserIdRef.current) {
       previousUserIdRef.current = userId ?? null;
     }
-  }, [authIsLoading, clearCachedPermissions, isHydrated, userId]);
+  }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
 
   const fetchPermissions = useCallback(async () => {
-    if (isSuperUser) {
-      setPermissions(prev => (prev.length > 0 ? prev : ['*']));
-      setIsCompanyAdmin(true);
-      return;
-    }
-
     // Si no hay token o userId disponible, conservamos la información en caché.
     if (!token || !userId) {
       return;
@@ -136,23 +98,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           } catch {
             // Ignoramos errores al leer el cuerpo para no enmascarar la causa original.
           }
-
           const authorizationError = response.status === 401 || response.status === 403;
-          const isTokenMismatchMessage = () => {
-            const errorMessage =
-              (typeof errorPayload?.error === 'string' && errorPayload.error) ||
-              (typeof errorPayload?.message === 'string' && errorPayload.message) ||
-              '';
-            return errorMessage.toLowerCase().includes('el token no coincide');
-          };
-
-          // Si los permisos globales no están autorizados, continuamos sin bloquear el flujo
-          // para seguir mostrando los permisos de usuario.
-          if (scope === 'global' && response.status === 403) {
-            console.log('Permisos globales no disponibles para este usuario. Continuando sin ellos.');
-            return { permissions: [] };
-          }
-
           if (authorizationError) {
             try {
               await checkConnection();
@@ -163,7 +109,6 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
               );
             }
           }
-
           const error: Error & {
             status?: number;
             scope?: string;
@@ -173,7 +118,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           );
           error.status = response.status;
           error.scope = scope;
-          error.tokenMismatch = isTokenMismatchMessage();
+          const errorMessage =
+            (typeof errorPayload?.error === 'string' && errorPayload.error) ||
+            (typeof errorPayload?.message === 'string' && errorPayload.message) ||
+            '';
+          if (errorMessage.toLowerCase().includes('el token no coincide')) {
+            error.tokenMismatch = true;
+          }
           throw error;
         }
 
@@ -184,7 +135,8 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       };
 
-      const [userResult, globalResult] = await Promise.allSettled([
+      // Se realizan ambas peticiones de forma concurrente:
+      const [userData, globalData] = await Promise.all([
         fetch(`${BASE_URL}/permissions/user/${userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -199,13 +151,6 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }).then(response => parsePermissionsResponse(response, 'global')),
       ]);
 
-      if (userResult.status === 'rejected' && globalResult.status === 'rejected') {
-        throw userResult.reason || globalResult.reason;
-      }
-
-      const userData = userResult.status === 'fulfilled' ? userResult.value : { permissions: [] };
-      const globalData = globalResult.status === 'fulfilled' ? globalResult.value : { permissions: [] };
-
       // Suponemos que la respuesta tiene la forma: { permissions: [ { id, sector, ... }, ... ] }
       const userPerms: string[] = userData.permissions?.map((p: any) => p.sector) || [];
       const globalPerms: string[] = globalData.permissions?.map((p: any) => p.sector) || [];
@@ -213,51 +158,6 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
       setPermissions(expandWithAliases(mergedPermissions));
-
-      const normalizeBooleanCandidate = (candidate: any): boolean | undefined => {
-        if (typeof candidate === 'boolean') {
-          return candidate;
-        }
-
-        if (typeof candidate === 'string') {
-          const normalized = candidate.trim().toLowerCase();
-          if (['true', '1', 'yes', 'si', 'sí'].includes(normalized)) {
-            return true;
-          }
-          if (['false', '0', 'no'].includes(normalized)) {
-            return false;
-          }
-        }
-
-        if (typeof candidate === 'number') {
-          if (candidate === 1) return true;
-          if (candidate === 0) return false;
-        }
-
-        return undefined;
-      };
-
-      const deriveIsCompanyAdmin = (...candidates: any[]): boolean => {
-        for (const candidate of candidates) {
-          const normalized = normalizeBooleanCandidate(candidate);
-          if (typeof normalized === 'boolean') {
-            return normalized;
-          }
-        }
-        return false;
-      };
-
-      const adminFlag = deriveIsCompanyAdmin(
-        userData?.is_company_admin,
-        userData?.isCompanyAdmin,
-        userData?.company_admin,
-        userData?.is_admin,
-        globalData?.is_company_admin,
-        globalData?.isCompanyAdmin,
-        globalData?.company_admin,
-        globalData?.is_admin,
-      );
-      setIsCompanyAdmin(adminFlag);
     } catch (error: any) {
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
@@ -287,7 +187,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, isSuperUser, setPermissions, token, userId]);
+  }, [checkConnection, setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();
@@ -309,15 +209,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [fetchPermissions]);
 
   return (
-    <PermissionsContext.Provider
-      value={{
-        permissions: allAccessPermissions,
-        loading: loading || !isHydrated,
-        refreshPermissions: fetchPermissions,
-        isCompanyAdmin,
-        isSuperUser,
-      }}
-    >
+    <PermissionsContext.Provider value={{ permissions, loading, refreshPermissions: fetchPermissions }}>
       {children}
     </PermissionsContext.Provider>
   );
