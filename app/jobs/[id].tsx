@@ -31,6 +31,7 @@ import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatCurrency } from '@/utils/currency';
+import { formatDateForApi } from '@/utils/dateTime';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -501,8 +502,7 @@ export default function EditJobScreen() {
           onChange={(e, selected) => {
             setShowDatePicker(false);
             if (selected) {
-              const d = selected.toISOString().split('T')[0];
-              setJobDate(d);
+              setJobDate(formatDateForApi(selected));
             }
           }}
         />
