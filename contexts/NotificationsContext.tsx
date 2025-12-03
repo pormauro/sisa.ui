@@ -63,6 +63,8 @@ export interface NotificationFilters {
   since?: string | null;
 }
 
+type NotificationRequest = NotificationFilters & { force?: boolean };
+
 export interface ManualNotificationInput {
   title: string;
   body: string;
@@ -81,7 +83,7 @@ interface NotificationsContextValue {
   notifications: NotificationEntry[];
   loading: boolean;
   filters: NotificationFilters;
-  loadNotifications: (filters?: NotificationFilters) => Promise<void>;
+  loadNotifications: (filters?: NotificationRequest) => Promise<void>;
   markAsRead: (id: number, payload?: { read_at?: string | null }) => Promise<NotificationEntry | null>;
   hideNotification: (
     id: number,
@@ -239,11 +241,27 @@ const sortNotifications = (items: NotificationEntry[]): NotificationEntry[] => {
   );
 };
 
+const areFiltersEqual = (a: NotificationFilters, b: NotificationFilters): boolean => {
+  return (
+    (a.status ?? 'all') === (b.status ?? 'all') &&
+    (a.company_id ?? null) === (b.company_id ?? null) &&
+    (a.limit ?? null) === (b.limit ?? null) &&
+    (a.since ?? null) === (b.since ?? null)
+  );
+};
+
+const MIN_FETCH_INTERVAL_MS = 1000 * 60 * 5; // 5 minutos
+
 export const NotificationsProvider = ({ children }: { children: ReactNode }) => {
   const { token, checkConnection } = useContext(AuthContext);
   const [notifications, setNotifications, notificationsHydrated] = useCachedState<NotificationEntry[]>(
     'notifications',
     [],
+  );
+  const [lastFetchedAt, setLastFetchedAt] = useCachedState<number | null>('notifications.lastFetchedAt', null);
+  const [lastAppliedFilters, setLastAppliedFilters] = useCachedState<NotificationFilters>(
+    'notifications.lastAppliedFilters',
+    { status: 'all' },
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [filters, setFilters] = useState<NotificationFilters>({ status: 'all' });
@@ -277,12 +295,22 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   );
 
   const loadNotifications = useCallback(
-    async (override?: NotificationFilters) => {
+    async (override?: NotificationRequest) => {
       if (!token) {
         return;
       }
-      const mergedFilters: NotificationFilters = { ...filters, ...(override ?? {}) };
+      const { force = false, ...filtersOverride } = override ?? {};
+      const mergedFilters: NotificationFilters = { ...filters, ...filtersOverride };
+      const isSameFilters = areFiltersEqual(mergedFilters, lastAppliedFilters);
+      const lastFetchTime = lastFetchedAt ?? 0;
+      const isRecentFetch = Date.now() - lastFetchTime < MIN_FETCH_INTERVAL_MS;
+
       setFilters(mergedFilters);
+
+      if (!force && isSameFilters && isRecentFetch && notifications.length > 0) {
+        return;
+      }
+
       setLoading(true);
       try {
         const params = new URLSearchParams();
@@ -325,6 +353,8 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
 
           return sortNotifications(Array.from(mergedById.values()));
         });
+        setLastFetchedAt(Date.now());
+        setLastAppliedFilters(mergedFilters);
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al listar notificaciones, se solicitará uno nuevo.');
@@ -335,7 +365,17 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         setLoading(false);
       }
     },
-    [authorizedFetch, filters, setNotifications, token],
+    [
+      authorizedFetch,
+      filters,
+      lastAppliedFilters,
+      lastFetchedAt,
+      notifications.length,
+      setLastAppliedFilters,
+      setLastFetchedAt,
+      setNotifications,
+      token,
+    ],
   );
 
   const mergeNotification = useCallback(
