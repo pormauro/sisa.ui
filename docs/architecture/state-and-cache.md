@@ -42,7 +42,11 @@ La pantalla de configuración expone una acción "Borrar datos de la caché" que
 ejecuta `clearAllDataCaches`; esta función filtra todas las claves con prefijo
 `@sisa:data:`, las elimina mediante `multiRemove` y, sin importar el resultado,
 propaga la señal a todos los suscriptores para que restauren sus valores
-iniciales.【F:app/user/ConfigScreen.tsx†L29-L53】【F:utils/cache.ts†L60-L71】
+iniciales.【F:app/user/ConfigScreen.tsx†L29-L53】【F:utils/cache.ts†L60-L71】 Las
+acciones destructivas, como eliminar la cuenta, reutilizan el `logout` del
+`AuthContext` en lugar de limpiar todo `AsyncStorage`, lo que garantiza que solo
+se borren las cachés de datos mediante las rutas explícitas permitidas
+(cerrar sesión o usar la opción de configuración).【F:contexts/ProfileContext.tsx†L139-L172】【F:contexts/AuthContext.tsx†L166-L189】【F:contexts/AuthContext.tsx†L544-L564】
 
 > **Nota**: este mecanismo solo afecta al "caché de datos" (catálogos,
 > permisos, configuraciones). La limpieza de archivos binarios se gestiona por
