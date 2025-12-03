@@ -103,10 +103,8 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         if (data.receipt_id) {
           const newReceipt: Receipt = { id: parseInt(data.receipt_id, 10), ...payload };
           setReceipts(prev => ensureSortedByNewest([...prev, newReceipt], getDefaultSortValue));
-          return newReceipt;
-        }
-        if (response.ok) {
           await loadReceipts();
+          return newReceipt;
         }
       } catch (error) {
         if (isTokenExpiredError(error)) {
@@ -143,13 +141,14 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
         });
         await ensureAuthResponse(response);
         const data = await response.json();
-        if (data.message === 'Receipt updated successfully' || response.ok) {
+        if (data.message === 'Receipt updated successfully') {
           setReceipts(prev =>
             ensureSortedByNewest(
               prev.map(r => (r.id === id ? { id, ...payload } : r)),
               getDefaultSortValue
             )
           );
+          await loadReceipts();
           return true;
         }
       } catch (error) {
@@ -161,7 +160,7 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [setReceipts, token]
+    [loadReceipts, setReceipts, token]
   );
 
   const deleteReceipt = async (id: number): Promise<boolean> => {

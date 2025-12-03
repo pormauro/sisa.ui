@@ -19,7 +19,6 @@ import {
   parseCompanySummary,
 } from '@/utils/companySummary';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
-import { retryOnTokenExpiration } from '@/utils/auth/retry';
 import { normalizeTaxId } from '@/utils/tax';
 
 export interface Provider {
@@ -73,13 +72,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     'providers',
     []
   );
-  const { token, checkConnection } = useContext(AuthContext);
-
-  const runWithAuthRetry = useCallback(
-    async <T>(operation: () => Promise<T>) =>
-      retryOnTokenExpiration(operation, { onUnauthorized: () => checkConnection(true) }),
-    [checkConnection]
-  );
+  const { token } = useContext(AuthContext);
 
   useEffect(() => {
     setProviders(prev =>
@@ -109,7 +102,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
   }, [setProviders]);
 
   const loadProviders = useCallback(async () => {
-    const performLoad = async () => {
+    try {
       const response = await fetch(`${BASE_URL}/providers`, {
         headers: {
           'Content-Type': 'application/json',
@@ -139,10 +132,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         });
         setProviders(sortByNewest(fetchedProviders, getDefaultSortValue));
       }
-    };
-
-    try {
-      await runWithAuthRetry(performLoad);
     } catch (error) {
       if (isTokenExpiredError(error)) {
         console.warn('Token expirado al cargar proveedores, se solicitará uno nuevo.');
@@ -150,7 +139,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       console.error('Error loading providers:', error);
     }
-  }, [runWithAuthRetry, setProviders, token]);
+  }, [setProviders, token]);
 
   const addProvider = useCallback(
     async (providerData: ProviderPayload): Promise<number | null> => {
@@ -158,23 +147,20 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         company_id: providerData.company_id,
       };
       try {
-        return await runWithAuthRetry(async () => {
-          const response = await fetch(`${BASE_URL}/providers`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
-          });
-          await ensureAuthResponse(response);
-          const data = await response.json();
-          if (data.provider_id) {
-            await loadProviders();
-            return parseInt(data.provider_id, 10);
-          }
-          return null;
+        const response = await fetch(`${BASE_URL}/providers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
         });
+        await ensureAuthResponse(response);
+        const data = await response.json();
+        if (data.provider_id) {
+          await loadProviders();
+          return parseInt(data.provider_id, 10);
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al agregar proveedor, se solicitará uno nuevo.');
@@ -184,7 +170,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [loadProviders, runWithAuthRetry, token]
+    [loadProviders, token]
   );
 
   const updateProvider = useCallback(
@@ -194,23 +180,20 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
         body.company_id = provider.company_id;
       }
       try {
-        return await runWithAuthRetry(async () => {
-          const response = await fetch(`${BASE_URL}/providers/${id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
-          });
-
-          await ensureAuthResponse(response);
-          if (response.ok) {
-            await loadProviders();
-            return true;
-          }
-          return false;
+        const response = await fetch(`${BASE_URL}/providers/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
         });
+
+        await ensureAuthResponse(response);
+        if (response.ok) {
+          await loadProviders();
+          return true;
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al actualizar proveedor, se solicitará uno nuevo.');
@@ -220,28 +203,25 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [loadProviders, runWithAuthRetry, token]
+    [loadProviders, token]
   );
 
   const deleteProvider = useCallback(
     async (id: number): Promise<boolean> => {
       try {
-        return await runWithAuthRetry(async () => {
-          const response = await fetch(`${BASE_URL}/providers/${id}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          await ensureAuthResponse(response);
-          const data = await response.json();
-          if (data.message === 'Provider deleted successfully') {
-            setProviders(prev => prev.filter(p => p.id !== id));
-            return true;
-          }
-          return false;
+        const response = await fetch(`${BASE_URL}/providers/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         });
+        await ensureAuthResponse(response);
+        const data = await response.json();
+        if (data.message === 'Provider deleted successfully') {
+          setProviders(prev => prev.filter(p => p.id !== id));
+          return true;
+        }
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al eliminar proveedor, se solicitará uno nuevo.');
@@ -251,7 +231,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [runWithAuthRetry, setProviders, token]
+    [setProviders, token]
   );
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 // ProfileContext.tsx
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -149,42 +150,34 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
 
   // Eliminar cuenta
   const deleteAccount = async () => {
-    const executeDeletion = async () => {
-      if (!token || !userId) return;
-      try {
-        const response = await fetch(`${BASE_URL}/users/${userId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          Alert.alert('Account deleted');
-          await logout();
-          router.replace('./login');
-        } else {
-          Alert.alert('Error', 'Could not delete account.');
-        }
-      } catch (error: any) {
-        Alert.alert('Error', error.message);
-      }
-    };
-
-    const confirmFinalDeletion = () => {
-      Alert.alert(
-        'Confirmar eliminación',
-        'Esta acción eliminará tu cuenta permanentemente. ¿Deseas continuar?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Sí, eliminar', style: 'destructive', onPress: executeDeletion },
-        ]
-      );
-    };
-
     Alert.alert(
       'Delete Account',
       'This action is irreversible. Do you want to proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Continue', style: 'destructive', onPress: confirmFinalDeletion },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!token || !userId) return;
+            try {
+              const response = await fetch(`${BASE_URL}/users/${userId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (response.ok) {
+                await AsyncStorage.clear();
+                Alert.alert('Account deleted');
+                await logout();
+                router.replace('./login');
+              } else {
+                Alert.alert('Error', 'Could not delete account.');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message);
+            }
+          },
+        },
       ]
     );
   };

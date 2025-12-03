@@ -119,6 +119,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
             ...tariff,
           };
           setTariffs(prev => [...prev, newTariff]);
+          await loadTariffs();
           return newTariff;
         }
       } catch (error) {
@@ -147,6 +148,7 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
               t.id === id ? { ...t, ...tariff, last_update: data.last_update || t.last_update } : t
             )
           );
+          await loadTariffs();
           return true;
         }
       } catch (error) {
