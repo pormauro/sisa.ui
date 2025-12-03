@@ -23,6 +23,7 @@ El archivo [`src/config/index.js`](../src/config/index.js) centraliza dos consta
 - **Autenticación:** el backend debe devolver el token en el header `Authorization: Bearer …` durante el login. Todas las rutas posteriores (GET/POST/PUT/DELETE) deben validar dicho header; las únicas excepciones son las operaciones de autenticación inicial (login y, si aplica, registro o recuperación de contraseña).
 - **Límites de carga:** el endpoint `/upload` acepta archivos via `multipart/form-data` y respeta el límite impuesto por `MAX_FILE_SIZE`. Responde con códigos de error cuando el archivo supera el tope o si faltan credenciales.
 - **Modelo de datos:** respeta la decisión arquitectónica de **no usar FOREIGN KEY** en la base de datos de `sisa.api`. Implementa las relaciones de forma manual (índices, claves compuestas o validaciones a nivel de aplicación) para alinear el backend con los supuestos del cliente.
+- **Zona horaria y formato:** el backend devuelve fechas en UTC, pero las operaciones de escritura deben enviarse en formato ISO 8601 con desplazamiento, por ejemplo `2025-12-02T15:00:00-03:00`. El frontend normaliza este formato antes de enviar los payloads para que el servidor pueda calcular correctamente la hora universal.
 
 ## 4. Variables de entorno y endpoints por ambiente
 
