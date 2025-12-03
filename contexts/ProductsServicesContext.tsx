@@ -77,7 +77,6 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
         if (data.id) {
           const newItem: ProductService = { id: data.id, user_id: 0, ...item };
           setProductsServices(prev => ensureSortedByNewest([...prev, newItem], getDefaultSortValue));
-          await loadProductsServices();
           return newItem;
         }
       } catch (error) {
@@ -104,7 +103,6 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
               getDefaultSortValue
             )
           );
-          await loadProductsServices();
           return true;
         }
       } catch (error) {
