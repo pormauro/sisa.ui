@@ -9,4 +9,5 @@ En el menú principal, la pantalla `Home` vuelve a ejecutar la verificación al 
 un botón destacado que indica el número de la versión disponible e inicia la descarga usando el `download_url` devuelto por la API.【F:app/Home.tsx†L16-L87】【F:app/Home.tsx†L94-L127】
 
 ## Notas de versión
+- **1.4.2:** se añade el monitor de cola de peticiones para el super usuario, con persistencia en caché y permiso `viewRequestQueue` para habilitarlo a otros roles desde la pantalla de permisos.
 - **1.4.1:** se normaliza el envío de fechas en formato ISO con zona horaria (`2025-12-02T15:00:00-03:00`) para alinear el cliente con respuestas del backend en UTC. Actualiza la app para evitar desfases horarios en registros de pagos y recibos.

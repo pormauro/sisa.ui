@@ -28,6 +28,8 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 - **Notificaciones** — Ruta: `/notifications`. Permiso: `listNotifications` (el superusuario siempre lo ve).
 - **Comentarios** — Ruta: `/comments`. Permiso: `listComments` (muestra envío propio; las claves `listComments` o `markCommentSeen` habilitan la bandeja global y acciones de moderación).
 - **Permisos** — Ruta: `/permission`. Permiso: `listPermissions` (siempre visible para el usuario maestro con `userId === '1'`).
+- **Diagnóstico de token** — Ruta: `/settings/auth-diagnostics`. Permiso: `viewAuthDiagnostics` (el superusuario puede verla sin restricción).
+- **Cola de peticiones** — Ruta: `/settings/request-queue`. Permiso: `viewRequestQueue` (visible siempre para el usuario maestro con `userId === '1'`).
 
 ## Atajos
 - **Planillas de pagos** — Abre `/shortcuts/payment_templates`, permite elegir una plantilla habilitada y precarga `/payments/create` con los valores contables; exige `listPaymentTemplates` y `usePaymentTemplateShortcuts` para mostrarse.【F:constants/menuSections.ts†L29-L37】【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】

@@ -123,6 +123,12 @@ export const MENU_SECTIONS: MenuSection[] = [
         requiredPermissions: ['viewAuthDiagnostics'],
       },
       {
+        title: 'Cola de peticiones',
+        route: '/settings/request-queue',
+        icon: 'time-outline',
+        requiredPermissions: ['viewRequestQueue'],
+      },
+      {
         title: 'Notificaciones',
         route: '/notifications',
         icon: 'notifications-outline',
