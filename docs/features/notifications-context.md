@@ -4,7 +4,7 @@ Este documento resume cómo la app Expo consume los endpoints documentados en `d
 
 ## Sincronización y filtros
 - `NotificationsProvider` persiste la bandeja en caché con `useCachedState('notifications', [])` y reordena las entradas por `created_at`, `sent_at` o `scheduled_at` para evitar saltos visuales cuando se hidrata el estado local.【F:contexts/NotificationsContext.tsx†L223-L244】
-- `loadNotifications(filters?)` construye la query string con `status`, `company_id`, `limit` y `since`, aplica siempre el encabezado `Authorization: Bearer` y valida la sesión mediante `ensureAuthResponse` antes de normalizar cualquier forma de respuesta (`notifications`, `notification`, `data`).【F:contexts/NotificationsContext.tsx†L184-L221】【F:contexts/NotificationsContext.tsx†L246-L303】
+- `loadNotifications(filters?)` construye la query string con `status`, `company_id`, `limit` y `since`, aplica siempre el encabezado `Authorization: Bearer` y valida la sesión mediante `ensureAuthResponse` antes de normalizar cualquier forma de respuesta (`notifications`, `notification`, `data`). Cuando ya existe caché para los mismos filtros y pasaron menos de 5 minutos desde la última llamada, se omite la petición salvo que se invoque con `force: true`.【F:contexts/NotificationsContext.tsx†L184-L221】【F:contexts/NotificationsContext.tsx†L246-L321】
 
 ## Operaciones expuestas
 - `markAsRead(id, payload?)` ejecuta `PATCH /notifications/{id}/read`, fusiona la notificación devuelta o genera un fallback local marcándola como leída para mantener la coherencia con la bandeja actual.【F:contexts/NotificationsContext.tsx†L316-L358】

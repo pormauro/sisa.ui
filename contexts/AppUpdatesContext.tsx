@@ -19,7 +19,7 @@ interface AppUpdatesContextProps {
   isChecking: boolean;
   lastCheckedAt: string | null;
   currentVersion: string;
-  refreshLatestUpdate: () => Promise<void>;
+  refreshLatestUpdate: (options?: { force?: boolean }) => Promise<void>;
 }
 
 const defaultContext: AppUpdatesContextProps = {
@@ -30,6 +30,8 @@ const defaultContext: AppUpdatesContextProps = {
   currentVersion: '0.0.0',
   refreshLatestUpdate: async () => {},
 };
+
+const MIN_CHECK_INTERVAL_MS = 1000 * 60 * 60 * 6; // 6 horas
 
 const isVersionNewer = (candidate: string, current: string): boolean => {
   const parse = (value: string) => value.split('.').map(part => Number(part) || 0);
@@ -71,59 +73,72 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     [currentVersion, latestUpdate]
   );
 
-  const refreshLatestUpdate = useCallback(async (): Promise<void> => {
-    if (!token || !permissions.includes('listAppUpdates')) {
-      return;
-    }
+  const refreshLatestUpdate = useCallback(
+    async (options?: { force?: boolean }): Promise<void> => {
+      const now = Date.now();
+      const lastChecked = lastCheckedAt ? new Date(lastCheckedAt).getTime() : null;
+      const isRecentCheck = lastChecked && Number.isFinite(lastChecked)
+        ? now - lastChecked < MIN_CHECK_INTERVAL_MS
+        : false;
 
-    setIsChecking(true);
-    try {
-      const response = await fetch(
-        `${BASE_URL}/app_updates/latest?current_version=${encodeURIComponent(currentVersion)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          try {
-            await checkConnection();
-          } catch (error) {
-            console.log('No se pudo revalidar la sesión al verificar actualizaciones.', error);
-          }
-        }
-        const errorBody = await response.text();
-        const reason = errorBody ? ` Detalle: ${errorBody}` : '';
-        console.log(`No se pudo obtener la última versión (HTTP ${response.status}).${reason}`);
+      if (!options?.force && isRecentCheck) {
         return;
       }
 
-      const payload = await response.json();
-      const latest = payload?.latest
-        ? {
-            version_code: payload.latest.version_code,
-            release_date: payload.latest.release_date,
-            download_url: payload.latest.download_url,
-            change_log: payload.latest.change_log ?? null,
-          }
-        : null;
+      if (!token || !permissions.includes('listAppUpdates')) {
+        return;
+      }
 
-      setLatestUpdate(latest);
-      setLastCheckedAt(new Date().toISOString());
-    } catch (error: any) {
-      console.log('Error buscando actualizaciones de la app:', error);
-      Alert.alert(
-        'Sin conexión',
-        'No pudimos verificar si hay una nueva versión disponible. Usaremos la información en caché.'
-      );
-    } finally {
-      setIsChecking(false);
-    }
-  }, [checkConnection, currentVersion, permissions, setLastCheckedAt, setLatestUpdate, token]);
+      setIsChecking(true);
+      try {
+        const response = await fetch(
+          `${BASE_URL}/app_updates/latest?current_version=${encodeURIComponent(currentVersion)}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            try {
+              await checkConnection();
+            } catch (error) {
+              console.log('No se pudo revalidar la sesión al verificar actualizaciones.', error);
+            }
+          }
+          const errorBody = await response.text();
+          const reason = errorBody ? ` Detalle: ${errorBody}` : '';
+          console.log(`No se pudo obtener la última versión (HTTP ${response.status}).${reason}`);
+          return;
+        }
+
+        const payload = await response.json();
+        const latest = payload?.latest
+          ? {
+              version_code: payload.latest.version_code,
+              release_date: payload.latest.release_date,
+              download_url: payload.latest.download_url,
+              change_log: payload.latest.change_log ?? null,
+            }
+          : null;
+
+        setLatestUpdate(latest);
+        setLastCheckedAt(new Date().toISOString());
+      } catch (error: any) {
+        console.log('Error buscando actualizaciones de la app:', error);
+        Alert.alert(
+          'Sin conexión',
+          'No pudimos verificar si hay una nueva versión disponible. Usaremos la información en caché.'
+        );
+      } finally {
+        setIsChecking(false);
+      }
+    },
+    [checkConnection, currentVersion, lastCheckedAt, permissions, setLastCheckedAt, setLatestUpdate, token]
+  );
 
   useEffect(() => {
     if (token && latestHydrated) {
