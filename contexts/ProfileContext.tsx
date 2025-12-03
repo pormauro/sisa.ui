@@ -1,7 +1,6 @@
 // ProfileContext.tsx
 import React, { createContext, useContext, ReactNode } from 'react';
 import { Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -158,7 +157,6 @@ export const ProfileProvider: React.FC<ProfileProviderProps> = ({ children }) =>
           headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
-          await AsyncStorage.clear();
           Alert.alert('Account deleted');
           await logout();
           router.replace('./login');
