@@ -633,12 +633,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const guardedFetch: typeof fetch = async (input, init) => {
       const shouldAttachAuth = shouldHandleRequest(input);
+      const activeToken = shouldAttachAuth
+        ? await (token ? Promise.resolve(token) : restoreTokenFromCache())
+        : token;
 
-      let activeToken = shouldAttachAuth ? await ensureTokenWithDeadline('solicitud protegida') : token;
-
-      // No bloqueamos nuevas peticiones mientras se renueva el token; si el backend
-      // devuelve un 401 igualmente, el flujo de retry de más abajo reintentará con
-      // el token fresco.
+      // No bloqueamos nuevas peticiones esperando la renovación del token; si el backend
+      // devuelve un 401, el flujo de retry se encargará de refrescarlo sin demoras extra.
       let effectiveInit = init ?? {};
 
       if (shouldAttachAuth) {
@@ -699,7 +699,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       globalThis.fetch = originalFetch as typeof fetch;
     };
-  }, [checkConnection]);
+  }, [checkConnection, ensureTokenHealthAfterTimeout, restoreTokenFromCache, token]);
 
   useEffect(() => {
     autoLogin();
