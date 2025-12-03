@@ -110,7 +110,6 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
             ...cashBoxData
           };
           setCashBoxes(prev => ensureSortedByNewest([...prev, newCashBox], getDefaultSortValue));
-          await loadCashBoxes();
           return newCashBox;
         }
       } catch (error) {
@@ -154,7 +153,6 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
               getDefaultSortValue
             )
           );
-          await loadCashBoxes();
           return true;
         }
       } catch (error) {

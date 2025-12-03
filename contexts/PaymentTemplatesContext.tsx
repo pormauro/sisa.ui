@@ -471,8 +471,10 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
             setPaymentTemplates(prev =>
               ensureSortedByNewest([...prev, newTemplate], getDefaultSortValue)
             );
-            await loadPaymentTemplates();
             return newTemplate;
+          }
+          if (response.ok) {
+            await loadPaymentTemplates();
           }
           return null;
         });
@@ -533,7 +535,9 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
                 getDefaultSortValue
               )
             );
-            await loadPaymentTemplates();
+            if (!updatedTemplate) {
+              await loadPaymentTemplates();
+            }
             return true;
           }
           return false;

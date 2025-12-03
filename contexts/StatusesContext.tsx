@@ -146,8 +146,7 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
             version: 1,
             ...statusData,
           });
-          setStatuses(prev => [...prev, newStatus]);
-          await loadStatuses();
+          setStatuses(prev => normalizeStatuses([...prev, newStatus]));
           return newStatus;
         }
       } catch (err) {
@@ -174,13 +173,14 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
         });
         if (res.ok) {
           setStatuses(prev =>
-            prev.map(s =>
-              s.id === id
-                ? normalizeStatus({ ...s, ...statusData, id })
-                : s
+            normalizeStatuses(
+              prev.map(s =>
+                s.id === id
+                  ? normalizeStatus({ ...s, ...statusData, id })
+                  : s
+              )
             )
           );
-          await loadStatuses();
           return true;
         }
       } catch (err) {
