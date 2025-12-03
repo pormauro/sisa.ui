@@ -6,9 +6,10 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from 'react';
 
-import { useCachedState } from '@/hooks/useCachedState';
+import { getCachedData, setCachedData } from '@/utils/cache';
 import { AuthContext } from '@/contexts/AuthContext';
 
 export type RequestStatus = 'pending' | 'success' | 'error' | 'aborted';
@@ -66,9 +67,11 @@ const getUrlFromInput = (input: RequestInfo | URL): string => {
 
 export const RequestQueueProvider: React.FC<PropsWithChildren> = ({ children }) => {
   const { userId } = useContext(AuthContext);
-  const [queue, setQueue, hydrated] = useCachedState<RequestTrace[]>('requestQueue', []);
+  const [queue, setQueue] = useState<RequestTrace[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const originalFetchRef = useRef<typeof fetch | null>(null);
   const patchedRef = useRef(false);
+  const persistHandle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const pushRequest = useCallback(
     (entry: RequestTrace) => {
@@ -93,6 +96,48 @@ export const RequestQueueProvider: React.FC<PropsWithChildren> = ({ children }) 
   const clearQueue = useCallback(() => {
     setQueue([]);
   }, [setQueue]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      const cachedQueue = await getCachedData<RequestTrace[]>('requestQueue');
+
+      if (mounted && cachedQueue) {
+        setQueue(cachedQueue);
+      }
+
+      if (mounted) {
+        setHydrated(true);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return undefined;
+    }
+
+    if (persistHandle.current) {
+      clearTimeout(persistHandle.current);
+    }
+
+    persistHandle.current = setTimeout(() => {
+      persistHandle.current = null;
+      void setCachedData('requestQueue', queue);
+    }, 300);
+
+    return () => {
+      if (persistHandle.current) {
+        clearTimeout(persistHandle.current);
+        persistHandle.current = null;
+      }
+    };
+  }, [hydrated, queue]);
 
   useEffect(() => {
     if (!hydrated) {
