@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Buffer } from 'buffer';
+import { useRouter } from 'expo-router';
 import { BASE_URL } from '@/config/Index';
 import { getItem, removeItem, saveItem, getInitialItems } from '@/utils/auth/secureStore';
 import { isAuthErrorStatus } from '@/utils/auth/tokenGuard';
@@ -132,6 +133,7 @@ const fetchWithTimeout = async (resource: string, options: any = {}) => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -555,7 +557,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await clearCaches();
     await saveItem(SKIP_AUTO_LOGIN_KEY, 'true');
     await clearCredentials();
-  }, [clearCaches]);
+    setIsLoading(false);
+    router.replace('/login/Login');
+  }, [clearCaches, router]);
 
   const checkConnection = useCallback(async (forceRefresh = false): Promise<string | null> => {
     const now = Date.now();
