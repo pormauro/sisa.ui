@@ -102,18 +102,24 @@ export type CompanyPayload = {
 
 interface CompaniesContextValue {
   companies: Company[];
+  selectedCompanyId: number | null;
+  selectedCompany: Company | null;
   loadCompanies: () => void;
   addCompany: (company: CompanyPayload) => Promise<Company | null>;
   updateCompany: (id: number, company: CompanyPayload) => Promise<boolean>;
   deleteCompany: (id: number) => Promise<boolean>;
+  selectCompany: (id: number | null) => void;
 }
 
 const defaultValue: CompaniesContextValue = {
   companies: [],
+  selectedCompanyId: null,
+  selectedCompany: null,
   loadCompanies: () => {},
   addCompany: async () => null,
   updateCompany: async () => false,
   deleteCompany: async () => false,
+  selectCompany: () => {},
 };
 
 export const CompaniesContext = createContext<CompaniesContextValue>(defaultValue);
@@ -916,6 +922,10 @@ const ensureProfileType = (company: Company): Company => {
 
 export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   const [companies, setCompanies] = useCachedState<Company[]>('companies', []);
+  const [selectedCompanyId, setSelectedCompanyId] = useCachedState<number | null>(
+    'selected_company_id',
+    null
+  );
   const { token } = useContext(AuthContext);
 
   useEffect(() => {
@@ -1244,9 +1254,36 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [loadCompanies, token]);
 
+  const selectedCompany = useMemo(
+    () => companies.find(company => company.id === selectedCompanyId) ?? null,
+    [companies, selectedCompanyId]
+  );
+
+  const selectCompany = useCallback((id: number | null) => {
+    setSelectedCompanyId(id);
+  }, [setSelectedCompanyId]);
+
   const value = useMemo(
-    () => ({ companies, loadCompanies, addCompany, updateCompany, deleteCompany }),
-    [addCompany, companies, deleteCompany, loadCompanies, updateCompany]
+    () => ({
+      companies,
+      selectedCompanyId,
+      selectedCompany,
+      loadCompanies,
+      addCompany,
+      updateCompany,
+      deleteCompany,
+      selectCompany,
+    }),
+    [
+      addCompany,
+      companies,
+      deleteCompany,
+      loadCompanies,
+      selectedCompany,
+      selectedCompanyId,
+      selectCompany,
+      updateCompany,
+    ]
   );
 
   return <CompaniesContext.Provider value={value}>{children}</CompaniesContext.Provider>;

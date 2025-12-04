@@ -12,6 +12,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
+import { BottomCompanyMenu } from '@/components/BottomCompanyMenu';
 
 const Menu: React.FC = () => {
   const router = useRouter();
@@ -84,12 +85,13 @@ const Menu: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
-      <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <ThemedText style={styles.title}>Menú Principal</ThemedText>
-          <NotificationMenuBadge />
-        </View>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+      <View style={styles.fullHeight}>
+        <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
+          <View style={styles.header}>
+            <ThemedText style={styles.title}>Menú Principal</ThemedText>
+            <NotificationMenuBadge />
+          </View>
         {shouldShowUpdateButton && latestUpdate ? (
           <View style={styles.updateContainer}>
             <MenuButton
@@ -123,7 +125,9 @@ const Menu: React.FC = () => {
             ))
           )}
         </View>
-      </ScrollView>
+        </ScrollView>
+        <BottomCompanyMenu />
+      </View>
     </SafeAreaView>
   );
 };
@@ -137,6 +141,10 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
+    paddingBottom: 180,
+  },
+  fullHeight: {
+    flex: 1,
   },
   updateContainer: {
     marginBottom: 12,

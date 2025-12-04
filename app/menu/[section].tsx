@@ -10,6 +10,7 @@ import React, { useContext } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
+import { BottomCompanyMenu } from '@/components/BottomCompanyMenu';
 
 const MenuGroupScreen: React.FC = () => {
   const { section: sectionParam } = useLocalSearchParams<{ section?: string }>();
@@ -56,21 +57,22 @@ const MenuGroupScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={[styles.backButton, { borderColor: tintColor }]} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={tintColor} />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            {menuSection && (
-              <View style={[styles.sectionIconContainer, { backgroundColor: tintColor }]}>
-                <Ionicons name={menuSection.icon} size={28} color={iconForegroundColor} />
-              </View>
-            )}
-            <ThemedText style={styles.headerTitle}>{menuSection?.title ?? 'Menú'}</ThemedText>
+      <View style={styles.fullHeight}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity style={[styles.backButton, { borderColor: tintColor }]} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={22} color={tintColor} />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              {menuSection && (
+                <View style={[styles.sectionIconContainer, { backgroundColor: tintColor }]}>
+                  <Ionicons name={menuSection.icon} size={28} color={iconForegroundColor} />
+                </View>
+              )}
+              <ThemedText style={styles.headerTitle}>{menuSection?.title ?? 'Menú'}</ThemedText>
+            </View>
+            <NotificationMenuBadge />
           </View>
-          <NotificationMenuBadge />
-        </View>
 
         {menuSection ? (
           visibleItems.length > 0 ? (
@@ -108,7 +110,9 @@ const MenuGroupScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+        <BottomCompanyMenu />
+      </View>
     </SafeAreaView>
   );
 };
@@ -122,7 +126,10 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 200,
+  },
+  fullHeight: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
