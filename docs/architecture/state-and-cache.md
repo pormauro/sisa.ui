@@ -65,6 +65,10 @@ La persistencia se organiza en dos espacios de nombres definidos en
 Todas las operaciones (`getItem`, `setItem`, `multiRemove`) están envueltas en
 `try/catch` con trazas en consola para evitar que un fallo de E/S rompa la
 aplicación. Además de proveer funciones para leer y escribir, la misma utilidad
+valida que el contenido serializado sea JSON válido; si encuentra una entrada
+corrupta la elimina inmediatamente para que la siguiente sincronización con el
+backend no quede bloqueada por un parseo repetido.【F:utils/cache.ts†L21-L60】
+Además de esto, la misma utilidad
 ofrece `clearAllDataCaches` y `clearFileCaches`, lo que garantiza una convención
 de nombres consistente y un único punto para instrumentar métricas o ajustar la
 estrategia de almacenamiento en el futuro.【F:utils/cache.ts†L39-L117】

@@ -37,12 +37,19 @@ export const subscribeToFileCacheClear = (listener: CacheListener): (() => void)
 };
 
 export const getCachedData = async <T>(key: string): Promise<T | null> => {
+  const storageKey = buildDataKey(key);
   try {
-    const stored = await AsyncStorage.getItem(buildDataKey(key));
+    const stored = await AsyncStorage.getItem(storageKey);
     if (!stored) {
       return null;
     }
-    return JSON.parse(stored) as T;
+    try {
+      return JSON.parse(stored) as T;
+    } catch (parseError) {
+      console.log('Invalid cached payload, clearing entry for', key, parseError);
+      await AsyncStorage.removeItem(storageKey);
+      return null;
+    }
   } catch (error) {
     console.log('Error reading cache key', key, error);
     return null;
@@ -78,7 +85,13 @@ export const getCachedFileMeta = async <T>(id: number): Promise<T | null> => {
     if (!stored) {
       return null;
     }
-    return JSON.parse(stored) as T;
+    try {
+      return JSON.parse(stored) as T;
+    } catch (parseError) {
+      console.log('Invalid cached file metadata, clearing entry for', id, parseError);
+      await AsyncStorage.multiRemove([key, `${LEGACY_FILE_PREFIX}${id}`]);
+      return null;
+    }
   } catch (error) {
     console.log('Error reading file cache for', id, error);
     return null;
