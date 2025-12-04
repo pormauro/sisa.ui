@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
 import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
+import { BottomNavigationMenu } from '@/components/BottomNavigationMenu';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -84,46 +85,52 @@ const Menu: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
-      <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <ThemedText style={styles.title}>Menú Principal</ThemedText>
-          <NotificationMenuBadge />
-        </View>
-        {shouldShowUpdateButton && latestUpdate ? (
-          <View style={styles.updateContainer}>
-            <MenuButton
-              icon="download-outline"
-              title={`Actualizar aplicación a la versión ${latestUpdate.version_code}`}
-              subtitle={`Versión instalada ${currentVersion}`}
-              showChevron={false}
-              onPress={handleUpdatePress}
-            />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
+      <View style={styles.contentWrapper}>
+        <ScrollView
+          style={{ backgroundColor }}
+          contentContainerStyle={[styles.container, styles.containerWithMenu]}
+        >
+          <View style={styles.header}>
+            <ThemedText style={styles.title}>Menú Principal</ThemedText>
+            <NotificationMenuBadge />
           </View>
-        ) : null}
-        <View style={styles.sectionsContainer}>
-          {visibleSections.length === 0 ? (
-            <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
-              <ThemedText style={styles.emptyStateText}>
-                No tienes permisos para acceder a ninguna sección del menú.
-              </ThemedText>
-            </View>
-          ) : (
-            visibleSections.map((section) => (
+          {shouldShowUpdateButton && latestUpdate ? (
+            <View style={styles.updateContainer}>
               <MenuButton
-                key={section.key}
-                icon={section.icon}
-                title={section.title}
+                icon="download-outline"
+                title={`Actualizar aplicación a la versión ${latestUpdate.version_code}`}
+                subtitle={`Versión instalada ${currentVersion}`}
                 showChevron={false}
-                layout="grid"
-                onPress={() =>
-                  router.push({ pathname: '/menu/[section]', params: { section: section.key } })
-                }
+                onPress={handleUpdatePress}
               />
-            ))
-          )}
-        </View>
-      </ScrollView>
+            </View>
+          ) : null}
+          <View style={styles.sectionsContainer}>
+            {visibleSections.length === 0 ? (
+              <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
+                <ThemedText style={styles.emptyStateText}>
+                  No tienes permisos para acceder a ninguna sección del menú.
+                </ThemedText>
+              </View>
+            ) : (
+              visibleSections.map((section) => (
+                <MenuButton
+                  key={section.key}
+                  icon={section.icon}
+                  title={section.title}
+                  showChevron={false}
+                  layout="grid"
+                  onPress={() =>
+                    router.push({ pathname: '/menu/[section]', params: { section: section.key } })
+                  }
+                />
+              ))
+            )}
+          </View>
+        </ScrollView>
+        <BottomNavigationMenu />
+      </View>
     </SafeAreaView>
   );
 };
@@ -134,9 +141,16 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  contentWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
+  },
+  containerWithMenu: {
+    paddingBottom: 180,
   },
   updateContainer: {
     marginBottom: 12,
