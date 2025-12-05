@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     position: 'absolute',
     right: 16,
-    bottom: 32,
+    bottom: 47,
     alignItems: 'center'
   },
   addText: { fontWeight: 'bold', fontSize: 16 },

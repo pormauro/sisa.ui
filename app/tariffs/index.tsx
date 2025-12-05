@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, borderRadius: 50, padding: 16 },
+  addButton: { position: 'absolute', right: 16, bottom: 47, borderRadius: 50, padding: 16 },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
   listContent: { paddingBottom: 16 },
   modalOverlay: {

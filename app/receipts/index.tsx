@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: 'bold' },
   deleteBtn: { padding: 8 },
   deleteText: { fontSize: 18 },
-  addButton: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 50, alignItems: 'center' },
+  addButton: { position: 'absolute', right: 16, bottom: 47, padding: 16, borderRadius: 50, alignItems: 'center' },
   addText: { fontSize: 16, fontWeight: 'bold' },
   empty: { textAlign: 'center', marginTop: 20, fontSize: 16 },
   listContent: { paddingBottom: 16 },
