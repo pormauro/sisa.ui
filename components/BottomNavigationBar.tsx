@@ -16,6 +16,7 @@ interface NavigationItem {
   route?: string;
   badge?: number;
   isBrand?: boolean;
+  translateY?: number;
 }
 
 const getIsRouteActive = (pathname: string | null, target?: string) => {
@@ -48,7 +49,7 @@ export const BottomNavigationBar: React.FC = () => {
     { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', badge: unreadCount, route: '/notifications' },
     { key: 'brand', label: 'Empresas', isBrand: true, route: '/Home' },
     { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
-    { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/shortcuts/payment_templates' },
+    { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/menu/shortcuts', translateY: -4 },
   ];
 
   const bottomPadding = Math.max(insets.bottom + 8, 12);
@@ -63,7 +64,7 @@ export const BottomNavigationBar: React.FC = () => {
         return (
           <TouchableOpacity
             key={item.key}
-            style={styles.tab}
+            style={[styles.tab, item.translateY ? { transform: [{ translateY: item.translateY }] } : null]}
             onPress={() => item.route && router.push(item.route)}
           >
             {/* Íconos normales */}
