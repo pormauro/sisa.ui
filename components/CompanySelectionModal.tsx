@@ -4,12 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
+import CircleImagePicker from '@/components/CircleImagePicker';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import type { Company } from '@/contexts/CompaniesContext';
 
 interface CompanySelectionModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (companyId: number) => void;
+  onSelect: (company: Company) => void;
 }
 
 export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ visible, onClose, onSelect }) => {
@@ -79,17 +81,26 @@ export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ vi
                 <TouchableOpacity
                   key={company.id}
                   style={[styles.companyItem, { borderColor }]}
-                  onPress={() => onSelect(company.id)}
+                  onPress={() => onSelect(company)}
                   accessibilityRole="button"
                   accessibilityLabel={`Abrir empresa ${displayName}`}
                 >
                   <View style={styles.companyItemHeader}>
-                    <ThemedText style={styles.companyItemTitle}>{displayName}</ThemedText>
+                    <View style={styles.companyItemContent}>
+                      <CircleImagePicker
+                        fileId={company.profile_file_id ? String(company.profile_file_id) : null}
+                        size={44}
+                        editable={false}
+                      />
+                      <View style={styles.companyTextBlock}>
+                        <ThemedText style={styles.companyItemTitle}>{displayName}</ThemedText>
+                        {company.tax_id ? (
+                          <ThemedText style={styles.companyItemSubtitle}>CUIT: {company.tax_id}</ThemedText>
+                        ) : null}
+                      </View>
+                    </View>
                     <Ionicons name="chevron-forward" size={18} color={textColor} />
                   </View>
-                  {company.tax_id ? (
-                    <ThemedText style={styles.companyItemSubtitle}>CUIT: {company.tax_id}</ThemedText>
-                  ) : null}
                 </TouchableOpacity>
               );
             })}
@@ -163,6 +174,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  companyItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  companyTextBlock: {
+    flex: 1,
   },
   companyItemTitle: {
     fontSize: 15,
