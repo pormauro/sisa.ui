@@ -178,11 +178,12 @@ export default function CompaniesListPage() {
   const renderItem = ({ item }: { item: Company }) => {
     const commercialName = (item.name ?? '').trim() || (item.legal_name ?? '').trim();
     const allowEdit = canEditCompany(item);
+    const subtitle = (item.tax_id ?? '').trim() || (item.email ?? '').trim() || (item.website ?? '').trim();
 
     return (
       <TouchableOpacity
         style={[styles.itemContainer, { borderColor: itemBorderColor }]}
-        onPress={() => (canList ? router.push(`/companies/viewModal?id=${item.id}`) : undefined)}
+        onPress={() => (canList ? router.push(`/companies/view?id=${item.id}`) : undefined)}
         onLongPress={() => {
           if (!allowEdit) {
             Alert.alert(
@@ -206,6 +207,7 @@ export default function CompaniesListPage() {
             {commercialName ? (
               <ThemedText style={styles.itemTitle}>{commercialName}</ThemedText>
             ) : null}
+            {subtitle ? <ThemedText style={styles.itemSubtitle}>{subtitle}</ThemedText> : null}
           </View>
         </View>
       </TouchableOpacity>
@@ -392,10 +394,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 16,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 32,
-  },
+  emptyText: { textAlign: 'center', marginTop: 20, fontSize: 16 },
   restrictedContainer: {
     flex: 1,
     alignItems: 'center',
@@ -406,41 +405,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   itemContainer: {
-    padding: 12,
-    borderWidth: 1,
-    borderRadius: 12,
-    marginBottom: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderRadius: 10,
+    marginBottom: 8,
   },
   itemContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  itemInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
+  itemInfo: { flex: 1, marginLeft: 12 },
+  itemTitle: { fontSize: 16, fontWeight: 'bold' },
+  itemSubtitle: { fontSize: 14, marginTop: 2 },
   addButton: {
     position: 'absolute',
-    bottom: 32,
     right: 16,
-    left: 16,
-    paddingVertical: 16,
-    borderRadius: 12,
+    bottom: 32,
+    padding: 16,
+    borderRadius: 50,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  addButtonText: { fontSize: 16, fontWeight: 'bold' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
