@@ -9,7 +9,8 @@ import { NotificationsContext } from '@/contexts/NotificationsContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CompanySelectionModal } from '@/components/CompanySelectionModal';
-import { CompaniesContext, type Company } from '@/contexts/CompaniesContext';
+import { type Company } from '@/contexts/CompaniesContext';
+import { MemberCompaniesContext } from '@/contexts/MemberCompaniesContext';
 import { FileContext } from '@/contexts/FilesContext';
 import { useCachedState } from '@/hooks/useCachedState';
 
@@ -43,7 +44,7 @@ export const BottomNavigationBar: React.FC = () => {
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const [isCompanyModalVisible, setIsCompanyModalVisible] = useState(false);
-  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { memberCompanies, loadMemberCompanies } = useContext(MemberCompaniesContext);
   const { getFile } = useContext(FileContext);
   const [selectedCompanyId, setSelectedCompanyId] = useCachedState<number | null>('selected-company-id', null);
   const [companyLogoUri, setCompanyLogoUri] = useState<string | null>(null);
@@ -57,16 +58,16 @@ export const BottomNavigationBar: React.FC = () => {
   const canSelectCompany = userId === '1' || permissions.includes('listCompanies');
 
   const selectedCompany = useMemo<Company | null>(
-    () => companies.find(company => company.id === selectedCompanyId) ?? null,
-    [companies, selectedCompanyId]
+    () => memberCompanies.find(company => company.id === selectedCompanyId) ?? null,
+    [memberCompanies, selectedCompanyId]
   );
 
   useEffect(() => {
-    if (!selectedCompanyId || companies.length || !canSelectCompany) {
+    if (!selectedCompanyId || memberCompanies.length || !canSelectCompany) {
       return;
     }
-    void loadCompanies();
-  }, [canSelectCompany, companies.length, loadCompanies, selectedCompanyId]);
+    void loadMemberCompanies();
+  }, [canSelectCompany, loadMemberCompanies, memberCompanies.length, selectedCompanyId]);
 
   useEffect(() => {
     let isMounted = true;
