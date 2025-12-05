@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { NotificationsContext } from '@/contexts/NotificationsContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { CompanySelectionModal } from '@/components/CompanySelectionModal';
 
 interface NavigationItem {
   key: string;
@@ -17,6 +18,7 @@ interface NavigationItem {
   badge?: number;
   isBrand?: boolean;
   translateY?: number;
+  action?: () => void;
 }
 
 const getIsRouteActive = (pathname: string | null, target?: string) => {
@@ -37,6 +39,7 @@ export const BottomNavigationBar: React.FC = () => {
   const { notifications } = useContext(NotificationsContext);
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
+  const [isCompanyModalVisible, setIsCompanyModalVisible] = useState(false);
 
   const unreadCount = useMemo(() => {
     const allowed = userId === '1' || permissions.includes('listNotifications');
@@ -44,10 +47,25 @@ export const BottomNavigationBar: React.FC = () => {
     return notifications.filter(n => !n.state.is_read && !n.state.is_hidden).length;
   }, [notifications, permissions, userId]);
 
+  const canSelectCompany = userId === '1' || permissions.includes('listCompanies');
+
+  const openCompanyModal = () => {
+    if (!canSelectCompany) {
+      router.push('/Home');
+      return;
+    }
+    setIsCompanyModalVisible(true);
+  };
+
+  const handleSelectCompany = (companyId: number) => {
+    setIsCompanyModalVisible(false);
+    router.push(`/companies/viewModal?id=${companyId}`);
+  };
+
   const navItems: NavigationItem[] = [
     { key: 'home', label: 'Inicio', icon: 'home', route: '/Home' },
     { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', badge: unreadCount, route: '/notifications' },
-    { key: 'brand', label: 'Empresas', isBrand: true, route: '/Home' },
+    { key: 'brand', label: 'Empresas', isBrand: true, action: openCompanyModal },
     { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
     { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/menu/shortcuts', translateY: -4 },
   ];
@@ -55,48 +73,63 @@ export const BottomNavigationBar: React.FC = () => {
   const bottomPadding = Math.max(insets.bottom + 8, 12);
 
   return (
-    <View style={[styles.container, { backgroundColor: barBackground, paddingBottom: bottomPadding }]}>
+    <>
+      <View style={[styles.container, { backgroundColor: barBackground, paddingBottom: bottomPadding }]}>
 
-      {navItems.map(item => {
-        const active = getIsRouteActive(pathname, item.route);
-        const color = active ? tintColor : mutedColor;
+        {navItems.map(item => {
+          const active = getIsRouteActive(pathname, item.route);
+          const color = active ? tintColor : mutedColor;
 
-        return (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.tab, item.translateY ? { transform: [{ translateY: item.translateY }] } : null]}
-            onPress={() => item.route && router.push(item.route)}
-          >
-            {/* Íconos normales */}
-            {!item.isBrand && (
-              <View style={[styles.iconCircle, { backgroundColor: barBackground }]}>
-                <Ionicons name={item.icon!} size={24} color={color} />
+          return (
+            <TouchableOpacity
+              key={item.key}
+              style={[styles.tab, item.translateY ? { transform: [{ translateY: item.translateY }] } : null]}
+              onPress={() => {
+                if (item.action) {
+                  item.action();
+                  return;
+                }
+                if (item.route) {
+                  router.push(item.route);
+                }
+              }}
+            >
+              {/* Íconos normales */}
+              {!item.isBrand && (
+                <View style={[styles.iconCircle, { backgroundColor: barBackground }]}>
+                  <Ionicons name={item.icon!} size={24} color={color} />
 
-                {item.badge ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{item.badge}</Text>
-                  </View>
-                ) : null}
-              </View>
-            )}
+                  {item.badge ? (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{item.badge}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              )}
 
-            {/* Botón central */}
-            {item.isBrand && (
-              <View style={[styles.brandCircle, { borderColor: tintColor, backgroundColor: barBackground }]}>
-                <Image
-                  source={require('@/assets/images/icon.png')}
-                  style={styles.brandImage}
-                />
-              </View>
-            )}
+              {/* Botón central */}
+              {item.isBrand && (
+                <View style={[styles.brandCircle, { borderColor: tintColor, backgroundColor: barBackground }]}>
+                  <Image
+                    source={require('@/assets/images/icon.png')}
+                    style={styles.brandImage}
+                  />
+                </View>
+              )}
 
-            <Text style={[styles.label, { color }]}>{item.label}</Text>
+              <Text style={[styles.label, { color }]}>{item.label}</Text>
 
-          </TouchableOpacity>
-        );
-      })}
+            </TouchableOpacity>
+          );
+        })}
 
-    </View>
+      </View>
+      <CompanySelectionModal
+        visible={isCompanyModalVisible}
+        onClose={() => setIsCompanyModalVisible(false)}
+        onSelect={handleSelectCompany}
+      />
+    </>
   );
 };
 
