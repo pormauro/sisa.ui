@@ -12,11 +12,10 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 interface NavigationItem {
   key: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
   route?: string;
   badge?: number;
-  accent?: boolean;
-  type?: 'brand' | 'default';
+  isBrand?: boolean;
 }
 
 const getIsRouteActive = (pathname: string | null, target?: string) => {
@@ -31,145 +30,140 @@ export const BottomNavigationBar: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   const tintColor = useThemeColor({}, 'tint');
-  const barBackground = useThemeColor({ light: '#0f0d18', dark: '#0f0d18' }, 'background');
   const mutedColor = useThemeColor({ light: '#cfd0d8', dark: '#cfd0d8' }, 'text');
-  const borderColor = useThemeColor({ light: '#232132', dark: '#232132' }, 'border');
-  const badgeTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
+  const barBackground = useThemeColor({ light: '#0f0d18', dark: '#0f0d18' }, 'background');
 
   const { notifications } = useContext(NotificationsContext);
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
 
   const unreadCount = useMemo(() => {
-    const canListNotifications = userId === '1' || permissions.includes('listNotifications');
-    if (!canListNotifications) return 0;
-    return notifications.filter(item => !item.state.is_read && !item.state.is_hidden).length;
+    const allowed = userId === '1' || permissions.includes('listNotifications');
+    if (!allowed) return 0;
+    return notifications.filter(n => !n.state.is_read && !n.state.is_hidden).length;
   }, [notifications, permissions, userId]);
 
-  const navItems: NavigationItem[] = useMemo(
-    () => [
-      { key: 'home', label: 'Inicio', icon: 'home', route: '/Home' },
-      { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', route: '/notifications', badge: unreadCount },
-      { key: 'brand', label: 'DEPROS', icon: 'aperture', route: '/Home', accent: true, type: 'brand' },
-      { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
-      { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/shortcuts/payment_templates' },
-    ],
-    [unreadCount]
-  );
+  const navItems: NavigationItem[] = [
+    { key: 'home', label: 'Inicio', icon: 'home', route: '/Home' },
+    { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', badge: unreadCount, route: '/notifications' },
+    { key: 'brand', label: 'Empresas', isBrand: true, route: '/Home' },
+    { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
+    { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/shortcuts/payment_templates' },
+  ];
 
-  const bottomSpacing = Math.max(insets.bottom, 10);
+  const bottomPadding = Math.max(insets.bottom, 6);
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: bottomSpacing, backgroundColor: barBackground, borderColor }]}>
-      <View style={styles.bar}>
-        {navItems.map(item => {
-          const isActive = getIsRouteActive(pathname, item.route);
-          const iconColor = item.type === 'brand' ? tintColor : item.accent ? '#fff' : isActive ? tintColor : mutedColor;
-          const labelColor = item.type === 'brand' ? tintColor : item.accent ? '#fff' : isActive ? tintColor : mutedColor;
-          const textStyle = [styles.label, { color: labelColor }];
+    <View style={[styles.container, { backgroundColor: barBackground, paddingBottom: bottomPadding }]}>
 
-          return (
-            <TouchableOpacity
-              key={item.key}
-              style={[styles.item, item.type === 'brand' && styles.brandItem, isActive && item.type === 'brand' && styles.brandItemActive]}
-              onPress={() => item.route && router.push(item.route as any)}
-              accessibilityRole="button"
-              accessibilityLabel={item.label}
-            >
-              {item.type === 'brand' ? (
-                <View style={[styles.brandIcon, { borderColor: tintColor }]}>
-                  <Image
-                    source={require('@/assets/images/icon.png')}
-                    style={styles.brandImage}
-                    resizeMode="cover"
-                  />
-                </View>
-              ) : (
-                <View>
-                  <Ionicons name={item.icon} size={24} color={iconColor} />
-                  {item.badge ? (
-                    <View style={[styles.badge, { backgroundColor: tintColor }]}>
-                      <Text style={[styles.badgeText, { color: badgeTextColor }]} numberOfLines={1}>
-                        {item.badge > 99 ? '99+' : String(item.badge)}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              )}
-              <Text style={textStyle}>{item.label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {navItems.map(item => {
+        const active = getIsRouteActive(pathname, item.route);
+        const color = active ? tintColor : mutedColor;
+
+        return (
+          <TouchableOpacity
+            key={item.key}
+            style={styles.tab}
+            onPress={() => item.route && router.push(item.route)}
+          >
+            {/* Íconos normales */}
+            {!item.isBrand && (
+              <View style={[styles.iconCircle, { backgroundColor: barBackground }]}>
+                <Ionicons name={item.icon!} size={24} color={color} />
+
+                {item.badge ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.badge}</Text>
+                  </View>
+                ) : null}
+              </View>
+            )}
+
+            {/* Botón central */}
+            {item.isBrand && (
+              <View style={[styles.brandCircle, { borderColor: tintColor, backgroundColor: barBackground }]}>
+                <Image
+                  source={require('@/assets/images/icon.png')}
+                  style={styles.brandImage}
+                />
+              </View>
+            )}
+
+            <Text style={[styles.label, { color }]}>{item.label}</Text>
+
+          </TouchableOpacity>
+        );
+      })}
+
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    width: '100%',
-  },
-  bar: {
+  container: {
     flexDirection: 'row',
+    height: 70,
+    borderTopWidth: 1,
+    borderColor: '#232132',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    gap: 12,
     width: '100%',
+    position: 'absolute',
+    bottom: 0,
   },
-  item: {
+
+  tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
   },
+
+  /* CÍRCULOS GRANDES */
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ÍCONO CENTRAL MÁS GRANDE */
+  brandCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 3,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  brandImage: {
+    width: '100%',
+    height: '100%',
+  },
+
   label: {
     fontSize: 11,
     fontWeight: '700',
   },
-  brandItem: {
-    flex: 1.15,
-  },
-  brandItemActive: {
-    transform: [{ translateY: -2 }],
-  },
-  brandIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-    backgroundColor: '#141223',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    overflow: 'hidden',
-  },
-  brandImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 28,
-  },
+
   badge: {
     position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 20,
-    paddingHorizontal: 6,
-    height: 20,
-    borderRadius: 10,
+    top: -4,
+    right: -6,
+    backgroundColor: '#ff4444',
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   badgeText: {
-    fontSize: 11,
+    color: '#fff',
+    fontSize: 10,
     fontWeight: '700',
   },
 });
