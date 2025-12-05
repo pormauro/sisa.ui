@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1 },
   text: { flex: 1, marginLeft: 10 },
   delete: { fontSize: 18 },
-  add: { position: 'absolute', right: 16, bottom: 32, padding: 16, borderRadius: 30 },
+  add: { position: 'absolute', right: 16, bottom: 47, padding: 16, borderRadius: 30 },
   addText: { fontWeight: 'bold' },
   backButton: { marginBottom: 10, padding: 8, borderRadius: 8 },
   backButtonText: { fontSize: 16 },

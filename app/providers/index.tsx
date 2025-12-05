@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   addButton: {
     position: 'absolute',
     right: 16,
-    bottom: 32,
+    bottom: 47,
     padding: 16,
     borderRadius: 50,
     alignItems: 'center',
