@@ -48,7 +48,7 @@ export const BottomNavigationBar: React.FC = () => {
     { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', badge: unreadCount, route: '/notifications' },
     { key: 'brand', label: 'Empresas', isBrand: true, route: '/Home' },
     { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
-    { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/menu/shortcuts' },
+    { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/shortcuts/payment_templates' },
   ];
 
   const bottomPadding = Math.max(insets.bottom + 8, 12);
