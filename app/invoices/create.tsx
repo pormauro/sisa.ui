@@ -976,7 +976,7 @@ export default function CreateInvoiceScreen() {
       {expandedNotes ? (
         <TextInput
           style={[styles.textarea, { borderColor, backgroundColor: inputBackground, color: textColor }]}
-          placeholder="Agregar comentarios internos"
+          placeholder="Agregar notas internas"
           placeholderTextColor={placeholderColor}
           value={formState.notes}
           onChangeText={handleChange('notes')}
