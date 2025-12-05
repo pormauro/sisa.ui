@@ -3783,15 +3783,15 @@
             },
             "method": "POST",
             "header": [],
-              "body": {
-                "mode": "raw",
-                "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
-                "options": {
-                  "raw": {
-                    "language": "json"
-                  }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
                 }
-              },
+              }
+            },
             "url": {
               "raw": "{{baseUrl}}/accounting-entries",
               "host": [
@@ -3811,7 +3811,7 @@
               "_postman_previewlanguage": "json",
               "header": [],
               "cookie": [],
-                "body": "{\n  \"id\": 250,\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
+              "body": "{\n  \"id\": 250,\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
               "originalRequest": {
                 "method": "POST",
                 "header": [
@@ -3820,15 +3820,15 @@
                     "value": "Bearer {{auth_token}}"
                   }
                 ],
-                  "body": {
-                    "mode": "raw",
-                    "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
-                    "options": {
-                      "raw": {
-                        "language": "json"
-                      }
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company_id\": 10,\n  \"account_id\": 18,\n  \"entry_type\": \"debit\",\n  \"amount\": 500.0,\n  \"origin_type\": \"manual-adjustment\",\n  \"origin_id\": null,\n  \"reference\": \"Nota interna\",\n  \"notes\": \"Ajuste de reapertura\",\n  \"entry_date\": \"2024-06-05\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
                     }
-                  },
+                  }
+                },
                 "url": {
                   "raw": "{{baseUrl}}/accounting-entries",
                   "host": [
@@ -5087,155 +5087,6 @@
         }
       ],
       "description": "Endpoints para gestionar Statuses. Utiliza autenticación Bearer mediante la variable `{{auth_token}}`."
-    },
-    {
-      "name": "Comments",
-      "item": [
-        {
-          "name": "List Comments",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/comments",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "comments"
-              ]
-            },
-            "description": "**GET {{base_url}}/comments**\n\nDescripción: Endpoint `List Comments` dentro de Comments.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`. Puedes aplicar filtros opcionales mediante los query params `user_id` y `search`. Incluye el campo `seen_at` (\"Seen at\") para identificar cuándo cada comentario fue revisado; los comentarios nuevos lo mantienen en `null`."
-          },
-          "response": []
-        },
-        {
-          "name": "Get Comment by ID",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/comments/1",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "comments",
-                "1"
-              ]
-            },
-            "description": "**GET {{base_url}}/comments/1**\n\nDescripción: Endpoint `Get Comment by ID` dentro de Comments.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`. Devuelve el campo `seen_at` (\"Seen at\") que indica cuándo se revisó el comentario o `null` si aún está pendiente."
-          },
-          "response": []
-        },
-        {
-          "name": "Add Comment",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"title\": \"Seguimiento inicial\",\n    \"comment\": \"El paciente responde bien al tratamiento.\",\n    \"files_id\": [1, 2],\n    \"timestamp\": \"2025-04-01 10:30:00\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/comments",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "comments"
-              ]
-            },
-            "description": "**POST {{base_url}}/comments**\n\nDescripción: Endpoint `Add Comment` dentro de Comments.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`. Los comentarios recién creados establecen `seen_at` en `null` hasta que se marquen como revisados."
-          },
-          "response": []
-        },
-        {
-          "name": "Mark Comment as Seen",
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{auth_token}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n    \"seen\": true,\n    \"seen_at\": \"2025-04-01 11:00:00\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/comments/1/seen",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "comments",
-                "1",
-                "seen"
-              ]
-            },
-            "description": "**PATCH {{base_url}}/comments/1/seen**\n\nDescripción: Endpoint `Mark Comment as Seen` dentro de Comments.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`. Envía `seen` en `false` para restablecer el estado a pendiente o proporciona un `seen_at` específico para registrar la fecha y hora de revisión."
-          },
-          "response": []
-        }
-      ],
-      "description": "Endpoints para gestionar comentarios de usuarios. Utiliza autenticación Bearer mediante la variable `{{auth_token}}`. Los comentarios incorporan el campo `seen_at` (\"Seen at\") para registrar cuándo fueron revisados y ofrecen un endpoint dedicado para actualizar dicho estado."
     },
     {
       "name": "Reports",

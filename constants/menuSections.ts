@@ -127,12 +127,6 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'notifications-outline',
         requiredPermissions: ['listNotifications'],
       },
-      {
-        title: 'Comentarios',
-        route: '/comments',
-        icon: 'chatbubbles',
-        requiredPermissions: ['listComments'],
-      },
     ],
   },
 ];
