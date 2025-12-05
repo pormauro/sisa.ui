@@ -20,6 +20,7 @@ Cuando se cree una nueva sección en la app que consuma estos endpoints, debe ag
 ### Listado y detalle
 - `GET /invoices`: retorna la colección paginada de facturas con filtros por estado (`draft`, `issued`, `paid`, `canceled`) y rangos de fechas. Incluye referencias a clientes y trabajos mediante sus identificadores internos.
 - `GET /invoices/{id}`: provee el detalle completo del comprobante, incluyendo ítems normalizados, impuestos calculados y metadatos de emisión.
+- Las respuestas incluyen `invoice_pdf_file_id` cuando el PDF ya fue generado; si está en `null`, la app dispara `POST /invoices/{id}/report/pdf` con token Bearer para producir el archivo y reutilizarlo desde `/files/{id}`.
 
 ### Operaciones de emisión y actualización
 - `POST /invoices`: crea una factura en estado `draft`, validando que los ítems incluyan montos y referencias opcionales a productos, trabajos o clientes mediante sus IDs (sin constraints en la base). El campo `attached_files` acepta un arreglo de IDs de archivos ya cargados y los impuestos (`tax_amount`/`tax_percentage`) pueden calcularse automáticamente en la app a partir de un porcentaje global, además de vincular los `job_ids` seleccionados para actualizar sus estados.

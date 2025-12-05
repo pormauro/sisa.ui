@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
+  AuthContext,
   InvoicesContext,
   type Invoice,
   type InvoicePayload,
@@ -19,11 +20,13 @@ import {
 } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
+import { FileContext } from '@/contexts/FilesContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import FileGallery from '@/components/FileGallery';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { BASE_URL } from '@/config/Index';
 import { formatCurrency } from '@/utils/currency';
 import {
   InvoiceItemFormValue,
@@ -40,6 +43,10 @@ import {
 } from '@/utils/invoiceItems';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { ensureAuthResponse } from '@/utils/auth/tokenGuard';
+import { openAttachment } from '@/utils/files/openAttachment';
+import { fileStorage } from '@/utils/files/storage';
+import { Buffer } from 'buffer';
 
 const formatNumberForInput = (value: number): string => value.toFixed(2).replace('.', ',');
 
@@ -55,6 +62,87 @@ const formatHistoryTimestamp = (value: string | null): string => {
     return value;
   }
   return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+};
+
+const parseJsonSafely = async (response: Response): Promise<unknown> => {
+  try {
+    const text = await response.text();
+    if (!text) {
+      return null;
+    }
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    console.warn('No se pudo interpretar la respuesta JSON del PDF de factura.', error);
+    return null;
+  }
+};
+
+const extractFileId = (data: unknown): number | null => {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const candidate = extractFileId(item);
+      if (candidate !== null) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  const record = data as Record<string, unknown>;
+  const directKeys = ['invoice_pdf_file_id', 'pdf_file_id', 'file_id', 'id', 'invoice_pdf_id'];
+  for (const key of directKeys) {
+    const raw = record[key];
+    const parsed = typeof raw === 'string' ? Number(raw) : (raw as number | null);
+    if (typeof parsed === 'number' && Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  const nestedKeys = ['invoice', 'data', 'result'];
+  for (const nestedKey of nestedKeys) {
+    const nested = record[nestedKey];
+    const candidate = extractFileId(nested);
+    if (candidate !== null) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
+const parseFileName = (disposition: string | null, fallback: string): string => {
+  if (!disposition) {
+    return fallback;
+  }
+
+  const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+  if (!match) {
+    return fallback;
+  }
+
+  try {
+    return decodeURIComponent(match[1] || match[2]);
+  } catch (error) {
+    console.warn('No se pudo decodificar el nombre de archivo del PDF.', error);
+    return match[1] || match[2] || fallback;
+  }
+};
+
+const normalizeFileId = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  return null;
 };
 
 interface InvoiceFormState {
@@ -162,8 +250,10 @@ export default function EditInvoiceScreen() {
 
   const { invoices, loadInvoices, updateInvoice, deleteInvoice, issueInvoice, getInvoiceHistory } =
     useContext(InvoicesContext);
+  const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
+  const { getFile, getFileMetadata } = useContext(FileContext);
   const { beginSelection, consumeSelection, pendingSelections, cancelSelection } = usePendingSelection();
 
   const [formState, setFormState] = useState<InvoiceFormState>(buildInitialState(undefined));
@@ -180,6 +270,7 @@ export default function EditInvoiceScreen() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<InvoiceHistoryEntry[]>([]);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -199,6 +290,7 @@ export default function EditInvoiceScreen() {
   const canDelete = permissions.includes('deleteInvoice');
   const canIssue = permissions.includes('issueInvoice');
   const canViewHistory = permissions.includes('listInvoiceHistory');
+  const canDownloadPdf = permissions.includes('downloadInvoicePdf');
 
   const currentInvoice = useMemo(
     () => invoices.find(invoice => invoice.id === invoiceId),
@@ -551,6 +643,109 @@ export default function EditInvoiceScreen() {
   const closeHistoryModal = useCallback(() => {
     setHistoryModalVisible(false);
   }, []);
+
+  const handleOpenInvoicePdf = useCallback(async () => {
+    if (!invoiceId) {
+      Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura descargar.');
+      return;
+    }
+
+    if (!canDownloadPdf) {
+      Alert.alert('Acceso denegado', 'No tenés permiso para descargar comprobantes.');
+      return;
+    }
+
+    if (!token) {
+      Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para descargar el PDF.');
+      return;
+    }
+
+    const metadataFileId =
+      currentInvoice?.metadata && typeof currentInvoice.metadata === 'object'
+        ? normalizeFileId(
+            (currentInvoice.metadata as Record<string, unknown>).invoice_pdf_file_id ??
+              (currentInvoice.metadata as Record<string, unknown>).pdf_file_id,
+          )
+        : null;
+
+    const existingFileId = normalizeFileId(currentInvoice?.invoice_pdf_file_id) ?? metadataFileId;
+
+    const tryOpenFileId = async (fileId: number): Promise<boolean> => {
+      const [uri, meta] = await Promise.all([getFile(fileId), getFileMetadata(fileId)]);
+      if (!uri) {
+        return false;
+      }
+
+      await openAttachment({
+        uri,
+        mimeType: meta?.file_type ?? 'application/pdf',
+        fileName: meta?.original_name ?? `factura_${invoiceId}.pdf`,
+        kind: 'pdf',
+      });
+      return true;
+    };
+
+    setDownloadingPdf(true);
+    try {
+      if (existingFileId) {
+        const opened = await tryOpenFileId(existingFileId);
+        if (opened) {
+          return;
+        }
+      }
+
+      const response = await fetch(`${BASE_URL}/invoices/${invoiceId}/report/pdf`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/pdf',
+        },
+      });
+
+      await ensureAuthResponse(response);
+      const contentType = response.headers.get('content-type') ?? 'application/pdf';
+
+      if (contentType.toLowerCase().includes('application/json')) {
+        const data = await parseJsonSafely(response);
+        const generatedFileId = extractFileId(data);
+        if (generatedFileId) {
+          await loadInvoices();
+          const opened = await tryOpenFileId(generatedFileId);
+          if (opened) {
+            return;
+          }
+        }
+
+        throw new Error('La API no devolvió un archivo PDF descargable.');
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('El PDF devuelto está vacío.');
+      }
+
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const mimeType = (contentType.split(';')[0] || 'application/pdf').trim();
+      const fileName = parseFileName(
+        response.headers.get('content-disposition'),
+        `factura_${invoiceId}.pdf`,
+      );
+      const storagePath = `${fileStorage.documentDirectory ?? ''}invoice_${invoiceId}_${Date.now()}.pdf`;
+      const { uri } = await fileStorage.write(storagePath, base64, mimeType);
+
+      await openAttachment({
+        uri,
+        mimeType,
+        fileName,
+        kind: 'pdf',
+      });
+    } catch (error) {
+      console.error('Error al abrir el PDF de la factura:', error);
+      Alert.alert('No se pudo abrir el PDF', 'Verificá tu conexión o los permisos y volvé a intentar.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }, [canDownloadPdf, currentInvoice, getFile, getFileMetadata, invoiceId, loadInvoices, token]);
 
   const handleSubmit = async () => {
     if (!canUpdate) {
@@ -1010,18 +1205,34 @@ export default function EditInvoiceScreen() {
         editable={canUpdate}
       />
 
-      {canViewHistory ? (
-        <TouchableOpacity
-          style={[styles.secondaryButton, { borderColor }]}
-          onPress={openHistoryModal}
-        >
-          {historyModalVisible && historyLoading ? (
-            <ActivityIndicator color={historyButtonTextColor} />
-          ) : (
-            <ThemedText style={[styles.secondaryButtonText, { color: historyButtonTextColor }]}>Ver historial</ThemedText>
-          )}
-        </TouchableOpacity>
-      ) : null}
+      <View style={styles.secondaryActions}>
+        {canViewHistory ? (
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor }]}
+            onPress={openHistoryModal}
+          >
+            {historyModalVisible && historyLoading ? (
+              <ActivityIndicator color={historyButtonTextColor} />
+            ) : (
+              <ThemedText style={[styles.secondaryButtonText, { color: historyButtonTextColor }]}>Ver historial</ThemedText>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {canDownloadPdf ? (
+          <TouchableOpacity
+            style={[styles.secondaryButton, { borderColor }]}
+            onPress={handleOpenInvoicePdf}
+            disabled={downloadingPdf}
+          >
+            {downloadingPdf ? (
+              <ActivityIndicator color={historyButtonTextColor} />
+            ) : (
+              <ThemedText style={[styles.secondaryButtonText, { color: historyButtonTextColor }]}>Ver PDF</ThemedText>
+            )}
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}
@@ -1295,8 +1506,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  secondaryButton: {
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 12,
     marginTop: 8,
+  },
+  secondaryButton: {
+    flex: 1,
     paddingVertical: 12,
     borderWidth: 1,
     borderRadius: 12,
