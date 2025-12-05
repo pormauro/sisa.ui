@@ -58,6 +58,7 @@ export interface Invoice {
   created_at?: string | null;
   updated_at?: string | null;
   voided_at?: string | null;
+  invoice_pdf_file_id?: number | null;
   metadata?: Record<string, unknown> | null;
   items?: InvoiceItem[];
   attached_files?: number[] | string | null;
@@ -393,6 +394,9 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
         : typeof raw.cancelled_at === 'string'
         ? raw.cancelled_at
         : null,
+    invoice_pdf_file_id: toNullableNumber(
+      raw.invoice_pdf_file_id ?? raw.pdf_file_id ?? raw.invoice_pdf_id ?? raw.file_id ?? null,
+    ),
     subtotal_amount: toNullableNumber(raw.subtotal_amount ?? raw.subtotal ?? null),
     tax_amount: toNullableNumber(raw.tax_amount ?? raw.taxes ?? null),
     tax_percentage: taxPercentage,
