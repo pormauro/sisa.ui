@@ -6,7 +6,6 @@ import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
-import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
 import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 
 import { ThemedText } from '@/components/ThemedText';
@@ -90,7 +89,6 @@ const Menu: React.FC = () => {
         <ScrollView style={{ backgroundColor }} contentContainerStyle={styles.container}>
           <View style={styles.header}>
             <ThemedText style={styles.title}>Menú Principal</ThemedText>
-            <NotificationMenuBadge />
           </View>
           {shouldShowUpdateButton && latestUpdate ? (
             <View style={styles.updateContainer}>
@@ -141,7 +139,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
-    paddingBottom: 140,
+    paddingBottom: 80,
   },
   contentWrapper: {
     flex: 1,

@@ -33,6 +33,7 @@ export const BottomNavigationBar: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
   const barBackground = useThemeColor({ light: '#0f0d18', dark: '#0f0d18' }, 'background');
   const mutedColor = useThemeColor({ light: '#cfd0d8', dark: '#cfd0d8' }, 'text');
+  const borderColor = useThemeColor({ light: '#232132', dark: '#232132' }, 'border');
   const badgeTextColor = useThemeColor({ light: '#fff', dark: '#fff' }, 'text');
 
   const { notifications } = useContext(NotificationsContext);
@@ -56,9 +57,11 @@ export const BottomNavigationBar: React.FC = () => {
     [unreadCount]
   );
 
+  const bottomSpacing = Math.max(insets.bottom, 10);
+
   return (
-    <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      <View style={[styles.bar, { backgroundColor: barBackground }]}>
+    <View style={[styles.wrapper, { paddingBottom: bottomSpacing, backgroundColor: barBackground, borderColor }]}>
+      <View style={styles.bar}>
         {navItems.map(item => {
           const isActive = getIsRouteActive(pathname, item.route);
           const iconColor = item.accent ? '#fff' : isActive ? tintColor : mutedColor;
@@ -99,26 +102,19 @@ export const BottomNavigationBar: React.FC = () => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
+    borderTopWidth: 1,
+    width: '100%',
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 28,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
+    width: '100%',
   },
   item: {
     flex: 1,
