@@ -1,3 +1,9 @@
+import { Stack, usePathname, useRouter } from 'expo-router';
+import React, { useContext, useEffect } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
 import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
@@ -25,10 +31,6 @@ import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { CommentsProvider } from '@/contexts/CommentsContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
-import { Stack, useRouter } from 'expo-router';
-import React, { useContext, useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
@@ -40,6 +42,7 @@ import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
   const router = useRouter();
+  const pathname = usePathname();
   const backgroundColor = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
 
@@ -61,18 +64,23 @@ function RootLayoutContent() {
     );
   }
 
+  const showBottomNavigation = Boolean(username) && pathname !== '/login/Login';
+
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { paddingTop: 30 },
-      }}
-    >
-      <Stack.Screen name="Index" />
-      <Stack.Screen name="login" />
-      <Stack.Screen name="Home" />
-      <Stack.Screen name="+not-found" />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { paddingTop: 30 },
+        }}
+      >
+        <Stack.Screen name="Index" />
+        <Stack.Screen name="login" />
+        <Stack.Screen name="Home" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+      {showBottomNavigation ? <BottomNavigationBar /> : null}
+    </>
   );
 }
 

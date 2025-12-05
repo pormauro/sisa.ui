@@ -17,7 +17,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
 
 const MenuGroupScreen: React.FC = () => {
@@ -166,7 +165,6 @@ const MenuGroupScreen: React.FC = () => {
             </View>
           )}
         </ScrollView>
-        <BottomNavigationBar />
       </View>
       <Modal
         transparent

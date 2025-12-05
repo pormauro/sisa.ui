@@ -6,11 +6,10 @@ import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MenuButton } from '@/components/MenuButton';
-import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { MENU_SECTIONS, MenuItem, SHORTCUTS_SECTION } from '@/constants/menuSections';
+import { MENU_SECTIONS, MenuItem } from '@/constants/menuSections';
 import { AppUpdatesContext } from '@/contexts/AppUpdatesContext';
 
 const Menu: React.FC = () => {
@@ -57,18 +56,10 @@ const Menu: React.FC = () => {
     }
   }, [latestUpdate]);
 
-  const visibleShortcutsSection = {
-    ...SHORTCUTS_SECTION,
-    items: SHORTCUTS_SECTION.items.filter(isEnabled),
-  };
-
-  const visibleSections = [
-    ...(visibleShortcutsSection.items.length > 0 ? [visibleShortcutsSection] : []),
-    ...MENU_SECTIONS.map((section) => ({
-      ...section,
-      items: section.items.filter(isEnabled),
-    })).filter((section) => section.items.length > 0),
-  ];
+  const visibleSections = MENU_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter(isEnabled),
+  })).filter((section) => section.items.length > 0);
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
@@ -124,7 +115,6 @@ const Menu: React.FC = () => {
             )}
           </View>
         </ScrollView>
-        <BottomNavigationBar />
       </View>
     </SafeAreaView>
   );
