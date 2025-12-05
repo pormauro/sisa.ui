@@ -64,8 +64,9 @@ export const BottomNavigationBar: React.FC = () => {
       <View style={styles.bar}>
         {navItems.map(item => {
           const isActive = getIsRouteActive(pathname, item.route);
-          const iconColor = item.accent ? '#fff' : isActive ? tintColor : mutedColor;
-          const textStyle = [styles.label, { color: item.accent ? '#fff' : isActive ? tintColor : mutedColor }];
+          const iconColor = item.type === 'brand' ? tintColor : item.accent ? '#fff' : isActive ? tintColor : mutedColor;
+          const labelColor = item.type === 'brand' ? tintColor : item.accent ? '#fff' : isActive ? tintColor : mutedColor;
+          const textStyle = [styles.label, { color: labelColor }];
 
           return (
             <TouchableOpacity
@@ -76,7 +77,7 @@ export const BottomNavigationBar: React.FC = () => {
               accessibilityLabel={item.label}
             >
               {item.type === 'brand' ? (
-                <View style={[styles.brandIcon, { backgroundColor: tintColor }]}> 
+                <View style={[styles.brandIcon, { borderColor: tintColor }]}>
                   <Image source={require('@/assets/images/icon.png')} style={styles.brandImage} resizeMode="contain" />
                 </View>
               ) : (
@@ -103,7 +104,7 @@ export const BottomNavigationBar: React.FC = () => {
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
     width: '100%',
   },
@@ -111,38 +112,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    gap: 12,
     width: '100%',
   },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 6,
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   brandItem: {
-    flex: 1.2,
+    flex: 1.15,
   },
   brandItemActive: {
     transform: [{ translateY: -2 }],
   },
   brandIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
+    backgroundColor: '#141223',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   brandImage: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
   },
   badge: {
     position: 'absolute',
