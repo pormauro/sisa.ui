@@ -98,6 +98,16 @@ export default function JobsScreen() {
     return `${job.job_date}T${time}`;
   }, []);
 
+  // Función para obtener el nombre del cliente según el client_id
+  const getClientName = useCallback(
+    (clientId: number | null): string | undefined => {
+      if (clientId == null) return undefined;
+      const client = clients.find(client => client.id === clientId);
+      return client ? client.business_name : undefined; // Usamos business_name para el nombre
+    },
+    [clients]
+  );
+
   const sortedJobs = useMemo(() => {
     if (sortField === 'clientName') {
       const items = [...filteredJobs];
@@ -152,16 +162,6 @@ export default function JobsScreen() {
     if (job.status_id == null) return undefined;
     return statuses.find(s => s.id === job.status_id);
   };
-
-  // Función para obtener el nombre del cliente según el client_id
-  const getClientName = useCallback(
-    (clientId: number | null): string | undefined => {
-      if (clientId == null) return undefined;
-      const client = clients.find(client => client.id === clientId);
-      return client ? client.business_name : undefined; // Usamos business_name para el nombre
-    },
-    [clients]
-  );
 
   const handleDelete = (id: number) => {
     Alert.alert('Eliminar trabajo', '¿Estás seguro?', [
