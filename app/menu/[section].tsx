@@ -10,6 +10,7 @@ import React, { useContext } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
+import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 
 const MenuGroupScreen: React.FC = () => {
   const { section: sectionParam } = useLocalSearchParams<{ section?: string }>();
@@ -55,60 +56,63 @@ const MenuGroupScreen: React.FC = () => {
     : [];
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={[styles.backButton, { borderColor: tintColor }]} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={tintColor} />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            {menuSection && (
-              <View style={[styles.sectionIconContainer, { backgroundColor: tintColor }]}>
-                <Ionicons name={menuSection.icon} size={28} color={iconForegroundColor} />
-              </View>
-            )}
-            <ThemedText style={styles.headerTitle}>{menuSection?.title ?? 'Menú'}</ThemedText>
-          </View>
-          <NotificationMenuBadge />
-        </View>
-
-        {menuSection ? (
-          visibleItems.length > 0 ? (
-            <View style={styles.menuContainer}>
-              {visibleItems.map(({ item, access }) => (
-                <MenuButton
-                  key={item.route}
-                  icon={item.icon}
-                  title={item.title}
-                  layout="grid"
-                  showChevron={false}
-                  onPress={() => router.push(access.route as any)}
-                />
-              ))}
+    <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
+      <View style={styles.contentWrapper}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity style={[styles.backButton, { borderColor: tintColor }]} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={22} color={tintColor} />
+            </TouchableOpacity>
+            <View style={styles.headerContent}>
+              {menuSection && (
+                <View style={[styles.sectionIconContainer, { backgroundColor: tintColor }]}>
+                  <Ionicons name={menuSection.icon} size={28} color={iconForegroundColor} />
+                </View>
+              )}
+              <ThemedText style={styles.headerTitle}>{menuSection?.title ?? 'Menú'}</ThemedText>
             </View>
+            <NotificationMenuBadge />
+          </View>
+
+          {menuSection ? (
+            visibleItems.length > 0 ? (
+              <View style={styles.menuContainer}>
+                {visibleItems.map(({ item, access }) => (
+                  <MenuButton
+                    key={item.route}
+                    icon={item.icon}
+                    title={item.title}
+                    layout="grid"
+                    showChevron={false}
+                    onPress={() => router.push(access.route as any)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
+                <ThemedText style={styles.emptyStateText}>
+                  No tienes permisos para acceder a estas opciones.
+                </ThemedText>
+              </View>
+            )
           ) : (
             <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
               <ThemedText style={styles.emptyStateText}>
-                No tienes permisos para acceder a estas opciones.
+                La sección seleccionada no está disponible.
               </ThemedText>
+              <TouchableOpacity
+                style={[styles.primaryButton, { backgroundColor: tintColor }]}
+                onPress={() => router.replace('/Home')}
+              >
+                <ThemedText lightColor="#FFFFFF" style={styles.primaryButtonText}>
+                  Volver al menú principal
+                </ThemedText>
+              </TouchableOpacity>
             </View>
-          )
-        ) : (
-          <View style={[styles.emptyStateContainer, { borderColor: tintColor }]}>
-            <ThemedText style={styles.emptyStateText}>
-              La sección seleccionada no está disponible.
-            </ThemedText>
-            <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: tintColor }]}
-              onPress={() => router.replace('/Home')}
-            >
-              <ThemedText lightColor="#FFFFFF" style={styles.primaryButtonText}>
-                Volver al menú principal
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
+          )}
+        </ScrollView>
+        <BottomNavigationBar />
+      </View>
     </SafeAreaView>
   );
 };
@@ -122,7 +126,10 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 140,
+  },
+  contentWrapper: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
