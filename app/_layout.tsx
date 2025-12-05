@@ -65,7 +65,7 @@ function RootLayoutContent() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { paddingTop: 30, paddingBottom: 30 },
+        contentStyle: { paddingTop: 30 },
       }}
     >
       <Stack.Screen name="Index" />
