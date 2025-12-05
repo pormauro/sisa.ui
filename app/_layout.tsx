@@ -78,17 +78,17 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <PermissionsProvider>
-          <AppUpdatesProvider>
-            <FilesProvider>
-              <ProfileProvider>
-                <ProfilesProvider>
-                  <ProfilesListProvider>
-                    <ConfigProvider>
-                      <ThemeProvider>
-                        <LogProvider>
+    <LogProvider>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <PermissionsProvider>
+            <AppUpdatesProvider>
+              <FilesProvider>
+                <ProfileProvider>
+                  <ProfilesProvider>
+                    <ProfilesListProvider>
+                      <ConfigProvider>
+                        <ThemeProvider>
                           <ToastProvider>
                             <CashBoxesProvider>
                               <CompaniesProvider>
@@ -135,17 +135,17 @@ export default function RootLayout() {
                               </CompaniesProvider>
                             </CashBoxesProvider>
                           </ToastProvider>
-                        </LogProvider>
-                      </ThemeProvider>
-                    </ConfigProvider>
-                  </ProfilesListProvider>
-                </ProfilesProvider>
-              </ProfileProvider>
-            </FilesProvider>
-          </AppUpdatesProvider>
-        </PermissionsProvider>
-      </AuthProvider>
-    </SafeAreaProvider>
+                        </ThemeProvider>
+                      </ConfigProvider>
+                    </ProfilesListProvider>
+                  </ProfilesProvider>
+                </ProfileProvider>
+              </FilesProvider>
+            </AppUpdatesProvider>
+          </PermissionsProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </LogProvider>
   );
 }
 
