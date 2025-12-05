@@ -1,7 +1,7 @@
 import { Stack, usePathname, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
@@ -43,6 +43,7 @@ function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   const backgroundColor = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
 
@@ -65,13 +66,14 @@ function RootLayoutContent() {
   }
 
   const showBottomNavigation = Boolean(username) && pathname !== '/login/Login';
+  const contentBottomPadding = showBottomNavigation ? 82 + insets.bottom : insets.bottom;
 
   return (
     <>
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { paddingTop: 30 },
+          contentStyle: { paddingTop: 30, paddingBottom: contentBottomPadding },
         }}
       >
         <Stack.Screen name="Index" />
