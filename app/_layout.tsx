@@ -66,7 +66,7 @@ function RootLayoutContent() {
   }
 
   const showBottomNavigation = Boolean(username) && pathname !== '/login/Login';
-  const contentBottomPadding = showBottomNavigation ? 82 + insets.bottom : insets.bottom;
+  const contentBottomPadding = showBottomNavigation ? 30 + insets.bottom : insets.bottom;
 
   return (
     <>

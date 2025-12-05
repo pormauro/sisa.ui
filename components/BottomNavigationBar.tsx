@@ -136,7 +136,7 @@ export const BottomNavigationBar: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    height: 70,
+    height: 90,
     borderTopWidth: 1,
     borderColor: '#232132',
     justifyContent: 'space-around',
