@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
@@ -9,6 +9,9 @@ import { NotificationsContext } from '@/contexts/NotificationsContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CompanySelectionModal } from '@/components/CompanySelectionModal';
+import { CompaniesContext, type Company } from '@/contexts/CompaniesContext';
+import { FileContext } from '@/contexts/FilesContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 interface NavigationItem {
   key: string;
@@ -40,6 +43,10 @@ export const BottomNavigationBar: React.FC = () => {
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const [isCompanyModalVisible, setIsCompanyModalVisible] = useState(false);
+  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { getFile } = useContext(FileContext);
+  const [selectedCompanyId, setSelectedCompanyId] = useCachedState<number | null>('selected-company-id', null);
+  const [companyLogoUri, setCompanyLogoUri] = useState<string | null>(null);
 
   const unreadCount = useMemo(() => {
     const allowed = userId === '1' || permissions.includes('listNotifications');
@@ -49,6 +56,44 @@ export const BottomNavigationBar: React.FC = () => {
 
   const canSelectCompany = userId === '1' || permissions.includes('listCompanies');
 
+  const selectedCompany = useMemo<Company | null>(
+    () => companies.find(company => company.id === selectedCompanyId) ?? null,
+    [companies, selectedCompanyId]
+  );
+
+  useEffect(() => {
+    if (!selectedCompanyId || companies.length || !canSelectCompany) {
+      return;
+    }
+    void loadCompanies();
+  }, [canSelectCompany, companies.length, loadCompanies, selectedCompanyId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadLogo = async () => {
+      const fileIdValue = selectedCompany?.profile_file_id;
+      const numericId = fileIdValue !== null && fileIdValue !== undefined ? Number(fileIdValue) : null;
+
+      if (!numericId || !Number.isFinite(numericId)) {
+        if (isMounted) {
+          setCompanyLogoUri(null);
+        }
+        return;
+      }
+
+      const uri = await getFile(numericId);
+      if (isMounted) {
+        setCompanyLogoUri(uri);
+      }
+    };
+
+    void loadLogo();
+    return () => {
+      isMounted = false;
+    };
+  }, [getFile, selectedCompany?.profile_file_id]);
+
   const openCompanyModal = () => {
     if (!canSelectCompany) {
       router.push('/Home');
@@ -57,15 +102,28 @@ export const BottomNavigationBar: React.FC = () => {
     setIsCompanyModalVisible(true);
   };
 
-  const handleSelectCompany = (companyId: number) => {
+  const handleSelectCompany = (company: Company) => {
+    setSelectedCompanyId(company.id);
     setIsCompanyModalVisible(false);
-    router.push(`/companies/viewModal?id=${companyId}`);
+    router.push(`/companies/viewModal?id=${company.id}`);
   };
+
+  const brandLabel = useMemo(() => {
+    if (!selectedCompany) {
+      return 'Empresas';
+    }
+    const name = (selectedCompany.name ?? selectedCompany.legal_name ?? '').trim() || `Empresa #${selectedCompany.id}`;
+    return name.length > 16 ? `${name.slice(0, 15)}…` : name;
+  }, [selectedCompany]);
+
+  const brandImageSource = companyLogoUri
+    ? { uri: companyLogoUri }
+    : require('@/assets/images/icon.png');
 
   const navItems: NavigationItem[] = [
     { key: 'home', label: 'Inicio', icon: 'home', route: '/Home' },
     { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', badge: unreadCount, route: '/notifications' },
-    { key: 'brand', label: 'Empresas', isBrand: true, action: openCompanyModal },
+    { key: 'brand', label: brandLabel, isBrand: true, action: openCompanyModal },
     { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
     { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/menu/shortcuts', translateY: -4 },
   ];
@@ -110,10 +168,7 @@ export const BottomNavigationBar: React.FC = () => {
               {/* Botón central */}
               {item.isBrand && (
                 <View style={[styles.brandCircle, { borderColor: tintColor, backgroundColor: barBackground }]}>
-                  <Image
-                    source={require('@/assets/images/icon.png')}
-                    style={styles.brandImage}
-                  />
+                  <Image source={brandImageSource} style={styles.brandImage} />
                 </View>
               )}
 
