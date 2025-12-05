@@ -51,7 +51,7 @@ export const BottomNavigationBar: React.FC = () => {
     { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/menu/shortcuts' },
   ];
 
-  const bottomPadding = Math.max(insets.bottom, 6);
+  const bottomPadding = Math.max(insets.bottom + 8, 12);
 
   return (
     <View style={[styles.container, { backgroundColor: barBackground, paddingBottom: bottomPadding }]}>
