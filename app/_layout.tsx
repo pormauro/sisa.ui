@@ -9,6 +9,7 @@ import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
 import { CompaniesProvider } from '@/contexts/CompaniesContext';
+import { MemberCompaniesProvider } from '@/contexts/MemberCompaniesContext';
 import { CompanyMembershipsProvider } from '@/contexts/CompanyMembershipsContext';
 import { ConfigProvider } from '@/contexts/ConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
@@ -101,44 +102,46 @@ export default function RootLayout() {
                           <ToastProvider>
                             <CashBoxesProvider>
                               <CompaniesProvider>
-                                <CompanyMembershipsProvider>
-                                  <ClientsProvider>
-                                    <ProvidersProvider>
-                                      <CategoriesProvider>
-                                        <ProductsServicesProvider>
-                                          <StatusesProvider>
-                                            <TariffsProvider>
-                                              <JobsProvider>
-                                                <AppointmentsProvider>
-                                                  <PaymentTemplatesProvider>
-                                                    <PaymentsProvider>
-                                                      <InvoicesProvider>
-                                                      <ReceiptsProvider>
-                                                        <ReportsProvider>
-                                                          <FoldersProvider>
-                                                            <NotificationsProvider>
-                                                              <PendingSelectionProvider>
-                                                                <>
-                                                                  <RootLayoutContent />
-                                                                  <LogOverlay />
-                                                                </>
-                                                              </PendingSelectionProvider>
-                                                            </NotificationsProvider>
-                                                          </FoldersProvider>
-                                                        </ReportsProvider>
-                                                      </ReceiptsProvider>
-                                                    </InvoicesProvider>
-                                                  </PaymentsProvider>
-                                                </PaymentTemplatesProvider>
-                                                </AppointmentsProvider>
-                                              </JobsProvider>
-                                            </TariffsProvider>
-                                          </StatusesProvider>
-                                        </ProductsServicesProvider>
-                                      </CategoriesProvider>
-                                    </ProvidersProvider>
-                                  </ClientsProvider>
-                                </CompanyMembershipsProvider>
+                                <MemberCompaniesProvider>
+                                  <CompanyMembershipsProvider>
+                                    <ClientsProvider>
+                                      <ProvidersProvider>
+                                        <CategoriesProvider>
+                                          <ProductsServicesProvider>
+                                            <StatusesProvider>
+                                              <TariffsProvider>
+                                                <JobsProvider>
+                                                  <AppointmentsProvider>
+                                                    <PaymentTemplatesProvider>
+                                                      <PaymentsProvider>
+                                                        <InvoicesProvider>
+                                                        <ReceiptsProvider>
+                                                          <ReportsProvider>
+                                                            <FoldersProvider>
+                                                              <NotificationsProvider>
+                                                                <PendingSelectionProvider>
+                                                                  <>
+                                                                    <RootLayoutContent />
+                                                                    <LogOverlay />
+                                                                  </>
+                                                                </PendingSelectionProvider>
+                                                              </NotificationsProvider>
+                                                            </FoldersProvider>
+                                                          </ReportsProvider>
+                                                        </ReceiptsProvider>
+                                                      </InvoicesProvider>
+                                                    </PaymentsProvider>
+                                                  </PaymentTemplatesProvider>
+                                                  </AppointmentsProvider>
+                                                </JobsProvider>
+                                              </TariffsProvider>
+                                            </StatusesProvider>
+                                          </ProductsServicesProvider>
+                                        </CategoriesProvider>
+                                      </ProvidersProvider>
+                                    </ClientsProvider>
+                                  </CompanyMembershipsProvider>
+                                </MemberCompaniesProvider>
                               </CompaniesProvider>
                             </CashBoxesProvider>
                           </ToastProvider>

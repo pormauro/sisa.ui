@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/ThemedText';
-import { CompaniesContext } from '@/contexts/CompaniesContext';
+import { MemberCompaniesContext } from '@/contexts/MemberCompaniesContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import type { Company } from '@/contexts/CompaniesContext';
@@ -15,7 +15,7 @@ interface CompanySelectionModalProps {
 }
 
 export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ visible, onClose, onSelect }) => {
-  const { companies, loadCompanies } = useContext(CompaniesContext);
+  const { memberCompanies, loadMemberCompanies } = useContext(MemberCompaniesContext);
   const [companyQuery, setCompanyQuery] = useState('');
 
   const cardBackground = useThemeColor({ light: '#fff', dark: '#1a1826' }, 'background');
@@ -26,16 +26,16 @@ export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ vi
     if (!visible) {
       return;
     }
-    void loadCompanies();
-  }, [visible, loadCompanies]);
+    void loadMemberCompanies();
+  }, [loadMemberCompanies, visible]);
 
   const filteredCompanies = useMemo(() => {
     const query = companyQuery.trim().toLowerCase();
     if (!query) {
-      return companies;
+      return memberCompanies;
     }
 
-    return companies.filter(company => {
+    return memberCompanies.filter(company => {
       const commercial = (company.name ?? '').toLowerCase();
       const legal = (company.legal_name ?? '').toLowerCase();
       const taxId = (company.tax_id ?? '').toLowerCase();
@@ -46,7 +46,7 @@ export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ vi
         company.id.toString().includes(query)
       );
     });
-  }, [companies, companyQuery]);
+  }, [memberCompanies, companyQuery]);
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
