@@ -78,7 +78,11 @@ export const BottomNavigationBar: React.FC = () => {
             >
               {item.type === 'brand' ? (
                 <View style={[styles.brandIcon, { borderColor: tintColor }]}>
-                  <Image source={require('@/assets/images/icon.png')} style={styles.brandImage} resizeMode="contain" />
+                  <Image
+                    source={require('@/assets/images/icon.png')}
+                    style={styles.brandImage}
+                    resizeMode="cover"
+                  />
                 </View>
               ) : (
                 <View>
@@ -146,10 +150,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
+    overflow: 'hidden',
   },
   brandImage: {
-    width: 40,
-    height: 40,
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
   },
   badge: {
     position: 'absolute',
