@@ -9,7 +9,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useContext } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { NotificationMenuBadge } from '@/components/NotificationMenuBadge';
 import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 
 const MenuGroupScreen: React.FC = () => {
@@ -71,7 +70,6 @@ const MenuGroupScreen: React.FC = () => {
               )}
               <ThemedText style={styles.headerTitle}>{menuSection?.title ?? 'Menú'}</ThemedText>
             </View>
-            <NotificationMenuBadge />
           </View>
 
           {menuSection ? (
@@ -126,7 +124,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 30,
     paddingTop: 20,
-    paddingBottom: 140,
+    paddingBottom: 80,
   },
   contentWrapper: {
     flex: 1,
