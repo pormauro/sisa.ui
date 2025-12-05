@@ -87,7 +87,7 @@ export const MENU_SECTIONS: MenuSection[] = [
     items: [
       {
         title: 'Empresas',
-        route: '/companies/index',
+        route: '/companies',
         icon: 'business',
         requiredPermissions: ['listCompanies'],
       },
