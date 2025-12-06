@@ -1,21 +1,10 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   InvoicesContext,
   type Invoice,
   type InvoicePayload,
-  type InvoiceHistoryEntry,
 } from '@/contexts/InvoicesContext';
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -49,20 +38,6 @@ import { fileStorage } from '@/utils/files/storage';
 import { Buffer } from 'buffer';
 
 const formatNumberForInput = (value: number): string => value.toFixed(2).replace('.', ',');
-
-const formatHistoryTimestamp = (value: string | null): string => {
-  if (!value) {
-    return 'Sin fecha registrada';
-  }
-  const normalized = value.includes('T') || value.includes(' ')
-    ? value.replace(' ', 'T')
-    : `${value}T00:00:00`;
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-};
 
 const parseJsonSafely = async (response: Response): Promise<unknown> => {
   try {
@@ -143,6 +118,21 @@ const normalizeFileId = (value: unknown): number | null => {
   }
 
   return null;
+};
+
+const resolveInvoicePdfFileId = (invoice: Invoice | undefined): number | null => {
+  const metadataFileId =
+    invoice?.metadata && typeof invoice.metadata === 'object'
+      ? normalizeFileId(
+          (invoice.metadata as Record<string, unknown>).invoice_pdf_file_id ??
+            (invoice.metadata as Record<string, unknown>).pdf_file_id ??
+            (invoice.metadata as Record<string, unknown>).invoice_pdf_id ??
+            (invoice.metadata as Record<string, unknown>).file_id,
+        )
+      : null;
+
+  const existingFileId = normalizeFileId(invoice?.invoice_pdf_file_id) ?? metadataFileId;
+  return existingFileId;
 };
 
 interface InvoiceFormState {
@@ -248,8 +238,7 @@ export default function EditInvoiceScreen() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [params.id]);
 
-  const { invoices, loadInvoices, updateInvoice, deleteInvoice, issueInvoice, getInvoiceHistory } =
-    useContext(InvoicesContext);
+  const { invoices, loadInvoices, updateInvoice, deleteInvoice } = useContext(InvoicesContext);
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
@@ -265,11 +254,6 @@ export default function EditInvoiceScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<string>('');
-  const [issuing, setIssuing] = useState(false);
-  const [historyModalVisible, setHistoryModalVisible] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyEntries, setHistoryEntries] = useState<InvoiceHistoryEntry[]>([]);
-  const [historyError, setHistoryError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   const background = useThemeColor({}, 'background');
@@ -281,21 +265,17 @@ export default function EditInvoiceScreen() {
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const dangerColor = useThemeColor({ light: '#ff4d4f', dark: '#ff7072' }, 'button');
   const secondaryText = useThemeColor({ light: '#6B7280', dark: '#94A3B8' }, 'text');
-  const issueButtonColor = useThemeColor({ light: '#0a84ff', dark: '#2563eb' }, 'tint');
-  const historyButtonTextColor = useThemeColor({ light: '#0f172a', dark: '#bfdbfe' }, 'tint');
-  const modalBackground = useThemeColor({ light: '#FFFFFF', dark: '#0B1120' }, 'background');
-  const modalBorderColor = useThemeColor({ light: '#E2E8F0', dark: '#1F2937' }, 'background');
 
   const canUpdate = permissions.includes('updateInvoice');
   const canDelete = permissions.includes('deleteInvoice');
-  const canIssue = permissions.includes('issueInvoice');
-  const canViewHistory = permissions.includes('listInvoiceHistory');
   const canDownloadPdf = permissions.includes('downloadInvoicePdf');
 
   const currentInvoice = useMemo(
     () => invoices.find(invoice => invoice.id === invoiceId),
     [invoiceId, invoices],
   );
+
+  const existingInvoicePdfFileId = useMemo(() => resolveInvoicePdfFileId(currentInvoice), [currentInvoice]);
 
   const hasSubtotalData = useMemo(() => invoiceItemsProvideSubtotalData(items), [items]);
   const parsedTaxPercentage = useMemo(() => {
@@ -317,13 +297,6 @@ export default function EditInvoiceScreen() {
     }
     return invoiceItemsProvideTaxData(items);
   }, [items, manualTaxAmount, parsedTaxPercentage]);
-
-  const shouldShowIssueButton = useMemo(() => {
-    if (!canIssue || !currentInvoice?.status) {
-      return false;
-    }
-    return currentInvoice.status.toLowerCase() === 'draft';
-  }, [canIssue, currentInvoice]);
 
   const subtotal = useMemo(() => {
     const derivedSubtotal = calculateInvoiceItemsSubtotal(items);
@@ -562,88 +535,6 @@ export default function EditInvoiceScreen() {
     setExpandedItems(current => ({ ...current, [index]: !current[index] }));
   };
 
-  const executeIssueInvoice = useCallback(async () => {
-    if (!invoiceId) {
-      Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura emitir.');
-      return;
-    }
-    if (!canIssue) {
-      Alert.alert('Acceso denegado', 'No tenés permiso para emitir facturas.');
-      return;
-    }
-
-    setIssuing(true);
-    const payload: Record<string, unknown> = {};
-    const trimmedInvoiceNumber = formState.invoiceNumber.trim();
-    if (trimmedInvoiceNumber) {
-      payload.invoice_number = trimmedInvoiceNumber;
-    }
-    const trimmedIssueDate = formState.invoiceDate.trim();
-    if (trimmedIssueDate) {
-      payload.issue_date = trimmedIssueDate;
-    }
-
-    const success = await issueInvoice(invoiceId, Object.keys(payload).length > 0 ? payload : undefined);
-    setIssuing(false);
-    if (success) {
-      Alert.alert('Factura emitida', 'La factura se marcó como emitida correctamente.');
-    } else {
-      Alert.alert('No se pudo emitir', 'Revisá la conexión o los datos y volvé a intentarlo.');
-    }
-  }, [canIssue, formState.invoiceDate, formState.invoiceNumber, issueInvoice, invoiceId]);
-
-  const confirmIssueInvoice = useCallback(() => {
-    if (!canIssue) {
-      Alert.alert('Acceso denegado', 'No tenés permiso para emitir facturas.');
-      return;
-    }
-
-    Alert.alert(
-      'Emitir factura',
-      'Al emitir la factura se confirmará como comprobante definitivo y no permanecerá en borrador. ¿Deseás continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Emitir',
-          style: 'destructive',
-          onPress: () => {
-            void executeIssueInvoice();
-          },
-        },
-      ],
-    );
-  }, [canIssue, executeIssueInvoice]);
-
-  const openHistoryModal = useCallback(() => {
-    if (!canViewHistory) {
-      Alert.alert('Acceso denegado', 'No tenés permiso para ver el historial de facturas.');
-      return;
-    }
-    if (!invoiceId) {
-      Alert.alert('Factura no encontrada', 'No se pudo determinar qué historial consultar.');
-      return;
-    }
-
-    setHistoryModalVisible(true);
-    setHistoryLoading(true);
-    setHistoryError(null);
-    void (async () => {
-      try {
-        const entries = await getInvoiceHistory(invoiceId);
-        setHistoryEntries(entries);
-      } catch (error) {
-        console.error('Error fetching invoice history:', error);
-        setHistoryError('No se pudo cargar el historial.');
-      } finally {
-        setHistoryLoading(false);
-      }
-    })();
-  }, [canViewHistory, getInvoiceHistory, invoiceId]);
-
-  const closeHistoryModal = useCallback(() => {
-    setHistoryModalVisible(false);
-  }, []);
-
   const handleOpenInvoicePdf = useCallback(async () => {
     if (!invoiceId) {
       Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura descargar.');
@@ -660,17 +551,7 @@ export default function EditInvoiceScreen() {
       return;
     }
 
-    const metadataFileId =
-      currentInvoice?.metadata && typeof currentInvoice.metadata === 'object'
-        ? normalizeFileId(
-            (currentInvoice.metadata as Record<string, unknown>).invoice_pdf_file_id ??
-              (currentInvoice.metadata as Record<string, unknown>).pdf_file_id ??
-              (currentInvoice.metadata as Record<string, unknown>).invoice_pdf_id ??
-              (currentInvoice.metadata as Record<string, unknown>).file_id,
-          )
-        : null;
-
-    const existingFileId = normalizeFileId(currentInvoice?.invoice_pdf_file_id) ?? metadataFileId;
+    const existingFileId = existingInvoicePdfFileId;
 
     const tryOpenFileId = async (fileId: number): Promise<boolean> => {
       const [uri, meta] = await Promise.all([getFile(fileId), getFileMetadata(fileId)]);
@@ -747,7 +628,7 @@ export default function EditInvoiceScreen() {
     } finally {
       setDownloadingPdf(false);
     }
-  }, [canDownloadPdf, currentInvoice, getFile, getFileMetadata, invoiceId, loadInvoices, token]);
+  }, [canDownloadPdf, currentInvoice, existingInvoicePdfFileId, getFile, getFileMetadata, invoiceId, loadInvoices, token]);
 
   const handleSubmit = async () => {
     if (!canUpdate) {
@@ -1207,35 +1088,6 @@ export default function EditInvoiceScreen() {
         editable={canUpdate}
       />
 
-      <View style={styles.secondaryActions}>
-        {canViewHistory ? (
-          <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor }]}
-            onPress={openHistoryModal}
-          >
-            {historyModalVisible && historyLoading ? (
-              <ActivityIndicator color={historyButtonTextColor} />
-            ) : (
-              <ThemedText style={[styles.secondaryButtonText, { color: historyButtonTextColor }]}>Ver historial</ThemedText>
-            )}
-          </TouchableOpacity>
-        ) : null}
-
-        {canDownloadPdf ? (
-          <TouchableOpacity
-            style={[styles.secondaryButton, { borderColor }]}
-            onPress={handleOpenInvoicePdf}
-            disabled={downloadingPdf}
-          >
-            {downloadingPdf ? (
-              <ActivityIndicator color={historyButtonTextColor} />
-            ) : (
-              <ThemedText style={[styles.secondaryButtonText, { color: historyButtonTextColor }]}>Ver PDF</ThemedText>
-            )}
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}
         onPress={() => setExpandedNotes(value => !value)}
@@ -1257,16 +1109,18 @@ export default function EditInvoiceScreen() {
         />
       ) : null}
 
-      {shouldShowIssueButton ? (
+      {canDownloadPdf ? (
         <TouchableOpacity
-          style={[styles.issueButton, { backgroundColor: issueButtonColor }]}
-          onPress={confirmIssueInvoice}
-          disabled={issuing}
+          style={[styles.secondaryButton, { borderColor }]}
+          onPress={handleOpenInvoicePdf}
+          disabled={downloadingPdf}
         >
-          {issuing ? (
-            <ActivityIndicator color="#FFFFFF" />
+          {downloadingPdf ? (
+            <ActivityIndicator color={textColor} />
           ) : (
-            <ThemedText style={[styles.submitButtonText, { color: '#FFFFFF' }]}>Emitir factura</ThemedText>
+            <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>
+              {existingInvoicePdfFileId ? 'Ver PDF' : 'Generar PDF'}
+            </ThemedText>
           )}
         </TouchableOpacity>
       ) : null}
@@ -1299,55 +1153,6 @@ export default function EditInvoiceScreen() {
           </TouchableOpacity>
         ) : null}
       </ScrollView>
-
-      <Modal
-        visible={historyModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={closeHistoryModal}
-      >
-        <View style={styles.historyOverlay}>
-          <ThemedView style={[styles.historyModal, { backgroundColor: modalBackground, borderColor: modalBorderColor }]}>
-            <View style={styles.historyModalHeader}>
-              <ThemedText style={styles.historyModalTitle}>Historial de cambios</ThemedText>
-              <TouchableOpacity onPress={closeHistoryModal}>
-                <ThemedText style={styles.historyCloseText}>Cerrar</ThemedText>
-              </TouchableOpacity>
-            </View>
-            {historyLoading ? (
-              <ActivityIndicator />
-            ) : historyError ? (
-              <ThemedText style={styles.historyErrorText}>{historyError}</ThemedText>
-            ) : historyEntries.length === 0 ? (
-              <ThemedText style={styles.historyEmptyText}>Todavía no hay eventos registrados.</ThemedText>
-            ) : (
-              <ScrollView style={styles.historyList} contentContainerStyle={styles.historyListContent}>
-                {historyEntries.map(entry => (
-                  <View
-                    key={`${entry.id}-${entry.created_at ?? 'event'}`}
-                    style={[styles.historyItem, { borderColor: modalBorderColor }]}
-                  >
-                    <ThemedText style={styles.historyItemTitle}>{entry.event_type ?? 'Evento'}</ThemedText>
-                    <ThemedText style={[styles.historyItemMeta, { color: secondaryText }]}>
-                      {formatHistoryTimestamp(entry.created_at)} · {entry.username ?? 'Usuario desconocido'}
-                    </ThemedText>
-                    {entry.description ? (
-                      <ThemedText style={styles.historyItemDescription}>{entry.description}</ThemedText>
-                    ) : null}
-                    {entry.payload ? (
-                      <View style={[styles.historyPayload, { backgroundColor: inputBackground }]}>
-                        <ThemedText style={styles.historyPayloadText} numberOfLines={6}>
-                          {JSON.stringify(entry.payload, null, 2)}
-                        </ThemedText>
-                      </View>
-                    ) : null}
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </ThemedView>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -1508,11 +1313,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  secondaryActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
   secondaryButton: {
     flex: 1,
     paddingVertical: 12,
@@ -1523,12 +1323,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  issueButton: {
-    marginTop: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
   },
   submitButton: {
     marginTop: 8,
@@ -1545,70 +1339,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
-  },
-  historyOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  historyModal: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 20,
-    maxHeight: '85%',
-    gap: 16,
-  },
-  historyModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  historyModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  historyCloseText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  historyErrorText: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  historyEmptyText: {
-    fontSize: 15,
-    fontStyle: 'italic',
-  },
-  historyList: {
-    flexGrow: 0,
-  },
-  historyListContent: {
-    gap: 12,
-    paddingBottom: 8,
-  },
-  historyItem: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    gap: 6,
-  },
-  historyItemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  historyItemMeta: {
-    fontSize: 13,
-  },
-  historyItemDescription: {
-    fontSize: 15,
-  },
-  historyPayload: {
-    borderRadius: 8,
-    padding: 8,
-  },
-  historyPayloadText: {
-    fontSize: 12,
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
 });
