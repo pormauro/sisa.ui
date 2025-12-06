@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "postinstall": "patch-package",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "check:cache": "node ./scripts/verify-context-cache.js"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
