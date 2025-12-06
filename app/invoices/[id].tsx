@@ -664,7 +664,9 @@ export default function EditInvoiceScreen() {
       currentInvoice?.metadata && typeof currentInvoice.metadata === 'object'
         ? normalizeFileId(
             (currentInvoice.metadata as Record<string, unknown>).invoice_pdf_file_id ??
-              (currentInvoice.metadata as Record<string, unknown>).pdf_file_id,
+              (currentInvoice.metadata as Record<string, unknown>).pdf_file_id ??
+              (currentInvoice.metadata as Record<string, unknown>).invoice_pdf_id ??
+              (currentInvoice.metadata as Record<string, unknown>).file_id,
           )
         : null;
 
