@@ -1,19 +1,12 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { InvoicesContext, type Invoice } from '@/contexts/InvoicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { JobsContext } from '@/contexts/JobsContext';
 import { TariffsContext, type Tariff } from '@/contexts/TariffsContext';
+import { ClientsContext } from '@/contexts/ClientsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -23,12 +16,12 @@ import { DaySeparator } from '@/components/DaySeparator';
 import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 
 type InvoiceListItem = Invoice & {
-  jobReferences: string;
   formattedTotal: string;
   formattedIssueDate: string;
   statusLabel: string;
   statusColor: string;
   conceptsLabel: string;
+  clientName: string;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -70,14 +63,13 @@ const formatDate = (value?: string | null): string => {
 export default function InvoicesScreen() {
   const params = useLocalSearchParams<{ jobIds?: string | string[] }>();
   const router = useRouter();
-  const { invoices, loadInvoices, voidInvoice } = useContext(InvoicesContext);
+  const { invoices, loadInvoices } = useContext(InvoicesContext);
   const { permissions } = useContext(PermissionsContext);
   const { jobs, loadJobs } = useContext(JobsContext);
   const { tariffs } = useContext(TariffsContext);
+  const { clients } = useContext(ClientsContext);
 
   const [refreshing, setRefreshing] = useState(false);
-  const [voidingId, setVoidingId] = useState<number | null>(null);
-
   const background = useThemeColor({}, 'background');
   const cardBackground = useThemeColor({ light: '#FFFFFF', dark: '#1F1F1F' }, 'background');
   const borderColor = useThemeColor({ light: '#E0E0E0', dark: '#333333' }, 'background');
@@ -85,14 +77,19 @@ export default function InvoicesScreen() {
   const tintColor = useThemeColor({}, 'tint');
   const buttonColor = useThemeColor({}, 'button');
   const buttonTextColor = useThemeColor({}, 'buttonText');
-  const dangerColor = useThemeColor({ light: '#ff4d4f', dark: '#ff7072' }, 'button');
   const bannerBackground = useThemeColor({ light: '#F0F9FF', dark: '#0F172A' }, 'background');
   const bannerBorder = useThemeColor({ light: '#BAE6FD', dark: '#1E293B' }, 'background');
 
   const canList = permissions.includes('listInvoices');
   const canCreate = permissions.includes('addInvoice');
   const canUpdate = permissions.includes('updateInvoice');
-  const canVoid = permissions.includes('voidInvoice');
+  const clientNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    clients.forEach(client => {
+      map.set(client.id, client.business_name);
+    });
+    return map;
+  }, [clients]);
 
   const selectedJobIds = useMemo(() => new Set(parseJobIdsParam(params.jobIds)), [params.jobIds]);
 
@@ -170,7 +167,6 @@ export default function InvoicesScreen() {
 
   const enrichedInvoices = useMemo<InvoiceListItem[]>(() => {
     return invoices.map(invoice => {
-      const jobReferences = invoice.job_ids.length > 0 ? invoice.job_ids.join(', ') : 'Sin trabajos vinculados';
       const total = typeof invoice.total_amount === 'number' ? invoice.total_amount : null;
       const formattedTotal =
         total !== null && Number.isFinite(total) ? formatCurrency(total) : 'Importe no disponible';
@@ -179,17 +175,21 @@ export default function InvoicesScreen() {
       const statusColor = resolveStatusColor(normalizedStatus, tintColor);
       const itemsCount = Array.isArray(invoice.items) ? invoice.items.length : 0;
       const conceptsLabel = itemsCount > 0 ? `${itemsCount} ítem${itemsCount === 1 ? '' : 's'}` : 'Sin ítems';
+      const clientName =
+        typeof invoice.client_id === 'number'
+          ? clientNameById.get(invoice.client_id) ?? 'Cliente sin nombre'
+          : 'Cliente sin asignar';
       return {
         ...invoice,
-        jobReferences,
         formattedTotal,
         formattedIssueDate: formatDate(invoice.invoice_date ?? invoice.issue_date ?? invoice.created_at ?? null),
         statusLabel,
         statusColor,
         conceptsLabel,
+        clientName,
       };
     });
-  }, [invoices, tintColor]);
+  }, [clientNameById, invoices, tintColor]);
 
   const invoicesWithSeparators = useMemo(
     () =>
@@ -228,36 +228,6 @@ export default function InvoicesScreen() {
     [canUpdate, formattedJobIdsParam, router],
   );
 
-  const requestVoid = useCallback(
-    (invoice: Invoice) => {
-      const normalizedStatus = invoice.status ? invoice.status.toLowerCase() : '';
-      if (!canVoid || normalizedStatus === 'void' || normalizedStatus === 'canceled') {
-        return;
-      }
-
-      Alert.alert(
-        'Anular factura',
-        '¿Confirmás que querés anular este comprobante? La operación no se puede deshacer.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Anular',
-            style: 'destructive',
-            onPress: async () => {
-              setVoidingId(invoice.id);
-              const success = await voidInvoice(invoice.id);
-              setVoidingId(null);
-              if (!success) {
-                Alert.alert('Error', 'No fue posible anular la factura.');
-              }
-            },
-          },
-        ],
-      );
-    },
-    [canVoid, voidInvoice],
-  );
-
   const renderItem = useCallback(
     ({ item }: { item: DaySeparatedItem<InvoiceListItem> }) => {
       if (item.type === 'separator') {
@@ -265,6 +235,7 @@ export default function InvoicesScreen() {
       }
 
       const invoice = item.value;
+      const hasPdf = Boolean(invoice.invoice_pdf_file_id);
       return (
         <TouchableOpacity
           style={[styles.card, { backgroundColor: cardBackground, borderColor }]}
@@ -272,13 +243,25 @@ export default function InvoicesScreen() {
           disabled={!canUpdate}
         >
           <View style={styles.cardHeader}>
-            <ThemedText style={styles.invoiceNumber} numberOfLines={1}>
-              {invoice.invoice_number ? `#${invoice.invoice_number}` : `Factura ${invoice.id}`}
-            </ThemedText>
-            <View style={[styles.statusPill, { backgroundColor: invoice.statusColor }]}>
-              <ThemedText style={styles.statusText} lightColor="#FFFFFF" darkColor="#FFFFFF">
-                {invoice.statusLabel}
+            <View style={styles.headerTitleContainer}>
+              <ThemedText style={styles.invoiceNumber} numberOfLines={1}>
+                {`Factura Número ${invoice.invoice_number ?? invoice.id}`}
               </ThemedText>
+              <ThemedText style={[styles.clientName, { color: secondaryText }]} numberOfLines={1}>
+                {invoice.clientName}
+              </ThemedText>
+            </View>
+            <View style={styles.headerActions}>
+              <View style={[styles.statusPill, { borderColor: invoice.statusColor }]}>
+                <ThemedText style={[styles.statusText, { color: invoice.statusColor }]}>
+                  {invoice.statusLabel}
+                </ThemedText>
+              </View>
+              <Ionicons
+                name={hasPdf ? 'document-text' : 'document-text-outline'}
+                size={18}
+                color={hasPdf ? tintColor : secondaryText}
+              />
             </View>
           </View>
 
@@ -288,30 +271,12 @@ export default function InvoicesScreen() {
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Importe</ThemedText>
           <ThemedText style={styles.cardValue}>{invoice.formattedTotal}</ThemedText>
 
-          <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Trabajos vinculados</ThemedText>
-          <ThemedText style={styles.cardValue}>{invoice.jobReferences}</ThemedText>
-
           <ThemedText style={[styles.cardSubtitle, { color: secondaryText }]}>Conceptos</ThemedText>
           <ThemedText style={styles.cardValue}>{invoice.conceptsLabel}</ThemedText>
-
-          {canVoid && !['void', 'canceled'].includes(invoice.status ? invoice.status.toLowerCase() : '') && (
-            <TouchableOpacity
-              style={[styles.voidButton, { backgroundColor: dangerColor }]}
-              onPress={() => requestVoid(invoice)}
-            >
-              {voidingId === invoice.id ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <ThemedText style={styles.voidButtonText} lightColor="#FFFFFF" darkColor="#FFFFFF">
-                  Anular factura
-                </ThemedText>
-              )}
-            </TouchableOpacity>
-          )}
         </TouchableOpacity>
       );
     },
-    [borderColor, cardBackground, canUpdate, canVoid, dangerColor, handleEdit, requestVoid, secondaryText, voidingId],
+    [borderColor, cardBackground, canUpdate, handleEdit, secondaryText, tintColor],
   );
 
   const listEmptyComponent = useMemo(() => (
@@ -412,19 +377,31 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  invoiceNumber: {
-    fontSize: 18,
-    fontWeight: '600',
+  headerTitleContainer: {
     flex: 1,
     marginRight: 12,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  invoiceNumber: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  clientName: {
+    fontSize: 14,
+    marginTop: 2,
+  },
   statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 999,
+    borderWidth: 1,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   cardSubtitle: {
@@ -434,16 +411,6 @@ const styles = StyleSheet.create({
   cardValue: {
     fontSize: 16,
     fontWeight: '500',
-  },
-  voidButton: {
-    marginTop: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
-    alignItems: 'center',
-  },
-  voidButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
