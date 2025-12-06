@@ -12,7 +12,7 @@ import { CompanySelectionModal } from '@/components/CompanySelectionModal';
 import { type Company } from '@/contexts/CompaniesContext';
 import { MemberCompaniesContext } from '@/contexts/MemberCompaniesContext';
 import { FileContext } from '@/contexts/FilesContext';
-import { useCachedState } from '@/hooks/useCachedState';
+import { useCompanyScope } from '@/contexts/CompanyScopeContext';
 
 interface NavigationItem {
   key: string;
@@ -46,7 +46,7 @@ export const BottomNavigationBar: React.FC = () => {
   const [isCompanyModalVisible, setIsCompanyModalVisible] = useState(false);
   const { memberCompanies, loadMemberCompanies } = useContext(MemberCompaniesContext);
   const { getFile } = useContext(FileContext);
-  const [selectedCompanyId, setSelectedCompanyId] = useCachedState<number | null>('selected-company-id', null);
+  const { selectedCompanyId, setSelectedCompanyId, selectedCompany } = useCompanyScope();
   const [companyLogoUri, setCompanyLogoUri] = useState<string | null>(null);
 
   const unreadCount = useMemo(() => {
@@ -56,11 +56,6 @@ export const BottomNavigationBar: React.FC = () => {
   }, [notifications, permissions, userId]);
 
   const canSelectCompany = userId === '1' || permissions.includes('listCompanies');
-
-  const selectedCompany = useMemo<Company | null>(
-    () => memberCompanies.find(company => company.id === selectedCompanyId) ?? null,
-    [memberCompanies, selectedCompanyId]
-  );
 
   useEffect(() => {
     if (!selectedCompanyId || memberCompanies.length || !canSelectCompany) {
