@@ -245,10 +245,10 @@ export default function InvoicesScreen() {
           <View style={styles.cardHeader}>
             <View style={styles.headerTitleContainer}>
               <ThemedText style={styles.invoiceNumber} numberOfLines={1}>
-                {`Factura Número ${invoice.invoice_number ?? invoice.id}`}
+                {invoice.clientName}
               </ThemedText>
               <ThemedText style={[styles.clientName, { color: secondaryText }]} numberOfLines={1}>
-                {invoice.clientName}
+                {`Factura Número ${invoice.invoice_number ?? invoice.id} · ${invoice.formattedTotal}`}
               </ThemedText>
             </View>
             <View style={styles.headerActions}>
