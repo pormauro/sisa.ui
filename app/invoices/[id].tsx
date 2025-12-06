@@ -12,12 +12,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-  AuthContext,
   InvoicesContext,
   type Invoice,
   type InvoicePayload,
   type InvoiceHistoryEntry,
 } from '@/contexts/InvoicesContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { FileContext } from '@/contexts/FilesContext';
