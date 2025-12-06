@@ -144,3 +144,13 @@ conserven la autenticación cuando la red vuelve a estar disponible.【F:context
 En conjunto, `useCachedState`, la propagación de limpiezas y la integración con
 `AuthContext` permiten que la aplicación soporte cortes de red, limpiezas
 manuales de caché y reutilización de datos sin replicar lógica en cada módulo.
+
+## Auditoría automática de contextos con caché
+
+Para asegurar que ningún *provider* nuevo ignore la persistencia, el script
+[`check:cache`](../../scripts/verify-context-cache.js) revisa todos los archivos
+en `contexts/` que invoquen al backend (`BASE_URL`). Si un contexto no usa
+`useCachedState`, la tarea falla salvo que el archivo esté en la lista blanca
+(`AuthContext` y `FilesContext` ya implementan sus propios mecanismos de
+almacenamiento seguro y de archivos). Añadir un contexto nuevo exige escoger una
+estrategia de caché o justificarlo explícitamente antes de pasar las CI.
