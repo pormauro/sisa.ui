@@ -535,100 +535,133 @@ export default function EditInvoiceScreen() {
     setExpandedItems(current => ({ ...current, [index]: !current[index] }));
   };
 
-  const handleOpenInvoicePdf = useCallback(async () => {
-    if (!invoiceId) {
-      Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura descargar.');
-      return;
-    }
-
-    if (!canDownloadPdf) {
-      Alert.alert('Acceso denegado', 'No tenés permiso para descargar comprobantes.');
-      return;
-    }
-
-    if (!token) {
-      Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para descargar el PDF.');
-      return;
-    }
-
-    const existingFileId = existingInvoicePdfFileId;
-
-    const tryOpenFileId = async (fileId: number): Promise<boolean> => {
-      const [uri, meta] = await Promise.all([getFile(fileId), getFileMetadata(fileId)]);
-      if (!uri) {
-        return false;
+  const downloadInvoicePdf = useCallback(
+    async ({ forceRegenerate = false }: { forceRegenerate?: boolean } = {}) => {
+      if (!invoiceId) {
+        Alert.alert('Factura no encontrada', 'No se pudo determinar qué factura descargar.');
+        return;
       }
 
-      await openAttachment({
-        uri,
-        mimeType: meta?.file_type ?? 'application/pdf',
-        fileName: meta?.original_name ?? `factura_${invoiceId}.pdf`,
-        kind: 'pdf',
-      });
-      return true;
-    };
+      if (!canDownloadPdf) {
+        Alert.alert('Acceso denegado', 'No tenés permiso para descargar comprobantes.');
+        return;
+      }
 
-    setDownloadingPdf(true);
-    try {
-      if (existingFileId) {
-        const opened = await tryOpenFileId(existingFileId);
-        if (opened) {
-          return;
+      if (!token) {
+        Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para descargar el PDF.');
+        return;
+      }
+
+      const existingFileId = existingInvoicePdfFileId;
+
+      const tryOpenFileId = async (fileId: number): Promise<boolean> => {
+        const [uri, meta] = await Promise.all([getFile(fileId), getFileMetadata(fileId)]);
+        if (!uri) {
+          return false;
         }
-      }
 
-      const response = await fetch(`${BASE_URL}/invoices/${invoiceId}/report/pdf`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/pdf',
-        },
-      });
+        await openAttachment({
+          uri,
+          mimeType: meta?.file_type ?? 'application/pdf',
+          fileName: meta?.original_name ?? `factura_${invoiceId}.pdf`,
+          kind: 'pdf',
+        });
+        return true;
+      };
 
-      await ensureAuthResponse(response);
-      const contentType = response.headers.get('content-type') ?? 'application/pdf';
-
-      if (contentType.toLowerCase().includes('application/json')) {
-        const data = await parseJsonSafely(response);
-        const generatedFileId = extractFileId(data);
-        if (generatedFileId) {
-          await loadInvoices();
-          const opened = await tryOpenFileId(generatedFileId);
+      setDownloadingPdf(true);
+      try {
+        if (existingFileId && !forceRegenerate) {
+          const opened = await tryOpenFileId(existingFileId);
           if (opened) {
             return;
           }
         }
 
-        throw new Error('La API no devolvió un archivo PDF descargable.');
+        const response = await fetch(`${BASE_URL}/invoices/${invoiceId}/report/pdf`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/pdf',
+          },
+        });
+
+        await ensureAuthResponse(response);
+        const contentType = response.headers.get('content-type') ?? 'application/pdf';
+
+        if (contentType.toLowerCase().includes('application/json')) {
+          const data = await parseJsonSafely(response);
+          const generatedFileId = extractFileId(data);
+          if (generatedFileId) {
+            await loadInvoices();
+            const opened = await tryOpenFileId(generatedFileId);
+            if (opened) {
+              return;
+            }
+          }
+
+          throw new Error('La API no devolvió un archivo PDF descargable.');
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        if (arrayBuffer.byteLength === 0) {
+          throw new Error('El PDF devuelto está vacío.');
+        }
+
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        const mimeType = (contentType.split(';')[0] || 'application/pdf').trim();
+        const fileName = parseFileName(
+          response.headers.get('content-disposition'),
+          `factura_${invoiceId}.pdf`,
+        );
+        const storagePath = `${fileStorage.documentDirectory ?? ''}invoice_${invoiceId}_${Date.now()}.pdf`;
+        const { uri } = await fileStorage.write(storagePath, base64, mimeType);
+
+        await openAttachment({
+          uri,
+          mimeType,
+          fileName,
+          kind: 'pdf',
+        });
+      } catch (error) {
+        console.error('Error al abrir el PDF de la factura:', error);
+        Alert.alert('No se pudo abrir el PDF', 'Verificá tu conexión o los permisos y volvé a intentar.');
+      } finally {
+        setDownloadingPdf(false);
       }
+    },
+    [
+      canDownloadPdf,
+      currentInvoice,
+      existingInvoicePdfFileId,
+      getFile,
+      getFileMetadata,
+      invoiceId,
+      loadInvoices,
+      token,
+    ],
+  );
 
-      const arrayBuffer = await response.arrayBuffer();
-      if (arrayBuffer.byteLength === 0) {
-        throw new Error('El PDF devuelto está vacío.');
-      }
+  const handleOpenInvoicePdf = useCallback(() => {
+    void downloadInvoicePdf();
+  }, [downloadInvoicePdf]);
 
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
-      const mimeType = (contentType.split(';')[0] || 'application/pdf').trim();
-      const fileName = parseFileName(
-        response.headers.get('content-disposition'),
-        `factura_${invoiceId}.pdf`,
-      );
-      const storagePath = `${fileStorage.documentDirectory ?? ''}invoice_${invoiceId}_${Date.now()}.pdf`;
-      const { uri } = await fileStorage.write(storagePath, base64, mimeType);
-
-      await openAttachment({
-        uri,
-        mimeType,
-        fileName,
-        kind: 'pdf',
-      });
-    } catch (error) {
-      console.error('Error al abrir el PDF de la factura:', error);
-      Alert.alert('No se pudo abrir el PDF', 'Verificá tu conexión o los permisos y volvé a intentar.');
-    } finally {
-      setDownloadingPdf(false);
-    }
-  }, [canDownloadPdf, currentInvoice, existingInvoicePdfFileId, getFile, getFileMetadata, invoiceId, loadInvoices, token]);
+  const handleRegenerateInvoicePdf = useCallback(() => {
+    Alert.alert(
+      'Rehacer PDF',
+      '¿Querés rehacer el PDF de esta factura? Se generará una nueva versión del comprobante.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Rehacer',
+          style: 'destructive',
+          onPress: () => {
+            void downloadInvoicePdf({ forceRegenerate: true });
+          },
+        },
+      ],
+    );
+  }, [downloadInvoicePdf]);
 
   const handleSubmit = async () => {
     if (!canUpdate) {
@@ -1121,6 +1154,20 @@ export default function EditInvoiceScreen() {
             <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>
               {existingInvoicePdfFileId ? 'Ver PDF' : 'Generar PDF'}
             </ThemedText>
+          )}
+        </TouchableOpacity>
+      ) : null}
+
+      {canDownloadPdf && existingInvoicePdfFileId ? (
+        <TouchableOpacity
+          style={[styles.secondaryButton, { borderColor }]}
+          onPress={handleRegenerateInvoicePdf}
+          disabled={downloadingPdf}
+        >
+          {downloadingPdf ? (
+            <ActivityIndicator color={textColor} />
+          ) : (
+            <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>Rehacer PDF</ThemedText>
           )}
         </TouchableOpacity>
       ) : null}
