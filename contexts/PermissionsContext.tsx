@@ -1,15 +1,27 @@
-import React, { createContext, useEffect, useContext, useCallback, useState, useRef } from 'react';
+import React, { createContext, useEffect, useContext, useCallback, useState, useRef, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { subscribeToDataCacheClear } from '@/utils/cache';
+import { useCompanyScope } from '@/contexts/CompanyScopeContext';
 
 interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
   loading: boolean;
   refreshPermissions: () => Promise<void>;
   isCompanyAdmin: boolean;
+}
+
+interface ScopedPermissionsEntry {
+  permissions: string[];
+  isCompanyAdmin: boolean;
+  updatedAt: string;
+  companyId: number | null;
+}
+
+interface PermissionsCache {
+  entries: Record<string, ScopedPermissionsEntry>;
 }
 
 const PERMISSION_ALIASES: Record<string, string[]> = {
@@ -35,26 +47,53 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, userId, isLoading: authIsLoading, checkConnection } = useContext(AuthContext);
-  const [permissions, setPermissions, permissionsHydrated] = useCachedState<string[]>(
+  const { selectedCompanyId, selectionHydrated } = useCompanyScope();
+  const [permissionsCache, setPermissionsCache, permissionsHydrated] = useCachedState<PermissionsCache>(
     'permissions',
-    []
+    { entries: {} },
   );
   const [loading, setLoading] = useState<boolean>(false);
-  const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
 
+  const companyScopeKey = useMemo(() => {
+    if (userId === '1') {
+      return 'superuser';
+    }
+    return selectedCompanyId !== null && selectedCompanyId !== undefined
+      ? `company-${selectedCompanyId}`
+      : 'unscoped';
+  }, [selectedCompanyId, userId]);
+
+  const currentEntry = (permissionsCache?.entries ?? {})[companyScopeKey];
+  const permissions = currentEntry?.permissions ?? [];
+  const isCompanyAdmin = currentEntry?.isCompanyAdmin ?? false;
+
   const clearCachedPermissions = useCallback(() => {
-    setPermissions(prev => (prev.length > 0 ? [] : prev));
-  }, [setPermissions]);
+    setPermissionsCache({ entries: {} });
+  }, [setPermissionsCache]);
 
   useEffect(() => {
     if (!permissionsHydrated) {
       return;
     }
 
+    const legacyPermissions = (permissionsCache as unknown) as any;
+    if (Array.isArray(legacyPermissions)) {
+      setPermissionsCache({
+        entries: {
+          [companyScopeKey]: {
+            permissions: expandWithAliases(legacyPermissions),
+            isCompanyAdmin: false,
+            updatedAt: new Date().toISOString(),
+            companyId: selectedCompanyId ?? null,
+          },
+        },
+      });
+      return;
+    }
+
     if (!authIsLoading && !userId) {
       clearCachedPermissions();
-      setIsCompanyAdmin(false);
       previousUserIdRef.current = null;
       return;
     }
@@ -66,15 +105,54 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (userId !== previousUserIdRef.current) {
       previousUserIdRef.current = userId ?? null;
     }
-  }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
+  }, [
+    authIsLoading,
+    clearCachedPermissions,
+    companyScopeKey,
+    permissionsCache,
+    permissionsHydrated,
+    selectedCompanyId,
+    setPermissionsCache,
+    userId,
+  ]);
 
   const fetchPermissions = useCallback(async () => {
     // Si no hay token o userId disponible, conservamos la información en caché.
     if (!token || !userId) {
       return;
     }
+
+    if (!selectionHydrated && userId !== '1') {
+      return;
+    }
+
+    if (userId !== '1' && (selectedCompanyId === null || selectedCompanyId === undefined)) {
+      setPermissionsCache(prev => ({
+        ...prev,
+        entries: {
+          ...prev.entries,
+          [companyScopeKey]: {
+            permissions: [],
+            isCompanyAdmin: false,
+            updatedAt: new Date().toISOString(),
+            companyId: null,
+          },
+        },
+      }));
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
+      const withCompanyScope = (url: string) => {
+        if (userId === '1') {
+          return url;
+        }
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}company_id=${selectedCompanyId}`;
+      };
+
       const parsePermissionsResponse = async (
         response: Response,
         scope: 'usuario' | 'global'
@@ -134,13 +212,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Se realizan ambas peticiones de forma concurrente:
       const [userData, globalData] = await Promise.all([
-        fetch(`${BASE_URL}/permissions/user/${userId}`, {
+        fetch(withCompanyScope(`${BASE_URL}/permissions/user/${userId}`), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }).then(response => parsePermissionsResponse(response, 'usuario')),
-        fetch(`${BASE_URL}/permissions/global`, {
+        fetch(withCompanyScope(`${BASE_URL}/permissions/global`), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -154,7 +232,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
-      setPermissions(expandWithAliases(mergedPermissions));
+      const expandedPermissions = expandWithAliases(mergedPermissions);
 
       const normalizeBooleanCandidate = (candidate: any): boolean | undefined => {
         if (typeof candidate === 'boolean') {
@@ -199,7 +277,18 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         globalData?.company_admin,
         globalData?.is_admin,
       );
-      setIsCompanyAdmin(adminFlag);
+      setPermissionsCache(prev => ({
+        ...prev,
+        entries: {
+          ...prev.entries,
+          [companyScopeKey]: {
+            permissions: expandedPermissions,
+            isCompanyAdmin: adminFlag,
+            updatedAt: new Date().toISOString(),
+            companyId: selectedCompanyId ?? null,
+          },
+        },
+      }));
     } catch (error: any) {
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
@@ -229,7 +318,15 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, setPermissions, token, userId]);
+  }, [
+    checkConnection,
+    companyScopeKey,
+    selectedCompanyId,
+    selectionHydrated,
+    setPermissionsCache,
+    token,
+    userId,
+  ]);
 
   useEffect(() => {
     fetchPermissions();
