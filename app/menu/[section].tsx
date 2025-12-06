@@ -1,12 +1,14 @@
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { useMemberCompanies } from '@/contexts/MemberCompaniesContext';
+import { useCompanyScope } from '@/contexts/CompanyScopeContext';
 import { findMenuSection, MenuItem } from '@/constants/menuSections';
 import { MenuButton } from '@/components/MenuButton';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useContext } from 'react';
+import React, { useContext, useMemo } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -21,19 +23,36 @@ const MenuGroupScreen: React.FC = () => {
   const menuSection = findMenuSection(sectionKey);
 
   const { userId } = useContext(AuthContext);
-  const { permissions } = useContext(PermissionsContext);
+  const { permissions, isCompanyAdmin } = useContext(PermissionsContext);
+  const { memberships } = useMemberCompanies();
+  const { selectedCompanyId } = useCompanyScope();
   const router = useRouter();
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
   const iconForegroundColor = useThemeColor({ light: '#FFFFFF', dark: '#2f273e' }, 'text');
 
+  const hasFullMenuAccess = useMemo(() => {
+    if (userId === '1' || isCompanyAdmin) {
+      return true;
+    }
+
+    if (!selectedCompanyId) {
+      return false;
+    }
+
+    const membership = memberships.find(record => record.companyId === selectedCompanyId);
+    const normalizedRole = membership?.role?.trim().toLowerCase();
+
+    return normalizedRole === 'admin' || normalizedRole === 'owner';
+  }, [isCompanyAdmin, memberships, selectedCompanyId, userId]);
+
   const resolveAccess = (item: MenuItem): { enabled: boolean; route: string } => {
     if (item.route === '/permission' && userId === '1') {
       return { enabled: true, route: item.route };
     }
 
-    if (!item.requiredPermissions) {
+    if (hasFullMenuAccess || !item.requiredPermissions) {
       return { enabled: true, route: item.route };
     }
 
