@@ -6,10 +6,17 @@ import {
   Alert,
   ActivityIndicator,
   Button,
+  TouchableOpacity,
 } from 'react-native';
 import Checkbox from 'expo-checkbox';
 import UserSelector, { type Profile as SelectorProfile } from './UserSelector'; // Asegúrate de que la ruta sea correcta
 import { AuthContext } from '@/contexts/AuthContext';
+import {
+  CompanyMembershipsContext,
+  type CompanyMembership,
+  type MembershipRoleFilter,
+} from '@/contexts/CompanyMembershipsContext';
+import { useCompanyScope } from '@/contexts/CompanyScopeContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
@@ -115,6 +122,13 @@ const PERMISSION_GROUPS = [
   { group: "Statuses", permissions: ['listStatuses', 'getStatus', 'addStatus', 'updateStatus', 'deleteStatus', 'reorderStatuses'] },
 ];
 
+const ROLE_FILTERS: { label: string; value: MembershipRoleFilter }[] = [
+  { label: 'Miembros', value: 'member' },
+  { label: 'Administradores', value: 'admin' },
+  { label: 'Dueños', value: 'owner' },
+  { label: 'Todos', value: 'all' },
+];
+
 interface AssignedPermission {
   id: number;
   sector: string;
@@ -122,10 +136,15 @@ interface AssignedPermission {
 
 const PermissionScreen: React.FC = () => {
   const { token, userId, username } = useContext(AuthContext);
+  const { selectedCompanyId, selectedCompany } = useCompanyScope();
+  const { loadMemberships, getMemberships } = useContext(CompanyMembershipsContext);
   const { permissions: currentPermissions, refreshPermissions } = useContext(PermissionsContext);
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<MembershipRoleFilter>('member');
+  const [companyMembers, setCompanyMembers] = useState<CompanyMembership[]>([]);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const background = useThemeColor({}, 'background');
@@ -459,6 +478,58 @@ const PermissionScreen: React.FC = () => {
     return (profile: SelectorProfile) => profile.id === numericUserId;
   }, [canSelectOtherUsers, numericUserId]);
 
+  const formatMemberName = useCallback(
+    (member: CompanyMembership) =>
+      member.user_full_name ??
+      member.username ??
+      (member.user_id ? `Usuario #${member.user_id}` : `Membresía #${member.id}`),
+    [],
+  );
+
+  const formatMemberMeta = useCallback(
+    (member: CompanyMembership) =>
+      member.user_email ?? `ID usuario: ${member.user_id || 'N/D'}`,
+    [],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchApprovedMembers = async () => {
+      if (!selectedCompanyId) {
+        if (active) {
+          setCompanyMembers([]);
+        }
+        return;
+      }
+
+      const cached = getMemberships(selectedCompanyId, 'approved', roleFilter);
+      if (active) {
+        setCompanyMembers(cached);
+      }
+
+      setMembersLoading(true);
+      try {
+        const latest = await loadMemberships(selectedCompanyId, 'approved', roleFilter);
+        if (active) {
+          setCompanyMembers(latest);
+        }
+      } catch (error) {
+        console.error('Error al cargar miembros aprobados:', error);
+      } finally {
+        if (active) {
+          setMembersLoading(false);
+        }
+      }
+    };
+
+    void fetchApprovedMembers();
+
+    return () => {
+      active = false;
+    };
+  }, [getMemberships, loadMemberships, roleFilter, selectedCompanyId]);
+
   if (!canListPermissions) {
     return (
       <ScrollView
@@ -479,15 +550,73 @@ const PermissionScreen: React.FC = () => {
     <ScrollView
       style={[styles.container, { backgroundColor: background }]}
       contentContainerStyle={styles.contentContainer}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
+    keyboardShouldPersistTaps="handled"
+    keyboardDismissMode="on-drag"
+  >
+    <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
+    <ThemedView
+      style={[styles.membersContainer, { borderColor: groupBorderColor }]}
+      lightColor="#f9f9f9"
+      darkColor="#1e1e1e"
     >
-      <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
-      {canChooseUser ? (
-        <UserSelector
-          includeGlobal={canSelectGlobal}
-          filterProfiles={restrictedProfileFilter}
-          onSelect={handleUserSelection}
+      <View style={styles.membersHeader}>
+        <ThemedText style={styles.sectionTitle}>Miembros aprobados</ThemedText>
+        <ThemedText style={styles.sectionSubtitle}>
+          {selectedCompany
+            ? `Operando con ${selectedCompany.name}`
+            : 'Selecciona una empresa para ver su staff activo'}
+        </ThemedText>
+      </View>
+
+      <View style={styles.roleFiltersContainer}>
+        {ROLE_FILTERS.map(option => {
+          const isActive = roleFilter === option.value;
+          return (
+            <TouchableOpacity
+              key={option.value}
+              style={[styles.roleChip, isActive && styles.roleChipActive]}
+              onPress={() => setRoleFilter(option.value)}
+              disabled={isActive}
+            >
+              <ThemedText style={[styles.roleChipText, isActive && styles.roleChipTextActive]}>
+                {option.label}
+              </ThemedText>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {membersLoading ? (
+        <View style={styles.loaderWrapper}>
+          <ActivityIndicator size="small" color={spinnerColor} />
+        </View>
+      ) : !selectedCompanyId ? (
+        <ThemedText style={styles.infoText}>
+          Selecciona una empresa desde la barra inferior para listar sus miembros aprobados.
+        </ThemedText>
+      ) : companyMembers.length === 0 ? (
+        <ThemedText style={styles.infoText}>
+          No hay miembros aprobados con el filtro seleccionado.
+        </ThemedText>
+      ) : (
+        companyMembers.map(member => (
+          <View key={member.id} style={styles.memberRow}>
+            <View style={styles.memberInfo}>
+              <ThemedText style={styles.memberName}>{formatMemberName(member)}</ThemedText>
+              <ThemedText style={styles.memberMeta} numberOfLines={1} ellipsizeMode="tail">
+                {formatMemberMeta(member)}
+              </ThemedText>
+            </View>
+            <ThemedText style={styles.memberBadge}>{member.role ?? 'Sin rol'}</ThemedText>
+          </View>
+        ))
+      )}
+    </ThemedView>
+    {canChooseUser ? (
+      <UserSelector
+        includeGlobal={canSelectGlobal}
+        filterProfiles={restrictedProfileFilter}
+        onSelect={handleUserSelection}
         />
       ) : (
         <ThemedText style={styles.infoText}>
@@ -565,10 +694,85 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20
   },
+  membersContainer: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  membersHeader: {
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    marginTop: 2,
+  },
   infoText: {
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20
+  },
+  roleFiltersContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  roleChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#888',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  roleChipActive: {
+    backgroundColor: '#4a90e2',
+    borderColor: '#4a90e2',
+  },
+  roleChipText: {
+    fontSize: 14,
+  },
+  roleChipTextActive: {
+    color: 'white',
+  },
+  loaderWrapper: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  memberInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  memberName: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  memberMeta: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  memberBadge: {
+    fontSize: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    backgroundColor: '#eef2ff',
+    color: '#2b4cb3',
   },
   groupContainer: {
     marginBottom: 20,

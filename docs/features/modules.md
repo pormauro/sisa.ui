@@ -86,13 +86,13 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - Las banderas `canManageMemberships`, `canInviteMembers`, `canLeaveCompany`, `canViewHistory`, entre otras, se calculan una sola vez desde `PermissionsContext`, permitiendo que las pantallas habiliten o oculten acciones sin reimplementar lógica de autorización.【F:contexts/CompanyMembershipsContext.tsx†L489-L555】
 
 ### Métodos del contexto
-- `loadMemberships(companyId, status)` ejecuta `GET /companies/{id}/memberships?status=` con token Bearer, actualiza la caché por empresa/estado y devuelve los datos previos cuando el usuario no tiene permisos para listar.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】
+- `loadMemberships(companyId, status, role)` ejecuta `GET /companies/{id}/memberships?status=&role=` (si se indica) con token Bearer, actualiza la caché por empresa/estado/rol y devuelve los datos previos cuando el usuario no tiene permisos para listar.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】
 - `loadMembershipHistory(companyId, membershipId)` consulta `GET /companies/{id}/memberships/{membershipId}/history`, ordena la cronología y guarda el resultado localmente para reutilizarlo sin hits repetidos.【F:contexts/CompanyMembershipsContext.tsx†L670-L709】
 - `handleMembershipMutation` centraliza la firma de cada `POST` protegido, encapsula `ensureAuthResponse`, limpia la caché de la empresa/historial afectado y devuelve un booleano listo para las vistas.【F:contexts/CompanyMembershipsContext.tsx†L711-L752】
 - Las operaciones `requestMembership`, `inviteMember`, `acceptInvitation`, `cancelInvitation`, `approveMembership`, `rejectMembership`, `leaveMembership`, `suspendMember` y `removeMember` comparten ese helper para mantener sincronizados los listados tras cada cambio de estado.【F:contexts/CompanyMembershipsContext.tsx†L754-L912】
 
 ### Endpoints consumidos
-- `GET ${BASE_URL}/companies/{companyId}/memberships?status=` — listado filtrado por estado.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】
+- `GET ${BASE_URL}/companies/{companyId}/memberships?status=&role=` — listado filtrado por estado o rol.【F:contexts/CompanyMembershipsContext.tsx†L614-L642】
 - `GET ${BASE_URL}/companies/{companyId}/memberships/{membershipId}/history` — historial completo por membresía.【F:contexts/CompanyMembershipsContext.tsx†L670-L690】
 - `POST ${BASE_URL}/companies/{companyId}/memberships` / `invite` / `{membershipId}/(accept|cancel-invitation|approve|reject|leave|suspend|remove)` — ciclo de vida completo de solicitudes, invitaciones y bajas, siempre protegido por token Bearer.【F:contexts/CompanyMembershipsContext.tsx†L754-L912】
 

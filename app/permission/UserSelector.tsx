@@ -66,7 +66,7 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect, includeGlobal = t
       setLoading(true);
       try {
         const memberships = selectedCompanyId
-          ? await loadMemberships(selectedCompanyId, 'approved')
+          ? await loadMemberships(selectedCompanyId, 'approved', 'member')
           : [];
 
         const filteredMemberships = memberships.filter(
