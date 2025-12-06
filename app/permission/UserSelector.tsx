@@ -52,7 +52,6 @@ const UserSelector: React.FC<UserSelectorProps> = ({ onSelect, includeGlobal = t
     const normalizedRole = membership.role?.trim().toLowerCase();
     return (
       normalizedRole === 'owner' ||
-      normalizedRole === 'owen' ||
       normalizedRole === 'admin' ||
       normalizedRole === 'administrator'
     );
