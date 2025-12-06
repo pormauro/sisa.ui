@@ -788,7 +788,7 @@ export default function EditInvoiceScreen() {
   return (
     <>
       <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
-        <ThemedText style={styles.sectionTitle}>Factura #{formState.id || invoiceId}</ThemedText>
+        <ThemedText style={styles.sectionTitle}>Factura Nro {formState.id || invoiceId}</ThemedText>
 
       <ThemedText style={styles.label}>Fecha de emisión</ThemedText>
       <TextInput
@@ -933,7 +933,7 @@ export default function EditInvoiceScreen() {
         return (
           <View key={`invoice-item-${index}`} style={[styles.itemContainer, { borderColor }]}>
             <View style={styles.itemHeader}>
-              <ThemedText style={styles.itemTitle}>Ítem #{index + 1}</ThemedText>
+              <ThemedText style={styles.itemTitle}>Ítem {index + 1}</ThemedText>
               <View style={styles.itemActions}>
                 <TouchableOpacity onPress={() => handleToggleItemDetails(index)}>
                   <ThemedText style={styles.itemActionText}>
@@ -1152,6 +1152,8 @@ export default function EditInvoiceScreen() {
             )}
           </TouchableOpacity>
         ) : null}
+
+        <View style={styles.bottomSpacing} />
       </ScrollView>
     </>
   );
@@ -1339,5 +1341,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  bottomSpacing: {
+    height: 24,
   },
 });
