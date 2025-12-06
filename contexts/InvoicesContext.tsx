@@ -348,6 +348,14 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
       null,
   );
 
+  const pdfFileId = toNullableNumber(
+    raw.invoice_pdf_file_id ??
+      raw.pdf_file_id ??
+      raw.invoice_pdf_id ??
+      raw.file_id ??
+      (metadata ? metadata['invoice_pdf_file_id'] ?? metadata['pdf_file_id'] ?? metadata['invoice_pdf_id'] ?? metadata['file_id'] ?? null : null),
+  );
+
   return {
     id: toNumber(raw.id ?? raw.invoice_id ?? raw.identifier ?? 0),
     status: normalizeInvoiceStatus(raw.status ?? raw.invoice_status ?? 'draft'),
@@ -394,9 +402,7 @@ const parseInvoice = (raw: Record<string, unknown>): Invoice => {
         : typeof raw.cancelled_at === 'string'
         ? raw.cancelled_at
         : null,
-    invoice_pdf_file_id: toNullableNumber(
-      raw.invoice_pdf_file_id ?? raw.pdf_file_id ?? raw.invoice_pdf_id ?? raw.file_id ?? null,
-    ),
+    invoice_pdf_file_id: pdfFileId,
     subtotal_amount: toNullableNumber(raw.subtotal_amount ?? raw.subtotal ?? null),
     tax_amount: toNullableNumber(raw.tax_amount ?? raw.taxes ?? null),
     tax_percentage: taxPercentage,
