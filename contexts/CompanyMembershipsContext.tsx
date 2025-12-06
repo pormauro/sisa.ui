@@ -33,6 +33,9 @@ export interface CompanyMembership {
   company_id: number;
   user_id: number;
   role: string | null;
+  user_full_name?: string | null;
+  username?: string | null;
+  user_email?: string | null;
   status: CompanyMembershipStatus;
   position_title?: string | null;
   department?: string | null;
@@ -103,15 +106,25 @@ export interface MembershipNotesPayload {
 }
 
 type MembershipHistoryState = Record<number, Record<number, CompanyMembershipHistoryEntry[]>>;
-type MembershipCollection = Partial<Record<MembershipStatusFilter, CompanyMembership[]>>;
+type MembershipCollection = Partial<Record<string, CompanyMembership[]>>;
 
 type MembershipStore = Record<number, MembershipCollection>;
+
+export type MembershipRoleFilter = 'member' | 'admin' | 'owner' | 'all';
 
 interface CompanyMembershipsContextValue {
   membershipsByCompany: MembershipStore;
   membershipHistories: MembershipHistoryState;
-  getMemberships: (companyId: number, status?: MembershipStatusFilter) => CompanyMembership[];
-  loadMemberships: (companyId: number, status?: MembershipStatusFilter) => Promise<CompanyMembership[]>;
+  getMemberships: (
+    companyId: number,
+    status?: MembershipStatusFilter,
+    role?: MembershipRoleFilter,
+  ) => CompanyMembership[];
+  loadMemberships: (
+    companyId: number,
+    status?: MembershipStatusFilter,
+    role?: MembershipRoleFilter,
+  ) => Promise<CompanyMembership[]>;
   getMembershipHistory: (companyId: number, membershipId: number) => CompanyMembershipHistoryEntry[];
   loadMembershipHistory: (
     companyId: number,
@@ -222,6 +235,36 @@ const parseMembershipStatus = (value: unknown): CompanyMembershipStatus => {
   return 'pending';
 };
 
+const normalizeRoleValue = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized ? normalized : null;
+};
+
+const buildMembershipCacheKey = (
+  status: MembershipStatusFilter,
+  role: MembershipRoleFilter,
+): string => `${status}|${role}`;
+
+const filterMembershipsByRole = (
+  memberships: CompanyMembership[],
+  role: MembershipRoleFilter,
+): CompanyMembership[] => {
+  if (role === 'all') {
+    return memberships;
+  }
+
+  return memberships.filter(membership => {
+    const normalizedRole = membership.role?.trim().toLowerCase();
+    if (normalizedRole === 'administrator' && role === 'admin') {
+      return true;
+    }
+    return normalizedRole === role;
+  });
+};
+
 const toNullableNumber = (value: unknown): number | null => {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;
@@ -294,10 +337,23 @@ const normalizeMembership = (raw: unknown): CompanyMembership | null => {
     company_id: companyId ?? 0,
     user_id: userId ?? 0,
     role:
-      toNullableString(record.role) ??
-      toNullableString(record.role_name) ??
-      toNullableString(record['roleName']) ??
+      normalizeRoleValue(record.role) ??
+      normalizeRoleValue(record.role_name) ??
+      normalizeRoleValue(record['roleName']) ??
       null,
+    user_full_name:
+      normalizeRoleValue(record.user_full_name) ??
+      normalizeRoleValue(record.userFullName) ??
+      normalizeRoleValue(nestedUser.full_name) ??
+      normalizeRoleValue(nestedUser.fullName),
+    username:
+      normalizeRoleValue(record.username) ??
+      normalizeRoleValue(nestedUser.username),
+    user_email:
+      normalizeRoleValue(record.user_email) ??
+      normalizeRoleValue(record.userEmail) ??
+      normalizeRoleValue(record.email) ??
+      normalizeRoleValue(nestedUser.email),
     status:
       parseMembershipStatus(
         record.status ?? record.state ?? record['membership_status'],
@@ -558,19 +614,26 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const canViewHistory = useMemo(() => canManageMemberships, [canManageMemberships]);
 
   const getMembershipsFromStore = useCallback(
-    (companyId: number, status: MembershipStatusFilter = 'approved') => {
+    (
+      companyId: number,
+      status: MembershipStatusFilter = 'approved',
+      role: MembershipRoleFilter = 'all',
+    ) => {
       const byCompany = membershipsStoreRef.current[companyId];
       if (!byCompany) {
         return [];
       }
-      return byCompany[status] ?? [];
+      return byCompany[buildMembershipCacheKey(status, role)] ?? [];
     },
     [],
   );
 
   const getMemberships = useCallback(
-    (companyId: number, status: MembershipStatusFilter = 'approved') =>
-      getMembershipsFromStore(companyId, status),
+    (
+      companyId: number,
+      status: MembershipStatusFilter = 'approved',
+      role: MembershipRoleFilter = 'all',
+    ) => getMembershipsFromStore(companyId, status, role),
     [getMembershipsFromStore],
   );
 
@@ -621,14 +684,25 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   );
 
   const loadMemberships = useCallback(
-    async (companyId: number, status: MembershipStatusFilter = 'approved') => {
+    async (
+      companyId: number,
+      status: MembershipStatusFilter = 'approved',
+      role: MembershipRoleFilter = 'all',
+    ) => {
       if (!token || !canListMemberships) {
-        return getMembershipsFromStore(companyId, status);
+        return getMembershipsFromStore(companyId, status, role);
       }
       try {
-        const query = status ? `?status=${encodeURIComponent(status)}` : '';
+        const params = new URLSearchParams();
+        if (status) {
+          params.append('status', status);
+        }
+        if (role && role !== 'all') {
+          params.append('role', role);
+        }
+        const query = params.toString();
         const response = await fetch(
-          `${BASE_URL}/companies/${companyId}/memberships${query}`,
+          `${BASE_URL}/companies/${companyId}/memberships${query ? `?${query}` : ''}`,
           {
             headers: {
               Accept: 'application/json',
@@ -639,25 +713,28 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
         await ensureAuthResponse(response, { onUnauthorized: checkConnection });
         if (!response.ok) {
           console.error('Error al listar membresías de empresa:', response.status);
-          return getMembershipsFromStore(companyId, status);
+          return getMembershipsFromStore(companyId, status, role);
         }
         const payload = await response.json();
-        const parsed = sortByNewest(parseMembershipList(payload), getDefaultSortValue);
+        const parsed = filterMembershipsByRole(
+          sortByNewest(parseMembershipList(payload), getDefaultSortValue),
+          role,
+        );
         setMembershipsByCompany(prev => ({
           ...prev,
           [companyId]: {
             ...(prev[companyId] ?? {}),
-            [status]: parsed,
+            [buildMembershipCacheKey(status, role)]: parsed,
           },
         }));
         return parsed;
       } catch (error) {
         if (isTokenExpiredError(error)) {
           console.warn('Token expirado al cargar membresías de empresa.');
-          return getMembershipsFromStore(companyId, status);
+          return getMembershipsFromStore(companyId, status, role);
         }
         console.error('Error inesperado al cargar membresías de empresa.', error);
-        return getMembershipsFromStore(companyId, status);
+        return getMembershipsFromStore(companyId, status, role);
       }
     },
     [
