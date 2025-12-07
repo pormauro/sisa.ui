@@ -12,6 +12,7 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { parseAdministratorIdsValue } from '@/utils/administratorIds';
 import { toNumericCoordinate } from '@/utils/coordinates';
+import { clearCompaniesDataCache, getCachedData } from '@/utils/cache';
 
 export interface TaxIdentity {
   id?: number;
@@ -957,145 +958,173 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    try {
-      const response = await fetch(`${BASE_URL}/companies`, {
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
+    let serverSucceeded = false;
 
-      const data = await readJsonSafely(response);
-      if (data === null) {
-        if (response.ok) {
-          setCompanies([]);
+    const hydrateFromCache = async () => {
+      try {
+        const cachedCompanies = await getCachedData<Company[]>('companies');
+        if (!cachedCompanies || serverSucceeded) {
+          return;
         }
-        return;
-      }
 
-      const collection = extractCompanyCollection(data);
-      const parsedCompanies = collection.map(parseCompany);
-
-      const [addresses, contacts, companyContacts, companyChannels, contactChannels] = await Promise.all([
-        fetchCollectionWithParser(token, 'company-addresses', parseAddress),
-        fetchCollectionWithParser(token, 'contacts', parseContact),
-        fetchCollectionWithParser(token, 'company-contacts', parseCompanyContactLink),
-        fetchCollectionWithParser(token, 'company-channels', parseChannel),
-        fetchCollectionWithParser(token, 'contact-channels', parseChannel),
-      ]);
-
-      const addressesByCompany = addresses.reduce<Map<number, CompanyAddress[]>>((acc, address) => {
-        if (!address.company_id) {
-          return acc;
-        }
-        const current = acc.get(address.company_id) ?? [];
-        acc.set(address.company_id, [...current, address]);
-        return acc;
-      }, new Map());
-
-      const companyChannelsByCompany = companyChannels.reduce<Map<number, CommunicationChannel[]>>(
-        (acc, channel) => {
-          if (!channel.company_id) {
-            return acc;
-          }
-          const current = acc.get(channel.company_id) ?? [];
-          acc.set(channel.company_id, mergeRecordCollections(current, [channel], channelComparator));
-          return acc;
-        },
-        new Map()
-      );
-
-      const contactById = contacts.reduce<Map<number, CompanyContact>>((acc, contact) => {
-        if (contact.id) {
-          acc.set(contact.id, contact);
-        }
-        return acc;
-      }, new Map());
-
-      const contactChannelsByContact = contactChannels.reduce<Map<number, CommunicationChannel[]>>(
-        (acc, channel) => {
-          if (!channel.contact_id) {
-            return acc;
-          }
-          const current = acc.get(channel.contact_id) ?? [];
-          acc.set(channel.contact_id, mergeChannels(current, [channel]));
-          return acc;
-        },
-        new Map()
-      );
-
-      const companyContactsByCompany = companyContacts.reduce<Map<number, CompanyContact[]>>(
-        (acc, link) => {
-          if (!link.company_id) {
-            return acc;
-          }
-          const contactId = link.contact_id ?? link.id;
-          const baseContact = contactId ? contactById.get(contactId) : undefined;
-          const aggregatedChannels = mergeChannels(
-            baseContact?.channels,
-            link.channels,
-            contactId ? contactChannelsByContact.get(contactId) : undefined
-          );
-          const normalizedName = (() => {
-            const candidates = [
-              link.name,
-              baseContact?.name,
-              [baseContact?.name, baseContact?.last_name].filter(Boolean).join(' '),
-            ].filter(candidate => typeof candidate === 'string' && candidate.trim().length) as string[];
-            return candidates.length ? candidates[0].trim() : '';
-          })();
-          const mergedContact: CompanyContact = {
-            ...baseContact,
-            ...link,
-            id: contactId ?? link.company_contact_id ?? link.id ?? baseContact?.id,
-            contact_id: contactId ?? baseContact?.contact_id,
-            company_contact_id: link.company_contact_id ?? baseContact?.company_contact_id,
-            company_id: link.company_id,
-            name: normalizedName || baseContact?.name || '',
-            channels: aggregatedChannels,
-          };
-          const current = acc.get(link.company_id) ?? [];
-          acc.set(link.company_id, mergeRecordCollections(current, [mergedContact], contactComparator));
-          return acc;
-        },
-        new Map()
-      );
-
-      const enriched = parsedCompanies.map(company => {
-        const enrichedAddresses = mergeRecordCollections(
-          company.addresses ?? [],
-          addressesByCompany.get(company.id) ?? [],
-          addressComparator
+        setCompanies(
+          ensureSortedByNewest(
+            cachedCompanies.map(company => ensureCompanyCollections(ensureProfileType(company))),
+            getDefaultSortValue
+          )
         );
-        const enrichedCompanyChannels = mergeChannels(company.channels ?? [], companyChannelsByCompany.get(company.id));
-        const linkedContacts = companyContactsByCompany.get(company.id) ?? [];
-        const mergedContacts = mergeRecordCollections(company.contacts ?? [], linkedContacts, contactComparator).map(
-          contact => {
-            const contactId = contact.contact_id ?? contact.id;
+      } catch (error) {
+        console.error('Error hydrating companies from cache:', error);
+      }
+    };
+
+    const fetchFromServer = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/companies`, {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await readJsonSafely(response);
+        if (data === null) {
+          if (response.ok) {
+            await clearCompaniesDataCache();
+            setCompanies([]);
+            serverSucceeded = true;
+          }
+          return;
+        }
+
+        const collection = extractCompanyCollection(data);
+        const parsedCompanies = collection.map(parseCompany);
+
+        const [addresses, contacts, companyContacts, companyChannels, contactChannels] = await Promise.all([
+          fetchCollectionWithParser(token, 'company-addresses', parseAddress),
+          fetchCollectionWithParser(token, 'contacts', parseContact),
+          fetchCollectionWithParser(token, 'company-contacts', parseCompanyContactLink),
+          fetchCollectionWithParser(token, 'company-channels', parseChannel),
+          fetchCollectionWithParser(token, 'contact-channels', parseChannel),
+        ]);
+
+        const addressesByCompany = addresses.reduce<Map<number, CompanyAddress[]>>((acc, address) => {
+          if (!address.company_id) {
+            return acc;
+          }
+          const current = acc.get(address.company_id) ?? [];
+          acc.set(address.company_id, [...current, address]);
+          return acc;
+        }, new Map());
+
+        const companyChannelsByCompany = companyChannels.reduce<Map<number, CommunicationChannel[]>>(
+          (acc, channel) => {
+            if (!channel.company_id) {
+              return acc;
+            }
+            const current = acc.get(channel.company_id) ?? [];
+            acc.set(channel.company_id, mergeRecordCollections(current, [channel], channelComparator));
+            return acc;
+          },
+          new Map()
+        );
+
+        const contactById = contacts.reduce<Map<number, CompanyContact>>((acc, contact) => {
+          if (contact.id) {
+            acc.set(contact.id, contact);
+          }
+          return acc;
+        }, new Map());
+
+        const contactChannelsByContact = contactChannels.reduce<Map<number, CommunicationChannel[]>>(
+          (acc, channel) => {
+            if (!channel.contact_id) {
+              return acc;
+            }
+            const current = acc.get(channel.contact_id) ?? [];
+            acc.set(channel.contact_id, mergeChannels(current, [channel]));
+            return acc;
+          },
+          new Map()
+        );
+
+        const companyContactsByCompany = companyContacts.reduce<Map<number, CompanyContact[]>>(
+          (acc, link) => {
+            if (!link.company_id) {
+              return acc;
+            }
+            const contactId = link.contact_id ?? link.id;
+            const baseContact = contactId ? contactById.get(contactId) : undefined;
             const aggregatedChannels = mergeChannels(
-              contact.channels,
+              baseContact?.channels,
+              link.channels,
               contactId ? contactChannelsByContact.get(contactId) : undefined
             );
-            return {
-              ...contact,
+            const normalizedName = (() => {
+              const candidates = [
+                link.name,
+                baseContact?.name,
+                [baseContact?.name, baseContact?.last_name].filter(Boolean).join(' '),
+              ].filter(candidate => typeof candidate === 'string' && candidate.trim().length) as string[];
+              return candidates.length ? candidates[0].trim() : '';
+            })();
+            const mergedContact: CompanyContact = {
+              ...baseContact,
+              ...link,
+              id: contactId ?? link.company_contact_id ?? link.id ?? baseContact?.id,
+              contact_id: contactId ?? baseContact?.contact_id,
+              company_contact_id: link.company_contact_id ?? baseContact?.company_contact_id,
+              company_id: link.company_id,
+              name: normalizedName || baseContact?.name || '',
               channels: aggregatedChannels,
             };
-          }
+            const current = acc.get(link.company_id) ?? [];
+            acc.set(link.company_id, mergeRecordCollections(current, [mergedContact], contactComparator));
+            return acc;
+          },
+          new Map()
         );
 
-        return {
-          ...company,
-          addresses: enrichedAddresses,
-          channels: enrichedCompanyChannels,
-          contacts: mergedContacts,
-        };
-      });
+        const enriched = parsedCompanies.map(company => {
+          const enrichedAddresses = mergeRecordCollections(
+            company.addresses ?? [],
+            addressesByCompany.get(company.id) ?? [],
+            addressComparator
+          );
+          const enrichedCompanyChannels = mergeChannels(company.channels ?? [], companyChannelsByCompany.get(company.id));
+          const linkedContacts = companyContactsByCompany.get(company.id) ?? [];
+          const mergedContacts = mergeRecordCollections(company.contacts ?? [], linkedContacts, contactComparator).map(
+            contact => {
+              const contactId = contact.contact_id ?? contact.id;
+              const aggregatedChannels = mergeChannels(
+                contact.channels,
+                contactId ? contactChannelsByContact.get(contactId) : undefined
+              );
+              return {
+                ...contact,
+                channels: aggregatedChannels,
+              };
+            }
+          );
 
-      setCompanies(sortByNewest(enriched, getDefaultSortValue));
-    } catch (error) {
-      console.error('Error loading companies:', error);
-    }
+          return {
+            ...company,
+            addresses: enrichedAddresses,
+            channels: enrichedCompanyChannels,
+            contacts: mergedContacts,
+          };
+        });
+
+        await clearCompaniesDataCache();
+        setCompanies(sortByNewest(enriched, getDefaultSortValue));
+        serverSucceeded = true;
+      } catch (error) {
+        console.error('Error loading companies:', error);
+      }
+    };
+
+    await Promise.allSettled([hydrateFromCache(), fetchFromServer()]);
   }, [setCompanies, token]);
 
   const addCompany = useCallback(
