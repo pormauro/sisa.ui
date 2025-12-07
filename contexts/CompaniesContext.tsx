@@ -12,7 +12,7 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
 import { parseAdministratorIdsValue } from '@/utils/administratorIds';
 import { toNumericCoordinate } from '@/utils/coordinates';
-import { clearCompaniesDataCache, getCachedData } from '@/utils/cache';
+import { getCachedData, setCachedData } from '@/utils/cache';
 
 export interface TaxIdentity {
   id?: number;
@@ -991,8 +991,8 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
         const data = await readJsonSafely(response);
         if (data === null) {
           if (response.ok) {
-            await clearCompaniesDataCache();
             setCompanies([]);
+            await setCachedData('companies', []);
             serverSucceeded = true;
           }
           return;
@@ -1116,8 +1116,10 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
           };
         });
 
-        await clearCompaniesDataCache();
-        setCompanies(sortByNewest(enriched, getDefaultSortValue));
+        const sorted = sortByNewest(enriched, getDefaultSortValue);
+
+        setCompanies(sorted);
+        await setCachedData('companies', sorted);
         serverSucceeded = true;
       } catch (error) {
         console.error('Error loading companies:', error);
