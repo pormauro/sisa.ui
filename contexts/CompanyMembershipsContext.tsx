@@ -488,6 +488,10 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   );
   const { token, checkConnection } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
+  const normalizedPermissions = useMemo(
+    () => (Array.isArray(permissions) ? permissions : []),
+    [permissions],
+  );
 
   useEffect(() => {
     membershipsStoreRef.current = membershipsByCompany;
@@ -496,9 +500,9 @@ export const CompanyMembershipsProvider = ({ children }: { children: ReactNode }
   const hasAnyPermission = useCallback(
     (candidates: string | string[]) => {
       const list = Array.isArray(candidates) ? candidates : [candidates];
-      return list.some(permission => permissions.includes(permission));
+      return list.some(permission => normalizedPermissions.includes(permission));
     },
-    [permissions],
+    [normalizedPermissions],
   );
 
   const canManageMemberships = useMemo(
