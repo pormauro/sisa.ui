@@ -44,6 +44,12 @@ ejecuta `clearAllDataCaches`; esta función filtra todas las claves con prefijo
 propaga la señal a todos los suscriptores para que restauren sus valores
 iniciales.【F:app/user/ConfigScreen.tsx†L29-L53】【F:utils/cache.ts†L60-L71】
 
+Cuando se necesita invalidar únicamente el catálogo de empresas sin afectar los
+datos de membresías, `clearCompaniesDataCache` borra la clave `companies` del
+espacio de nombres de caché pero no emite notificaciones globales, de modo que
+los demás estados persisten intactos y se recargan solo cuando cada contexto lo
+requiera.【F:utils/cache.ts†L73-L79】
+
 > **Nota**: este mecanismo solo afecta al "caché de datos" (catálogos,
 > permisos, configuraciones). La limpieza de archivos binarios se gestiona por
 > separado, como se describe en la sección de `FilesContext`.

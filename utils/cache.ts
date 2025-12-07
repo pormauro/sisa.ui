@@ -71,6 +71,14 @@ export const clearAllDataCaches = async (): Promise<void> => {
   }
 };
 
+export const clearCompaniesDataCache = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(buildDataKey('companies'));
+  } catch (error) {
+    console.log('Error clearing companies data cache', error);
+  }
+};
+
 export const getCachedFileMeta = async <T>(id: number): Promise<T | null> => {
   const key = buildFileKey(id);
   try {
