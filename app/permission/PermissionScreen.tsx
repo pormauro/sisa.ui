@@ -6,7 +6,6 @@ import {
   Alert,
   ActivityIndicator,
   Button,
-  TouchableOpacity,
 } from 'react-native';
 import Checkbox from 'expo-checkbox';
 import UserSelector, { type Profile as SelectorProfile } from './UserSelector'; // Asegúrate de que la ruta sea correcta
@@ -122,13 +121,6 @@ const PERMISSION_GROUPS = [
   { group: "Statuses", permissions: ['listStatuses', 'getStatus', 'addStatus', 'updateStatus', 'deleteStatus', 'reorderStatuses'] },
 ];
 
-const ROLE_FILTERS: { label: string; value: MembershipRoleFilter }[] = [
-  { label: 'Miembros', value: 'member' },
-  { label: 'Administradores', value: 'admin' },
-  { label: 'Dueños', value: 'owner' },
-  { label: 'Todos', value: 'all' },
-];
-
 interface AssignedPermission {
   id: number;
   sector: string;
@@ -143,9 +135,11 @@ const PermissionScreen: React.FC = () => {
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
   const [membersLoading, setMembersLoading] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<MembershipRoleFilter>('member');
   const [companyMembers, setCompanyMembers] = useState<CompanyMembership[]>([]);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Se consulta siempre con `role=all` para mostrar el staff completo sin exponer un selector manual.
+  const roleFilter: MembershipRoleFilter = 'all';
 
   const background = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
@@ -568,23 +562,9 @@ const PermissionScreen: React.FC = () => {
         </ThemedText>
       </View>
 
-      <View style={styles.roleFiltersContainer}>
-        {ROLE_FILTERS.map(option => {
-          const isActive = roleFilter === option.value;
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[styles.roleChip, isActive && styles.roleChipActive]}
-              onPress={() => setRoleFilter(option.value)}
-              disabled={isActive}
-            >
-              <ThemedText style={[styles.roleChipText, isActive && styles.roleChipTextActive]}>
-                {option.label}
-              </ThemedText>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <ThemedText style={styles.sectionSubtitle}>
+        Mostrando dueños, administradores y miembros sin filtrarlos manualmente.
+      </ThemedText>
 
       {membersLoading ? (
         <View style={styles.loaderWrapper}>
@@ -715,30 +695,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20
-  },
-  roleFiltersContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 10,
-  },
-  roleChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#888',
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  roleChipActive: {
-    backgroundColor: '#4a90e2',
-    borderColor: '#4a90e2',
-  },
-  roleChipText: {
-    fontSize: 14,
-  },
-  roleChipTextActive: {
-    color: 'white',
   },
   loaderWrapper: {
     paddingVertical: 12,

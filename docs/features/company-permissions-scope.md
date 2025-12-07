@@ -1,7 +1,8 @@
-# Company-scoped permissions (v1.6.2)
+# Company-scoped permissions (v1.6.3)
 
-La versión 1.6.2 introduce el scoping obligatorio de permisos por empresa en la interfaz. El objetivo es que al alternar la
-empresa activa desde la barra inferior se actualicen los permisos consumidos por la app sin perder la persistencia en caché.
+La versión 1.6.3 mantiene el scoping obligatorio de permisos por empresa y simplifica la pantalla `/permission`: los miembros
+aprobados se listan siempre con `role=all`, sin permitir que el usuario filtre entre dueños, administradores o miembros, ya que
+los dos primeros perfiles tienen el menú completo habilitado de forma predeterminada.【F:app/permission/PermissionScreen.tsx†L139-L185】【F:app/permission/PermissionScreen.tsx†L527-L564】El objetivo sigue siendo que al alternar la empresa activa desde la barra inferior se actualicen los permisos consumidos por la app sin perder la persistencia en caché.
 
 ## Contextos involucrados
 
