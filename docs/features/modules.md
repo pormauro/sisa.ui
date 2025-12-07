@@ -42,7 +42,7 @@ Esta guía resume los modelos, operaciones disponibles y dependencias de permiso
 - `TaxIdentity`, `CompanyAddress`, `CompanyContact`, `CommunicationChannel`: describen cada bloque anidado, incluyendo etiquetas, banderas de principal/verificado y referencias cruzadas con las tablas dedicadas `company_*` y `contact_*`.【F:contexts/CompaniesContext.tsx†L14-L76】
 
 ### Métodos del contexto
-- `loadCompanies()`: lee `/companies`, complementa la información con `/company-addresses`, `/contacts`, `/company-contacts`, `/company-channels` y `/contact-channels`, fusiona duplicados y ordena por fecha antes de hidratar el estado compartido.【F:contexts/CompaniesContext.tsx†L606-L748】
+- `loadCompanies()`: consulta en paralelo la caché persistida y el backend; muestra primero los datos cacheados si el servidor aún no respondió y, al recibir la respuesta remota, limpia la caché y repuebla el contexto con la versión más reciente. El flujo complementa la respuesta principal con `/company-addresses`, `/contacts`, `/company-contacts`, `/company-channels` y `/contact-channels`, fusiona duplicados y ordena por fecha antes de hidratar el estado compartido.【F:contexts/CompaniesContext.tsx†L949-L1076】
 - `addCompany(company)`: serializa los bloques anidados, envía el `POST /companies` y fuerza un refresco posterior para mantener la caché alineada.【F:contexts/CompaniesContext.tsx†L251-L278】
 - `updateCompany(id, company)`: ejecuta `PUT /companies/{id}`, fusiona el resultado con el estado local y vuelve a consultar el listado.【F:contexts/CompaniesContext.tsx†L287-L324】
 - `deleteCompany(id)`: llama a `DELETE /companies/{id}` y depura la empresa eliminada del store local.【F:contexts/CompaniesContext.tsx†L333-L351】
