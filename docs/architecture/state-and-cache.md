@@ -26,7 +26,14 @@ clave:
 4. **Persistencia automática.** El *setter* envuelve al `setState` nativo para
    calcular el siguiente valor (función o literal), serializarlo con
    `setCachedData` y luego devolverlo, sin obligar a los consumidores a esperar
-   *promises* ni a duplicar la lógica de escritura.【F:hooks/useCachedState.ts†L38-L52】
+   *promises* ni a duplicar la lógica de escritura.【F:hooks/useCachedState.ts†L38-L57】
+
+> **Importante**: el guardado en caché queda deshabilitado hasta que la
+> hidratación inicial se completa. Esto evita que los efectos que normalizan o
+> limpian estado al montar un contexto sobrescriban accidentalmente los datos
+> persistidos con valores vacíos al abrir la app. Solo después de marcar
+> `hydrated` en `true` se escribe el siguiente estado en `AsyncStorage`.
+> 【F:hooks/useCachedState.ts†L5-L59】
 
 El *hook* devuelve `[state, setState, hydrated]`. El tercer valor habilita
 patrones como ocultar un `FlatList` hasta que el estado esté listo o mostrar una
