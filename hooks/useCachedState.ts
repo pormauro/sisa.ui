@@ -7,6 +7,7 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
   const [hydrated, setHydrated] = useState(false);
   const initialRef = useRef(initialValue);
   const hasHydratedRef = useRef(false);
+  const latestStateRef = useRef(initialValue);
 
   useEffect(() => {
     initialRef.current = initialValue;
@@ -48,6 +49,8 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
             ? (value as (prevState: T) => T)(prev)
             : value;
 
+        latestStateRef.current = next;
+
         if (hasHydratedRef.current) {
           void setCachedData(cacheKey, next);
         }
@@ -57,6 +60,16 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
     },
     [cacheKey]
   );
+
+  useEffect(() => {
+    latestStateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
+    if (hydrated) {
+      void setCachedData(cacheKey, latestStateRef.current);
+    }
+  }, [cacheKey, hydrated]);
 
   return [state, setCachedState, hydrated];
 };
