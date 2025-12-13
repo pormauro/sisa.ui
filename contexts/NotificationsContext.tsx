@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -151,6 +152,12 @@ const parsePayload = (value: unknown): Record<string, unknown> | null => {
   return { value } as Record<string, unknown>;
 };
 
+const areFiltersEqual = (a: NotificationFilters, b: NotificationFilters): boolean =>
+  a.status === b.status &&
+  a.company_id === b.company_id &&
+  a.limit === b.limit &&
+  a.since === b.since;
+
 const parseSource = (value: any): NotificationSource | null => {
   if (!value || typeof value !== 'object') {
     return null;
@@ -247,6 +254,11 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [filters, setFilters] = useState<NotificationFilters>({ status: 'all' });
+  const filtersRef = useRef<NotificationFilters>({ status: 'all' });
+
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
 
   useEffect(() => {
     if (!notificationsHydrated) {
@@ -281,8 +293,8 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       if (!token) {
         return;
       }
-      const mergedFilters: NotificationFilters = { ...filters, ...(override ?? {}) };
-      setFilters(mergedFilters);
+      const mergedFilters: NotificationFilters = { ...filtersRef.current, ...(override ?? {}) };
+      setFilters(prev => (areFiltersEqual(prev, mergedFilters) ? prev : mergedFilters));
       setLoading(true);
       try {
         const params = new URLSearchParams();
@@ -335,7 +347,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         setLoading(false);
       }
     },
-    [authorizedFetch, filters, setNotifications, token],
+    [authorizedFetch, setFilters, setNotifications, token],
   );
 
   const mergeNotification = useCallback(
