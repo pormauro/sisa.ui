@@ -1,9 +1,10 @@
-import React, { createContext, useEffect, useContext, useCallback, useState, useRef } from 'react';
+import React, { createContext, useEffect, useContext, useCallback, useState, useRef, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { subscribeToDataCacheClear } from '@/utils/cache';
+import { MemberCompaniesContext } from '@/contexts/MemberCompaniesContext';
 
 interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
@@ -14,6 +15,76 @@ interface PermissionsContextProps {
 
 const PERMISSION_ALIASES: Record<string, string[]> = {
 };
+
+const ALL_PERMISSIONS: string[] = [
+  'addAppointment',
+  'addCashBox',
+  'addCategory',
+  'addClient',
+  'addFolder',
+  'addInvoice',
+  'addJob',
+  'addPayment',
+  'addPaymentTemplate',
+  'addProductService',
+  'addProvider',
+  'addReceipt',
+  'addStatus',
+  'addTariff',
+  'createCompany',
+  'deleteAppointment',
+  'deleteCashBox',
+  'deleteCategory',
+  'deleteClient',
+  'deleteCompany',
+  'deleteFolder',
+  'deleteInvoice',
+  'deleteJob',
+  'deletePayment',
+  'deletePaymentTemplate',
+  'deleteProductService',
+  'deleteProvider',
+  'deleteReceipt',
+  'deleteReport',
+  'deleteStatus',
+  'deleteTariff',
+  'downloadInvoicePdf',
+  'generatePaymentReport',
+  'listAppUpdates',
+  'listAppointments',
+  'listCashBoxes',
+  'listCategories',
+  'listCompanies',
+  'listFolders',
+  'listInvoices',
+  'listJobs',
+  'listNotifications',
+  'listPaymentTemplates',
+  'listPayments',
+  'listProductsServices',
+  'listProviders',
+  'listReceipts',
+  'listReports',
+  'listStatuses',
+  'listTariffs',
+  'markAllNotificationsRead',
+  'updateAppointment',
+  'updateCashBox',
+  'updateCategory',
+  'updateClient',
+  'updateCompany',
+  'updateFolder',
+  'updateInvoice',
+  'updateJob',
+  'updatePayment',
+  'updatePaymentTemplate',
+  'updateProductService',
+  'updateProvider',
+  'updateReceipt',
+  'updateStatus',
+  'updateTariff',
+  'usePaymentTemplateShortcuts',
+];
 
 const expandWithAliases = (values: string[]): string[] => {
   const set = new Set(values);
@@ -35,6 +106,7 @@ export const PermissionsContext = createContext<PermissionsContextProps>({
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token, userId, isLoading: authIsLoading, checkConnection } = useContext(AuthContext);
+  const { memberships } = useContext(MemberCompaniesContext);
   const [permissions, setPermissions, permissionsHydrated] = useCachedState<string[]>(
     'permissions',
     []
@@ -46,6 +118,31 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [loading, setLoading] = useState<boolean>(false);
   const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
+  const previousCompanyIdRef = useRef<number | null>(null);
+
+  const selectedMembership = useMemo(
+    () => memberships.find(record => record.companyId === selectedCompanyId) ?? null,
+    [memberships, selectedCompanyId]
+  );
+
+  const hasPrivilegedRole = useMemo(() => {
+    const normalizedRole = selectedMembership?.role?.trim().toLowerCase();
+    return normalizedRole === 'admin' || normalizedRole === 'owner' || normalizedRole === 'dueño' || normalizedRole === 'dueno';
+  }, [selectedMembership?.role]);
+
+  const hasFullCompanyAccess = userId === '1' || hasPrivilegedRole;
+
+  const replacePermissionsIfNeeded = useCallback(
+    (nextPermissions: string[]) => {
+      setPermissions(prev => {
+        if (prev.length === nextPermissions.length && prev.every(value => nextPermissions.includes(value))) {
+          return prev;
+        }
+        return nextPermissions;
+      });
+    },
+    [setPermissions],
+  );
 
   const clearCachedPermissions = useCallback(() => {
     setPermissions(prev => (prev.length > 0 ? [] : prev));
@@ -72,8 +169,28 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
 
+  useEffect(() => {
+    if (!selectedCompanyHydrated) {
+      return;
+    }
+
+    const previousCompanyId = previousCompanyIdRef.current;
+    if (previousCompanyId !== null && previousCompanyId !== selectedCompanyId && !hasFullCompanyAccess) {
+      clearCachedPermissions();
+      setIsCompanyAdmin(false);
+    }
+
+    previousCompanyIdRef.current = selectedCompanyId ?? null;
+  }, [clearCachedPermissions, hasFullCompanyAccess, selectedCompanyHydrated, selectedCompanyId]);
+
   const fetchPermissions = useCallback(async () => {
     // Si no hay token o userId disponible, conservamos la información en caché.
+    if (hasFullCompanyAccess) {
+      replacePermissionsIfNeeded(ALL_PERMISSIONS);
+      setIsCompanyAdmin(true);
+      return;
+    }
+
     if (!token || !userId || !selectedCompanyHydrated) {
       return;
     }
@@ -160,7 +277,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Unir ambas listas sin duplicados
       const mergedPermissions = Array.from(new Set([...userPerms, ...globalPerms]));
-      setPermissions(expandWithAliases(mergedPermissions));
+      replacePermissionsIfNeeded(expandWithAliases(mergedPermissions));
 
       const normalizeBooleanCandidate = (candidate: any): boolean | undefined => {
         if (typeof candidate === 'boolean') {
@@ -205,7 +322,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         globalData?.company_admin,
         globalData?.is_admin,
       );
-      setIsCompanyAdmin(adminFlag);
+      setIsCompanyAdmin(adminFlag || hasPrivilegedRole);
     } catch (error: any) {
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
@@ -235,7 +352,16 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, selectedCompanyHydrated, selectedCompanyId, setPermissions, token, userId]);
+  }, [
+    checkConnection,
+    hasFullCompanyAccess,
+    hasPrivilegedRole,
+    replacePermissionsIfNeeded,
+    selectedCompanyHydrated,
+    selectedCompanyId,
+    token,
+    userId,
+  ]);
 
   useEffect(() => {
     fetchPermissions();
