@@ -248,6 +248,15 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
   const [loading, setLoading] = useState<boolean>(false);
   const [filters, setFilters] = useState<NotificationFilters>({ status: 'all' });
 
+  const filtersMatch = useCallback(
+    (current: NotificationFilters, next: NotificationFilters): boolean =>
+      current.status === next.status &&
+      current.company_id === next.company_id &&
+      current.limit === next.limit &&
+      current.since === next.since,
+    [],
+  );
+
   useEffect(() => {
     if (!notificationsHydrated) {
       return;
@@ -282,7 +291,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         return;
       }
       const mergedFilters: NotificationFilters = { ...filters, ...(override ?? {}) };
-      setFilters(mergedFilters);
+      setFilters(prev => (filtersMatch(prev, mergedFilters) ? prev : mergedFilters));
       setLoading(true);
       try {
         const params = new URLSearchParams();
@@ -335,7 +344,7 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
         setLoading(false);
       }
     },
-    [authorizedFetch, filters, setNotifications, token],
+    [authorizedFetch, filters, filtersMatch, setNotifications, token],
   );
 
   const mergeNotification = useCallback(
