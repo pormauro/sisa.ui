@@ -13,6 +13,7 @@ interface AuthContextProps {
   token: string | null;
   login: (loginUsername: string, loginPassword: string) => Promise<void>;
   logout: () => Promise<void>;
+  restartSession: () => Promise<void>;
   checkConnection: () => Promise<void>;
 }
 
@@ -25,6 +26,7 @@ export const AuthContext = createContext<AuthContextProps>({
   token: null,
   login: async () => {},
   logout: async () => {},
+  restartSession: async () => {},
   checkConnection: async () => {},
 });
 
@@ -233,6 +235,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     },
     [performLogin]
   );
+
+  const restartSession = useCallback(async () => {
+    const currentUsername = username;
+    const currentPassword = password;
+
+    // Si no hay credenciales almacenadas, se realiza un logout normal.
+    if (!currentUsername || !currentPassword) {
+      await logout();
+      return;
+    }
+
+    await removeItem('token');
+    await removeItem('token_expiration');
+    setToken(null);
+    setUserId(null);
+    setIsOffline(false);
+
+    await performLogin(currentUsername, currentPassword);
+  }, [logout, password, performLogin, username]);
 
   const checkTokenValidity = useCallback(async (): Promise<boolean> => {
     const expiration = await getItem('token_expiration');
@@ -482,6 +503,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         token,
         login,
         logout,
+        restartSession,
         checkConnection,
       }}
     >

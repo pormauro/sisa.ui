@@ -42,7 +42,7 @@ export const BottomNavigationBar: React.FC = () => {
   const barBackground = useThemeColor({ light: '#0f0d18', dark: '#0f0d18' }, 'background');
 
   const { notifications } = useContext(NotificationsContext);
-  const { userId } = useContext(AuthContext);
+  const { userId, restartSession } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const [isCompanyModalVisible, setIsCompanyModalVisible] = useState(false);
   const { memberCompanies, loadMemberCompanies, refreshMemberCompanies } = useContext(MemberCompaniesContext);
@@ -113,6 +113,7 @@ export const BottomNavigationBar: React.FC = () => {
       await clearAllDataCaches();
       await clearFileCaches();
       setSelectedCompanyId(companyId);
+      await restartSession();
       await refreshMemberCompanies();
     } catch (error) {
       console.log('Error al reiniciar datos por cambio de empresa', error);
