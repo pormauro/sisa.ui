@@ -15,6 +15,7 @@ import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useCachedState } from '@/hooks/useCachedState';
 
 // Definición de grupos de permisos. Cada grupo contiene una lista de "sectors" (cadenas que representan los permisos)
 const PERMISSION_GROUPS = [
@@ -127,6 +128,10 @@ const PermissionScreen: React.FC = () => {
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedCompanyId, , selectedCompanyHydrated] = useCachedState<number | null>(
+    'selected-company-id',
+    null,
+  );
 
   const background = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
@@ -233,13 +238,14 @@ const PermissionScreen: React.FC = () => {
 
   // Función para cargar permisos del usuario seleccionado (o global si id === 0)
   const loadPermissions = useCallback(() => {
-    if (!token || selectedUser === null || !canListPermissions) {
+    if (!token || selectedUser === null || !canListPermissions || !selectedCompanyHydrated) {
       setAssignedPermissions({});
       return Promise.resolve();
     }
 
     const isGlobalSelection = selectedUser.id === 0;
     const isOwnSelection = numericUserId !== null && selectedUser.id === numericUserId;
+    const companyIdParam = selectedCompanyId ?? 'null';
 
     if (isGlobalSelection && !canViewGlobalPermissions) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos globales.');
@@ -255,8 +261,8 @@ const PermissionScreen: React.FC = () => {
 
     setLoading(true);
     const url = isGlobalSelection
-      ? `${BASE_URL}/permissions/global`
-      : `${BASE_URL}/permissions/user/${selectedUser.id}`;
+      ? `${BASE_URL}/permissions/global?company_id=${companyIdParam}`
+      : `${BASE_URL}/permissions/user/${selectedUser.id}?company_id=${companyIdParam}`;
 
     return fetch(url, {
       headers: {
@@ -277,7 +283,16 @@ const PermissionScreen: React.FC = () => {
         Alert.alert('Error', 'No se pudieron cargar los permisos.');
       })
       .finally(() => setLoading(false));
-  }, [token, selectedUser, canListPermissions, canViewGlobalPermissions, canSelectOtherUsers, numericUserId]);
+  }, [
+    canListPermissions,
+    canSelectOtherUsers,
+    canViewGlobalPermissions,
+    numericUserId,
+    selectedCompanyHydrated,
+    selectedCompanyId,
+    selectedUser,
+    token,
+  ]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -289,13 +304,13 @@ const PermissionScreen: React.FC = () => {
 
   // Función para agregar un permiso; se retorna la promesa
   const addPermission = (sector: string) => {
-    if (!token || selectedUser === null) return Promise.resolve();
+    if (!token || selectedUser === null || !selectedCompanyHydrated) return Promise.resolve();
 
     if (!canEditSelection) {
       Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
       return Promise.resolve();
     }
-    const bodyData: any = { sector };
+    const bodyData: any = { sector, company_id: selectedCompanyId ?? null };
 
     if (selectedUser.id !== 0) {
       bodyData.user_id = selectedUser.id;
@@ -327,7 +342,7 @@ const PermissionScreen: React.FC = () => {
   
   // Función para eliminar un permiso; se retorna la promesa
   const removePermission = (sector: string) => {
-    if (!token || selectedUser === null) return Promise.resolve();
+    if (!token || selectedUser === null || !selectedCompanyHydrated) return Promise.resolve();
 
     if (!canEditSelection) {
       Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
@@ -335,7 +350,9 @@ const PermissionScreen: React.FC = () => {
     }
     const perm = assignedPermissions[sector];
     if (!perm) return Promise.resolve();
-    return fetch(`${BASE_URL}/permissions/${perm.id}`, {
+    const companyIdParam = selectedCompanyId ?? 'null';
+
+    return fetch(`${BASE_URL}/permissions/${perm.id}?company_id=${companyIdParam}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

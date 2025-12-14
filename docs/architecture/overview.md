@@ -54,7 +54,7 @@ La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de
 ### `PermissionsContext`
 
 - Depende de `AuthContext` para obtener `token` y `userId`.
-- Fusiona los permisos específicos del usuario (`/permissions/user/:id`) con los permisos globales (`/permissions/global`) y actualiza el caché local mediante `useCachedState`.
+- Fusiona los permisos específicos del usuario (`/permissions/user/:id?company_id=`) con los permisos globales (`/permissions/global?company_id=`), enviando el `company_id` seleccionado (o `null`) y actualizando el caché local mediante `useCachedState`.
 - Se refresca automáticamente cada cinco minutos para mantener los permisos sincronizados con el backend.
 
 ### Contextos de dominio (`Clients`, `CashBoxes`, `Jobs`, etc.)
@@ -76,7 +76,7 @@ Todas las peticiones (excepto el login inicial) incluyen el encabezado `Authoriz
 AuthContext --login--> /login
   │             └─ usa credenciales para obtener token y perfil (/profile)
   ↓
-PermissionsContext --fetch--> /permissions/user/:id y /permissions/global
+PermissionsContext --fetch--> /permissions/user/:id?company_id= y /permissions/global?company_id=
   ↓
 Contextos de dominio --CRUD--> módulos funcionales (clientes, pagos, cajas, etc.)
   ↓
