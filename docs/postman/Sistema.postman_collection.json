@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "3a901196-e91b-4348-a251-8a5c013b4a5b",
     "name": "Sistema",
-    "description": "Colección documentada para el sistema SISA. Incluye comentarios y notas sobre el uso del token Bearer y los endpoints disponibles.\n\nPrefijo opcional: Los endpoints aceptan tanto rutas directas (por ejemplo `/invoices`) como llamadas con `/api` (`/api/invoices`). Si el servidor requiere otro prefijo, ajústalo mediante la variable de entorno API_BASE_PATH.",
+    "description": "Colección documentada para el sistema SISA. Incluye comentarios y notas sobre el uso del token Bearer y los endpoints disponibles.\n\nPrefijo opcional: Los endpoints aceptan tanto rutas directas (por ejemplo `/invoices`) como llamadas con `/api` (`/api/invoices`). Si el servidor requiere otro prefijo, ajústalo mediante la variable de entorno API_BASE_PATH.\n\nAutenticación: solo `POST /login` carece de encabezado Authorization; todas las demás rutas envían `Bearer {{auth_token}}` y quedan registradas en el visor `/network/logs` de la app para depuración.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "15065162"
   },
@@ -312,12 +312,12 @@
                 "login"
               ]
             },
-            "description": "**POST {{base_url}}/login**\n\nDescripción: Endpoint `login` dentro de Session.\n\n> Comentario: Endpoint público para iniciar sesión o registrar usuarios. No requiere encabezado Authorization."
+            "description": "**POST {{base_url}}/login**\n\nDescripción: Endpoint `login` dentro de Session.\n\n> Comentario: Endpoint público para iniciar sesión o registrar usuarios. No requiere encabezado Authorization y sus respuestas también quedan visibles en el visor `/network/logs` junto con el resto de llamadas."
           },
           "response": []
         }
       ],
-      "description": "Operaciones relacionadas con el inicio de sesión y gestión de credenciales. Solo los endpoints 'register' y 'login' son públicos; el resto requiere token Bearer."
+      "description": "Operaciones relacionadas con el inicio de sesión y gestión de credenciales. Solo los endpoints 'register' y 'login' son públicos; el resto requiere token Bearer y todas las llamadas (incluido el login) se reflejan en `/network/logs` para depuración."
     },
     {
       "name": "File",
@@ -8296,7 +8296,7 @@
             "login"
           ]
         },
-        "description": "**POST {{base_url}}/login**\n\nDescripción: Endpoint `login` dentro de la colección.\n\n> Comentario: Endpoint público para iniciar sesión o registrar usuarios. No requiere encabezado Authorization."
+        "description": "**POST {{base_url}}/login**\n\nDescripción: Endpoint `login` dentro de la colección.\n\n> Comentario: Endpoint público para iniciar sesión o registrar usuarios. No requiere encabezado Authorization y sus respuestas también quedan visibles en el visor `/network/logs` junto con el resto de llamadas."
       },
       "response": []
     },
