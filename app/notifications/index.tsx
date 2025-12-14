@@ -126,7 +126,6 @@ const NotificationsScreen = () => {
     notifications,
     loadNotifications,
     markAsRead,
-    markAllAsRead,
     loading,
     filters,
   } = useContext(NotificationsContext);
@@ -143,10 +142,6 @@ const NotificationsScreen = () => {
 
   const canList = useMemo(
     () => userId === '1' || permissions.includes('listNotifications'),
-    [permissions, userId],
-  );
-  const canMarkAll = useMemo(
-    () => userId === '1' || permissions.includes('markAllNotificationsRead'),
     [permissions, userId],
   );
   const canSendManual = useMemo(() => userId === '1', [userId]);
@@ -168,13 +163,6 @@ const NotificationsScreen = () => {
     }
   }, [canList, loadNotifications, selectedStatus]);
 
-  const handleMarkAll = useCallback(async () => {
-    const updated = await markAllAsRead({ company_id: 0 });
-    if (updated > 0) {
-      await loadNotifications({ status: selectedStatus });
-    }
-  }, [loadNotifications, markAllAsRead, selectedStatus]);
-
   const filteredNotifications = useMemo(() => {
     if (!canList) return [];
     const safeNotifications = notifications.map(item => ({
@@ -189,11 +177,6 @@ const NotificationsScreen = () => {
     }
     return safeNotifications.filter(item => !item.state.is_hidden);
   }, [canList, notifications, selectedStatus]);
-
-  const unreadCount = useMemo(
-    () => filteredNotifications.filter(item => !item.state.is_read && !item.state.is_hidden).length,
-    [filteredNotifications],
-  );
 
   const handleOpenNotification = useCallback(
     (item: NotificationEntry) => {
@@ -263,14 +246,6 @@ const NotificationsScreen = () => {
           );
         })}
       </View>
-
-      {canMarkAll && unreadCount > 0 && (
-        <ThemedButton
-          title={`Marcar ${unreadCount} como leídas`}
-          onPress={handleMarkAll}
-          style={[styles.markAllButton, { backgroundColor: tintColor }]}
-        />
-      )}
 
       {loading && notifications.length === 0 ? (
         <View style={styles.loadingContainer}>
@@ -445,10 +420,6 @@ const styles = StyleSheet.create({
   emptyStateDescription: {
     textAlign: 'center',
     color: '#6b7280',
-  },
-  markAllButton: {
-    marginBottom: 12,
-    borderRadius: 12,
   },
   secondaryButton: {
     paddingHorizontal: 14,
