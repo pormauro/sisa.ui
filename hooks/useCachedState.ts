@@ -2,6 +2,32 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { getCachedData, setCachedData, subscribeToDataCacheClear } from '@/utils/cache';
 
+type CacheListener = (value: unknown) => void;
+
+const cacheKeyListeners = new Map<string, Set<CacheListener>>();
+
+const subscribeToCacheKey = (cacheKey: string, listener: CacheListener): (() => void) => {
+  if (!cacheKeyListeners.has(cacheKey)) {
+    cacheKeyListeners.set(cacheKey, new Set());
+  }
+  cacheKeyListeners.get(cacheKey)!.add(listener);
+  return () => {
+    cacheKeyListeners.get(cacheKey)?.delete(listener);
+  };
+};
+
+const broadcastCacheKeyUpdate = (cacheKey: string, value: unknown): void => {
+  const listeners = cacheKeyListeners.get(cacheKey);
+  if (!listeners) return;
+  listeners.forEach(listener => {
+    try {
+      listener(value);
+    } catch (error) {
+      console.log('Error notifying cache key listener', error);
+    }
+  });
+};
+
 export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>, boolean] => {
   const [state, setState] = useState<T>(initialValue);
   const [hydrated, setHydrated] = useState(false);
@@ -37,6 +63,14 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = subscribeToCacheKey(cacheKey, value => {
+      setState(value as T);
+    });
+
+    return unsubscribe;
+  }, [cacheKey]);
+
   const setCachedState = useCallback(
     (value: React.SetStateAction<T>) => {
       setState(prev => {
@@ -45,6 +79,7 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
             ? (value as (prevState: T) => T)(prev)
             : value;
         void setCachedData(cacheKey, next);
+        broadcastCacheKeyUpdate(cacheKey, next);
         return next;
       });
     },
