@@ -129,6 +129,12 @@ const PermissionScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [permissionsExchangeStatus, setPermissionsExchangeStatus] = useState('Sin actividad');
   const [lastPermissionPostDebug, setLastPermissionPostDebug] = useState<string>('Aún no se envió POST de permisos');
+  const [lastPermissionPostResponse, setLastPermissionPostResponse] = useState<string>(
+    'Aún no se ha recibido respuesta del POST de permisos',
+  );
+  const [lastPermissionDeleteResponse, setLastPermissionDeleteResponse] = useState<string>(
+    'Aún no se ha recibido respuesta del DELETE de permisos',
+  );
   const [lastPermissionsUrl, setLastPermissionsUrl] = useState<string | null>(null);
   const [lastPermissionsResponse, setLastPermissionsResponse] = useState<string | null>(
     'Aún no se ha recibido respuesta de permisos'
@@ -362,6 +368,8 @@ const PermissionScreen: React.FC = () => {
       ),
     );
 
+    setLastPermissionPostResponse('Esperando respuesta del servidor para el POST de permisos...');
+
     return fetch(`${BASE_URL}/permissions`, {
       method: 'POST',
       headers: {
@@ -372,6 +380,7 @@ const PermissionScreen: React.FC = () => {
     })
       .then(res => res.json())
       .then(data => {
+        setLastPermissionPostResponse(JSON.stringify(data, null, 2));
         if (data.id) {
           setAssignedPermissions(prev => ({
             ...prev,
@@ -383,6 +392,7 @@ const PermissionScreen: React.FC = () => {
       .catch(err => {
         console.error(`Error adding permission ${sector}:`, err);
         Alert.alert('Error', `No se pudo agregar el permiso ${sector}`);
+        setLastPermissionPostResponse('Error en POST de permisos: ' + String(err));
       });
   };
   
@@ -398,6 +408,8 @@ const PermissionScreen: React.FC = () => {
     if (!perm) return Promise.resolve();
     const companyIdParam = selectedCompanyId ?? 'null';
 
+    setLastPermissionDeleteResponse('Esperando respuesta del servidor para el DELETE de permisos...');
+
     return fetch(`${BASE_URL}/permissions/${perm.id}?company_id=${companyIdParam}`, {
       method: 'DELETE',
       headers: {
@@ -409,7 +421,8 @@ const PermissionScreen: React.FC = () => {
         const text = await res.text();
         return text ? JSON.parse(text) : {};
       })
-      .then(() => {
+      .then((data) => {
+        setLastPermissionDeleteResponse(JSON.stringify(data, null, 2));
         setAssignedPermissions(prev => {
           const newPerms = { ...prev };
           delete newPerms[sector];
@@ -420,6 +433,7 @@ const PermissionScreen: React.FC = () => {
       .catch(err => {
         console.error(`Error deleting permission ${sector}:`, err);
         Alert.alert('Error', `No se pudo eliminar el permiso ${sector}`);
+        setLastPermissionDeleteResponse('Error en DELETE de permisos: ' + String(err));
       });
   };
 
@@ -555,8 +569,14 @@ const PermissionScreen: React.FC = () => {
       <ThemedText style={styles.infoText}>
         POST de permisos enviado al servidor (con body): {'\n'}{lastPermissionPostDebug}
       </ThemedText>
+      <ThemedText style={[styles.infoText, styles.responseText]}>
+        Respuesta del POST de permisos: {'\n'}{lastPermissionPostResponse}
+      </ThemedText>
       <ThemedText style={styles.infoText}>
         GET de permisos enviado al servidor: {permissionsRequestLabel}
+      </ThemedText>
+      <ThemedText style={[styles.infoText, styles.responseText]}>
+        Respuesta del DELETE de permisos: {'\n'}{lastPermissionDeleteResponse}
       </ThemedText>
       <ThemedText style={styles.infoText}>
         Estado del intercambio de permisos: {permissionsExchangeStatus}
