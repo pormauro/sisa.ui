@@ -17,28 +17,40 @@ Esta aplicación móvil se construye con [Expo Router](https://expo.github.io/ro
 El `RootLayout` es la puerta de entrada a la aplicación. Primero muestra un `Stack` con las pantallas raíz y, antes de renderizarlo, envuelve el contenido con una cadena de *providers* que comparten estado global con el resto de las rutas.
 
 ```
-AuthProvider
-  └─ PermissionsProvider
-       └─ FilesProvider
-            └─ ProfileProvider
-                 └─ ProfilesProvider
-                      └─ ProfilesListProvider
-                           └─ ConfigProvider
-                                └─ ThemeProvider
-                                     └─ CashBoxesProvider
-                                          └─ ClientsProvider
-                                               └─ ProvidersProvider
-                                                    └─ CategoriesProvider
-                                                         └─ ProductsServicesProvider
-                                                              └─ StatusesProvider
-                                                                   └─ TariffsProvider
-                                                                        └─ JobsProvider
-                                                                             └─ AppointmentsProvider
-                                                                                  └─ PaymentTemplatesProvider
-                                                                                       └─ PaymentsProvider
-                                                                                            └─ ReceiptsProvider
-                                                                                            └─ FoldersProvider
-                                                                                                 └─ <Stack />
+RequestLogsProvider
+  └─ LogProvider
+       └─ SafeAreaProvider
+            └─ AuthProvider
+                 └─ PermissionsProvider
+                      └─ AppUpdatesProvider
+                           └─ FilesProvider
+                                └─ ProfileProvider
+                                     └─ ProfilesProvider
+                                          └─ ProfilesListProvider
+                                               └─ ConfigProvider
+                                                    └─ ThemeProvider
+                                                         └─ ToastProvider
+                                                              └─ CashBoxesProvider
+                                                                   └─ CompaniesProvider
+                                                                        └─ MemberCompaniesProvider
+                                                                             └─ CompanyMembershipsProvider
+                                                                                  └─ ClientsProvider
+                                                                                       └─ ProvidersProvider
+                                                                                            └─ CategoriesProvider
+                                                                                                 └─ ProductsServicesProvider
+                                                                                                      └─ StatusesProvider
+                                                                                                           └─ TariffsProvider
+                                                                                                                └─ JobsProvider
+                                                                                                                     └─ AppointmentsProvider
+                                                                                                                          └─ PaymentTemplatesProvider
+                                                                                                                               └─ PaymentsProvider
+                                                                                                                                    └─ InvoicesProvider
+                                                                                                                                    └─ ReceiptsProvider
+                                                                                                                                         └─ ReportsProvider
+                                                                                                                                              └─ FoldersProvider
+                                                                                                                                                   └─ NotificationsProvider
+                                                                                                                                                        └─ PendingSelectionProvider
+                                                                                                                                                             └─ <Stack />
 ```
 
 La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de sesión antes de montar el resto de los contextos; `PermissionsProvider` consume el token y el `userId` del contexto de autenticación; el resto de los proveedores usan ese token para obtener datos de dominio. Cualquier pantalla dentro de `app/` puede consumir estas fuentes de datos a través de `useContext`, como ocurre en [`app/Home.tsx`](../../app/Home.tsx) al filtrar el menú según permisos. El flujo financiero incorpora un `PaymentTemplatesProvider` que expone plantillas reutilizables para pagos.
@@ -67,6 +79,7 @@ La jerarquía refleja dependencias lógicas: `AuthProvider` calcula el estado de
 
 - `useCachedState` hidrata cada contexto desde `AsyncStorage`, se suscribe a los eventos de limpieza y reescribe el cache cada vez que se actualiza el estado.
 - `ThemeProvider` y `useThemeColor` garantizan que los componentes respeten el modo claro/oscuro definido por el sistema y por `constants/Colors`.
+- `RequestLogsProvider` envuelve al resto de providers y reemplaza `fetch` para guardar automáticamente en caché cada petición con su cuerpo, respuesta y marca temporal; la limpieza se expone desde Configuración.【F:contexts/RequestLogsContext.tsx†L1-L138】【F:app/_layout.tsx†L60-L117】【F:app/user/ConfigScreen.tsx†L262-L308】
 
 ## Interacción con el backend y dependencias clave
 

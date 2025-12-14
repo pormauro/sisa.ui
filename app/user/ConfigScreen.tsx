@@ -12,11 +12,13 @@ import { useLog } from '@/contexts/LogContext';
 import { clearAllDataCaches } from '@/utils/cache';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { useRequestLogs } from '@/contexts/RequestLogsContext';
 
 const ConfigScreen: React.FC = () => {
   const { configDetails, loadConfig, updateConfig } = useContext(ConfigContext)!;
   const { clearLocalFiles } = useContext(FileContext);
   const { overlaySuppressed, setOverlaySuppressed, overlaySettingsHydrated } = useLog();
+  const { logs: requestLogs, clearRequestLogs } = useRequestLogs();
   const [selectedTheme, setSelectedTheme] = useState<string>('light');
   const { cashBoxes } = useContext(CashBoxesContext);
   const [defaultPaymentCashBox, setDefaultPaymentCashBox] = useState<string>('');
@@ -77,6 +79,7 @@ const ConfigScreen: React.FC = () => {
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const accentColor = useThemeColor({}, 'tint');
+  const logCardColor = useThemeColor({ light: '#f0f0f0', dark: '#2b2b2b' }, 'background');
 
   const cashBoxOptions = useMemo(
     () => [
@@ -264,6 +267,56 @@ const ConfigScreen: React.FC = () => {
             onPress={handleClearCache}
             style={styles.editButton}
           />
+          <ThemedText style={[styles.infoText, styles.sectionTitle]}>Registro de peticiones</ThemedText>
+          <ThemedText style={styles.switchHint}>
+            Se almacena automáticamente cada llamada al servidor con su cuerpo, marca temporal y respuesta para diagnóstico.
+          </ThemedText>
+          {requestLogs.length === 0 ? (
+            <ThemedText style={styles.switchHint}>No hay peticiones registradas aún.</ThemedText>
+          ) : (
+            requestLogs
+              .slice()
+              .reverse()
+              .map(log => (
+                <ThemedView
+                  key={log.id}
+                  style={[styles.logCard, { backgroundColor: logCardColor }]}
+                  lightColor="#f0f0f0"
+                  darkColor="#2b2b2b"
+                >
+                  <ThemedText style={styles.logTitle} numberOfLines={2}>
+                    {log.method} — {log.url}
+                  </ThemedText>
+                  <ThemedText style={styles.logMeta}>
+                    Fecha: {new Date(log.timestamp).toLocaleString()}
+                  </ThemedText>
+                  {log.body ? (
+                    <ThemedText style={styles.logBody} numberOfLines={4}>
+                      Cuerpo: {log.body}
+                    </ThemedText>
+                  ) : null}
+                  <ThemedText style={styles.logMeta}>
+                    Respuesta ({log.status ?? 'sin estado'}):
+                  </ThemedText>
+                  {log.responseBody ? (
+                    <ThemedText style={styles.logBody} numberOfLines={5}>
+                      {log.responseBody}
+                    </ThemedText>
+                  ) : (
+                    <ThemedText style={styles.logBody} numberOfLines={2}>
+                      [Sin cuerpo de respuesta]
+                    </ThemedText>
+                  )}
+                </ThemedView>
+              ))
+          )}
+          <ThemedButton
+            title="Borrar historial de peticiones"
+            lightColor="#d9534f"
+            darkColor="#d9534f"
+            onPress={clearRequestLogs}
+            style={styles.editButton}
+          />
         </ThemedView>
       ) : (
         <ThemedText style={styles.infoText}>Cargando configuración...</ThemedText>
@@ -323,6 +376,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 6,
     opacity: 0.7,
+  },
+  sectionTitle: {
+    marginTop: 18,
+  },
+  logCard: {
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  logTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  logMeta: {
+    marginTop: 6,
+    fontSize: 14,
+    opacity: 0.8,
+  },
+  logBody: {
+    marginTop: 4,
+    fontSize: 14,
   },
 });
 
