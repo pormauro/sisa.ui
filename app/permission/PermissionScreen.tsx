@@ -344,13 +344,14 @@ const PermissionScreen: React.FC = () => {
       Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
       return Promise.resolve();
     }
+    const companyIdParam = selectedCompanyId ?? 'null';
     const bodyData: any = { sector, company_id: selectedCompanyId ?? null };
 
     if (selectedUser.id !== 0) {
       bodyData.user_id = selectedUser.id;
     }
   
-    return fetch(`${BASE_URL}/permissions`, {
+    return fetch(`${BASE_URL}/permissions?company_id=${companyIdParam}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
