@@ -87,7 +87,6 @@ interface NotificationsContextValue {
     id: number,
     payload?: { hidden_at?: string | null }
   ) => Promise<NotificationEntry | null>;
-  markAllAsRead: (payload?: { company_id?: number | null }) => Promise<number>;
   sendNotification: (
     payload: ManualNotificationInput
   ) => Promise<{ notificationId: number | null; invalidUserIds: number[] }>;
@@ -100,7 +99,6 @@ const defaultContext: NotificationsContextValue = {
   loadNotifications: async () => {},
   markAsRead: async () => null,
   hideNotification: async () => null,
-  markAllAsRead: async () => 0,
   sendNotification: async () => ({ notificationId: null, invalidUserIds: [] }),
 };
 
@@ -465,39 +463,6 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
     [authorizedFetch, mergeNotification],
   );
 
-  const markAllAsRead = useCallback(
-    async (payload: { company_id?: number | null } = { company_id: 0 }): Promise<number> => {
-      try {
-        const requestPayload = { company_id: 0, ...payload };
-        const response = await authorizedFetch(`${BASE_URL}/notifications/mark-all-read`, {
-          method: 'POST',
-          body: JSON.stringify(requestPayload),
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          console.warn('No se pudieron marcar todas como leídas', data);
-          return 0;
-        }
-        const updatedCount = Number(data?.updated_count ?? 0);
-        setNotifications(prev =>
-          prev.map(item => ({
-            ...item,
-            state: { ...item.state, is_read: true, read_at: item.state.read_at ?? new Date().toISOString() },
-          })),
-        );
-        return Number.isFinite(updatedCount) ? updatedCount : 0;
-      } catch (error) {
-        if (isTokenExpiredError(error)) {
-          console.warn('Token expirado al marcar todas como leídas, se solicitará uno nuevo.');
-          return 0;
-        }
-        console.error('Error al marcar todas como leídas', error);
-        return 0;
-      }
-    },
-    [authorizedFetch, setNotifications],
-  );
-
   const sendNotification = useCallback(
     async (
       payload: ManualNotificationInput,
@@ -541,10 +506,9 @@ export const NotificationsProvider = ({ children }: { children: ReactNode }) => 
       loadNotifications,
       markAsRead,
       hideNotification,
-      markAllAsRead,
       sendNotification,
     }),
-    [filters, hideNotification, loadNotifications, loading, markAllAsRead, markAsRead, notifications, sendNotification],
+    [filters, hideNotification, loadNotifications, loading, markAsRead, notifications, sendNotification],
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
