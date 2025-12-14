@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { getCachedData, setCachedData, subscribeToDataCacheClear } from '@/utils/cache';
 
+const memoryCache = new Map<string, unknown>();
+
 export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>, boolean] => {
-  const [state, setState] = useState<T>(initialValue);
+  const [state, setState] = useState<T>(() => {
+    const cached = memoryCache.get(cacheKey);
+    return (cached as T | undefined) ?? initialValue;
+  });
   const [hydrated, setHydrated] = useState(false);
   const initialRef = useRef(initialValue);
 
@@ -14,10 +19,10 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
   useEffect(() => {
     let isMounted = true;
     setHydrated(false);
-    setState(initialRef.current);
     (async () => {
       const cached = await getCachedData<T>(cacheKey);
       if (cached !== null && isMounted) {
+        memoryCache.set(cacheKey, cached);
         setState(cached);
       }
       if (isMounted) {
@@ -32,10 +37,11 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
 
   useEffect(() => {
     const unsubscribe = subscribeToDataCacheClear(() => {
+      memoryCache.delete(cacheKey);
       setState(initialRef.current);
     });
     return unsubscribe;
-  }, []);
+  }, [cacheKey]);
 
   const setCachedState = useCallback(
     (value: React.SetStateAction<T>) => {
@@ -44,6 +50,7 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
           typeof value === 'function'
             ? (value as (prevState: T) => T)(prev)
             : value;
+        memoryCache.set(cacheKey, next);
         void setCachedData(cacheKey, next);
         return next;
       });
