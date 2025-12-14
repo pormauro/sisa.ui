@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
-import { getCachedData, setCachedData, subscribeToDataCacheClear } from '@/utils/cache';
+import {
+  getCachedData,
+  setCachedData,
+  subscribeToDataCacheClear,
+  subscribeToDataCacheKey,
+} from '@/utils/cache';
 
 export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>, boolean] => {
   const [state, setState] = useState<T>(initialValue);
@@ -36,6 +41,17 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToDataCacheKey(cacheKey, value => {
+      setState(prev => {
+        const nextValue = value as T;
+        return Object.is(prev, nextValue) ? prev : nextValue;
+      });
+      setHydrated(true);
+    });
+    return unsubscribe;
+  }, [cacheKey]);
 
   const setCachedState = useCallback(
     (value: React.SetStateAction<T>) => {
