@@ -50,6 +50,10 @@ espacio de nombres de caché pero no emite notificaciones globales, de modo que
 los demás estados persisten intactos y se recargan solo cuando cada contexto lo
 requiera.【F:utils/cache.ts†L73-L79】
 
+> El `CompaniesContext` primero rehidrata el listado desde la caché y **después**
+> consulta el servidor, garantizando que la lista de empresas aparezca de forma
+> inmediata aunque la petición remota demore.【F:contexts/CompaniesContext.tsx†L943-L1040】
+
 > **Nota**: este mecanismo solo afecta al "caché de datos" (catálogos,
 > permisos, configuraciones). La limpieza de archivos binarios se gestiona por
 > separado, como se describe en la sección de `FilesContext`.
