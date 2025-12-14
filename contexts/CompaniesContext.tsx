@@ -104,6 +104,7 @@ export type CompanyPayload = {
 interface CompaniesContextValue {
   companies: Company[];
   loadCompanies: () => void;
+  loadCompany: (id: number) => Promise<Company | null>;
   addCompany: (company: CompanyPayload) => Promise<Company | null>;
   updateCompany: (id: number, company: CompanyPayload) => Promise<boolean>;
   deleteCompany: (id: number) => Promise<boolean>;
@@ -112,6 +113,7 @@ interface CompaniesContextValue {
 const defaultValue: CompaniesContextValue = {
   companies: [],
   loadCompanies: () => {},
+  loadCompany: async () => null,
   addCompany: async () => null,
   updateCompany: async () => false,
   deleteCompany: async () => false,
@@ -1127,6 +1129,47 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     await Promise.allSettled([hydrateFromCache(), fetchFromServer()]);
   }, [setCompanies, token]);
 
+  const loadCompany = useCallback(
+    async (id: number): Promise<Company | null> => {
+      if (!token || !Number.isFinite(id)) {
+        return null;
+      }
+
+      try {
+        const response = await fetch(`${BASE_URL}/companies/${id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorPayload = await readJsonSafely(response);
+          console.error('Error loading company:', { status: response.status, body: errorPayload });
+          return null;
+        }
+
+        const payload = await readJsonSafely<{ company?: any }>(response);
+        const parsedCompany = payload?.company ? parseCompany(payload.company) : null;
+
+        if (parsedCompany) {
+          setCompanies(prev =>
+            ensureSortedByNewest(
+              [...prev.filter(company => company.id !== parsedCompany.id), parsedCompany],
+              getDefaultSortValue
+            )
+          );
+        }
+
+        return parsedCompany ?? null;
+      } catch (error) {
+        console.error('Error loading company:', error);
+      }
+
+      return null;
+    },
+    [setCompanies, token]
+  );
+
   const addCompany = useCallback(
     async (companyData: CompanyPayload): Promise<Company | null> => {
       if (!token) {
@@ -1274,8 +1317,8 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
   }, [loadCompanies, token]);
 
   const value = useMemo(
-    () => ({ companies, loadCompanies, addCompany, updateCompany, deleteCompany }),
-    [addCompany, companies, deleteCompany, loadCompanies, updateCompany]
+    () => ({ companies, loadCompanies, loadCompany, addCompany, updateCompany, deleteCompany }),
+    [addCompany, companies, deleteCompany, loadCompanies, loadCompany, updateCompany]
   );
 
   return <CompaniesContext.Provider value={value}>{children}</CompaniesContext.Provider>;
