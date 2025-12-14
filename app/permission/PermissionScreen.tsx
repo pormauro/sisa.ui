@@ -128,6 +128,9 @@ const PermissionScreen: React.FC = () => {
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
   const [lastPermissionsUrl, setLastPermissionsUrl] = useState<string | null>(null);
+  const [lastPermissionsResponse, setLastPermissionsResponse] = useState<string | null>(
+    'Aún no se ha recibido respuesta de permisos'
+  );
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCompanyId, , selectedCompanyHydrated] = useCachedState<number | null>(
     'selected-company-id',
@@ -254,6 +257,7 @@ const PermissionScreen: React.FC = () => {
     if (!token || selectedUser === null || !canListPermissions || !selectedCompanyHydrated) {
       setAssignedPermissions({});
       setLastPermissionsUrl(null);
+      setLastPermissionsResponse('Aún no se ha recibido respuesta de permisos');
       return Promise.resolve();
     }
 
@@ -265,6 +269,7 @@ const PermissionScreen: React.FC = () => {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos globales.');
       setAssignedPermissions({});
       setLastPermissionsUrl(null);
+      setLastPermissionsResponse('Acceso denegado para permisos globales');
       return Promise.resolve();
     }
 
@@ -272,6 +277,7 @@ const PermissionScreen: React.FC = () => {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos de otros usuarios.');
       setAssignedPermissions({});
       setLastPermissionsUrl(null);
+      setLastPermissionsResponse('Acceso denegado para permisos de otros usuarios');
       return Promise.resolve();
     }
 
@@ -281,6 +287,7 @@ const PermissionScreen: React.FC = () => {
       : `${BASE_URL}/permissions/user/${selectedUser.id}?company_id=${companyIdParam}`;
 
     setLastPermissionsUrl(url);
+    setLastPermissionsResponse('Esperando respuesta del servidor...');
 
     return fetch(url, {
       headers: {
@@ -290,6 +297,7 @@ const PermissionScreen: React.FC = () => {
     })
       .then(res => res.json())
       .then(data => {
+        setLastPermissionsResponse(JSON.stringify(data, null, 2));
         const permissionsMap: Record<string, AssignedPermission> = {};
         data.permissions.forEach((perm: AssignedPermission) => {
           permissionsMap[perm.sector] = perm;
@@ -299,6 +307,7 @@ const PermissionScreen: React.FC = () => {
       .catch(err => {
         console.error('Error loading permissions:', err);
         Alert.alert('Error', 'No se pudieron cargar los permisos.');
+        setLastPermissionsResponse('Error al cargar permisos: ' + String(err));
       })
       .finally(() => setLoading(false));
   }, [
@@ -527,6 +536,9 @@ const PermissionScreen: React.FC = () => {
       <ThemedText style={styles.infoText}>
         GET de permisos enviado al servidor: {permissionsRequestLabel}
       </ThemedText>
+      <ThemedText style={[styles.infoText, styles.responseText]}>
+        Respuesta del servidor: {'\n'}{lastPermissionsResponse ?? 'Sin respuesta del servidor'}
+      </ThemedText>
       {canChooseUser ? (
         <UserSelector
           includeGlobal={canSelectGlobal}
@@ -612,7 +624,11 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 16,
     textAlign: 'center',
-    marginTop: 20
+    marginTop: 20,
+  },
+  responseText: {
+    fontFamily: 'monospace',
+    textAlign: 'left',
   },
   groupContainer: {
     marginBottom: 20,
