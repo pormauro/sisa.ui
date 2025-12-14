@@ -21,13 +21,23 @@ export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.
     setHydrated(false);
     (async () => {
       const cached = await getCachedData<T>(cacheKey);
-      if (cached !== null && isMounted) {
-        memoryCache.set(cacheKey, cached);
-        setState(cached);
+      if (!isMounted) {
+        return;
       }
-      if (isMounted) {
-        setHydrated(true);
+
+      const hasMemoryValue = memoryCache.has(cacheKey);
+
+      if (!hasMemoryValue) {
+        if (cached !== null) {
+          memoryCache.set(cacheKey, cached);
+          setState(cached);
+        } else {
+          memoryCache.set(cacheKey, initialRef.current);
+          setState(initialRef.current);
+        }
       }
+
+      setHydrated(true);
     })();
 
     return () => {
