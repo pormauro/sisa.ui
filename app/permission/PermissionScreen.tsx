@@ -128,6 +128,7 @@ const PermissionScreen: React.FC = () => {
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
   const [permissionsExchangeStatus, setPermissionsExchangeStatus] = useState('Sin actividad');
+  const [lastPermissionPostDebug, setLastPermissionPostDebug] = useState<string>('Aún no se envió POST de permisos');
   const [lastPermissionsUrl, setLastPermissionsUrl] = useState<string | null>(null);
   const [lastPermissionsResponse, setLastPermissionsResponse] = useState<string | null>(
     'Aún no se ha recibido respuesta de permisos'
@@ -349,7 +350,18 @@ const PermissionScreen: React.FC = () => {
     if (selectedUser.id !== 0) {
       bodyData.user_id = selectedUser.id;
     }
-  
+
+    setLastPermissionPostDebug(
+      JSON.stringify(
+        {
+          url: `${BASE_URL}/permissions`,
+          body: bodyData,
+        },
+        null,
+        2,
+      ),
+    );
+
     return fetch(`${BASE_URL}/permissions`, {
       method: 'POST',
       headers: {
@@ -539,6 +551,9 @@ const PermissionScreen: React.FC = () => {
       </ThemedText>
       <ThemedText style={styles.infoText}>
         ID de usuario autenticado: {userIdDebugLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        POST de permisos enviado al servidor (con body): {'\n'}{lastPermissionPostDebug}
       </ThemedText>
       <ThemedText style={styles.infoText}>
         GET de permisos enviado al servidor: {permissionsRequestLabel}
