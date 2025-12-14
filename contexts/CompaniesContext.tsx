@@ -1124,7 +1124,8 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    await Promise.allSettled([hydrateFromCache(), fetchFromServer()]);
+    await hydrateFromCache();
+    await fetchFromServer();
   }, [setCompanies, token]);
 
   const addCompany = useCallback(
