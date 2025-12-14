@@ -132,6 +132,10 @@ const PermissionScreen: React.FC = () => {
     'selected-company-id',
     null,
   );
+  const companyIdDebugLabel = useMemo(
+    () => (selectedCompanyHydrated ? selectedCompanyId ?? 'null' : 'cargando...'),
+    [selectedCompanyHydrated, selectedCompanyId],
+  );
 
   const background = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
@@ -500,6 +504,9 @@ const PermissionScreen: React.FC = () => {
       keyboardDismissMode="on-drag"
     >
       <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
+      <ThemedText style={styles.infoText}>
+        company_id (selectedCompanyId) enviado al servidor: {companyIdDebugLabel}
+      </ThemedText>
       {canChooseUser ? (
         <UserSelector
           includeGlobal={canSelectGlobal}
