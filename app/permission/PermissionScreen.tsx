@@ -127,6 +127,7 @@ const PermissionScreen: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
+  const [permissionsExchangeStatus, setPermissionsExchangeStatus] = useState('Sin actividad');
   const [lastPermissionsUrl, setLastPermissionsUrl] = useState<string | null>(null);
   const [lastPermissionsResponse, setLastPermissionsResponse] = useState<string | null>(
     'Aún no se ha recibido respuesta de permisos'
@@ -258,6 +259,7 @@ const PermissionScreen: React.FC = () => {
       setAssignedPermissions({});
       setLastPermissionsUrl(null);
       setLastPermissionsResponse('Aún no se ha recibido respuesta de permisos');
+      setPermissionsExchangeStatus('Sin actividad');
       return Promise.resolve();
     }
 
@@ -270,6 +272,7 @@ const PermissionScreen: React.FC = () => {
       setAssignedPermissions({});
       setLastPermissionsUrl(null);
       setLastPermissionsResponse('Acceso denegado para permisos globales');
+      setPermissionsExchangeStatus('Sin actividad');
       return Promise.resolve();
     }
 
@@ -278,6 +281,7 @@ const PermissionScreen: React.FC = () => {
       setAssignedPermissions({});
       setLastPermissionsUrl(null);
       setLastPermissionsResponse('Acceso denegado para permisos de otros usuarios');
+      setPermissionsExchangeStatus('Sin actividad');
       return Promise.resolve();
     }
 
@@ -288,6 +292,7 @@ const PermissionScreen: React.FC = () => {
 
     setLastPermissionsUrl(url);
     setLastPermissionsResponse('Esperando respuesta del servidor...');
+    setPermissionsExchangeStatus('Enviado');
 
     return fetch(url, {
       headers: {
@@ -298,6 +303,7 @@ const PermissionScreen: React.FC = () => {
       .then(res => res.json())
       .then(data => {
         setLastPermissionsResponse(JSON.stringify(data, null, 2));
+        setPermissionsExchangeStatus('Recibido');
         const permissionsMap: Record<string, AssignedPermission> = {};
         data.permissions.forEach((perm: AssignedPermission) => {
           permissionsMap[perm.sector] = perm;
@@ -308,6 +314,7 @@ const PermissionScreen: React.FC = () => {
         console.error('Error loading permissions:', err);
         Alert.alert('Error', 'No se pudieron cargar los permisos.');
         setLastPermissionsResponse('Error al cargar permisos: ' + String(err));
+        setPermissionsExchangeStatus('Recibido con error');
       })
       .finally(() => setLoading(false));
   }, [
@@ -535,6 +542,9 @@ const PermissionScreen: React.FC = () => {
       </ThemedText>
       <ThemedText style={styles.infoText}>
         GET de permisos enviado al servidor: {permissionsRequestLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        Estado del intercambio de permisos: {permissionsExchangeStatus}
       </ThemedText>
       <ThemedText style={[styles.infoText, styles.responseText]}>
         Respuesta del servidor: {'\n'}{lastPermissionsResponse ?? 'Sin respuesta del servidor'}
