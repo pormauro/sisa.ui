@@ -36,6 +36,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { LogProvider } from '@/contexts/LogContext';
+import { NetworkLogProvider } from '@/contexts/NetworkLogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 
@@ -89,8 +90,9 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <LogProvider>
-      <SafeAreaProvider>
-        <AuthProvider>
+      <NetworkLogProvider>
+        <SafeAreaProvider>
+          <AuthProvider>
           <PermissionsProvider>
             <AppUpdatesProvider>
               <FilesProvider>
@@ -155,7 +157,8 @@ export default function RootLayout() {
           </PermissionsProvider>
         </AuthProvider>
       </SafeAreaProvider>
-    </LogProvider>
+    </NetworkLogProvider>
+  </LogProvider>
   );
 }
 

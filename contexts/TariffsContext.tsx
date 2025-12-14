@@ -8,7 +8,9 @@ import React, {
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useNetworkLog } from '@/contexts/NetworkLogContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { loggedFetch } from '@/utils/networkLogger';
 
 const toNumber = (value: unknown, fallback = 0): number => {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -77,6 +79,7 @@ export const TariffsContext = createContext<TariffsContextType>({
 export const TariffsProvider = ({ children }: { children: ReactNode }) => {
   const [tariffs, setTariffs] = useCachedState<Tariff[]>('tariffs', []);
   const { token } = useContext(AuthContext);
+  const { appendLog } = useNetworkLog();
 
   useEffect(() => {
     setTariffs(prev => normalizeTariffs(prev));
@@ -84,12 +87,16 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
 
   const loadTariffs = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE_URL}/tariffs`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const response = await loggedFetch(
+        {
+          url: `${BASE_URL}/tariffs`,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+        appendLog,
+      );
       const data = await response.json();
       if (data.tariffs) {
         const parsed = normalizeTariffs(Array.isArray(data.tariffs) ? data.tariffs : []);
@@ -98,19 +105,23 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Error loading tariffs:', error);
     }
-  }, [setTariffs, token]);
+  }, [appendLog, setTariffs, token]);
 
   const addTariff = useCallback(
     async (tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<Tariff | null> => {
       try {
-        const response = await fetch(`${BASE_URL}/tariffs`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+        const response = await loggedFetch(
+          {
+            url: `${BASE_URL}/tariffs`,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(tariff),
           },
-          body: JSON.stringify(tariff),
-        });
+          appendLog,
+        );
         const data = await response.json();
         if (data.tariff_id) {
           const newTariff: Tariff = {
@@ -127,20 +138,24 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       }
       return null;
     },
-    [loadTariffs, setTariffs, token]
+    [appendLog, loadTariffs, setTariffs, token]
   );
 
   const updateTariff = useCallback(
     async (id: number, tariff: Omit<Tariff, 'id' | 'last_update'>): Promise<boolean> => {
       try {
-        const response = await fetch(`${BASE_URL}/tariffs/${id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+        const response = await loggedFetch(
+          {
+            url: `${BASE_URL}/tariffs/${id}`,
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(tariff),
           },
-          body: JSON.stringify(tariff),
-        });
+          appendLog,
+        );
         const data = await response.json();
         if (data.message === 'Tariff updated successfully') {
           setTariffs(prev =>
@@ -156,18 +171,22 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
       }
       return false;
     },
-    [loadTariffs, setTariffs, token]
+    [appendLog, loadTariffs, setTariffs, token]
   );
 
   const deleteTariff = async (id: number): Promise<boolean> => {
     try {
-      const response = await fetch(`${BASE_URL}/tariffs/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+      const response = await loggedFetch(
+        {
+          url: `${BASE_URL}/tariffs/${id}`,
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+        appendLog,
+      );
       const data = await response.json();
       if (data.message === 'Tariff deleted successfully') {
         setTariffs(prev => prev.filter(t => t.id !== id));
