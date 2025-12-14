@@ -73,7 +73,7 @@ SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la 
 
 ### Contextos transversales
 - `AuthContext`: login, autologin, renovación y almacenamiento seguro del token.
-- `PermissionsContext`: fusiona permisos globales y del usuario consultando `/permissions/global` y `/permissions/user/:id`, con refresco automático cada 5 minutos.
+- `PermissionsContext`: fusiona permisos globales y del usuario consultando `/permissions/global?company_id=` y `/permissions/user/:id?company_id=`, enviando el `company_id` seleccionado (o `null`) y con refresco automático cada 5 minutos.
 - `FilesContext`: subida (`/files`), descarga y cacheo de metadatos/archivos con `expo-file-system`, incluyendo utilidades para limpiar almacenamiento local.
 - `ConfigContext`: obtiene y actualiza preferencias (`/user_configurations`) y expone el tema elegido por el usuario, el cual se integra en `useColorScheme`.
 - `ProfileContext`, `ProfilesContext` y `ProfilesListContext`: cachean perfiles del usuario actual, perfiles externos y listados completos para selector de permisos.

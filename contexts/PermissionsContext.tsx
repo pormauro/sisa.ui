@@ -39,6 +39,10 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     'permissions',
     []
   );
+  const [selectedCompanyId, , selectedCompanyHydrated] = useCachedState<number | null>(
+    'selected-company-id',
+    null,
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [isCompanyAdmin, setIsCompanyAdmin] = useState<boolean>(false);
   const previousUserIdRef = useRef<string | null>(null);
@@ -70,11 +74,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const fetchPermissions = useCallback(async () => {
     // Si no hay token o userId disponible, conservamos la información en caché.
-    if (!token || !userId) {
+    if (!token || !userId || !selectedCompanyHydrated) {
       return;
     }
     setLoading(true);
     try {
+      const companyIdParam = selectedCompanyId ?? 'null';
+
       const parsePermissionsResponse = async (
         response: Response,
         scope: 'usuario' | 'global'
@@ -134,13 +140,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       // Se realizan ambas peticiones de forma concurrente:
       const [userData, globalData] = await Promise.all([
-        fetch(`${BASE_URL}/permissions/user/${userId}`, {
+        fetch(`${BASE_URL}/permissions/user/${userId}?company_id=${companyIdParam}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         }).then(response => parsePermissionsResponse(response, 'usuario')),
-        fetch(`${BASE_URL}/permissions/global`, {
+        fetch(`${BASE_URL}/permissions/global?company_id=${companyIdParam}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -229,7 +235,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setLoading(false);
     }
-  }, [checkConnection, setPermissions, token, userId]);
+  }, [checkConnection, selectedCompanyHydrated, selectedCompanyId, setPermissions, token, userId]);
 
   useEffect(() => {
     fetchPermissions();
