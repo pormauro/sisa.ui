@@ -1,14 +1,17 @@
-# Monitor de solicitudes de red (APP_VERSION 1.3.6)
+# Monitor de solicitudes de red (APP_VERSION 1.3.7)
 
-La pantalla **Registro de red** (`/network/logs`) permite inspeccionar las peticiones HTTP que realiza la aplicación. Usa el `NetworkLogContext` para persistir hasta 200 entradas en caché y se actualiza automáticamente cada vez que se ejecuta `loggedFetch`.
+La pantalla **Registro de red** (`/network/logs`) muestra todas las peticiones HTTP emitidas por la app. El `NetworkLogProvider` parchea `global.fetch` para registrar cada llamada enviada mediante `loggedFetch`, incluidos los flujos de autenticación inicial, las sincronizaciones con token Bearer y cualquier uso manual del fetch global.
 
-## Permisos y visibilidad
+## Interceptado y campos guardados
+- **Solicitud:** método, URL completa, cabeceras con valores sensibles enmascarados (`Authorization`/`token`) y cuerpo serializado cuando está disponible.
+- **Respuesta:** código de estado, cuerpo parseado (JSON o texto) y mensaje de error si la promesa falla o expira (`timeout`).
+- **Metadatos:** tiempo de inicio (`timestamp`) y duración en milisegundos para estimar latencias.
+
+## Límites y limpieza automática
+- Se conservan hasta **200 entradas** en la clave de caché `networkLogs`; al superar el límite, se descartan los registros más antiguos para ahorrar espacio.
+- `useCachedState` permite rehidratar el historial tras reinicios y responde a las señales de "Borrar datos de la caché" para limpiar el listado completo en conjunto con otros contextos persistentes.
+- El botón **Borrar registro** ejecuta `clearLogs()` y pide confirmación previa para evitar borrados accidentales.
+
+## Permisos y cobertura
 - El menú de Configuración muestra el acceso solo cuando el usuario tiene el permiso `listNetworkLogs`; el superusuario (`userId === '1'`) lo ve siempre.
-- Las acciones internas no requieren permisos adicionales, pero el botón **Borrar registro** pide confirmación antes de invocar `clearLogs()` para evitar eliminaciones accidentales.
-
-## Controles disponibles
-- **Filtros**: chips para filtrar por método HTTP, categoría de estado (exitosos, errores, pendientes) y un campo de búsqueda por URI parcial.
-- **Paginación**: la lista usa `FlatList` con página incremental de 20 elementos, manteniendo orden descendente por fecha.
-- **Detalle expandible**: cada tarjeta revela cabeceras, cuerpo y respuesta serializados en JSON para depurar llamadas específicas.
-
-Estas funcionalidades permiten auditar rápidamente qué endpoints se están consumiendo con token Bearer y detectar fallas sin depender de herramientas externas.
+- Todas las llamadas autenticadas se envían con token Bearer salvo el login, y el visor captura ambos tipos para depurar inicios de sesión, errores de autenticación o respuestas del backend.
