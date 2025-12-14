@@ -9,6 +9,7 @@ export interface MenuItem {
   requiredPermissions?: string[];
   fallbackPermissions?: string[];
   fallbackRoute?: string;
+  superuserVisible?: boolean;
 }
 
 export type MenuSectionKey =
@@ -120,7 +121,13 @@ export const MENU_SECTIONS: MenuSection[] = [
     items: [
       { title: 'Perfil', route: '/user/ProfileScreen', icon: 'person' },
       { title: 'Configuración', route: '/user/ConfigScreen', icon: 'settings' },
-      { title: 'Permisos', route: '/permission', icon: 'lock-closed', requiredPermissions: ['listPermissions'] },
+      {
+        title: 'Permisos',
+        route: '/permission',
+        icon: 'lock-closed',
+        requiredPermissions: ['listPermissions'],
+        superuserVisible: true,
+      },
       {
         title: 'Notificaciones',
         route: '/notifications',
@@ -132,6 +139,7 @@ export const MENU_SECTIONS: MenuSection[] = [
         route: '/network/logs',
         icon: 'git-network-outline',
         requiredPermissions: ['listNetworkLogs'],
+        superuserVisible: true,
       },
     ],
   },
