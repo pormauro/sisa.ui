@@ -15,6 +15,7 @@ import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
+import { useCachedState } from '@/hooks/useCachedState';
 
 // Definición de grupos de permisos. Cada grupo contiene una lista de "sectors" (cadenas que representan los permisos)
 const PERMISSION_GROUPS = [
@@ -126,13 +127,34 @@ const PermissionScreen: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
+  const [permissionsExchangeStatus, setPermissionsExchangeStatus] = useState('Sin actividad');
+  const [lastPermissionsUrl, setLastPermissionsUrl] = useState<string | null>(null);
+  const [lastPermissionsResponse, setLastPermissionsResponse] = useState<string | null>(
+    'Aún no se ha recibido respuesta de permisos'
+  );
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [selectedCompanyId, , selectedCompanyHydrated] = useCachedState<number | null>(
+    'selected-company-id',
+    null,
+  );
+  const companyIdDebugLabel = useMemo(
+    () => (selectedCompanyHydrated ? selectedCompanyId ?? 'null' : 'cargando...'),
+    [selectedCompanyHydrated, selectedCompanyId],
+  );
 
   const background = useThemeColor({}, 'background');
   const spinnerColor = useThemeColor({}, 'tint');
   const groupBorderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
 
   const numericUserId = useMemo(() => (userId ? Number(userId) : null), [userId]);
+  const userIdDebugLabel = useMemo(
+    () => (numericUserId !== null ? numericUserId : 'desconocido'),
+    [numericUserId],
+  );
+  const permissionsRequestLabel = useMemo(
+    () => lastPermissionsUrl ?? 'Aún no se ha enviado un GET de permisos',
+    [lastPermissionsUrl],
+  );
   const fallbackUsername = username ?? 'Mi usuario';
   const isMasterUser = numericUserId === 1;
 
@@ -233,30 +255,44 @@ const PermissionScreen: React.FC = () => {
 
   // Función para cargar permisos del usuario seleccionado (o global si id === 0)
   const loadPermissions = useCallback(() => {
-    if (!token || selectedUser === null || !canListPermissions) {
+    if (!token || selectedUser === null || !canListPermissions || !selectedCompanyHydrated) {
       setAssignedPermissions({});
+      setLastPermissionsUrl(null);
+      setLastPermissionsResponse('Aún no se ha recibido respuesta de permisos');
+      setPermissionsExchangeStatus('Sin actividad');
       return Promise.resolve();
     }
 
     const isGlobalSelection = selectedUser.id === 0;
     const isOwnSelection = numericUserId !== null && selectedUser.id === numericUserId;
+    const companyIdParam = selectedCompanyId ?? 'null';
 
     if (isGlobalSelection && !canViewGlobalPermissions) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos globales.');
       setAssignedPermissions({});
+      setLastPermissionsUrl(null);
+      setLastPermissionsResponse('Acceso denegado para permisos globales');
+      setPermissionsExchangeStatus('Sin actividad');
       return Promise.resolve();
     }
 
     if (!isGlobalSelection && !isOwnSelection && !canSelectOtherUsers) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos de otros usuarios.');
       setAssignedPermissions({});
+      setLastPermissionsUrl(null);
+      setLastPermissionsResponse('Acceso denegado para permisos de otros usuarios');
+      setPermissionsExchangeStatus('Sin actividad');
       return Promise.resolve();
     }
 
     setLoading(true);
     const url = isGlobalSelection
-      ? `${BASE_URL}/permissions/global`
-      : `${BASE_URL}/permissions/user/${selectedUser.id}`;
+      ? `${BASE_URL}/permissions/global?company_id=${companyIdParam}`
+      : `${BASE_URL}/permissions/user/${selectedUser.id}?company_id=${companyIdParam}`;
+
+    setLastPermissionsUrl(url);
+    setLastPermissionsResponse('Esperando respuesta del servidor...');
+    setPermissionsExchangeStatus('Enviado');
 
     return fetch(url, {
       headers: {
@@ -266,6 +302,8 @@ const PermissionScreen: React.FC = () => {
     })
       .then(res => res.json())
       .then(data => {
+        setLastPermissionsResponse(JSON.stringify(data, null, 2));
+        setPermissionsExchangeStatus('Recibido');
         const permissionsMap: Record<string, AssignedPermission> = {};
         data.permissions.forEach((perm: AssignedPermission) => {
           permissionsMap[perm.sector] = perm;
@@ -275,9 +313,20 @@ const PermissionScreen: React.FC = () => {
       .catch(err => {
         console.error('Error loading permissions:', err);
         Alert.alert('Error', 'No se pudieron cargar los permisos.');
+        setLastPermissionsResponse('Error al cargar permisos: ' + String(err));
+        setPermissionsExchangeStatus('Recibido con error');
       })
       .finally(() => setLoading(false));
-  }, [token, selectedUser, canListPermissions, canViewGlobalPermissions, canSelectOtherUsers, numericUserId]);
+  }, [
+    canListPermissions,
+    canSelectOtherUsers,
+    canViewGlobalPermissions,
+    numericUserId,
+    selectedCompanyHydrated,
+    selectedCompanyId,
+    selectedUser,
+    token,
+  ]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -289,19 +338,20 @@ const PermissionScreen: React.FC = () => {
 
   // Función para agregar un permiso; se retorna la promesa
   const addPermission = (sector: string) => {
-    if (!token || selectedUser === null) return Promise.resolve();
+    if (!token || selectedUser === null || !selectedCompanyHydrated) return Promise.resolve();
 
     if (!canEditSelection) {
       Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
       return Promise.resolve();
     }
-    const bodyData: any = { sector };
+    const companyIdParam = selectedCompanyId ?? 'null';
+    const bodyData: any = { sector, company_id: selectedCompanyId ?? null };
 
     if (selectedUser.id !== 0) {
       bodyData.user_id = selectedUser.id;
     }
   
-    return fetch(`${BASE_URL}/permissions`, {
+    return fetch(`${BASE_URL}/permissions?company_id=${companyIdParam}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -327,7 +377,7 @@ const PermissionScreen: React.FC = () => {
   
   // Función para eliminar un permiso; se retorna la promesa
   const removePermission = (sector: string) => {
-    if (!token || selectedUser === null) return Promise.resolve();
+    if (!token || selectedUser === null || !selectedCompanyHydrated) return Promise.resolve();
 
     if (!canEditSelection) {
       Alert.alert('Acceso denegado', 'No tienes permiso para modificar estos permisos.');
@@ -335,7 +385,9 @@ const PermissionScreen: React.FC = () => {
     }
     const perm = assignedPermissions[sector];
     if (!perm) return Promise.resolve();
-    return fetch(`${BASE_URL}/permissions/${perm.id}`, {
+    const companyIdParam = selectedCompanyId ?? 'null';
+
+    return fetch(`${BASE_URL}/permissions/${perm.id}?company_id=${companyIdParam}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -483,6 +535,21 @@ const PermissionScreen: React.FC = () => {
       keyboardDismissMode="on-drag"
     >
       <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
+      <ThemedText style={styles.infoText}>
+        company_id (selectedCompanyId) enviado al servidor: {companyIdDebugLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        ID de usuario autenticado: {userIdDebugLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        GET de permisos enviado al servidor: {permissionsRequestLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        Estado del intercambio de permisos: {permissionsExchangeStatus}
+      </ThemedText>
+      <ThemedText style={[styles.infoText, styles.responseText]}>
+        Respuesta del servidor: {'\n'}{lastPermissionsResponse ?? 'Sin respuesta del servidor'}
+      </ThemedText>
       {canChooseUser ? (
         <UserSelector
           includeGlobal={canSelectGlobal}
@@ -568,7 +635,11 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 16,
     textAlign: 'center',
-    marginTop: 20
+    marginTop: 20,
+  },
+  responseText: {
+    fontFamily: 'monospace',
+    textAlign: 'left',
   },
   groupContainer: {
     marginBottom: 20,

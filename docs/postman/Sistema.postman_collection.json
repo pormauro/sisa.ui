@@ -3426,7 +3426,7 @@
     },
     {
       "name": "Accounts & Ledger",
-      "description": "Endpoints de cuentas, transferencias y asientos. Requieren token Bearer salvo login; el super usuario (ID=1) puede omitir filtros de compañía, scopes y estado activo. No se usan FOREIGN KEY, los montos deben ser positivos y la paginación respeta per_page ≤ 200. Scopes mínimos: accounts.read/accounts.write, transfers.write, accounting_entries.read/accounting_entries.write. Versionado alineado a v1.3.5 (config/Index.ts) y reflejado en config/version.json en sisa.api.",
+      "description": "Endpoints de cuentas, transferencias y asientos. Requieren token Bearer salvo login; el super usuario (ID=1) puede omitir filtros de compañía, scopes y estado activo. No se usan FOREIGN KEY, los montos deben ser positivos y la paginación respeta per_page ≤ 200. Scopes mínimos: accounts.read/accounts.write, transfers.write, accounting_entries.read/accounting_entries.write. Versionado alineado a v1.3.6 (config/Index.ts) y reflejado en config/version.json en sisa.api.",
       "item": [
         {
           "name": "List Accounts",
@@ -3906,7 +3906,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "https://sistema.depros.com.ar/permissions/user/2",
+              "raw": "https://sistema.depros.com.ar/permissions/user/2?company_id={{company_id}}",
               "protocol": "https",
               "host": [
                 "sistema",
@@ -3918,6 +3918,12 @@
                 "permissions",
                 "user",
                 "2"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                }
               ]
             },
             "description": "**GET https://sistema.depros.com.ar/permissions/user/2**\n\nDescripción: Endpoint `GET: List_Permissions_User` dentro de Permisos.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."
@@ -3940,7 +3946,7 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "https://sistema.depros.com.ar/permissions/global",
+              "raw": "https://sistema.depros.com.ar/permissions/global?company_id={{company_id}}",
               "protocol": "https",
               "host": [
                 "sistema",
@@ -3951,6 +3957,12 @@
               "path": [
                 "permissions",
                 "global"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                }
               ]
             },
             "description": "**GET https://sistema.depros.com.ar/permissions/global**\n\nDescripción: Endpoint `GET: List_Permissionn GLOBAL` dentro de Permisos.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."

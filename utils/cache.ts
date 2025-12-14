@@ -5,8 +5,10 @@ const FILE_CACHE_PREFIX = '@sisa:file:';
 const LEGACY_FILE_PREFIX = 'file_meta_';
 
 type CacheListener = () => void;
+type DataCacheUpdateListener = (value: unknown) => void;
 
 const dataCacheListeners = new Set<CacheListener>();
+const dataCacheUpdateListeners = new Map<string, Set<DataCacheUpdateListener>>();
 const fileCacheListeners = new Set<CacheListener>();
 
 const broadcastListeners = (listeners: Set<CacheListener>): void => {
@@ -26,6 +28,24 @@ export const subscribeToDataCacheClear = (listener: CacheListener): (() => void)
   dataCacheListeners.add(listener);
   return () => {
     dataCacheListeners.delete(listener);
+  };
+};
+
+export const subscribeToDataCacheKey = (
+  key: string,
+  listener: DataCacheUpdateListener,
+): (() => void) => {
+  const listeners = dataCacheUpdateListeners.get(key) ?? new Set<DataCacheUpdateListener>();
+  listeners.add(listener);
+  dataCacheUpdateListeners.set(key, listeners);
+
+  return () => {
+    const existing = dataCacheUpdateListeners.get(key);
+    if (!existing) return;
+    existing.delete(listener);
+    if (existing.size === 0) {
+      dataCacheUpdateListeners.delete(key);
+    }
   };
 };
 
@@ -52,6 +72,16 @@ export const getCachedData = async <T>(key: string): Promise<T | null> => {
 export const setCachedData = async <T>(key: string, data: T): Promise<void> => {
   try {
     await AsyncStorage.setItem(buildDataKey(key), JSON.stringify(data));
+    const listeners = dataCacheUpdateListeners.get(key);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.log('Error notificando cambios de caché para', key, error);
+        }
+      });
+    }
   } catch (error) {
     console.log('Error writing cache key', key, error);
   }

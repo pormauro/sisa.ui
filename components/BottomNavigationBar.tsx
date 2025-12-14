@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import { type Company } from '@/contexts/CompaniesContext';
 import { MemberCompaniesContext } from '@/contexts/MemberCompaniesContext';
 import { FileContext } from '@/contexts/FilesContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { clearAllDataCaches, clearFileCaches } from '@/utils/cache';
 
 interface NavigationItem {
   key: string;
@@ -44,10 +45,11 @@ export const BottomNavigationBar: React.FC = () => {
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const [isCompanyModalVisible, setIsCompanyModalVisible] = useState(false);
-  const { memberCompanies, loadMemberCompanies } = useContext(MemberCompaniesContext);
+  const { memberCompanies, loadMemberCompanies, refreshMemberCompanies } = useContext(MemberCompaniesContext);
   const { getFile } = useContext(FileContext);
   const [selectedCompanyId, setSelectedCompanyId] = useCachedState<number | null>('selected-company-id', null);
   const [companyLogoUri, setCompanyLogoUri] = useState<string | null>(null);
+  const [isSwitchingCompany, setIsSwitchingCompany] = useState(false);
 
   const unreadCount = useMemo(() => {
     const allowed = userId === '1' || permissions.includes('listNotifications');
@@ -103,10 +105,42 @@ export const BottomNavigationBar: React.FC = () => {
     setIsCompanyModalVisible(true);
   };
 
-  const handleSelectCompany = (company: Company) => {
-    setSelectedCompanyId(company.id);
+  const handleConfirmCompanyChange = async (companyId: number | null) => {
     setIsCompanyModalVisible(false);
-    router.push(`/companies/viewModal?id=${company.id}`);
+    setIsSwitchingCompany(true);
+
+    try {
+      await clearAllDataCaches();
+      await clearFileCaches();
+      setSelectedCompanyId(companyId);
+      await refreshMemberCompanies();
+    } catch (error) {
+      console.log('Error al reiniciar datos por cambio de empresa', error);
+    } finally {
+      setIsSwitchingCompany(false);
+      router.replace('/Home');
+    }
+  };
+
+  const handleSelectCompany = (company: Company | null) => {
+    const nextCompanyId = company?.id ?? null;
+
+    if (nextCompanyId === selectedCompanyId) {
+      setIsCompanyModalVisible(false);
+      return;
+    }
+
+    const displayName = company?.name || company?.legal_name;
+    const companyLabel = displayName?.trim() || `Empresa #${company?.id ?? 'general'}`;
+
+    Alert.alert(
+      'Cambiar empresa',
+      `¿Deseas administrar ${companyLabel}? Se limpiarán permisos y caché antes de continuar.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Confirmar', style: 'destructive', onPress: () => void handleConfirmCompanyChange(nextCompanyId) },
+      ],
+    );
   };
 
   const brandLabel = useMemo(() => {
@@ -144,6 +178,9 @@ export const BottomNavigationBar: React.FC = () => {
               key={item.key}
               style={[styles.tab, item.translateY ? { transform: [{ translateY: item.translateY }] } : null]}
               onPress={() => {
+                if (isSwitchingCompany) {
+                  return;
+                }
                 if (item.action) {
                   item.action();
                   return;

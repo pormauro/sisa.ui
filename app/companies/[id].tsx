@@ -155,16 +155,30 @@ const buildIdentitiesPayload = (
   return [...baseIdentities, ...dynamicIdentities];
 };
 
+const parseCompanyId = (rawId: string | string[] | undefined): number | null => {
+  const candidates = Array.isArray(rawId) ? rawId : [rawId];
+  for (const candidate of candidates) {
+    const parsed = Number(candidate);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
 export default function EditCompanyPage() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const companyId = Number(id);
+  const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+  const companyId = parseCompanyId(id);
 
-  const { companies, loadCompanies, updateCompany, deleteCompany } = useContext(CompaniesContext);
+  const { companies, loadCompanies, loadCompany, updateCompany, deleteCompany } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
 
-  const company = companies.find(item => item.id === companyId);
+  const company = useMemo(
+    () => companies.find(item => item.id === companyId) ?? null,
+    [companies, companyId]
+  );
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -223,6 +237,8 @@ export default function EditCompanyPage() {
     [administratorIdsJson]
   );
 
+  const requestedCompanyIdsRef = useRef<Set<number>>(new Set());
+
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
 
@@ -233,6 +249,19 @@ export default function EditCompanyPage() {
       }
     }, [companies.length, loadCompanies])
   );
+
+  useEffect(() => {
+    if (companyId === null || company) {
+      return;
+    }
+
+    if (requestedCompanyIdsRef.current.has(companyId)) {
+      return;
+    }
+
+    requestedCompanyIdsRef.current.add(companyId);
+    void loadCompany(companyId);
+  }, [company, companyId, loadCompany]);
 
   useEffect(() => {
     if (!company) {
@@ -274,11 +303,17 @@ export default function EditCompanyPage() {
   }, [canAccess, company, router]);
 
   useEffect(() => {
+    if (companyId === null) {
+      Alert.alert('No encontrado', 'No se pudo encontrar la empresa.');
+      router.back();
+      return;
+    }
+
     if (!company && companies.length) {
       Alert.alert('No encontrado', 'No se pudo encontrar la empresa.');
       router.back();
     }
-  }, [company, companies.length, router]);
+  }, [company, companyId, companies.length, router]);
 
   const ivaItems = useMemo(
     () => [{ label: 'Seleccionar condición IVA', value: '' }, ...IVA_OPTIONS],
