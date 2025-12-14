@@ -29,7 +29,7 @@ const MenuGroupScreen: React.FC = () => {
   const iconForegroundColor = useThemeColor({ light: '#FFFFFF', dark: '#2f273e' }, 'text');
 
   const resolveAccess = (item: MenuItem): { enabled: boolean; route: string } => {
-    if (item.route === '/permission' && userId === '1') {
+    if (userId === '1') {
       return { enabled: true, route: item.route };
     }
 

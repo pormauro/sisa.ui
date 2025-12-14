@@ -127,6 +127,12 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'notifications-outline',
         requiredPermissions: ['listNotifications'],
       },
+      {
+        title: 'Registro de red',
+        route: '/network/logs',
+        icon: 'git-network-outline',
+        requiredPermissions: ['listNetworkLogs'],
+      },
     ],
   },
 ];

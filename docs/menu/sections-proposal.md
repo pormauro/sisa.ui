@@ -27,6 +27,7 @@ El menú principal ahora se organiza en secciones plegables para facilitar la ub
 - **Configuración** — Ruta: `/user/ConfigScreen`. Disponible para todos los usuarios autenticados.
 - **Notificaciones** — Ruta: `/notifications`. Permiso: `listNotifications` (el superusuario siempre lo ve).
 - **Permisos** — Ruta: `/permission`. Permiso: `listPermissions` (siempre visible para el usuario maestro con `userId === '1'`).
+- **Registro de red** — Ruta: `/network/logs`. Permiso: `listNetworkLogs` (visible para el superusuario sin restricciones).
 
 ## Atajos
 - **Planillas de pagos** — Abre `/shortcuts/payment_templates`, permite elegir una plantilla habilitada y precarga `/payments/create` con los valores contables; exige `listPaymentTemplates` y `usePaymentTemplateShortcuts` para mostrarse.【F:constants/menuSections.ts†L29-L37】【F:app/shortcuts/payment_templates.tsx†L1-L139】【F:app/payments/create.tsx†L1-L210】
