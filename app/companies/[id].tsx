@@ -171,7 +171,7 @@ export default function EditCompanyPage() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const companyId = parseCompanyId(id);
 
-  const { companies, loadCompanies, updateCompany, deleteCompany } = useContext(CompaniesContext);
+  const { companies, loadCompanies, loadCompany, updateCompany, deleteCompany } = useContext(CompaniesContext);
   const { permissions } = useContext(PermissionsContext);
   const { normalizedUserId, isSuperAdministrator } = useSuperAdministrator();
 
@@ -237,6 +237,8 @@ export default function EditCompanyPage() {
     [administratorIdsJson]
   );
 
+  const requestedCompanyIdsRef = useRef<Set<number>>(new Set());
+
   const [loading, setLoading] = useState(false);
   const submittingRef = useRef(false);
 
@@ -247,6 +249,19 @@ export default function EditCompanyPage() {
       }
     }, [companies.length, loadCompanies])
   );
+
+  useEffect(() => {
+    if (companyId === null || company) {
+      return;
+    }
+
+    if (requestedCompanyIdsRef.current.has(companyId)) {
+      return;
+    }
+
+    requestedCompanyIdsRef.current.add(companyId);
+    void loadCompany(companyId);
+  }, [company, companyId, loadCompany]);
 
   useEffect(() => {
     if (!company) {
