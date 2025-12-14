@@ -108,7 +108,7 @@ export const BottomNavigationBar: React.FC = () => {
     setSelectedCompanyId(nextCompanyId);
     setIsCompanyModalVisible(false);
     if (nextCompanyId) {
-      router.push(`/companies/viewModal?id=${nextCompanyId}`);
+      router.push(`/companies/view?id=${nextCompanyId}`);
     }
   };
 
