@@ -127,6 +127,7 @@ const PermissionScreen: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<{ id: number; username: string } | null>(null);
   const [assignedPermissions, setAssignedPermissions] = useState<Record<string, AssignedPermission>>({});
   const [loading, setLoading] = useState(false);
+  const [lastPermissionsUrl, setLastPermissionsUrl] = useState<string | null>(null);
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCompanyId, , selectedCompanyHydrated] = useCachedState<number | null>(
     'selected-company-id',
@@ -142,6 +143,14 @@ const PermissionScreen: React.FC = () => {
   const groupBorderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
 
   const numericUserId = useMemo(() => (userId ? Number(userId) : null), [userId]);
+  const userIdDebugLabel = useMemo(
+    () => (numericUserId !== null ? numericUserId : 'desconocido'),
+    [numericUserId],
+  );
+  const permissionsRequestLabel = useMemo(
+    () => lastPermissionsUrl ?? 'Aún no se ha enviado un GET de permisos',
+    [lastPermissionsUrl],
+  );
   const fallbackUsername = username ?? 'Mi usuario';
   const isMasterUser = numericUserId === 1;
 
@@ -244,6 +253,7 @@ const PermissionScreen: React.FC = () => {
   const loadPermissions = useCallback(() => {
     if (!token || selectedUser === null || !canListPermissions || !selectedCompanyHydrated) {
       setAssignedPermissions({});
+      setLastPermissionsUrl(null);
       return Promise.resolve();
     }
 
@@ -254,12 +264,14 @@ const PermissionScreen: React.FC = () => {
     if (isGlobalSelection && !canViewGlobalPermissions) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos globales.');
       setAssignedPermissions({});
+      setLastPermissionsUrl(null);
       return Promise.resolve();
     }
 
     if (!isGlobalSelection && !isOwnSelection && !canSelectOtherUsers) {
       Alert.alert('Acceso denegado', 'No tienes permiso para ver los permisos de otros usuarios.');
       setAssignedPermissions({});
+      setLastPermissionsUrl(null);
       return Promise.resolve();
     }
 
@@ -267,6 +279,8 @@ const PermissionScreen: React.FC = () => {
     const url = isGlobalSelection
       ? `${BASE_URL}/permissions/global?company_id=${companyIdParam}`
       : `${BASE_URL}/permissions/user/${selectedUser.id}?company_id=${companyIdParam}`;
+
+    setLastPermissionsUrl(url);
 
     return fetch(url, {
       headers: {
@@ -506,6 +520,12 @@ const PermissionScreen: React.FC = () => {
       <ThemedText style={styles.title}>Administración de Permisos</ThemedText>
       <ThemedText style={styles.infoText}>
         company_id (selectedCompanyId) enviado al servidor: {companyIdDebugLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        ID de usuario autenticado: {userIdDebugLabel}
+      </ThemedText>
+      <ThemedText style={styles.infoText}>
+        GET de permisos enviado al servidor: {permissionsRequestLabel}
       </ThemedText>
       {canChooseUser ? (
         <UserSelector
