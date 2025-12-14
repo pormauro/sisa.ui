@@ -107,9 +107,6 @@ export const BottomNavigationBar: React.FC = () => {
     const nextCompanyId = company?.id ?? null;
     setSelectedCompanyId(nextCompanyId);
     setIsCompanyModalVisible(false);
-    if (nextCompanyId) {
-      router.push(`/companies/view?id=${nextCompanyId}`);
-    }
   };
 
   const brandLabel = useMemo(() => {
