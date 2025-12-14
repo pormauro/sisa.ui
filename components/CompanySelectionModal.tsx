@@ -11,7 +11,7 @@ import type { Company } from '@/contexts/CompaniesContext';
 interface CompanySelectionModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (company: Company) => void;
+  onSelect: (company: Company | null) => void;
 }
 
 export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ visible, onClose, onSelect }) => {
@@ -75,6 +75,25 @@ export const CompanySelectionModal: React.FC<CompanySelectionModalProps> = ({ vi
             />
           </View>
           <ScrollView style={styles.companyList}>
+            <TouchableOpacity
+              style={[styles.companyItem, { borderColor }]}
+              onPress={() => onSelect(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Quitar selección de empresa"
+            >
+              <View style={styles.companyItemHeader}>
+                <View style={styles.companyItemContent}>
+                  <CircleImagePicker fileId={null} size={44} editable={false} />
+                  <View style={styles.companyTextBlock}>
+                    <ThemedText style={styles.companyItemTitle}>Sin empresa</ThemedText>
+                    <ThemedText style={styles.companyItemSubtitle}>
+                      Volver a la vista general
+                    </ThemedText>
+                  </View>
+                </View>
+                <Ionicons name="close-circle" size={18} color={textColor} />
+              </View>
+            </TouchableOpacity>
             {filteredCompanies.map(company => {
               const displayName = (company.name ?? company.legal_name ?? '').trim() || `Empresa #${company.id}`;
               return (

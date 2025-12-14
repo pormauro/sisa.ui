@@ -103,10 +103,13 @@ export const BottomNavigationBar: React.FC = () => {
     setIsCompanyModalVisible(true);
   };
 
-  const handleSelectCompany = (company: Company) => {
-    setSelectedCompanyId(company.id);
+  const handleSelectCompany = (company: Company | null) => {
+    const nextCompanyId = company?.id ?? null;
+    setSelectedCompanyId(nextCompanyId);
     setIsCompanyModalVisible(false);
-    router.push(`/companies/viewModal?id=${company.id}`);
+    if (nextCompanyId) {
+      router.push(`/companies/viewModal?id=${nextCompanyId}`);
+    }
   };
 
   const brandLabel = useMemo(() => {

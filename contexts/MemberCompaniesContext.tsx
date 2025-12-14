@@ -73,7 +73,7 @@ const parseMemberRecord = (raw: any): MemberCompanyRecord | null => {
 };
 
 export const MemberCompaniesProvider = ({ children }: { children: React.ReactNode }) => {
-  const { token, checkConnection } = useContext(AuthContext);
+  const { token, checkConnection, userId } = useContext(AuthContext);
   const { companies, loadCompanies } = useContext(CompaniesContext);
 
   const [memberships, setMemberships] = useCachedState<MemberCompanyRecord[]>(
@@ -83,10 +83,15 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
   const [isLoadingMemberCompanies, setIsLoadingMemberCompanies] = useState(false);
   const hasRequestedCompanies = useRef(false);
 
+  const isSuperUser = userId === '1';
+
   const memberCompanies = useMemo(() => {
+    if (isSuperUser) {
+      return companies;
+    }
     const allowedIds = new Set(memberships.map(record => record.companyId));
     return companies.filter(company => allowedIds.has(company.id));
-  }, [companies, memberships]);
+  }, [companies, memberships, isSuperUser]);
 
   const loadMemberCompanies = useCallback(async () => {
     if (!token) {
