@@ -4,6 +4,7 @@ import React, {
   useEffect,
   ReactNode,
   useCallback,
+  useState,
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
@@ -64,7 +65,7 @@ export type ClientUpdatePayload = Partial<ClientPayload>;
 
 interface ClientsContextValue {
   clients: Client[];
-  loadClients: () => void;
+  loadClients: (force?: boolean) => Promise<void>;
   addClient: (client: ClientPayload) => Promise<number | null>;
   updateClient: (id: number, client: ClientUpdatePayload) => Promise<boolean>;
   deleteClient: (id: number) => Promise<boolean>;
@@ -72,7 +73,7 @@ interface ClientsContextValue {
 
 export const ClientsContext = createContext<ClientsContextValue>({
   clients: [],
-  loadClients: () => {},
+  loadClients: async () => {},
   addClient: async () => null,
   updateClient: async () => false,
   deleteClient: async () => false,
@@ -80,6 +81,7 @@ export const ClientsContext = createContext<ClientsContextValue>({
 
 export const ClientsProvider = ({ children }: { children: ReactNode }) => {
   const [clients, setClients] = useCachedState<Client[]>('clients', []);
+  const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null);
   const { token } = useContext(AuthContext);
 
   useEffect(() => {
@@ -109,7 +111,11 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [setClients]);
 
-  const loadClients = useCallback(async () => {
+  const loadClients = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && lastFetchedAt && now - lastFetchedAt < 5 * 60 * 1000) {
+      return;
+    }
     try {
       const res = await fetch(`${BASE_URL}/clients`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -140,6 +146,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
           } as Client;
         });
         setClients(sortByNewest(fetchedClients, getDefaultSortValue));
+        setLastFetchedAt(Date.now());
       }
     } catch (err) {
       if (isTokenExpiredError(err)) {
@@ -148,7 +155,7 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
       }
       console.error('Error loading clients:', err);
     }
-  }, [setClients, token]);
+  }, [lastFetchedAt, setClients, token]);
 
   const addClient = useCallback(
     async (clientData: ClientPayload): Promise<number | null> => {
@@ -246,10 +253,6 @@ export const ClientsProvider = ({ children }: { children: ReactNode }) => {
     }
     return false;
   }, [setClients, token]);
-
-  useEffect(() => {
-    if (token) loadClients();
-  }, [loadClients, token]);
 
   return (
     <ClientsContext.Provider

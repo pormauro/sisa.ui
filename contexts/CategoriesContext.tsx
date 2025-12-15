@@ -465,12 +465,6 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   );
 
   useEffect(() => {
-    if (token) {
-      void loadCategories();
-    }
-  }, [loadCategories, token]);
-
-  useEffect(() => {
     if (!token) {
       hasFetchedRef.current = false;
     }

@@ -147,10 +147,8 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!token) {
       setMemberships([]);
-      return;
     }
-    void loadMemberCompanies();
-  }, [loadMemberCompanies, setMemberships, token]);
+  }, [setMemberships, token]);
 
   useEffect(() => {
     if (!token) {

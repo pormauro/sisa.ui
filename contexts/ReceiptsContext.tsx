@@ -189,12 +189,6 @@ export const ReceiptsProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  useEffect(() => {
-    if (token) {
-      void loadReceipts();
-    }
-  }, [loadReceipts, token]);
-
   return (
     <ReceiptsContext.Provider value={{ receipts, loadReceipts, addReceipt, updateReceipt, deleteReceipt }}>
       {children}

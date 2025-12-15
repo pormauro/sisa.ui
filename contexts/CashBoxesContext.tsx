@@ -219,12 +219,6 @@ export const CashBoxesProvider = ({ children }: { children: ReactNode }) => {
     return [];
   };
 
-  useEffect(() => {
-    if (token) {
-      void loadCashBoxes();
-    }
-  }, [loadCashBoxes, token]);
-
   return (
     <CashBoxesContext.Provider
       value={{ cashBoxes, loadCashBoxes, addCashBox, updateCashBox, deleteCashBox, listCashBoxHistory }}

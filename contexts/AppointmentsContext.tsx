@@ -273,14 +273,6 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [appointmentsHydrated, authIsLoading, setAppointments, userId]);
 
-  useEffect(() => {
-    if (!appointmentsHydrated || !token) {
-      return;
-    }
-
-    loadAppointments();
-  }, [appointmentsHydrated, loadAppointments, token]);
-
   const value = useMemo(
     () => ({
       appointments,

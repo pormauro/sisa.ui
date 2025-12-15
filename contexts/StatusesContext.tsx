@@ -259,10 +259,6 @@ export const StatusesProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  useEffect(() => {
-    if (token) void loadStatuses();
-  }, [loadStatuses, token]);
-
   return (
     <StatusesContext.Provider
       value={{

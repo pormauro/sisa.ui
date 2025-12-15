@@ -1099,12 +1099,6 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     [token],
   );
 
-  useEffect(() => {
-    if (token) {
-      void loadInvoices();
-    }
-  }, [loadInvoices, token]);
-
   return (
     <InvoicesContext.Provider
       value={{
