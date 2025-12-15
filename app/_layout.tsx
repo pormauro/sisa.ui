@@ -46,6 +46,7 @@ import { NetworkLogProvider } from '@/contexts/NetworkLogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 import { primeMemoryCacheFromStorage } from '@/hooks/useCachedState';
+import { getDatabase } from '@/database/Database';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -104,6 +105,10 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   const [appReady, setAppReady] = useState(false);
+
+  useEffect(() => {
+    void getDatabase();
+  }, []);
 
   useEffect(() => {
     const initializeApp = async () => {
