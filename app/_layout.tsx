@@ -36,6 +36,7 @@ import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
+import { BootstrapContext, BootstrapProvider } from '@/contexts/BootstrapContext';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
@@ -50,6 +51,7 @@ void SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
+  const { isReady } = useContext(BootstrapContext);
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
@@ -57,16 +59,21 @@ function RootLayoutContent() {
   const spinnerColor = useThemeColor({}, 'tint');
 
   useEffect(() => {
-    if (!isLoading) {
-      if (username) {
-        router.replace('/Home');
-      } else {
-        router.replace('/login/Login');
-      }
+    if (isLoading) {
+      return;
     }
-  }, [isLoading, router, username]);
 
-  if (isLoading) {
+    if (username && isReady) {
+      router.replace('/Home');
+      return;
+    }
+
+    if (!username) {
+      router.replace('/login/Login');
+    }
+  }, [isLoading, isReady, router, username]);
+
+  if (isLoading || (username && !isReady)) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor }]}>
         <ActivityIndicator size="large" color={spinnerColor} />
@@ -160,10 +167,10 @@ export default function RootLayout() {
                                                                 <FoldersProvider>
                                                                   <NotificationsProvider>
                                                                     <PendingSelectionProvider>
-                                                                      <>
+                                                                      <BootstrapProvider>
                                                                         <RootLayoutContent />
                                                                         <LogOverlay />
-                                                                      </>
+                                                                      </BootstrapProvider>
                                                                     </PendingSelectionProvider>
                                                                   </NotificationsProvider>
                                                                 </FoldersProvider>

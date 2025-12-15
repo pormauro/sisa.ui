@@ -76,12 +76,13 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
   const { token, checkConnection } = useContext(AuthContext);
   const { companies, loadCompanies } = useContext(CompaniesContext);
 
-  const [memberships, setMemberships] = useCachedState<MemberCompanyRecord[]>(
+  const [memberships, setMemberships, membershipsHydrated] = useCachedState<MemberCompanyRecord[]>(
     'member-companies-memberships',
     [],
   );
   const [isLoadingMemberCompanies, setIsLoadingMemberCompanies] = useState(false);
   const hasRequestedCompanies = useRef(false);
+  const hasBootstrappedRef = useRef(false);
   const membershipsRef = useRef<MemberCompanyRecord[]>(memberships);
 
   useEffect(() => {
@@ -147,8 +148,18 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!token) {
       setMemberships([]);
+      hasBootstrappedRef.current = false;
     }
   }, [setMemberships, token]);
+
+  useEffect(() => {
+    if (!token || !membershipsHydrated || hasBootstrappedRef.current) {
+      return;
+    }
+
+    hasBootstrappedRef.current = true;
+    void loadMemberCompanies();
+  }, [loadMemberCompanies, membershipsHydrated, token]);
 
   useEffect(() => {
     if (!token) {
