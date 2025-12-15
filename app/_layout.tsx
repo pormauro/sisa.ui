@@ -1,3 +1,5 @@
+import '@/utils/networkSniffer';
+
 import { Stack, usePathname, useRouter } from 'expo-router';
 import React, { useContext, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';

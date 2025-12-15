@@ -100,11 +100,12 @@ Algunos ejemplos representativos:
   `ProfilesListContext` usan claves separadas para distinguir el perfil activo y
   la lista de perfiles disponibles, evitando sobre-escrituras involuntarias.【F:contexts/PermissionsContext.tsx†L19-L85】【F:contexts/ProfilesContext.tsx†L21-L48】【F:contexts/ProfilesListContext.tsx†L29-L61】
 - **Auditoría de red.** `NetworkLogContext` guarda el historial en la clave
-  `networkLogs`, parchea `global.fetch` con `loggedFetch` y descarta
-  automáticamente los registros más antiguos al superar 200 entradas. La
+  `networkLogs` y escucha los eventos emitidos por el sniffer global que
+  parchea `fetch` y `XMLHttpRequest` apenas carga `app/_layout.tsx`. Se descartan
+  automáticamente los registros más antiguos al superar 200 entradas y una
   limpieza global de caché restablece la lista a vacío, por lo que las
   depuraciones previas no persisten tras ejecutar "Borrar datos de la caché" o
-  reinstalar la app.【F:contexts/NetworkLogContext.tsx†L7-L73】【F:utils/networkLogger.ts†L34-L87】
+  reinstalar la app.【F:app/_layout.tsx†L1-L6】【F:contexts/NetworkLogContext.tsx†L1-L83】【F:utils/networkSniffer.ts†L1-L171】
 
 Dado que todos comparten `useCachedState` y se suscriben al mismo aviso de
 limpieza, una purga de caché o una reinstalación restablece cada estado a su
