@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   ReactNode,
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -916,8 +917,10 @@ const ensureProfileType = (company: Company): Company => {
 };
 
 export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
-  const [companies, setCompanies] = useCachedState<Company[]>('companies', []);
+  const [companies, setCompanies, companiesHydrated] = useCachedState<Company[]>('companies', []);
   const { token } = useContext(AuthContext);
+  const bootstrapRequestedRef = useRef(false);
+  const previousTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setCompanies(prev => {
@@ -1127,6 +1130,26 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     await hydrateFromCache();
     await fetchFromServer();
   }, [setCompanies, token]);
+
+  useEffect(() => {
+    if (!token) {
+      bootstrapRequestedRef.current = false;
+      previousTokenRef.current = null;
+      return;
+    }
+
+    if (previousTokenRef.current !== token) {
+      bootstrapRequestedRef.current = false;
+      previousTokenRef.current = token;
+    }
+
+    if (!companiesHydrated || bootstrapRequestedRef.current) {
+      return;
+    }
+
+    bootstrapRequestedRef.current = true;
+    void loadCompanies();
+  }, [companiesHydrated, loadCompanies, token]);
 
   const addCompany = useCallback(
     async (companyData: CompanyPayload): Promise<Company | null> => {

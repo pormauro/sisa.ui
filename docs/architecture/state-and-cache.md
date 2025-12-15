@@ -118,6 +118,22 @@ limpieza, una purga de caché o una reinstalación restablece cada estado a su
 forma inicial hasta que la sincronización con el backend se complete
 nuevamente.
 
+## Bootstrap de sesión y datos críticos
+
+Para evitar que la pantalla de inicio aparezca con listas vacías tras el login,
+`BootstrapProvider` coordina la carga inicial de los catálogos base y datos
+operativos imprescindibles. El proveedor se monta justo antes del contenido
+principal y, cuando existe `token`, dispara en paralelo la carga de permisos,
+empresas, membresías, categorías e ingresos/egresos (facturas) hasta marcar el
+estado como `ready`. Si alguna petición falla se conserva el caché previamente
+hidratado, se registra el error y se permite continuar en modo offline con los
+datos persistidos.【F:contexts/BootstrapContext.tsx†L1-L83】
+
+El *layout* principal bloquea la navegación hacia `/Home` mientras `AuthContext`
+o el bootstrap están activos, de modo que la UI solo se renderiza cuando las
+colecciones críticas ya se rehidrataron desde caché y recibieron al menos un
+intento de sincronización con el backend.【F:app/_layout.tsx†L39-L93】【F:app/_layout.tsx†L122-L172】
+
 ## `FilesContext`: metadatos y blobs persistidos
 
 [`FilesContext`](../../contexts/FilesContext.tsx) complementa al caché de datos

@@ -471,6 +471,15 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
   }, [token]);
 
   useEffect(() => {
+    if (!token || !categoriesHydrated || hasFetchedRef.current) {
+      return;
+    }
+
+    hasFetchedRef.current = true;
+    void loadCategories();
+  }, [categoriesHydrated, loadCategories, token]);
+
+  useEffect(() => {
     if (!token || !categoriesHydrated || !hasFetchedRef.current || ensuringDefaultsRef.current) {
       return;
     }

@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   ReactNode,
 } from 'react';
 import { BASE_URL } from '@/config/Index';
@@ -710,8 +711,10 @@ const prepareInvoicePayload = (payload: InvoicePayload): Record<string, unknown>
 };
 
 export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
-  const [invoices, setInvoices] = useCachedState<Invoice[]>('invoices', []);
+  const [invoices, setInvoices, invoicesHydrated] = useCachedState<Invoice[]>('invoices', []);
   const { token } = useContext(AuthContext);
+  const hasBootstrappedRef = useRef(false);
+  const previousTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setInvoices(prev => ensureSortedByNewest(prev, getInvoiceSortValue, invoice => invoice.id));
@@ -751,6 +754,26 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
       console.error('Error loading invoices:', error);
     }
   }, [setInvoices, token]);
+
+  useEffect(() => {
+    if (!token) {
+      hasBootstrappedRef.current = false;
+      previousTokenRef.current = null;
+      return;
+    }
+
+    if (previousTokenRef.current !== token) {
+      hasBootstrappedRef.current = false;
+      previousTokenRef.current = token;
+    }
+
+    if (!invoicesHydrated || hasBootstrappedRef.current) {
+      return;
+    }
+
+    hasBootstrappedRef.current = true;
+    void loadInvoices();
+  }, [invoicesHydrated, loadInvoices, token]);
 
   const addInvoice = useCallback(
     async (payload: InvoicePayload): Promise<Invoice | null> => {
