@@ -12,12 +12,15 @@ interface NetworkLogContextValue {
     entry: Omit<NetworkLogEntry, 'timestamp' | 'id'> & { id?: string; timestamp?: number }
   ) => void;
   clearLogs: () => void;
+  captureEnabled: boolean;
+  setCaptureEnabled: (enabled: boolean) => void;
 }
 
 const NetworkLogContext = createContext<NetworkLogContextValue | undefined>(undefined);
 
 export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) => {
   const [logs, setLogs] = useCachedState<NetworkLogEntry[]>('networkLogs', []);
+  const [captureEnabled, setCaptureEnabled] = useCachedState<boolean>('networkLogsCapture', true);
 
   const hydrateMissingIds = useCallback(() => {
     setLogs(previous => {
@@ -56,11 +59,17 @@ export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     hydrateMissingIds();
+  }, [hydrateMissingIds]);
 
+  useEffect(() => {
     initializeNetworkSniffer();
     const pendingEvents = new Map<string, NetworkEvent>();
 
     const unsubscribe = onNetworkEvent(event => {
+      if (!captureEnabled) {
+        return;
+      }
+
       if (!event.endTime) {
         pendingEvents.set(event.id, event);
         return;
@@ -95,11 +104,11 @@ export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) 
       pendingEvents.clear();
       unsubscribe();
     };
-  }, [appendLog, hydrateMissingIds]);
+  }, [appendLog, captureEnabled]);
 
   const value = useMemo<NetworkLogContextValue>(
-    () => ({ logs, appendLog, clearLogs }),
-    [appendLog, clearLogs, logs],
+    () => ({ logs, appendLog, clearLogs, captureEnabled, setCaptureEnabled }),
+    [appendLog, captureEnabled, clearLogs, logs, setCaptureEnabled],
   );
 
   return <NetworkLogContext.Provider value={value}>{children}</NetworkLogContext.Provider>;
