@@ -6,6 +6,7 @@ La pantalla **Registro de red** (`/network/logs`) muestra todas las peticiones H
 - **Solicitud:** método, URL completa, cabeceras con valores sensibles enmascarados (`Authorization`/`token`) y cuerpo serializado cuando está disponible.
 - **Respuesta:** código de estado, cuerpo parseado (JSON o texto) y mensaje de error si la promesa falla, se aborta o expira.
 - **Metadatos:** tiempo de inicio (`timestamp`) y duración en milisegundos calculada entre el disparo y la finalización (`loadend`/`catch`).
+- Para evitar duplicados, el sniffer omite los eventos de `XMLHttpRequest` disparados internamente por `fetch`; así cada llamada queda registrada una única vez con su tiempo y payload correspondientes.
 
 ## Límites y limpieza automática
 - Se conservan hasta **200 entradas** en la clave de caché `networkLogs`; al superar el límite, se descartan los registros más antiguos para ahorrar espacio.
