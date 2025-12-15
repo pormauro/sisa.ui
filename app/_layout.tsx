@@ -4,6 +4,9 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Font from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
@@ -42,6 +45,8 @@ import { NetworkLogProvider } from '@/contexts/NetworkLogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 import { primeMemoryCacheFromStorage } from '@/hooks/useCachedState';
+
+void SplashScreen.preventAutoHideAsync();
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
@@ -91,13 +96,29 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
-  const [cachePrimed, setCachePrimed] = useState(false);
+  const [appReady, setAppReady] = useState(false);
 
   useEffect(() => {
-    primeMemoryCacheFromStorage().finally(() => setCachePrimed(true));
+    const initializeApp = async () => {
+      try {
+        await Promise.all([
+          primeMemoryCacheFromStorage(),
+          Font.loadAsync({
+            ...Ionicons.font,
+            ...MaterialIcons.font,
+            ...MaterialCommunityIcons.font,
+          }),
+        ]);
+      } finally {
+        setAppReady(true);
+        await SplashScreen.hideAsync();
+      }
+    };
+
+    void initializeApp();
   }, []);
 
-  if (!cachePrimed) {
+  if (!appReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" />
@@ -110,72 +131,72 @@ export default function RootLayout() {
       <NetworkLogProvider>
         <SafeAreaProvider>
           <AuthProvider>
-          <PermissionsProvider>
-            <AppUpdatesProvider>
-              <FilesProvider>
-                <ProfileProvider>
-                  <ProfilesProvider>
-                    <ProfilesListProvider>
-                      <ConfigProvider>
-                        <ThemeProvider>
-                          <ToastProvider>
-                            <CashBoxesProvider>
-                              <CompaniesProvider>
-                                <MemberCompaniesProvider>
-                                  <CompanyMembershipsProvider>
-                                    <ClientsProvider>
-                                      <ProvidersProvider>
-                                        <CategoriesProvider>
-                                          <ProductsServicesProvider>
-                                            <StatusesProvider>
-                                              <TariffsProvider>
-                                                <JobsProvider>
-                                                  <AppointmentsProvider>
-                                                    <PaymentTemplatesProvider>
-                                                      <PaymentsProvider>
-                                                        <InvoicesProvider>
-                                                        <ReceiptsProvider>
-                                                          <ReportsProvider>
-                                                            <FoldersProvider>
-                                                              <NotificationsProvider>
-                                                                <PendingSelectionProvider>
-                                                                  <>
-                                                                    <RootLayoutContent />
-                                                                    <LogOverlay />
-                                                                  </>
-                                                                </PendingSelectionProvider>
-                                                              </NotificationsProvider>
-                                                            </FoldersProvider>
-                                                          </ReportsProvider>
-                                                        </ReceiptsProvider>
-                                                      </InvoicesProvider>
-                                                    </PaymentsProvider>
-                                                  </PaymentTemplatesProvider>
-                                                  </AppointmentsProvider>
-                                                </JobsProvider>
-                                              </TariffsProvider>
-                                            </StatusesProvider>
-                                          </ProductsServicesProvider>
-                                        </CategoriesProvider>
-                                      </ProvidersProvider>
-                                    </ClientsProvider>
-                                  </CompanyMembershipsProvider>
-                                </MemberCompaniesProvider>
-                              </CompaniesProvider>
-                            </CashBoxesProvider>
-                          </ToastProvider>
-                        </ThemeProvider>
-                      </ConfigProvider>
-                    </ProfilesListProvider>
-                  </ProfilesProvider>
-                </ProfileProvider>
-              </FilesProvider>
-            </AppUpdatesProvider>
-          </PermissionsProvider>
-        </AuthProvider>
-      </SafeAreaProvider>
-    </NetworkLogProvider>
-  </LogProvider>
+            <PermissionsProvider>
+              <AppUpdatesProvider>
+                <FilesProvider>
+                  <ProfileProvider>
+                    <ProfilesProvider>
+                      <ProfilesListProvider>
+                        <ConfigProvider>
+                          <ThemeProvider>
+                            <ToastProvider>
+                              <CashBoxesProvider>
+                                <CompaniesProvider>
+                                  <MemberCompaniesProvider>
+                                    <CompanyMembershipsProvider>
+                                      <ClientsProvider>
+                                        <ProvidersProvider>
+                                          <CategoriesProvider>
+                                            <ProductsServicesProvider>
+                                              <StatusesProvider>
+                                                <TariffsProvider>
+                                                  <JobsProvider>
+                                                    <AppointmentsProvider>
+                                                      <PaymentTemplatesProvider>
+                                                        <PaymentsProvider>
+                                                          <InvoicesProvider>
+                                                            <ReceiptsProvider>
+                                                              <ReportsProvider>
+                                                                <FoldersProvider>
+                                                                  <NotificationsProvider>
+                                                                    <PendingSelectionProvider>
+                                                                      <>
+                                                                        <RootLayoutContent />
+                                                                        <LogOverlay />
+                                                                      </>
+                                                                    </PendingSelectionProvider>
+                                                                  </NotificationsProvider>
+                                                                </FoldersProvider>
+                                                              </ReportsProvider>
+                                                            </ReceiptsProvider>
+                                                          </InvoicesProvider>
+                                                        </PaymentsProvider>
+                                                      </PaymentTemplatesProvider>
+                                                    </AppointmentsProvider>
+                                                  </JobsProvider>
+                                                </TariffsProvider>
+                                              </StatusesProvider>
+                                            </ProductsServicesProvider>
+                                          </CategoriesProvider>
+                                        </ProvidersProvider>
+                                      </ClientsProvider>
+                                    </CompanyMembershipsProvider>
+                                  </MemberCompaniesProvider>
+                                </CompaniesProvider>
+                              </CashBoxesProvider>
+                            </ToastProvider>
+                          </ThemeProvider>
+                        </ConfigProvider>
+                      </ProfilesListProvider>
+                    </ProfilesProvider>
+                  </ProfileProvider>
+                </FilesProvider>
+              </AppUpdatesProvider>
+            </PermissionsProvider>
+          </AuthProvider>
+        </SafeAreaProvider>
+      </NetworkLogProvider>
+    </LogProvider>
   );
 }
 
