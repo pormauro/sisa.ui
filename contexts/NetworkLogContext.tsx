@@ -2,13 +2,15 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo } fro
 
 import { useCachedState } from '@/hooks/useCachedState';
 import { NetworkEvent, initializeNetworkSniffer, onNetworkEvent } from '@/utils/networkSniffer';
-import { NetworkLogEntry } from '@/utils/networkLogger';
+import { NetworkLogEntry, generateLogId } from '@/utils/networkLogger';
 
 const MAX_LOG_ITEMS = 200;
 
 interface NetworkLogContextValue {
   logs: NetworkLogEntry[];
-  appendLog: (entry: Omit<NetworkLogEntry, 'timestamp'> & { timestamp?: number }) => void;
+  appendLog: (
+    entry: Omit<NetworkLogEntry, 'timestamp' | 'id'> & { id?: string; timestamp?: number }
+  ) => void;
   clearLogs: () => void;
 }
 
@@ -17,12 +19,24 @@ const NetworkLogContext = createContext<NetworkLogContextValue | undefined>(unde
 export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) => {
   const [logs, setLogs] = useCachedState<NetworkLogEntry[]>('networkLogs', []);
 
+  const hydrateMissingIds = useCallback(() => {
+    setLogs(previous => {
+      const needsUpdate = previous.some(log => !log.id);
+      if (!needsUpdate) {
+        return previous;
+      }
+
+      return previous.map(log => ({ ...log, id: log.id ?? generateLogId() }));
+    });
+  }, [setLogs]);
+
   const appendLog = useCallback(
-    (entry: Omit<NetworkLogEntry, 'timestamp'> & { timestamp?: number }) => {
+    (entry: Omit<NetworkLogEntry, 'timestamp' | 'id'> & { id?: string; timestamp?: number }) => {
       setLogs(previous => {
         const next: NetworkLogEntry[] = [
           ...previous,
           {
+            id: entry.id ?? generateLogId(),
             timestamp: entry.timestamp ?? Date.now(),
             ...entry,
           },
@@ -41,6 +55,8 @@ export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) 
   }, [setLogs]);
 
   useEffect(() => {
+    hydrateMissingIds();
+
     initializeNetworkSniffer();
     const pendingEvents = new Map<string, NetworkEvent>();
 
@@ -79,7 +95,7 @@ export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) 
       pendingEvents.clear();
       unsubscribe();
     };
-  }, [appendLog]);
+  }, [appendLog, hydrateMissingIds]);
 
   const value = useMemo<NetworkLogContextValue>(
     () => ({ logs, appendLog, clearLogs }),
