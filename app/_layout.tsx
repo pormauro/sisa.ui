@@ -1,7 +1,7 @@
 import '@/utils/networkSniffer';
 
 import { Stack, usePathname, useRouter } from 'expo-router';
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,6 +41,7 @@ import { LogProvider } from '@/contexts/LogContext';
 import { NetworkLogProvider } from '@/contexts/NetworkLogContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
+import { primeMemoryCacheFromStorage } from '@/hooks/useCachedState';
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
@@ -90,6 +91,20 @@ function RootLayoutContent() {
 }
 
 export default function RootLayout() {
+  const [cachePrimed, setCachePrimed] = useState(false);
+
+  useEffect(() => {
+    primeMemoryCacheFromStorage().finally(() => setCachePrimed(true));
+  }, []);
+
+  if (!cachePrimed) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <LogProvider>
       <NetworkLogProvider>
