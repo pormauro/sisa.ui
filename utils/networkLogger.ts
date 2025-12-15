@@ -53,7 +53,10 @@ const fetchWithTimeout = async (resource: string, options: any = {}, fetcher: ty
   }
 };
 
+export const generateLogId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
 export interface NetworkLogEntry {
+  id: string;
   timestamp: number;
   request: {
     method: string;
@@ -94,7 +97,7 @@ export const loggedFetch = async (
       timeout,
     };
 
-    response = await fetchWithTimeout(url, requestOptions, resolvedFetcher);
+      response = await fetchWithTimeout(url, requestOptions, resolvedFetcher);
     try {
       const cloned = response.clone();
       responseBody = await cloned.json().catch(async () => (await cloned.text()) || null);
@@ -108,6 +111,7 @@ export const loggedFetch = async (
   } finally {
     const duration = Date.now() - startedAt;
     appendLog({
+      id: generateLogId(),
       timestamp: startedAt,
       request: {
         method,

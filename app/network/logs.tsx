@@ -343,7 +343,7 @@ const NetworkLogsScreen = () => {
 
       <FlatList
         data={paginatedLogs}
-        keyExtractor={item => `${item.timestamp}-${item.request.url}`}
+        keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         onEndReachedThreshold={0.4}
