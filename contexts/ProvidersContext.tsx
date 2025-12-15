@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
   useCallback,
+  useState,
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -53,7 +54,7 @@ export type ProviderUpdatePayload = Partial<ProviderPayload>;
 
 interface ProvidersContextValue {
   providers: Provider[];
-  loadProviders: () => void;
+  loadProviders: (force?: boolean) => Promise<void>;
   addProvider: (provider: ProviderPayload) => Promise<number | null>;
   updateProvider: (id: number, provider: ProviderUpdatePayload) => Promise<boolean>;
   deleteProvider: (id: number) => Promise<boolean>;
@@ -61,7 +62,7 @@ interface ProvidersContextValue {
 
 export const ProvidersContext = createContext<ProvidersContextValue>({
   providers: [],
-  loadProviders: () => {},
+  loadProviders: async () => {},
   addProvider: async () => null,
   updateProvider: async () => false,
   deleteProvider: async () => false,
@@ -72,6 +73,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     'providers',
     []
   );
+  const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null);
   const { token } = useContext(AuthContext);
 
   useEffect(() => {
@@ -101,7 +103,11 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     );
   }, [setProviders]);
 
-  const loadProviders = useCallback(async () => {
+  const loadProviders = useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && lastFetchedAt && now - lastFetchedAt < 5 * 60 * 1000) {
+      return;
+    }
     try {
       const response = await fetch(`${BASE_URL}/providers`, {
         headers: {
@@ -131,6 +137,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
           } as Provider;
         });
         setProviders(sortByNewest(fetchedProviders, getDefaultSortValue));
+        setLastFetchedAt(Date.now());
       }
     } catch (error) {
       if (isTokenExpiredError(error)) {
@@ -139,7 +146,7 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
       }
       console.error('Error loading providers:', error);
     }
-  }, [setProviders, token]);
+  }, [lastFetchedAt, setProviders, token]);
 
   const addProvider = useCallback(
     async (providerData: ProviderPayload): Promise<number | null> => {
@@ -233,12 +240,6 @@ export const ProvidersProvider = ({ children }: { children: ReactNode }) => {
     },
     [setProviders, token]
   );
-
-  useEffect(() => {
-    if (token) {
-      loadProviders();
-    }
-  }, [loadProviders, token]);
 
   return (
     <ProvidersContext.Provider

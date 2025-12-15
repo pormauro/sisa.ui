@@ -291,12 +291,6 @@ export const PaymentsProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  useEffect(() => {
-    if (token) {
-      void loadPayments();
-    }
-  }, [loadPayments, token]);
-
   return (
     <PaymentsContext.Provider value={{ payments, loadPayments, addPayment, updatePayment, deletePayment }}>
       {children}

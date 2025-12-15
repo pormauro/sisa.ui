@@ -132,10 +132,6 @@ export const ProductsServicesProvider = ({ children }: { children: ReactNode }) 
     return false;
   };
 
-  useEffect(() => {
-    if (token) void loadProductsServices();
-  }, [loadProductsServices, token]);
-
   return (
     <ProductsServicesContext.Provider value={{ productsServices, loadProductsServices, addProductService, updateProductService, deleteProductService }}>
       {children}

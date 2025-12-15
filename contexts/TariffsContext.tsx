@@ -179,12 +179,6 @@ export const TariffsProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  useEffect(() => {
-    if (token) {
-      void loadTariffs();
-    }
-  }, [loadTariffs, token]);
-
   return (
     <TariffsContext.Provider value={{ tariffs, loadTariffs, addTariff, updateTariff, deleteTariff }}>
       {children}

@@ -320,10 +320,6 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  useEffect(() => {
-    if (token) void loadJobs();
-  }, [loadJobs, token]);
-
   return (
     <JobsContext.Provider value={{ jobs, loadJobs, addJob, updateJob, deleteJob }}>
       {children}

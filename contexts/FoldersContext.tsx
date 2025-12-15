@@ -165,12 +165,6 @@ export const FoldersProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  useEffect(() => {
-    if (token) {
-      void loadFolders();
-    }
-  }, [loadFolders, permissions, token]);
-
   return (
     <FoldersContext.Provider value={{ folders, loadFolders, addFolder, updateFolder, deleteFolder }}>
       {children}

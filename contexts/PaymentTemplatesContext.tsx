@@ -575,12 +575,6 @@ export const PaymentTemplatesProvider = ({ children }: { children: ReactNode }) 
     [setPaymentTemplates, token]
   );
 
-  useEffect(() => {
-    if (token) {
-      void loadPaymentTemplates();
-    }
-  }, [loadPaymentTemplates, token]);
-
   return (
     <PaymentTemplatesContext.Provider
       value={{

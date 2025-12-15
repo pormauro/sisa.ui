@@ -1268,12 +1268,6 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     [setCompanies, token]
   );
 
-  useEffect(() => {
-    if (token) {
-      loadCompanies();
-    }
-  }, [loadCompanies, token]);
-
   const value = useMemo(
     () => ({ companies, loadCompanies, addCompany, updateCompany, deleteCompany }),
     [addCompany, companies, deleteCompany, loadCompanies, updateCompany]

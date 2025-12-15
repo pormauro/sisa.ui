@@ -48,12 +48,6 @@ export const ProfilesListProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [setProfiles, token]);
 
-  useEffect(() => {
-    if (token) {
-      void loadProfiles();
-    }
-  }, [loadProfiles, token]);
-
   return (
     <ProfilesListContext.Provider value={{ profiles, loadProfiles }}>
       {children}
