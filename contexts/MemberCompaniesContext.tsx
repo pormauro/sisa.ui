@@ -82,6 +82,11 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
   );
   const [isLoadingMemberCompanies, setIsLoadingMemberCompanies] = useState(false);
   const hasRequestedCompanies = useRef(false);
+  const membershipsRef = useRef<MemberCompanyRecord[]>(memberships);
+
+  useEffect(() => {
+    membershipsRef.current = memberships;
+  }, [memberships]);
 
   const memberCompanies = useMemo(() => {
     const allowedIds = new Set(memberships.map(record => record.companyId));
@@ -90,7 +95,7 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
 
   const loadMemberCompanies = useCallback(async () => {
     if (!token) {
-      return memberships;
+      return membershipsRef.current;
     }
 
     setIsLoadingMemberCompanies(true);
@@ -109,7 +114,7 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
 
       if (!response.ok) {
         console.error('No se pudo cargar el listado de empresas del usuario.', response.status);
-        return memberships;
+        return membershipsRef.current;
       }
 
       const payload = await response.json();
@@ -119,18 +124,19 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
         .filter((record): record is MemberCompanyRecord => Boolean(record));
 
       setMemberships(parsed);
+      membershipsRef.current = parsed;
       return parsed;
     } catch (error) {
       if (isTokenExpiredError(error)) {
         console.warn('Token expirado al cargar empresas del usuario.');
-        return memberships;
+        return membershipsRef.current;
       }
       console.error('Error inesperado al cargar las empresas del usuario.', error);
-      return memberships;
+      return membershipsRef.current;
     } finally {
       setIsLoadingMemberCompanies(false);
     }
-  }, [checkConnection, memberships, setMemberships, token]);
+  }, [checkConnection, setMemberships, token]);
 
   const refreshMemberCompanies = useCallback(async () => {
     const latest = await loadMemberCompanies();
