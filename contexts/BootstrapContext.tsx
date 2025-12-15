@@ -6,11 +6,18 @@ import { CompaniesContext } from '@/contexts/CompaniesContext';
 import { InvoicesContext } from '@/contexts/InvoicesContext';
 import { MemberCompaniesContext } from '@/contexts/MemberCompaniesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import {
+  BootstrapResult,
+  BootstrapSection,
+  BootstrapStatus,
+  createInitialBootstrapStatus,
+} from '@/contexts/bootstrapTypes';
 
 interface BootstrapContextValue {
   isBootstrapping: boolean;
   isReady: boolean;
   lastError: string | null;
+  status: BootstrapStatus;
   refreshBootstrap: () => Promise<void>;
 }
 
@@ -18,6 +25,7 @@ const defaultValue: BootstrapContextValue = {
   isBootstrapping: false,
   isReady: false,
   lastError: null,
+  status: createInitialBootstrapStatus(),
   refreshBootstrap: async () => {},
 };
 
@@ -26,7 +34,7 @@ export const BootstrapContext = createContext<BootstrapContextValue>(defaultValu
 export const BootstrapProvider = ({ children }: { children: React.ReactNode }) => {
   const { token, isLoading: authIsLoading } = useContext(AuthContext);
   const { loadCompanies } = useContext(CompaniesContext);
-  const { loadMemberCompanies } = useContext(MemberCompaniesContext);
+  const { loadMemberCompaniesWithStatus } = useContext(MemberCompaniesContext);
   const { refreshPermissions } = useContext(PermissionsContext);
   const { loadCategories } = useContext(CategoriesContext);
   const { loadInvoices } = useContext(InvoicesContext);
@@ -34,36 +42,72 @@ export const BootstrapProvider = ({ children }: { children: React.ReactNode }) =
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [status, setStatus] = useState<BootstrapStatus>(createInitialBootstrapStatus());
   const bootstrapTokenRef = useRef<string | null>(null);
+
+  const setSectionStatus = useCallback(
+    (section: BootstrapSection, result: BootstrapResult, startedAt: number) => {
+      const source = result.source ?? 'server';
+      const error = result.error ?? null;
+      setStatus(prev => ({
+        ...prev,
+        [section]: {
+          source,
+          error,
+          completedAt: startedAt,
+        },
+      }));
+      if (source === 'failed' && !lastError) {
+        setLastError(error ?? 'No fue posible cargar los datos base de la sesión.');
+      }
+    },
+    [lastError]
+  );
+
+  const runSection = useCallback(
+    async (section: BootstrapSection, loader: () => Promise<BootstrapResult>) => {
+      const startedAt = Date.now();
+      const result = await loader().catch((error: unknown) => ({
+        source: 'failed' as const,
+        error: error instanceof Error ? error.message : 'No fue posible completar el arranque.',
+      }));
+      setSectionStatus(section, result, startedAt);
+      return result;
+    },
+    [setSectionStatus]
+  );
 
   const runBootstrap = useCallback(async () => {
     if (!token) {
       setIsReady(false);
       setLastError(null);
+      setStatus(createInitialBootstrapStatus());
       return;
     }
 
     setIsBootstrapping(true);
     setLastError(null);
+    setStatus(createInitialBootstrapStatus());
 
-    try {
-      await Promise.all([
-        refreshPermissions(),
-        loadCompanies(),
-        loadMemberCompanies(),
-        loadCategories(),
-        loadInvoices(),
-      ]);
-    } catch (error) {
-      console.error('Error during bootstrap sequence:', error);
-      setLastError(
-        error instanceof Error ? error.message : 'No fue posible cargar los datos base de la sesión.'
-      );
-    } finally {
-      setIsBootstrapping(false);
-      setIsReady(true);
-    }
-  }, [loadCategories, loadCompanies, loadInvoices, loadMemberCompanies, refreshPermissions, token]);
+    await Promise.all([
+      runSection('permissions', refreshPermissions),
+      runSection('companies', loadCompanies),
+      runSection('memberCompanies', loadMemberCompaniesWithStatus),
+      runSection('categories', loadCategories),
+      runSection('invoices', loadInvoices),
+    ]);
+
+    setIsBootstrapping(false);
+    setIsReady(true);
+  }, [
+    loadCategories,
+    loadCompanies,
+    loadInvoices,
+    loadMemberCompaniesWithStatus,
+    refreshPermissions,
+    runSection,
+    token,
+  ]);
 
   useEffect(() => {
     if (authIsLoading) {
@@ -90,9 +134,10 @@ export const BootstrapProvider = ({ children }: { children: React.ReactNode }) =
       isBootstrapping,
       isReady,
       lastError,
+      status,
       refreshBootstrap: runBootstrap,
     }),
-    [isBootstrapping, isReady, lastError, runBootstrap]
+    [isBootstrapping, isReady, lastError, runBootstrap, status]
   );
 
   return <BootstrapContext.Provider value={value}>{children}</BootstrapContext.Provider>;

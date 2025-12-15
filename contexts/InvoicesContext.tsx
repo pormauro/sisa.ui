@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { BootstrapResult } from '@/contexts/bootstrapTypes';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureAuthResponse, isTokenExpiredError } from '@/utils/auth/tokenGuard';
 import { ensureSortedByNewest, sortByNewest, SortableDate } from '@/utils/sort';
@@ -88,7 +89,7 @@ export type InvoicePayload = Record<string, unknown> & {
 
 interface InvoicesContextValue {
   invoices: Invoice[];
-  loadInvoices: () => Promise<void>;
+  loadInvoices: () => Promise<BootstrapResult>;
   addInvoice: (payload: InvoicePayload) => Promise<Invoice | null>;
   updateInvoice: (id: number, payload: InvoicePayload) => Promise<boolean>;
   deleteInvoice: (id: number) => Promise<boolean>;
@@ -99,7 +100,7 @@ interface InvoicesContextValue {
 
 const defaultContext: InvoicesContextValue = {
   invoices: [],
-  loadInvoices: async () => {},
+  loadInvoices: async () => ({ source: 'unknown' }),
   addInvoice: async () => null,
   updateInvoice: async () => false,
   deleteInvoice: async () => false,
@@ -720,10 +721,10 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
     setInvoices(prev => ensureSortedByNewest(prev, getInvoiceSortValue, invoice => invoice.id));
   }, [setInvoices]);
 
-  const loadInvoices = useCallback(async () => {
+  const loadInvoices = useCallback(async (): Promise<BootstrapResult> => {
     if (!token) {
       setInvoices([]);
-      return;
+      return { source: 'skipped' };
     }
 
     try {
@@ -746,12 +747,17 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
         : [];
 
       setInvoices(sortByNewest(parsed, getInvoiceSortValue, invoice => invoice.id));
+      return { source: 'server' };
     } catch (error) {
       if (isTokenExpiredError(error)) {
         console.warn('Token expirado al cargar facturas, se solicitará uno nuevo.');
-        return;
+        return { source: 'failed', error: 'Token expirado al cargar facturas.' };
       }
       console.error('Error loading invoices:', error);
+      return {
+        source: 'failed',
+        error: error instanceof Error ? error.message : 'No fue posible cargar las facturas.',
+      };
     }
   }, [setInvoices, token]);
 

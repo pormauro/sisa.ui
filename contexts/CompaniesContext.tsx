@@ -8,6 +8,7 @@ import React, {
   ReactNode,
 } from 'react';
 import { AuthContext } from '@/contexts/AuthContext';
+import { BootstrapResult, BootstrapSource } from '@/contexts/bootstrapTypes';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { ensureSortedByNewest, getDefaultSortValue, sortByNewest } from '@/utils/sort';
@@ -104,7 +105,7 @@ export type CompanyPayload = {
 
 interface CompaniesContextValue {
   companies: Company[];
-  loadCompanies: () => void;
+  loadCompanies: () => Promise<BootstrapResult>;
   addCompany: (company: CompanyPayload) => Promise<Company | null>;
   updateCompany: (id: number, company: CompanyPayload) => Promise<boolean>;
   deleteCompany: (id: number) => Promise<boolean>;
@@ -112,7 +113,7 @@ interface CompaniesContextValue {
 
 const defaultValue: CompaniesContextValue = {
   companies: [],
-  loadCompanies: () => {},
+  loadCompanies: async () => ({ source: 'unknown' }),
   addCompany: async () => null,
   updateCompany: async () => false,
   deleteCompany: async () => false,
@@ -956,12 +957,14 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
     });
   }, [setCompanies]);
 
-  const loadCompanies = useCallback(async () => {
+  const loadCompanies = useCallback(async (): Promise<BootstrapResult> => {
     if (!token) {
-      return;
+      return { source: 'skipped' };
     }
 
     let serverSucceeded = false;
+    let hydratedFromCache = false;
+    let lastError: string | null = null;
 
     const hydrateFromCache = async () => {
       try {
@@ -976,8 +979,10 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
             getDefaultSortValue
           )
         );
+        hydratedFromCache = true;
       } catch (error) {
         console.error('Error hydrating companies from cache:', error);
+        lastError = error instanceof Error ? error.message : 'Error al cargar empresas desde caché.';
       }
     };
 
@@ -1124,11 +1129,27 @@ export const CompaniesProvider = ({ children }: { children: ReactNode }) => {
         serverSucceeded = true;
       } catch (error) {
         console.error('Error loading companies:', error);
+        lastError = error instanceof Error ? error.message : 'Error desconocido al cargar empresas.';
       }
     };
 
     await hydrateFromCache();
     await fetchFromServer();
+
+    const source: BootstrapSource = (() => {
+      if (serverSucceeded) {
+        return 'server';
+      }
+      if (hydratedFromCache) {
+        return 'cache';
+      }
+      if (lastError) {
+        return 'failed';
+      }
+      return 'unknown';
+    })();
+
+    return { source, error: lastError };
   }, [setCompanies, token]);
 
   useEffect(() => {

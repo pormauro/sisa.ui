@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { BootstrapResult } from '@/contexts/bootstrapTypes';
 import { useCachedState } from '@/hooks/useCachedState';
 import {
   ensureSortedByNewest,
@@ -200,7 +201,7 @@ export const DEFAULT_CATEGORY_NAMES: Record<'income' | 'expense', string> = {
 
 interface CategoriesContextValue {
   categories: Category[];
-  loadCategories: () => void;
+  loadCategories: () => Promise<BootstrapResult>;
   addCategory: (category: Omit<Category, 'id'>) => Promise<Category | null>;
   updateCategory: (id: number, category: Omit<Category, 'id'>) => Promise<boolean>;
   deleteCategory: (id: number) => Promise<boolean>;
@@ -208,7 +209,7 @@ interface CategoriesContextValue {
 
 export const CategoriesContext = createContext<CategoriesContextValue>({
   categories: [],
-  loadCategories: () => {},
+  loadCategories: async () => ({ source: 'unknown' }),
   addCategory: async () => null,
   updateCategory: async () => false,
   deleteCategory: async () => false,
@@ -327,14 +328,19 @@ export const CategoriesProvider = ({ children }: { children: ReactNode }) => {
     setCategories(prev => ensureSortedByNewest(toCategoryArray(prev), getDefaultSortValue));
   }, [setCategories]);
 
-  const loadCategories = useCallback(async () => {
+  const loadCategories = useCallback(async (): Promise<BootstrapResult> => {
     try {
       const fetched = await fetchCategories();
       hasFetchedRef.current = true;
       applyFetchedCategories(fetched);
       await ensureDefaultCategories(fetched);
+      return { source: 'server' };
     } catch (error) {
       console.error('Error loading categories:', error);
+      return {
+        source: 'failed',
+        error: error instanceof Error ? error.message : 'No fue posible cargar las categorías.',
+      };
     }
   }, [applyFetchedCategories, ensureDefaultCategories, fetchCategories]);
 
