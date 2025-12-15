@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { APP_VERSION, BASE_URL } from '@/config/Index';
@@ -64,6 +64,8 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { token, checkConnection } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
 
+  const hasCheckedOnStartup = useRef<boolean>(false);
+
   const currentVersion = APP_VERSION;
 
   const updateAvailable = useMemo(
@@ -126,7 +128,8 @@ export const AppUpdatesProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [checkConnection, currentVersion, permissions, setLastCheckedAt, setLatestUpdate, token]);
 
   useEffect(() => {
-    if (token && latestHydrated) {
+    if (!hasCheckedOnStartup.current && token && latestHydrated) {
+      hasCheckedOnStartup.current = true;
       void refreshLatestUpdate();
     }
   }, [latestHydrated, refreshLatestUpdate, token]);

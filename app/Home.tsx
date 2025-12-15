@@ -1,6 +1,6 @@
 import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useContext } from 'react';
 import { Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ const Menu: React.FC = () => {
   const router = useRouter();
   const { userId } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
-  const { latestUpdate, updateAvailable, refreshLatestUpdate, currentVersion } = useContext(AppUpdatesContext);
+  const { latestUpdate, updateAvailable, currentVersion } = useContext(AppUpdatesContext);
 
   // Función para determinar si se deben mostrar los elementos con permisos requeridos.
   const isEnabled = (item: MenuItem): boolean => {
@@ -66,14 +66,6 @@ const Menu: React.FC = () => {
   const tintColor = useThemeColor({}, 'tint');
   const shouldShowUpdateButton =
     permissions.includes('listAppUpdates') && updateAvailable && Boolean(latestUpdate);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (permissions.includes('listAppUpdates')) {
-        void refreshLatestUpdate();
-      }
-    }, [permissions, refreshLatestUpdate])
-  );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor }]}> 
