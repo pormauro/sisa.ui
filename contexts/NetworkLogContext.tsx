@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 
 import { useCachedState } from '@/hooks/useCachedState';
-import { NetworkLogEntry, loggedFetch } from '@/utils/networkLogger';
+import { NetworkEvent, initializeNetworkSniffer, onNetworkEvent } from '@/utils/networkSniffer';
+import { NetworkLogEntry } from '@/utils/networkLogger';
 
 const MAX_LOG_ITEMS = 200;
 
@@ -40,27 +41,43 @@ export const NetworkLogProvider = ({ children }: { children: React.ReactNode }) 
   }, [setLogs]);
 
   useEffect(() => {
-    const originalFetch = global.fetch;
-    (global as any).__NETWORK_LOGGER_FETCH__ = originalFetch;
+    initializeNetworkSniffer();
+    const pendingEvents = new Map<string, NetworkEvent>();
 
-    const patchedFetch: typeof fetch = (resource: any, init?: RequestInit) => {
-      const url = typeof resource === 'string' ? resource : resource?.url ?? String(resource);
-      const method = init?.method ?? (resource instanceof Request ? resource.method : 'GET');
-      const headers = init?.headers ?? (resource instanceof Request ? resource.headers : undefined);
-      const body = init?.body ?? (resource instanceof Request ? resource.body : undefined);
-      const timeout = (init as any)?.timeout ?? (resource as any)?.timeout;
+    const unsubscribe = onNetworkEvent(event => {
+      if (!event.endTime) {
+        pendingEvents.set(event.id, event);
+        return;
+      }
 
-      return loggedFetch(
-        { url, method, headers, body, timeout, ...init },
-        appendLog,
-        originalFetch,
-      );
-    };
+      const startEvent = pendingEvents.get(event.id) ?? event;
+      pendingEvents.delete(event.id);
 
-    global.fetch = patchedFetch;
+      const duration = Math.max(event.endTime - startEvent.startTime, 0);
+      const errorMessage = event.error
+        ? event.error instanceof Error
+          ? event.error.message
+          : String(event.error)
+        : undefined;
+
+      appendLog({
+        timestamp: startEvent.startTime,
+        request: {
+          method: startEvent.method,
+          url: startEvent.url,
+          headers: startEvent.headers,
+          body: startEvent.body,
+        },
+        response: event.responseBody,
+        status: event.status,
+        duration,
+        error: errorMessage,
+      });
+    });
 
     return () => {
-      global.fetch = originalFetch;
+      pendingEvents.clear();
+      unsubscribe();
     };
   }, [appendLog]);
 
