@@ -79,6 +79,8 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const actionSurface = useThemeColor({ light: '#F5F9FF', dark: '#111827' }, 'background');
   const errorColor = useThemeColor({ light: '#b91c1c', dark: '#f87171' }, 'text');
 
+  const statusBadgeColor = useThemeColor({ light: '#1b5e20', dark: '#2e7d32' }, 'text');
+
   const handleMapPress = useCallback((event: MapPressEvent) => {
     const { latitude: lat, longitude: lng } = event.nativeEvent.coordinate;
     setSelectedCoordinate({ latitude: lat, longitude: lng });
@@ -145,6 +147,13 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
             <ThemedText style={styles.emptyText}>Sin ubicación seleccionada</ThemedText>
           </View>
         ) : null}
+
+        {hasCoordinate ? (
+          <View style={[styles.statusBadge, { backgroundColor: statusBadgeColor }]}>
+            <Ionicons name="checkmark-circle" size={16} color="#fff" />
+            <ThemedText style={styles.statusBadgeText}>Posición confirmada</ThemedText>
+          </View>
+        ) : null}
       </View>
 
       {editable ? (
@@ -152,23 +161,23 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
           <TouchableOpacity
             style={[
               styles.positionButton,
-              { borderColor: hasCoordinate ? successColor : accentColor, backgroundColor: actionSurface },
+              { borderColor: accentColor, backgroundColor: actionSurface },
             ]}
             onPress={() => setPickerVisible(true)}
             activeOpacity={0.85}
           >
             <Ionicons
-              name={hasCoordinate ? 'location-sharp' : 'location-outline'}
+              name={hasCoordinate ? 'pencil' : 'location-outline'}
               size={20}
-              color={hasCoordinate ? successColor : accentColor}
+              color={accentColor}
             />
             <ThemedText
               style={[
                 styles.positionButtonText,
-                { color: hasCoordinate ? successColor : accentColor },
+                { color: accentColor },
               ]}
             >
-              {hasCoordinate ? 'Posición confirmada' : 'Posicionar GPS'}
+              {hasCoordinate ? 'Editar ubicación' : 'Posicionar GPS'}
             </ThemedText>
           </TouchableOpacity>
           {hasCoordinate ? (
@@ -255,6 +264,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: 180,
     marginTop: 8,
+    position: 'relative',
   },
   mapPreview: {
     flex: 1,
@@ -307,6 +317,23 @@ const styles = StyleSheet.create({
   },
   clearIcon: {
     marginRight: 6,
+  },
+  statusBadge: {
+    position: 'absolute',
+    left: 10,
+    bottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: '#1b5e20',
+  },
+  statusBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
   },
   modalContainer: {
     flex: 1,
