@@ -9867,6 +9867,251 @@
             "description": "**GET {{base_url}}/accounting-entries**\n\nConsulta asientos contables con filtros por compañía y origen. Requiere token Bearer; el super usuario (ID=1) puede ver todas las compañías.\n\nParámetros de filtro y paginación:\n- `company_id` (obligatorio salvo super user).\n- `account_id`: restringe al mayor de una cuenta específica.\n- `origin_type` y `origin_id`: permiten filtrar por entidad origen (por ejemplo, Transfer o Invoice).\n- `start_date` y `end_date`: rango de fechas del asiento.\n- `page` y `per_page` para paginación.\n- `with_totals`: true para incluir `debit`, `credit` y `net` sumados.\n\nEjemplo de asientos generados para una transferencia:\n```json\n{\n  \"data\": [\n    {\n      \"id\": 301,\n      \"company_id\": {{company_id}},\n      \"account_id\": {{from_account_id}},\n      \"debit\": 0,\n      \"credit\": 500,\n      \"origin_type\": \"Transfer\",\n      \"origin_id\": {{transfer_id}}\n    },\n    {\n      \"id\": 302,\n      \"company_id\": {{company_id}},\n      \"account_id\": {{to_account_id}},\n      \"debit\": 500,\n      \"credit\": 0,\n      \"origin_type\": \"Transfer\",\n      \"origin_id\": {{transfer_id}}\n    }\n  ],\n  \"totals\": {\"debit\": 500, \"credit\": 500, \"net\": 0}\n}\n```"
           },
           "response": []
+        },
+        {
+          "name": "Plan de cuentas (árbol con balances)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounts/plan?company_id={{company_id}}&with_balances=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounts",
+                "plan"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                },
+                {
+                  "key": "with_balances",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "**GET {{base_url}}/accounts/plan**\n\nRetorna el plan de cuentas jerárquico de la compañía, opcionalmente con totales acumulados por nodo. Requiere encabezado Authorization con token Bearer, salvo login; el super usuario (ID=1) ignora el filtro de compañía y scopes.\n\nEjemplo de respuesta con balances:\n```json\n{\n  \"data\": [\n    {\n      \"id\": 10,\n      \"name\": \"Activos\",\n      \"number\": \"1\",\n      \"type\": \"asset\",\n      \"children\": [\n        {\n          \"id\": 11,\n          \"name\": \"Caja y bancos\",\n          \"number\": \"11\",\n          \"totals\": {\"debit\": 15200, \"credit\": 2000, \"net\": 13200},\n          \"children\": [\n            {\n              \"id\": 12,\n              \"name\": \"Caja principal\",\n              \"number\": \"1101\",\n              \"totals\": {\"debit\": 8000, \"credit\": 1000, \"net\": 7000},\n              \"children\": []\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Registrar asiento manual",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"posted_at\": \"2024-04-10 10:00:00\",\n  \"description\": \"Asiento manual de ajuste\",\n  \"lines\": [\n    {\n      \"account_id\": \"{{account_id}}\",\n      \"debit\": 1200.00,\n      \"credit\": 0,\n      \"origin_type\": \"ManualAdjust\",\n      \"origin_id\": 9901\n    },\n    {\n      \"account_id\": \"{{counterpart_account_id}}\",\n      \"debit\": 0,\n      \"credit\": 1200.00,\n      \"origin_type\": \"ManualAdjust\",\n      \"origin_id\": 9901\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/accounting-entries",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounting-entries"
+              ]
+            },
+            "description": "**POST {{base_url}}/accounting-entries**\n\nCrea un asiento contable compuesto por múltiples líneas balanceadas (débito = crédito). Requiere token Bearer y referencia de origen (`origin_type`/`origin_id`) sin FOREIGN KEY. Las líneas se guardan de forma inmutable: cualquier corrección se realiza con un asiento inverso. El super usuario (ID=1) puede omitir `company_id`."
+          },
+          "response": [
+            {
+              "name": "Asiento registrado",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"company_id\": \"{{company_id}}\",\n  \"posted_at\": \"2024-04-10 10:00:00\",\n  \"description\": \"Asiento manual de ajuste\",\n  \"lines\": [\n    {\n      \"account_id\": \"{{account_id}}\",\n      \"debit\": 1200.00,\n      \"credit\": 0,\n      \"origin_type\": \"ManualAdjust\",\n      \"origin_id\": 9901\n    },\n    {\n      \"account_id\": \"{{counterpart_account_id}}\",\n      \"debit\": 0,\n      \"credit\": 1200.00,\n      \"origin_type\": \"ManualAdjust\",\n      \"origin_id\": 9901\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/accounting-entries",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "accounting-entries"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"id\": 4501,\n  \"company_id\": {{company_id}},\n  \"posted_at\": \"2024-04-10 10:00:00\",\n  \"description\": \"Asiento manual de ajuste\",\n  \"lines\": [\n    {\n      \"account_id\": {{account_id}},\n      \"debit\": 1200,\n      \"credit\": 0,\n      \"origin_type\": \"ManualAdjust\",\n      \"origin_id\": 9901\n    },\n    {\n      \"account_id\": {{counterpart_account_id}},\n      \"debit\": 0,\n      \"credit\": 1200,\n      \"origin_type\": \"ManualAdjust\",\n      \"origin_id\": 9901\n    }\n  ],\n  \"totals\": {\n    \"debit\": 1200,\n    \"credit\": 1200,\n    \"net\": 0\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mayor (ledger) por cuenta",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounting/ledger?company_id={{company_id}}&account_id={{account_id}}&start_date={{ledger_start_date}}&end_date={{ledger_end_date}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounting",
+                "ledger"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                },
+                {
+                  "key": "account_id",
+                  "value": "{{account_id}}"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{ledger_start_date}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{ledger_end_date}}"
+                }
+              ]
+            },
+            "description": "**GET {{base_url}}/accounting/ledger**\n\nDevuelve el mayor de una cuenta contable con saldo inicial y saldo acumulado por línea. Requiere token Bearer y `account_id`; el super usuario puede omitir `company_id`.\n\nEjemplo de respuesta:\n```json\n{\n  \"opening_balance\": 5000,\n  \"entries\": [\n    {\n      \"id\": 9001,\n      \"posted_at\": \"2024-04-01\",\n      \"description\": \"Cobro factura 120\",\n      \"debit\": 0,\n      \"credit\": 800,\n      \"balance\": 4200\n    },\n    {\n      \"id\": 9002,\n      \"posted_at\": \"2024-04-05\",\n      \"description\": \"Ingreso caja\",\n      \"debit\": 1500,\n      \"credit\": 0,\n      \"balance\": 5700\n    }\n  ],\n  \"closing_balance\": 5700\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Balance general",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounting/balance-sheet?company_id={{company_id}}&as_of={{report_cutoff}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounting",
+                "balance-sheet"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                },
+                {
+                  "key": "as_of",
+                  "value": "{{report_cutoff}}"
+                }
+              ]
+            },
+            "description": "**GET {{base_url}}/accounting/balance-sheet**\n\nGenera el balance general a la fecha de corte indicada. Todos los saldos se calculan desde asientos inmutables; los nodos deben cuadrar (Activos = Pasivos + Patrimonio). Requiere token Bearer salvo login; el super usuario puede consultar todas las compañías.\n\nEjemplo de respuesta:\n```json\n{\n  \"assets\": 18500,\n  \"liabilities\": 4500,\n  \"equity\": 14000,\n  \"sections\": [\n    {\n      \"name\": \"Activos\",\n      \"total\": 18500,\n      \"accounts\": [{\"number\": \"1101\", \"name\": \"Caja\", \"balance\": 7000}]\n    }\n  ]\n}\n```"
+          },
+          "response": []
+        },
+        {
+          "name": "Estado de resultados",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/accounting/income-statement?company_id={{company_id}}&start_date={{income_start_date}}&end_date={{income_end_date}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "accounting",
+                "income-statement"
+              ],
+              "query": [
+                {
+                  "key": "company_id",
+                  "value": "{{company_id}}"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{income_start_date}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{income_end_date}}"
+                }
+              ]
+            },
+            "description": "**GET {{base_url}}/accounting/income-statement**\n\nMuestra ingresos, costos y gastos del período con el resultado neto. Requiere token Bearer y `company_id` salvo super usuario (ID=1). Garantiza consistencia usando los asientos inmutables del período solicitado.\n\nEjemplo de respuesta:\n```json\n{\n  \"income\": 52000,\n  \"expenses\": 31000,\n  \"net_income\": 21000,\n  \"sections\": [\n    {\n      \"name\": \"Ingresos por servicios\",\n      \"total\": 48000\n    },\n    {\n      \"name\": \"Gastos operativos\",\n      \"total\": 18000\n    }\n  ]\n}\n```"
+          },
+          "response": []
         }
       ]
     }
@@ -10054,6 +10299,60 @@
       "type": "string",
       "description": {
         "content": "Identificador de la transferencia creada; se usa para filtrar asientos `origin_id`.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "counterpart_account_id",
+      "value": "",
+      "type": "string",
+      "description": {
+        "content": "Cuenta contraparte para registrar asientos manuales balanceados.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "ledger_start_date",
+      "value": "2024-04-01",
+      "type": "string",
+      "description": {
+        "content": "Fecha inicial del rango del mayor contable.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "ledger_end_date",
+      "value": "2024-04-30",
+      "type": "string",
+      "description": {
+        "content": "Fecha final del rango del mayor contable.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "report_cutoff",
+      "value": "2024-04-30",
+      "type": "string",
+      "description": {
+        "content": "Fecha de corte usada en balance general.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "income_start_date",
+      "value": "2024-04-01",
+      "type": "string",
+      "description": {
+        "content": "Fecha de inicio del período del estado de resultados.",
+        "type": "text/plain"
+      }
+    },
+    {
+      "key": "income_end_date",
+      "value": "2024-04-30",
+      "type": "string",
+      "description": {
+        "content": "Fecha de cierre del período del estado de resultados.",
         "type": "text/plain"
       }
     }
