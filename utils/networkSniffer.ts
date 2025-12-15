@@ -56,6 +56,26 @@ type Listener = (event: NetworkEvent) => void;
 const listeners: Listener[] = [];
 let isInitialized = false;
 
+const activeFetchUrls = new Map<string, number>();
+
+const incrementActiveFetchUrl = (url: string) => {
+  activeFetchUrls.set(url, (activeFetchUrls.get(url) ?? 0) + 1);
+};
+
+const decrementActiveFetchUrl = (url: string) => {
+  const current = activeFetchUrls.get(url);
+  if (!current) {
+    return;
+  }
+
+  if (current <= 1) {
+    activeFetchUrls.delete(url);
+    return;
+  }
+
+  activeFetchUrls.set(url, current - 1);
+};
+
 const createId = () => {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -114,6 +134,7 @@ const installFetchSniffer = () => {
     };
 
     emit(baseEvent);
+    incrementActiveFetchUrl(String(url));
 
     try {
       const response = await originalFetch(input, init);
@@ -141,6 +162,8 @@ const installFetchSniffer = () => {
         endTime: Date.now(),
       });
       throw error;
+    } finally {
+      decrementActiveFetchUrl(String(url));
     }
   };
 
@@ -161,6 +184,7 @@ const installXhrSniffer = () => {
     let headers: Record<string, string> = {};
     let body: any;
     let startTime = Date.now();
+    let skipLogging = false;
 
     const emitStart = () => {
       startTime = Date.now();
@@ -194,11 +218,18 @@ const installXhrSniffer = () => {
     const originalSend = xhr.send;
     xhr.send = function (data?: Document | BodyInit | null) {
       body = data;
-      emitStart();
+      skipLogging = activeFetchUrls.has(url);
+      if (!skipLogging) {
+        emitStart();
+      }
       return originalSend.call(xhr, data as any);
     };
 
     const finalize = (partial: Partial<NetworkEvent>) => {
+      if (skipLogging) {
+        return;
+      }
+
       let responseBody: unknown = undefined;
       try {
         if (xhr.responseType === '' || xhr.responseType === 'text') {
