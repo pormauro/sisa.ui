@@ -92,6 +92,12 @@ Algunos ejemplos representativos:
   entidades en claves dedicadas (`clients`, `jobs`, `appointments`, `payments`,
   `receipts`, `folders`). Esto permite que las pantallas muestren información
   histórica aunque se cierre la app o el dispositivo pierda conectividad.【F:contexts/ClientsContext.tsx†L45-L144】【F:contexts/JobsContext.tsx†L68-L176】【F:contexts/AppointmentsContext.tsx†L74-L199】【F:contexts/PaymentsContext.tsx†L47-L167】【F:contexts/ReceiptsContext.tsx†L47-L167】【F:contexts/FoldersContext.tsx†L29-L124】
+- **Hidratación cache-first en Agenda.** `AppointmentsContext` exporta
+  `isHydrated` para que la UI sepa cuándo mostrar el estado almacenado en la
+  caché sin pisarlo con llamadas remotas. Solo dispara `loadAppointments()`
+  cuando `appointmentsHydrated` es verdadero y existe `token`, garantizando que
+  el primer render visible utilice la data persistida ordenada antes de
+  refrescar desde la API.【F:contexts/AppointmentsContext.tsx†L94-L154】【F:app/appointments/index.tsx†L16-L158】
 - **Preferencias de usuario.** `ConfigContext` guarda el tema, el rol y el tipo
   de vista bajo la clave `config`, lo que permite rehidratar la UI apenas se
   monta el *provider* y sin esperar una llamada remota.【F:contexts/ConfigContext.tsx†L34-L95】

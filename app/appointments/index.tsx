@@ -122,7 +122,13 @@ const compareAppointmentsByTime = (a: Appointment, b: Appointment) => {
 
 export default function AppointmentsCalendarScreen() {
   const router = useRouter();
-  const { appointments, isLoading, loadAppointments, deleteAppointment } = useContext(AppointmentsContext);
+  const {
+    appointments,
+    isLoading,
+    isHydrated,
+    loadAppointments,
+    deleteAppointment,
+  } = useContext(AppointmentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
   const { jobs } = useContext(JobsContext);
@@ -302,8 +308,10 @@ export default function AppointmentsCalendarScreen() {
     ]
   );
 
+  const shouldShowLoader = ((!isHydrated && appointments.length === 0) || isLoading) && !refreshing;
+
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <Calendar
         markingType="multi-dot"
         markedDates={markedDates}
@@ -321,7 +329,7 @@ export default function AppointmentsCalendarScreen() {
           arrowColor: tintColor,
         }}
       />
-      {isLoading && !refreshing ? (
+      {shouldShowLoader ? (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={tintColor} />
         </View>
