@@ -95,6 +95,19 @@ const LogCard = ({
   const statusBackground = statusTagColor(item.status, item.error);
   const subtitleColor = useThemeColor({ light: '#6b7280', dark: '#d1d5db' }, 'text');
   const mutedBackground = useThemeColor({ light: '#f3f4f6', dark: '#1f2937' }, 'background');
+  const [showBearerToken, setShowBearerToken] = useState(false);
+
+  const headersEntries = Object.entries(item.request.headers ?? {});
+  const toggleBearer = () => setShowBearerToken(prev => !prev);
+
+  const renderHeaderValue = (key: string, value: string) => {
+    const isBearer = /authorization|token/i.test(key) && /^Bearer\s+/i.test(value);
+    if (!isBearer) return value;
+    if (showBearerToken) return value;
+    const bearerLabel = value.replace(/^Bearer\s+/i, '').trim();
+    const masked = bearerLabel ? `${'•'.repeat(Math.min(bearerLabel.length, 8))}` : '•••';
+    return `Bearer ${masked}`;
+  };
 
   return (
     <TouchableOpacity style={[styles.card, { borderColor }]} onPress={onToggle}>
@@ -128,7 +141,32 @@ const LogCard = ({
         <View style={[styles.expandedContent, { backgroundColor: mutedBackground }]}>
           <View style={styles.detailBlock}>
             <ThemedText style={styles.detailTitle}>Cabeceras</ThemedText>
-            <ThemedText style={styles.detailText} selectable>{stringifyPayload(item.request.headers)}</ThemedText>
+            {headersEntries.length ? (
+              <View style={styles.headersList}>
+                {headersEntries.map(([key, value]) => (
+                  <View key={key} style={styles.headerRow}>
+                    <ThemedText style={styles.headerKey}>{key}:</ThemedText>
+                    <ThemedText style={styles.headerValue} selectable>
+                      {renderHeaderValue(key, value)}
+                    </ThemedText>
+                    {/authorization|token/i.test(key) && /^Bearer\s+/i.test(value) ? (
+                      <Pressable
+                        onPress={toggleBearer}
+                        style={styles.headerToggle}
+                        accessibilityRole="button"
+                        accessibilityLabel={showBearerToken ? 'Ocultar token' : 'Mostrar token'}
+                      >
+                        <ThemedText style={styles.headerToggleText}>
+                          {showBearerToken ? 'Ocultar' : 'Mostrar'}
+                        </ThemedText>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <ThemedText style={styles.detailText}>Sin datos disponibles</ThemedText>
+            )}
           </View>
           <View style={styles.detailBlock}>
             <ThemedText style={styles.detailTitle}>Cuerpo</ThemedText>
@@ -565,6 +603,36 @@ const styles = StyleSheet.create({
   detailText: {
     fontFamily: 'monospace',
     fontSize: 12,
+  },
+  headersList: {
+    rowGap: 6,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    columnGap: 6,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  headerKey: {
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  headerValue: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    flexShrink: 1,
+  },
+  headerToggle: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#9ca3af',
+  },
+  headerToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   listContent: {
     paddingBottom: 24,
