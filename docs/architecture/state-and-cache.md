@@ -136,28 +136,31 @@ intento de sincronización con el backend.【F:app/_layout.tsx†L39-L93】【F:
 
 ## `FilesContext`: metadatos y blobs persistidos
 
-[`FilesContext`](../../contexts/FilesContext.tsx) complementa al caché de datos
-con una capa específica para archivos binarios:
+[`FilesContext`](../../contexts/FilesContext.tsx) ahora trata los adjuntos como
+entidades offline-first utilizando SQLite y rutas determinísticas en disco:
 
-- **Descarga y lectura offline.** `getFile` intenta primero resolver los
-  metadatos cacheados (`localUri`, tipo MIME, nombre). Si la ruta existe en el
-  sistema de archivos, lee el contenido en Base64 y construye una URL de datos;
-  de lo contrario, descarga el archivo con el token de `AuthContext`, lo guarda
-  en disco y actualiza los metadatos con la nueva ubicación local.【F:contexts/FilesContext.tsx†L50-L130】
-- **Carga y duplicado local.** `uploadFile` empaqueta el archivo en un
-  `FormData`, envía la petición autenticada y, tras la respuesta exitosa, copia
-  el archivo al directorio interno para que quede disponible sin conexión.【F:contexts/FilesContext.tsx†L133-L177】
-- **Metadatos perezosos.** `getFileMetadata` delega en la caché y fuerza una
-  descarga si no encuentra información previa, logrando que el caché se
-  auto-complete con la primera consulta.【F:contexts/FilesContext.tsx†L179-L192】
-- **Limpieza selectiva.** `clearLocalFiles` identifica todas las claves de
-  archivos en `AsyncStorage`, elimina los archivos físicos si existen y luego
-  invoca `clearFileCaches` para avisar a cualquier suscriptor interesado en la
-  invalidez del caché de archivos.【F:contexts/FilesContext.tsx†L193-L214】【F:utils/cache.ts†L104-L117】
+- **Descarga anticipada y resolución estricta.** `getFile` consulta primero la
+  tabla `files` en SQLite; si el registro está marcado como `downloaded`, abre
+  el archivo local y lo entrega sin tocar la red. Si falta el archivo y la app
+  está offline, muestra un aviso de indisponibilidad y no intenta hacer
+  `fetch`. Solo en línea descarga el recurso, lo guarda con nombre
+  determinístico `files/{id}.{ext}` y actualiza la tabla para futuros accesos
+  sin conexión.【F:contexts/FilesContext.tsx†L35-L144】
+- **Carga y persistencia acoplada.** `uploadFile` continúa enviando el `FormData`
+  autenticado, pero ahora copia el adjunto al directorio interno con la ruta
+  estable y registra los metadatos completos en SQLite (nombre, MIME, tamaño,
+  ruta local, banderas de descarga).【F:contexts/FilesContext.tsx†L148-L189】
+- **Metadatos locales primero.** `getFileMetadata` devuelve directamente los
+  campos almacenados en SQLite (`original_name`, `file_type`, `localUri`),
+  evitando redes innecesarias y devolviendo `null` si la app está offline y no
+  existe registro previo.【F:contexts/FilesContext.tsx†L191-L223】
+- **Limpieza coherente.** `clearLocalFiles` elimina tanto los registros de
+  SQLite como los archivos físicos asociados, garantizando que no queden
+  metadatos huérfanos tras una limpieza manual.【F:contexts/FilesContext.tsx†L224-L236】
 
-Gracias a esta estrategia, el usuario puede abrir documentos previamente
-consultados aun sin conexión y dispone de una acción explícita en la pantalla de
-configuración para liberar espacio si el dispositivo lo requiere.【F:app/user/ConfigScreen.tsx†L29-L53】
+Este contrato asegura que la galería y los visores reutilicen los archivos
+descargados sin depender de la red y que los registros locales se mantengan en
+un único lugar indexado y transaccional (SQLite), en lugar de `AsyncStorage`.
 
 ## Detección de conectividad y estrategias offline
 
