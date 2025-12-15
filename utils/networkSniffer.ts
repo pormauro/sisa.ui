@@ -1,7 +1,7 @@
 const maskHeaderValue = (key: string, value: string): string => {
   if (/authorization|token/i.test(key)) {
     if (/^Bearer\s+/i.test(value)) {
-      return 'Bearer ***';
+      return value;
     }
     return '***';
   }
