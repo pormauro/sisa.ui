@@ -60,6 +60,36 @@ export const MENU_SECTIONS: MenuSection[] = [
         requiredPermissions: ['listPaymentTemplates'],
       },
       {
+        title: 'Plan de cuentas',
+        route: '/accounting/accounts',
+        icon: 'list-circle-outline',
+        requiredPermissions: ['listAccounts'],
+      },
+      {
+        title: 'Asientos contables',
+        route: '/accounting/journal',
+        icon: 'reader-outline',
+        requiredPermissions: ['listJournalEntries'],
+      },
+      {
+        title: 'Mayor por cuenta',
+        route: '/accounting/ledger',
+        icon: 'albums-outline',
+        requiredPermissions: ['viewLedger'],
+      },
+      {
+        title: 'Balance general',
+        route: '/accounting/balance',
+        icon: 'briefcase-outline',
+        requiredPermissions: ['viewBalanceSheet'],
+      },
+      {
+        title: 'Estado de resultados',
+        route: '/accounting/income',
+        icon: 'bar-chart-outline',
+        requiredPermissions: ['viewIncomeStatement'],
+      },
+      {
         title: 'Cajas',
         route: '/cash_boxes',
         icon: 'cash-outline',

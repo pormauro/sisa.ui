@@ -28,6 +28,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { useJournalEntries } from '@/hooks/useJournalEntries';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -49,6 +50,7 @@ export default function ReceiptDetailPage() {
   const { providers } = useContext(ProvidersContext);
   const { clients } = useContext(ClientsContext);
   const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
+  const { findByReference } = useJournalEntries();
 
   const NEW_CLIENT_VALUE = '__new_client__';
   const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -56,6 +58,11 @@ export default function ReceiptDetailPage() {
   const NEW_CASH_BOX_VALUE = '__new_cash_box__';
 
   const receipt = receipts.find(r => r.id === receiptId);
+
+  const relatedEntries = useMemo(
+    () => findByReference('receipt', receiptId),
+    [findByReference, receiptId]
+  );
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -432,7 +439,25 @@ export default function ReceiptDetailPage() {
       keyboardDismissMode="on-drag"
       contentContainerStyle={[styles.container, { backgroundColor: screenBackground }]}
     >
-        <ThemedText style={styles.label}>Fecha y hora</ThemedText>
+      <ThemedText style={styles.sectionTitle}>Asientos asociados</ThemedText>
+      {relatedEntries.length === 0 ? (
+        <ThemedText style={[styles.helperText, { color: '#6B7280' }]}>No hay asientos registrados.</ThemedText>
+      ) : (
+        relatedEntries.map(entry => (
+          <ThemedView key={entry.id} style={[styles.entryCard, { borderColor }]}> 
+            <ThemedText style={styles.sectionSubtitle}>{entry.date}</ThemedText>
+            {entry.items.map((item, idx) => (
+              <View key={`${entry.id}-${idx}`} style={styles.row}>
+                <ThemedText>Cuenta {item.account_id}</ThemedText>
+                <ThemedText>D: {item.debit}</ThemedText>
+                <ThemedText>H: {item.credit}</ThemedText>
+              </View>
+            ))}
+          </ThemedView>
+        ))
+      )}
+
+      <ThemedText style={styles.label}>Fecha y hora</ThemedText>
         <TouchableOpacity
           style={[styles.input, { backgroundColor: inputBackground, borderColor }]}
           onPress={() => canEdit && setShowDatePicker(true)}
@@ -667,6 +692,11 @@ export default function ReceiptDetailPage() {
 
 const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 120 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  sectionSubtitle: { fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  helperText: { marginBottom: 8 },
+  entryCard: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  row: { flexDirection: 'row', justifyContent: 'space-between' },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

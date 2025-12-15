@@ -36,6 +36,7 @@ import { ensureAuthResponse } from '@/utils/auth/tokenGuard';
 import { openAttachment } from '@/utils/files/openAttachment';
 import { fileStorage } from '@/utils/files/storage';
 import { Buffer } from 'buffer';
+import { useJournalEntries } from '@/hooks/useJournalEntries';
 
 const formatNumberForInput = (value: number): string => value.toFixed(2).replace('.', ',');
 
@@ -244,6 +245,7 @@ export default function EditInvoiceScreen() {
   const { clients } = useContext(ClientsContext);
   const { getFile, getFileMetadata } = useContext(FileContext);
   const { beginSelection, consumeSelection, pendingSelections, cancelSelection } = usePendingSelection();
+  const { findByReference } = useJournalEntries();
 
   const [formState, setFormState] = useState<InvoiceFormState>(buildInitialState(undefined));
   const [items, setItems] = useState<InvoiceItemFormValue[]>([createEmptyItem()]);
@@ -329,6 +331,11 @@ export default function EditInvoiceScreen() {
       ? existingTaxes
       : derivedTaxes;
   }, [currentInvoice, hasTaxData, items, manualTaxAmount, parsedTaxPercentage, subtotal]);
+
+  const relatedEntries = useMemo(
+    () => (invoiceId === null ? [] : findByReference('invoice', invoiceId)),
+    [findByReference, invoiceId]
+  );
   const total = useMemo(() => {
     if (manualTaxAmount !== null && Number.isFinite(subtotal)) {
       return Math.max(0, subtotal + Math.max(0, manualTaxAmount));
@@ -822,6 +829,24 @@ export default function EditInvoiceScreen() {
     <>
       <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
         <ThemedText style={styles.sectionTitle}>Factura Nro {formState.id || invoiceId}</ThemedText>
+
+        <ThemedText style={styles.sectionSubtitle}>Asientos asociados</ThemedText>
+        {relatedEntries.length === 0 ? (
+          <ThemedText style={[styles.emptyItemsText, { color: secondaryText }]}>No hay asientos registrados.</ThemedText>
+        ) : (
+          relatedEntries.map((entry) => (
+            <View key={entry.id} style={[styles.itemContainer, { borderColor }]}> 
+              <ThemedText style={styles.itemTitle}>{entry.date}</ThemedText>
+              {entry.items.map((item, idx) => (
+                <View key={`${entry.id}-${idx}`} style={styles.itemRow}>
+                  <ThemedText style={styles.cellText}>Cuenta {item.account_id}</ThemedText>
+                  <ThemedText style={styles.cellText}>D: {item.debit}</ThemedText>
+                  <ThemedText style={styles.cellText}>H: {item.credit}</ThemedText>
+                </View>
+              ))}
+            </View>
+          ))
+        )}
 
       <ThemedText style={styles.label}>Fecha de emisión</ThemedText>
       <TextInput
@@ -1337,6 +1362,9 @@ const styles = StyleSheet.create({
   itemRow: {
     flexDirection: 'row',
     gap: 12,
+  },
+  cellText: {
+    fontSize: 14,
   },
   itemColumn: {
     flex: 1,
