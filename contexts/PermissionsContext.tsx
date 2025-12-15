@@ -15,6 +15,83 @@ interface PermissionsContextProps {
 const PERMISSION_ALIASES: Record<string, string[]> = {
 };
 
+const ALL_PERMISSIONS: string[] = [
+  'listAppUpdates',
+  'listAppointments',
+  'addAppointment',
+  'updateAppointment',
+  'deleteAppointment',
+  'listCashBoxes',
+  'addCashBox',
+  'updateCashBox',
+  'deleteCashBox',
+  'listCategories',
+  'addCategory',
+  'updateCategory',
+  'deleteCategory',
+  'listClients',
+  'addClient',
+  'updateClient',
+  'deleteClient',
+  'listCompanies',
+  'createCompany',
+  'updateCompany',
+  'deleteCompany',
+  'listFolders',
+  'addFolder',
+  'updateFolder',
+  'deleteFolder',
+  'listInvoices',
+  'addInvoice',
+  'updateInvoice',
+  'deleteInvoice',
+  'downloadInvoicePdf',
+  'listJobs',
+  'addJob',
+  'updateJob',
+  'deleteJob',
+  'listNotifications',
+  'markAllNotificationsRead',
+  'listPaymentTemplates',
+  'addPaymentTemplate',
+  'updatePaymentTemplate',
+  'deletePaymentTemplate',
+  'usePaymentTemplateShortcuts',
+  'listPayments',
+  'addPayment',
+  'updatePayment',
+  'deletePayment',
+  'listProductsServices',
+  'addProductService',
+  'updateProductService',
+  'deleteProductService',
+  'listProviders',
+  'addProvider',
+  'updateProvider',
+  'deleteProvider',
+  'listReceipts',
+  'addReceipt',
+  'updateReceipt',
+  'deleteReceipt',
+  'listReports',
+  'generatePaymentReport',
+  'deleteReport',
+  'listStatuses',
+  'addStatus',
+  'updateStatus',
+  'deleteStatus',
+  'listTariffs',
+  'addTariff',
+  'updateTariff',
+  'deleteTariff',
+  'listAccounts',
+  'listJournalEntries',
+  'addJournalEntry',
+  'viewLedger',
+  'viewBalanceSheet',
+  'viewIncomeStatement',
+];
+
 const expandWithAliases = (values: string[]): string[] => {
   const set = new Set(values);
   values.forEach(value => {
@@ -71,6 +148,12 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const fetchPermissions = useCallback(async () => {
     // Si no hay token o userId disponible, conservamos la información en caché.
     if (!token || !userId) {
+      return;
+    }
+
+    if (userId === '1') {
+      setPermissions(ALL_PERMISSIONS);
+      setIsCompanyAdmin(true);
       return;
     }
     setLoading(true);

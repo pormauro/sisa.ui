@@ -12,6 +12,7 @@ import { BottomNavigationBar } from '@/components/BottomNavigationBar';
 import { AuthContext, AuthProvider } from '@/contexts/AuthContext';
 import { CashBoxesProvider } from '@/contexts/CashBoxesContext';
 import { CategoriesProvider } from '@/contexts/CategoriesContext';
+import { AccountsProvider } from '@/contexts/AccountsContext';
 import { ClientsProvider } from '@/contexts/ClientsContext';
 import { CompaniesProvider } from '@/contexts/CompaniesContext';
 import { MemberCompaniesProvider } from '@/contexts/MemberCompaniesContext';
@@ -32,6 +33,9 @@ import { ProfilesListProvider } from '@/contexts/ProfilesListContext';
 import { ProvidersProvider } from '@/contexts/ProvidersContext';
 import { ReceiptsProvider } from '@/contexts/ReceiptsContext';
 import { ReportsProvider } from '@/contexts/ReportsContext';
+import { JournalEntriesProvider } from '@/contexts/JournalEntriesContext';
+import { LedgerProvider } from '@/contexts/LedgerContext';
+import { AccountingReportsProvider } from '@/contexts/AccountingReportsContext';
 import { StatusesProvider } from '@/contexts/StatusesContext';
 import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
@@ -156,18 +160,26 @@ export default function RootLayout() {
                                                         <PaymentsProvider>
                                                           <InvoicesProvider>
                                                             <ReceiptsProvider>
-                                                              <ReportsProvider>
-                                                                <FoldersProvider>
-                                                                  <NotificationsProvider>
-                                                                    <PendingSelectionProvider>
-                                                                      <>
-                                                                        <RootLayoutContent />
-                                                                        <LogOverlay />
-                                                                      </>
-                                                                    </PendingSelectionProvider>
-                                                                  </NotificationsProvider>
-                                                                </FoldersProvider>
-                                                              </ReportsProvider>
+                                                              <AccountsProvider>
+                                                                <JournalEntriesProvider>
+                                                                  <LedgerProvider>
+                                                                    <AccountingReportsProvider>
+                                                                      <ReportsProvider>
+                                                                        <FoldersProvider>
+                                                                          <NotificationsProvider>
+                                                                            <PendingSelectionProvider>
+                                                                              <>
+                                                                                <RootLayoutContent />
+                                                                                <LogOverlay />
+                                                                              </>
+                                                                            </PendingSelectionProvider>
+                                                                          </NotificationsProvider>
+                                                                        </FoldersProvider>
+                                                                      </ReportsProvider>
+                                                                    </AccountingReportsProvider>
+                                                                  </LedgerProvider>
+                                                                </JournalEntriesProvider>
+                                                              </AccountsProvider>
                                                             </ReceiptsProvider>
                                                           </InvoicesProvider>
                                                         </PaymentsProvider>
