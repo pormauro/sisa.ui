@@ -1,14 +1,17 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { Alert, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Buffer } from 'buffer';
+import * as FileSystem from 'expo-file-system/legacy';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import {
-  clearFileCaches,
-  getCachedFileMeta,
-  setCachedFileMeta,
-} from '@/utils/cache';
+  CachedFileRecord,
+  getFileMetadata as getCachedMetadata,
+  markFileAsMissing,
+  removeAllFiles,
+  upsertFileMetadata,
+} from '@/database/fileCache';
+import { initializeDatabase } from '@/database/sqlite';
 import { fileStorage } from '@/utils/files/storage';
 
 // Tipo de archivo que devuelve el backend
@@ -22,7 +25,7 @@ export interface FileData {
   updated_at: string;
 }
 
-type CachedFileMeta = FileData & { localUri: string; storagePath?: string };
+type CachedFileMeta = FileData & { localUri: string | null; storagePath?: string | null; downloaded?: boolean };
 
 interface FileContextType {
   uploadFile: (
@@ -50,50 +53,77 @@ interface FileProviderProps {
 }
 
 export const FilesProvider = ({ children }: FileProviderProps) => {
-  const { token } = useContext(AuthContext);
+  const { token, isOffline } = useContext(AuthContext);
+  const [databaseReady, setDatabaseReady] = useState(false);
+
+  useEffect(() => {
+    initializeDatabase()
+      .then(() => setDatabaseReady(true))
+      .catch(error => {
+        console.error('Error initializing database', error);
+        Alert.alert('Error', 'No se pudo preparar el almacenamiento local.');
+      });
+  }, []);
+
+  const ensureDatabase = async (): Promise<void> => {
+    if (databaseReady) return;
+    await initializeDatabase();
+    setDatabaseReady(true);
+  };
 
   const sanitizeFileName = (name: string): string =>
     name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-  const saveFileLocally = async (
-    fileId: number,
-    base64: string,
-    file: FileData
-  ): Promise<string> => {
-    const extension = file.file_type.split('/').pop() || 'bin';
-    const defaultName = `file_${fileId}.${extension}`;
-    const sanitized = sanitizeFileName(file.original_name || defaultName);
-    const storagePath = `${fileStorage.documentDirectory}${sanitized}`;
-    const { uri } = await fileStorage.write(storagePath, base64, file.file_type);
-    const localUri = Platform.OS === 'web' ? uri : storagePath;
-    const cachedMeta: CachedFileMeta = {
-      ...file,
-      localUri,
-      storagePath,
-    };
-    await setCachedFileMeta(fileId, cachedMeta);
-    return localUri;
+  const ensureFilesDirectory = async (): Promise<string> => {
+    const baseDirectory = `${fileStorage.documentDirectory}files/`;
+    if (Platform.OS !== 'web') {
+      try {
+        await FileSystem.makeDirectoryAsync(baseDirectory, { intermediates: true });
+      } catch (error: any) {
+        if (!String(error?.message || '').includes('already exists')) {
+          console.log('Error creating files directory', error);
+        }
+      }
+    }
+    return baseDirectory;
+  };
+
+  const buildStoragePath = async (fileId: number, mimeType: string): Promise<string> => {
+    const baseDirectory = await ensureFilesDirectory();
+    const extension = mimeType.split('/').pop() || 'bin';
+    return `${baseDirectory}${fileId}.${extension}`;
+  };
+
+  const resolveLocalUri = async (record: CachedFileRecord): Promise<string | null> => {
+    if (!record.localPath) return null;
+
+    const base64 = await fileStorage.read(record.localPath, record.mime);
+    if (base64) {
+      if (Platform.OS === 'web') {
+        return `data:${record.mime};base64,${base64}`;
+      }
+      return record.localPath;
+    }
+
+    await markFileAsMissing(record.id);
+    return null;
   };
 
   const getFile = async (fileId: number): Promise<string | null> => {
     try {
-      const meta = await getCachedFileMeta<CachedFileMeta>(fileId);
-      const target = meta?.storagePath ?? meta?.localUri;
-      if (meta && target) {
-        const base64 = await fileStorage.read(target, meta.file_type);
-        if (base64 !== null) {
-          if (Platform.OS === 'web') {
-            const dataUri = `data:${meta.file_type};base64,${base64}`;
-            if (meta.localUri !== dataUri) {
-              await setCachedFileMeta(fileId, { ...meta, localUri: dataUri, storagePath: target });
-            }
-            return dataUri;
-          }
-          return meta.localUri || target;
+      await ensureDatabase();
+      const meta = await getCachedMetadata(fileId);
+
+      if (meta && meta.downloaded) {
+        const localUri = await resolveLocalUri(meta);
+        if (localUri) {
+          return localUri;
         }
-        if (Platform.OS === 'web' && meta.localUri?.startsWith('data:')) {
-          return meta.localUri;
-        }
+      }
+
+      if (isOffline) {
+        Alert.alert('No disponible sin conexión', 'El archivo no está guardado localmente.');
+        return null;
       }
 
       const response = await fetch(`${BASE_URL}/files/${fileId}`, {
@@ -120,25 +150,37 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
 
         const arrayBuffer = await response.arrayBuffer();
         const base64 = Buffer.from(arrayBuffer).toString('base64');
+        const storagePath = await buildStoragePath(fileId, contentType);
 
         const file: FileData = {
           id: fileId,
           user_id: 0,
-          original_name: originalName,
+          original_name: sanitizeFileName(originalName),
           file_type: contentType,
           file_size: arrayBuffer.byteLength,
-          created_at: '',
-          updated_at: '',
+          created_at: meta?.created_at || new Date().toISOString(),
+          updated_at: meta?.updated_at || new Date().toISOString(),
         };
 
-        const localUri = await saveFileLocally(fileId, base64, file);
-        if (Platform.OS === 'web') {
-          return `data:${contentType};base64,${base64}`;
-        }
+        await fileStorage.write(storagePath, base64, contentType);
+        await upsertFileMetadata({
+          id: file.id,
+          name: file.original_name,
+          mime: file.file_type,
+          size: file.file_size,
+          checksum: null,
+          localPath: storagePath,
+          downloaded: true,
+          createdAt: file.created_at,
+          updatedAt: file.updated_at,
+        });
+        const localUri = Platform.OS === 'web'
+          ? `data:${contentType};base64,${base64}`
+          : storagePath;
         return localUri;
-      } else {
-        Alert.alert('Error', 'No se pudo descargar el archivo.');
       }
+
+      Alert.alert('Error', 'No se pudo descargar el archivo.');
     } catch (error: any) {
       console.error('Error downloading file:', error);
       Alert.alert('Error', error.message);
@@ -154,6 +196,7 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
     fileSize: number
   ): Promise<FileData | null> => {
     try {
+      await ensureDatabase();
       const formData = new FormData();
       formData.append('file', {
         uri: fileUri,
@@ -176,20 +219,20 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
 
       const data = await response.json();
       if (data.file) {
-        const extension = fileType.split('/').pop() || 'bin';
-        const defaultName = `file_${data.file.id}.${extension}`;
-        const sanitized = sanitizeFileName(
-          data.file.original_name || defaultName
-        );
-        const storagePath = `${fileStorage.documentDirectory}${sanitized}`;
+        const storagePath = await buildStoragePath(data.file.id, fileType);
         const { uri } = await fileStorage.copy(fileUri, storagePath, fileType);
         const localUri = Platform.OS === 'web' ? uri : storagePath;
-        const cachedMeta: CachedFileMeta = {
-          ...data.file,
-          localUri,
-          storagePath,
-        };
-        await setCachedFileMeta(data.file.id, cachedMeta);
+        await upsertFileMetadata({
+          id: data.file.id,
+          name: data.file.original_name,
+          mime: data.file.file_type ?? fileType,
+          size: data.file.file_size ?? fileSize,
+          checksum: data.file.checksum ?? null,
+          localPath: storagePath,
+          downloaded: true,
+          createdAt: data.file.created_at ?? new Date().toISOString(),
+          updatedAt: data.file.updated_at ?? new Date().toISOString(),
+        });
         return data.file;
       }
     } catch (error: any) {
@@ -202,42 +245,51 @@ export const FilesProvider = ({ children }: FileProviderProps) => {
   const getFileMetadata = async (
     fileId: number
   ): Promise<CachedFileMeta | null> => {
-    const meta = await getCachedFileMeta<CachedFileMeta>(fileId);
-    if (meta) {
-      return meta;
+    await ensureDatabase();
+    const record = await getCachedMetadata(fileId);
+    if (record) {
+      return {
+        id: record.id,
+        user_id: 0,
+        original_name: record.name,
+        file_type: record.mime,
+        file_size: record.size,
+        created_at: record.createdAt ?? '',
+        updated_at: record.updatedAt ?? '',
+        localUri: record.localPath ?? null,
+        storagePath: record.localPath ?? null,
+        downloaded: record.downloaded,
+      };
+    }
+    if (isOffline) {
+      return null;
     }
     await getFile(fileId);
-    const newMeta = await getCachedFileMeta<CachedFileMeta>(fileId);
-    if (newMeta) {
-      return newMeta;
-    }
-    return null;
+    const refreshed = await getCachedMetadata(fileId);
+    return refreshed
+      ? {
+          id: refreshed.id,
+          user_id: 0,
+          original_name: refreshed.name,
+          file_type: refreshed.mime,
+          file_size: refreshed.size,
+          created_at: refreshed.createdAt ?? '',
+          updated_at: refreshed.updatedAt ?? '',
+          localUri: refreshed.localPath ?? null,
+          storagePath: refreshed.localPath ?? null,
+          downloaded: refreshed.downloaded,
+        }
+      : null;
   };
   const clearLocalFiles = async (): Promise<void> => {
-    const keys = await AsyncStorage.getAllKeys();
-    const fileKeys = keys.filter(
-      key => key.startsWith('@sisa:file:') || key.startsWith('file_meta_')
-    );
-    const metas = await AsyncStorage.multiGet(fileKeys);
+    const existing = await removeAllFiles();
     await Promise.all(
-      metas.map(async ([, value]) => {
-        if (value) {
-          try {
-            const meta = JSON.parse(value) as {
-              localUri?: string;
-              storagePath?: string;
-            };
-            const target = meta?.storagePath ?? meta?.localUri;
-            if (target) {
-              await fileStorage.delete(target);
-            }
-          } catch (error) {
-            console.log('Error clearing cached file', error);
-          }
+      existing.map(async meta => {
+        if (meta.localPath) {
+          await fileStorage.delete(meta.localPath);
         }
       })
     );
-    await clearFileCaches();
   };
 
   return (

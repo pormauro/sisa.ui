@@ -1,13 +1,13 @@
 # SISA UI
 
 ## Descripción general
-SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la agenda de trabajos, la relación con clientes y proveedores, la gestión documental y los circuitos financieros (recibos, pagos, cajas, tarifas) sobre una única experiencia construida con [Expo Router](https://expo.dev/router) y React Native. El frontend consume la API `sisa.api` y prioriza el trabajo híbrido online/offline gracias al almacenamiento local con `AsyncStorage` y a la sincronización diferencial de operaciones.
+SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la agenda de trabajos, la relación con clientes y proveedores, la gestión documental y los circuitos financieros (recibos, pagos, cajas, tarifas) sobre una única experiencia construida con [Expo Router](https://expo.dev/router) y React Native. El frontend consume la API `sisa.api` y prioriza el trabajo híbrido online/offline combinando `AsyncStorage` (datos en caché) y SQLite + `expo-file-system` para los adjuntos, con sincronización diferencial de operaciones.
 
 ### Tecnologías clave
 - [Expo 53](https://docs.expo.dev/) con `expo-router` para navegación basada en archivos.
 - React 19 y React Native 0.79 con TypeScript.
 - Componentes nativos y librerías Expo para archivos, cámara, documentos, autenticación segura y caché (`expo-secure-store`, `expo-file-system`, `expo-document-picker`, etc.).
-- `AsyncStorage` + hooks propios (`useCachedState`) para persistencia y trabajo sin conexión.
+- `AsyncStorage` + hooks propios (`useCachedState`) para persistencia de datos y SQLite para archivos cacheados con rutas determinísticas.
 - [`Fuse.js`](https://fusejs.io/) y [`react-native-calendars`](https://github.com/wix/react-native-calendars) para búsquedas tolerantes y visualización de agenda.
 
 ## Requisitos previos
@@ -74,7 +74,7 @@ SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la 
 ### Contextos transversales
 - `AuthContext`: login, autologin, renovación y almacenamiento seguro del token.
 - `PermissionsContext`: fusiona permisos globales y del usuario consultando `/permissions/global` y `/permissions/user/:id`, con refresco automático cada 5 minutos.
-- `FilesContext`: subida (`/files`), descarga y cacheo de metadatos/archivos con `expo-file-system`, incluyendo utilidades para limpiar almacenamiento local.
+- `FilesContext`: subida (`/files`), descarga y cacheo de metadatos/archivos con `expo-file-system` y SQLite, incluyendo utilidades para limpiar almacenamiento local.
 - `ConfigContext`: obtiene y actualiza preferencias (`/user_configurations`) y expone el tema elegido por el usuario, el cual se integra en `useColorScheme`.
 - `ProfileContext`, `ProfilesContext` y `ProfilesListContext`: cachean perfiles del usuario actual, perfiles externos y listados completos para selector de permisos.
 - `useCachedState`: hook genérico para hidratar estado desde `AsyncStorage` y escuchar limpiezas de caché.
@@ -94,7 +94,7 @@ SISA es la aplicación móvil y web de gestión operativa de Depros. Unifica la 
 - `app/user/`: `ProfileScreen` para editar datos personales y `ConfigScreen` para cambiar tema, limpiar cachés (`clearAllDataCaches`) y purgar archivos locales.
 
 ### Gestión de archivos y caché
-- Los adjuntos se almacenan en `expo-file-system` con nombres sanitizados; `FilesContext` reutiliza copias locales cuando es posible y mantiene metadatos sincronizados en `AsyncStorage`.
+- Los adjuntos se almacenan en `expo-file-system` con rutas determinísticas (`files/{id}.{ext}`); `FilesContext` reutiliza copias locales cuando es posible y mantiene metadatos sincronizados en SQLite para resolverlos offline.
 - La opción "Borrar datos de archivos" de `ConfigScreen` elimina metadatos y archivos locales, mientras que "Borrar datos de la caché" limpia todos los estados persistidos vía `useCachedState`.
 
 ### Base de datos y migraciones
