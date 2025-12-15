@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
-import { getCachedData, setCachedData, subscribeToDataCacheClear } from '@/utils/cache';
+import { getCachedData, readAllDataCaches, setCachedData, subscribeToDataCacheClear } from '@/utils/cache';
 
 const memoryCache = new Map<string, unknown>();
+
+export const primeMemoryCacheFromStorage = async (): Promise<void> => {
+  const cachedEntries = await readAllDataCaches();
+
+  Object.entries(cachedEntries).forEach(([cacheKey, value]) => {
+    if (memoryCache.has(cacheKey)) {
+      return;
+    }
+
+    memoryCache.set(cacheKey, value);
+  });
+};
 
 export const useCachedState = <T>(cacheKey: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>, boolean] => {
   const [state, setState] = useState<T>(() => {

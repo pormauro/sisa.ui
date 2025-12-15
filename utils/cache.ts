@@ -57,6 +57,38 @@ export const setCachedData = async <T>(key: string, data: T): Promise<void> => {
   }
 };
 
+export const readAllDataCaches = async (): Promise<Record<string, unknown>> => {
+  const cacheEntries: Record<string, unknown> = {};
+
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const cacheKeys = keys.filter(key => key.startsWith(DATA_CACHE_PREFIX));
+
+    if (cacheKeys.length === 0) {
+      return cacheEntries;
+    }
+
+    const pairs = await AsyncStorage.multiGet(cacheKeys);
+
+    pairs.forEach(([key, value]) => {
+      if (!value) {
+        return;
+      }
+
+      try {
+        const cacheKey = key.replace(DATA_CACHE_PREFIX, '');
+        cacheEntries[cacheKey] = JSON.parse(value);
+      } catch (error) {
+        console.log('Error parsing cache entry for', key, error);
+      }
+    });
+  } catch (error) {
+    console.log('Error reading data caches', error);
+  }
+
+  return cacheEntries;
+};
+
 export const clearAllDataCaches = async (): Promise<void> => {
   try {
     const keys = await AsyncStorage.getAllKeys();
