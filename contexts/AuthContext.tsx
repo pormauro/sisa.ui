@@ -260,11 +260,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (storedUserId) {
         setUserId(storedUserId);
       }
-      if (storedToken) {
+      const tokenValid = storedToken ? await checkTokenValidity() : false;
+
+      if (tokenValid && storedToken) {
         setToken(storedToken);
       }
-
-      const tokenValid = storedToken ? await checkTokenValidity() : false;
 
       if (storedUsername && storedPassword && (!storedToken || !tokenValid)) {
         void performLogin(storedUsername, storedPassword);
