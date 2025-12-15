@@ -5,6 +5,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  Switch,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -145,7 +146,7 @@ const LogCard = ({
 
 const NetworkLogsScreen = () => {
   const router = useRouter();
-  const { logs, clearLogs } = useNetworkLog();
+  const { logs, clearLogs, captureEnabled, setCaptureEnabled } = useNetworkLog();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [uriFilter, setUriFilter] = useState('');
@@ -158,6 +159,7 @@ const NetworkLogsScreen = () => {
   const tintColor = useThemeColor({}, 'tint');
   const modalBackdrop = useThemeColor({ light: 'rgba(0,0,0,0.35)', dark: 'rgba(0,0,0,0.6)' }, 'background');
   const modalCard = useThemeColor({ light: '#fff', dark: '#111827' }, 'background');
+  const switchThumb = useThemeColor({ light: '#fff', dark: '#e5e7eb' }, 'background');
 
   const sortedLogs = useMemo(() => [...logs].sort((a, b) => b.timestamp - a.timestamp), [logs]);
 
@@ -256,6 +258,21 @@ const NetworkLogsScreen = () => {
       </View>
 
       <View style={styles.filtersContainer}>
+        <View style={styles.captureRow}>
+          <View style={{ flex: 1, rowGap: 2 }}>
+            <ThemedText style={styles.captureLabel}>Capturar solicitudes</ThemedText>
+            <ThemedText style={styles.captureDescription}>
+              Usa caché y puedes pausar el registro cuando quieras.
+            </ThemedText>
+          </View>
+          <Switch
+            value={captureEnabled}
+            onValueChange={setCaptureEnabled}
+            trackColor={{ false: '#9ca3af', true: tintColor }}
+            thumbColor={switchThumb}
+          />
+        </View>
+
         <ThemedText style={styles.filterLabel}>Método</ThemedText>
         <View style={styles.filterRow}>
           <Pressable
@@ -393,53 +410,68 @@ export default NetworkLogsScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingHorizontal: 18,
+    paddingTop: 12,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    columnGap: 12,
+    marginBottom: 10,
+    columnGap: 10,
   },
   backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
   },
   filtersContainer: {
-    marginBottom: 12,
-    rowGap: 8,
+    marginBottom: 10,
+    rowGap: 6,
+  },
+  captureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 10,
+    paddingVertical: 6,
+  },
+  captureLabel: {
+    fontWeight: '700',
+  },
+  captureDescription: {
+    fontSize: 12,
+    color: '#6b7280',
   },
   filterLabel: {
     fontWeight: '600',
+    fontSize: 13,
   },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    columnGap: 8,
-    rowGap: 8,
+    columnGap: 6,
+    rowGap: 6,
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 16,
     borderWidth: 1,
   },
   chipText: {
     fontWeight: '600',
+    fontSize: 13,
   },
   actionsRow: {
     flexDirection: 'row',
     columnGap: 12,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   card: {
     borderWidth: 1,
