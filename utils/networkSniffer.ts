@@ -56,24 +56,30 @@ type Listener = (event: NetworkEvent) => void;
 const listeners: Listener[] = [];
 let isInitialized = false;
 
+const normalizeMethod = (method?: string) => (method ?? 'GET').toUpperCase();
+
 const activeFetchUrls = new Map<string, number>();
 
-const incrementActiveFetchUrl = (url: string) => {
-  activeFetchUrls.set(url, (activeFetchUrls.get(url) ?? 0) + 1);
+const getFetchKey = (method: string, url: string) => `${method.toUpperCase()} ${url}`;
+
+const incrementActiveFetchUrl = (method: string, url: string) => {
+  const key = getFetchKey(method, url);
+  activeFetchUrls.set(key, (activeFetchUrls.get(key) ?? 0) + 1);
 };
 
-const decrementActiveFetchUrl = (url: string) => {
-  const current = activeFetchUrls.get(url);
+const decrementActiveFetchUrl = (method: string, url: string) => {
+  const key = getFetchKey(method, url);
+  const current = activeFetchUrls.get(key);
   if (!current) {
     return;
   }
 
   if (current <= 1) {
-    activeFetchUrls.delete(url);
+    activeFetchUrls.delete(key);
     return;
   }
 
-  activeFetchUrls.set(url, current - 1);
+  activeFetchUrls.set(key, current - 1);
 };
 
 const createId = () => {
@@ -115,9 +121,9 @@ const installFetchSniffer = () => {
     const startTime = Date.now();
 
     const url = typeof input === 'string' ? input : input?.url ?? String(input);
-    const method =
-      init?.method ??
-      (typeof Request !== 'undefined' && input instanceof Request ? input.method : 'GET');
+    const method = normalizeMethod(
+      init?.method ?? (typeof Request !== 'undefined' && input instanceof Request ? input.method : 'GET'),
+    );
     const headers =
       init?.headers ??
       (typeof Request !== 'undefined' && input instanceof Request ? input.headers : undefined);
@@ -134,7 +140,7 @@ const installFetchSniffer = () => {
     };
 
     emit(baseEvent);
-    incrementActiveFetchUrl(String(url));
+    incrementActiveFetchUrl(method, String(url));
 
     try {
       const response = await originalFetch(input, init);
@@ -163,7 +169,7 @@ const installFetchSniffer = () => {
       });
       throw error;
     } finally {
-      decrementActiveFetchUrl(String(url));
+      decrementActiveFetchUrl(method, String(url));
     }
   };
 
@@ -201,7 +207,7 @@ const installXhrSniffer = () => {
 
     const originalOpen = xhr.open;
     xhr.open = function (m: string, u: string, ...rest: any[]) {
-      method = m;
+      method = normalizeMethod(m);
       url = u;
       return originalOpen.apply(xhr, [m, u, ...rest]);
     };
@@ -218,7 +224,7 @@ const installXhrSniffer = () => {
     const originalSend = xhr.send;
     xhr.send = function (data?: Document | BodyInit | null) {
       body = data;
-      skipLogging = activeFetchUrls.has(url);
+      skipLogging = activeFetchUrls.has(getFetchKey(method, url));
       if (!skipLogging) {
         emitStart();
       }
