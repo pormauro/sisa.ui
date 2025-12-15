@@ -153,6 +153,7 @@ const NetworkLogsScreen = () => {
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   const borderColor = useThemeColor({ light: '#e5e7eb', dark: '#312e81' }, 'background');
   const backgroundColor = useThemeColor({}, 'background');
@@ -255,108 +256,123 @@ const NetworkLogsScreen = () => {
           <Ionicons name="arrow-back" size={22} color={tintColor} />
         </TouchableOpacity>
         <ThemedText style={styles.title}>Registro de red</ThemedText>
+        <TouchableOpacity
+          style={[styles.collapseButton, { borderColor: tintColor }]}
+          onPress={() => setHeaderCollapsed(prev => !prev)}
+        >
+          <Ionicons name={headerCollapsed ? 'chevron-down' : 'chevron-up'} size={18} color={tintColor} />
+          <ThemedText style={styles.collapseLabel} lightColor={tintColor}>
+            {headerCollapsed ? 'Mostrar' : 'Ocultar'}
+          </ThemedText>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.filtersContainer}>
-        <View style={styles.captureRow}>
-          <View style={{ flex: 1, rowGap: 2 }}>
-            <ThemedText style={styles.captureLabel}>Capturar solicitudes</ThemedText>
-            <ThemedText style={styles.captureDescription}>
-              Usa caché y puedes pausar el registro cuando quieras.
-            </ThemedText>
+      {!headerCollapsed ? (
+        <>
+          <View style={styles.filtersContainer}>
+            <View style={styles.captureRow}>
+              <View style={{ flex: 1, rowGap: 2 }}>
+                <ThemedText style={styles.captureLabel}>Capturar solicitudes</ThemedText>
+                <ThemedText style={styles.captureDescription}>
+                  Usa caché y puedes pausar el registro cuando quieras.
+                </ThemedText>
+              </View>
+              <Switch
+                value={captureEnabled}
+                onValueChange={setCaptureEnabled}
+                trackColor={{ false: '#9ca3af', true: tintColor }}
+                thumbColor={switchThumb}
+              />
+            </View>
+
+            <ThemedText style={styles.filterLabel}>Método</ThemedText>
+            <View style={styles.filterRow}>
+              <Pressable
+                onPress={() => {
+                  setMethodFilter('all');
+                  resetPagination();
+                }}
+                style={[
+                  styles.chip,
+                  methodFilter === 'all'
+                    ? { backgroundColor: tintColor, borderColor: tintColor }
+                    : { borderColor },
+                ]}
+              >
+                <ThemedText lightColor={methodFilter === 'all' ? '#fff' : undefined} style={styles.chipText}>
+                  Todos
+                </ThemedText>
+              </Pressable>
+              {uniqueMethods.map(method => (
+                <Pressable
+                  key={method}
+                  onPress={() => {
+                    setMethodFilter(method);
+                    resetPagination();
+                  }}
+                  style={[
+                    styles.chip,
+                    methodFilter === method
+                      ? { backgroundColor: tintColor, borderColor: tintColor }
+                      : { borderColor },
+                  ]}
+                >
+                  <ThemedText lightColor={methodFilter === method ? '#fff' : undefined} style={styles.chipText}>
+                    {method}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+
+            <ThemedText style={styles.filterLabel}>Estado</ThemedText>
+            <View style={styles.filterRow}>
+              {(Object.keys(statusFilterLabel) as StatusFilter[]).map(key => (
+                <Pressable
+                  key={key}
+                  onPress={() => {
+                    setStatusFilter(key);
+                    resetPagination();
+                  }}
+                  style={[
+                    styles.chip,
+                    statusFilter === key
+                      ? { backgroundColor: tintColor, borderColor: tintColor }
+                      : { borderColor },
+                  ]}
+                >
+                  <ThemedText lightColor={statusFilter === key ? '#fff' : undefined} style={styles.chipText}>
+                    {statusFilterLabel[key]}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+
+            <ThemedText style={styles.filterLabel}>Filtrar por URL</ThemedText>
+            <ThemedTextInput
+              placeholder="/api/v1/recurso"
+              value={uriFilter}
+              onChangeText={text => {
+                setUriFilter(text);
+                resetPagination();
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           </View>
-          <Switch
-            value={captureEnabled}
-            onValueChange={setCaptureEnabled}
-            trackColor={{ false: '#9ca3af', true: tintColor }}
-            thumbColor={switchThumb}
-          />
-        </View>
 
-        <ThemedText style={styles.filterLabel}>Método</ThemedText>
-        <View style={styles.filterRow}>
-          <Pressable
-            onPress={() => {
-              setMethodFilter('all');
-              resetPagination();
-            }}
-            style={[
-              styles.chip,
-              methodFilter === 'all'
-                ? { backgroundColor: tintColor, borderColor: tintColor }
-                : { borderColor },
-            ]}
-          >
-            <ThemedText lightColor={methodFilter === 'all' ? '#fff' : undefined} style={styles.chipText}>Todos</ThemedText>
-          </Pressable>
-          {uniqueMethods.map(method => (
-            <Pressable
-              key={method}
-              onPress={() => {
-                setMethodFilter(method);
-                resetPagination();
-              }}
-              style={[
-                styles.chip,
-                methodFilter === method
-                  ? { backgroundColor: tintColor, borderColor: tintColor }
-                  : { borderColor },
-              ]}
-            >
-              <ThemedText lightColor={methodFilter === method ? '#fff' : undefined} style={styles.chipText}>
-                {method}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-
-        <ThemedText style={styles.filterLabel}>Estado</ThemedText>
-        <View style={styles.filterRow}>
-          {(Object.keys(statusFilterLabel) as StatusFilter[]).map(key => (
-            <Pressable
-              key={key}
-              onPress={() => {
-                setStatusFilter(key);
-                resetPagination();
-              }}
-              style={[
-                styles.chip,
-                statusFilter === key
-                  ? { backgroundColor: tintColor, borderColor: tintColor }
-                  : { borderColor },
-              ]}
-            >
-              <ThemedText lightColor={statusFilter === key ? '#fff' : undefined} style={styles.chipText}>
-                {statusFilterLabel[key]}
-              </ThemedText>
-            </Pressable>
-          ))}
-        </View>
-
-        <ThemedText style={styles.filterLabel}>Filtrar por URL</ThemedText>
-        <ThemedTextInput
-          placeholder="/api/v1/recurso"
-          value={uriFilter}
-          onChangeText={text => {
-            setUriFilter(text);
-            resetPagination();
-          }}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.actionsRow}>
-        <ThemedButton
-          title="Borrar registro"
-          onPress={() => setConfirmVisible(true)}
-          style={{ flex: 1 }}
-          lightColor="#dc2626"
-          darkColor="#991b1b"
-          lightTextColor="#fff"
-          darkTextColor="#fff"
-        />
-      </View>
+          <View style={styles.actionsRow}>
+            <ThemedButton
+              title="Borrar registro"
+              onPress={() => setConfirmVisible(true)}
+              style={{ flex: 1 }}
+              lightColor="#dc2626"
+              darkColor="#991b1b"
+              lightTextColor="#fff"
+              darkTextColor="#fff"
+            />
+          </View>
+        </>
+      ) : null}
 
       <FlatList
         data={paginatedLogs}
@@ -418,6 +434,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     columnGap: 10,
+  },
+  collapseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginLeft: 'auto',
+    columnGap: 6,
+  },
+  collapseLabel: {
+    fontWeight: '700',
+    fontSize: 13,
   },
   backButton: {
     width: 40,
