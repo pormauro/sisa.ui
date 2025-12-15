@@ -163,8 +163,11 @@ export default function AppointmentsCalendarScreen() {
       if (!permissions.includes('listAppointments')) {
         return;
       }
+      if (!isHydrated) {
+        return;
+      }
       void loadAppointments();
-    }, [permissions, loadAppointments])
+    }, [isHydrated, loadAppointments, permissions])
   );
 
   const appointmentsByDate = useMemo(() => {
@@ -206,10 +209,14 @@ export default function AppointmentsCalendarScreen() {
   }, []);
 
   const onRefresh = useCallback(async () => {
+    if (!isHydrated) {
+      setRefreshing(false);
+      return;
+    }
     setRefreshing(true);
     await loadAppointments();
     setRefreshing(false);
-  }, [loadAppointments]);
+  }, [isHydrated, loadAppointments]);
 
   const confirmDelete = useCallback(
     (id: number) => {
@@ -308,7 +315,26 @@ export default function AppointmentsCalendarScreen() {
     ]
   );
 
-  const shouldShowLoader = ((!isHydrated && appointments.length === 0) || isLoading) && !refreshing;
+  const shouldShowLoader = isLoading && !refreshing;
+
+  const renderEmptyState = useMemo(() => {
+    if (!isHydrated) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={tintColor} />
+          <ThemedText style={[styles.emptyText, { color: emptyTextColor, marginTop: 12 }]}>
+            Sincronizando datos...
+          </ThemedText>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <ThemedText style={[styles.emptyText, { color: emptyTextColor }]}>No hay citas programadas</ThemedText>
+      </View>
+    );
+  }, [emptyTextColor, isHydrated, tintColor]);
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
@@ -340,11 +366,7 @@ export default function AppointmentsCalendarScreen() {
         renderItem={renderItem}
         refreshing={refreshing}
         onRefresh={onRefresh}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <ThemedText style={[styles.emptyText, { color: emptyTextColor }]}>No hay citas programadas</ThemedText>
-          </View>
-        }
+        ListEmptyComponent={renderEmptyState}
         contentContainerStyle={[styles.listContent, selectedAppointments.length === 0 && styles.listEmpty]}
         ListFooterComponent={
           <View style={{ height: canCreate && selectedAppointments.length > 0 ? 120 : 0 }} />
