@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useContext, useCallback, useState, useRef } from 'react';
 import { Alert } from 'react-native';
 import { AuthContext } from '@/contexts/AuthContext';
+import { BootstrapResult } from '@/contexts/bootstrapTypes';
 import { BASE_URL } from '@/config/Index';
 import { useCachedState } from '@/hooks/useCachedState';
 import { subscribeToDataCacheClear } from '@/utils/cache';
@@ -8,7 +9,7 @@ import { subscribeToDataCacheClear } from '@/utils/cache';
 interface PermissionsContextProps {
   permissions: string[]; // Array de cadenas con los nombres de los permisos
   loading: boolean;
-  refreshPermissions: () => Promise<void>;
+  refreshPermissions: () => Promise<BootstrapResult>;
   isCompanyAdmin: boolean;
 }
 
@@ -29,7 +30,7 @@ const expandWithAliases = (values: string[]): string[] => {
 export const PermissionsContext = createContext<PermissionsContextProps>({
   permissions: [],
   loading: false,
-  refreshPermissions: async () => {},
+  refreshPermissions: async () => ({ source: 'unknown' }),
   isCompanyAdmin: false,
 });
 
@@ -68,10 +69,10 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [authIsLoading, clearCachedPermissions, permissionsHydrated, userId]);
 
-  const fetchPermissions = useCallback(async () => {
+  const fetchPermissions = useCallback(async (): Promise<BootstrapResult> => {
     // Si no hay token o userId disponible, conservamos la información en caché.
     if (!token || !userId) {
-      return;
+      return { source: 'skipped' };
     }
     setLoading(true);
     try {
@@ -200,10 +201,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         globalData?.is_admin,
       );
       setIsCompanyAdmin(adminFlag);
+      return { source: 'server' };
     } catch (error: any) {
       console.error('Error fetching permissions', error);
       const status = typeof error?.status === 'number' ? error.status : undefined;
       const tokenMismatch = Boolean(error?.tokenMismatch);
+      const errorMessage =
+        error instanceof Error ? error.message : 'No fue posible cargar los permisos.';
       if (tokenMismatch) {
         // El backend indica que el token no coincide con el registrado.
         // Solicitamos la verificación de la sesión para obtener un nuevo token
@@ -213,7 +217,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         } catch (revalidationError) {
           console.log('No fue posible obtener un nuevo token tras la desincronización.', revalidationError);
         }
-        return;
+        return { source: 'failed', error: errorMessage };
       }
       if (status === 401 || status === 403) {
         Alert.alert(
@@ -226,6 +230,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           'No se pudieron cargar los permisos actuales. Se conservarán los últimos permisos válidos.'
         );
       }
+      return { source: 'failed', error: errorMessage };
     } finally {
       setLoading(false);
     }

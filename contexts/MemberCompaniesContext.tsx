@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
+import { BootstrapResult } from '@/contexts/bootstrapTypes';
 import { CompaniesContext, type Company } from '@/contexts/CompaniesContext';
 import { type CompanyMembershipStatus, MEMBERSHIP_STATUSES } from '@/contexts/CompanyMembershipsContext';
 import { useCachedState } from '@/hooks/useCachedState';
@@ -21,6 +22,7 @@ interface MemberCompaniesContextValue {
   memberCompanies: Company[];
   isLoadingMemberCompanies: boolean;
   loadMemberCompanies: () => Promise<MemberCompanyRecord[]>;
+  loadMemberCompaniesWithStatus: () => Promise<BootstrapResult>;
   refreshMemberCompanies: () => Promise<MemberCompanyRecord[]>;
 }
 
@@ -29,6 +31,7 @@ const defaultContextValue: MemberCompaniesContextValue = {
   memberCompanies: [],
   isLoadingMemberCompanies: false,
   loadMemberCompanies: async () => [],
+  loadMemberCompaniesWithStatus: async () => ({ source: 'unknown' }),
   refreshMemberCompanies: async () => [],
 };
 
@@ -145,6 +148,23 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
     return latest;
   }, [loadMemberCompanies]);
 
+  const loadMemberCompaniesWithStatus = useCallback(async (): Promise<BootstrapResult> => {
+    if (!token) {
+      return { source: 'skipped' };
+    }
+
+    try {
+      await loadMemberCompanies();
+      return { source: 'server' };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'No fue posible cargar las empresas asociadas al usuario.';
+      return { source: 'failed', error: errorMessage };
+    }
+  }, [loadMemberCompanies, token]);
+
   useEffect(() => {
     if (!token) {
       setMemberships([]);
@@ -181,9 +201,17 @@ export const MemberCompaniesProvider = ({ children }: { children: React.ReactNod
       memberCompanies,
       isLoadingMemberCompanies,
       loadMemberCompanies,
+      loadMemberCompaniesWithStatus,
       refreshMemberCompanies,
     }),
-    [isLoadingMemberCompanies, loadMemberCompanies, memberCompanies, memberships, refreshMemberCompanies],
+    [
+      isLoadingMemberCompanies,
+      loadMemberCompanies,
+      loadMemberCompaniesWithStatus,
+      memberCompanies,
+      memberships,
+      refreshMemberCompanies,
+    ],
   );
 
   return <MemberCompaniesContext.Provider value={value}>{children}</MemberCompaniesContext.Provider>;
