@@ -31,6 +31,7 @@ export interface Appointment {
 interface AppointmentsContextValue {
   appointments: Appointment[];
   isLoading: boolean;
+  isHydrated: boolean;
   loadAppointments: () => Promise<void>;
   addAppointment: (appointment: Omit<Appointment, 'id' | 'user_id'>) => Promise<Appointment | null>;
   updateAppointment: (id: number, appointment: Omit<Appointment, 'id' | 'user_id'>) => Promise<boolean>;
@@ -42,6 +43,7 @@ const noop = async () => {};
 export const AppointmentsContext = createContext<AppointmentsContextValue>({
   appointments: [],
   isLoading: false,
+  isHydrated: false,
   loadAppointments: noop,
   addAppointment: async () => null,
   updateAppointment: async () => false,
@@ -124,7 +126,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   }), []);
 
   const loadAppointments = useCallback(async () => {
-    if (!token) return;
+    if (!token || !appointmentsHydrated) return;
     setIsLoading(true);
     try {
       const response = await fetch(`${BASE_URL}/appointments`, {
@@ -145,7 +147,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [parseAppointment, setAppointments, token]);
+  }, [appointmentsHydrated, parseAppointment, setAppointments, token]);
 
   const addAppointment = useCallback(
     async (appointment: Omit<Appointment, 'id' | 'user_id'>): Promise<Appointment | null> => {
@@ -272,14 +274,32 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   }, [appointmentsHydrated, authIsLoading, setAppointments, userId]);
 
   useEffect(() => {
-    if (token) {
-      loadAppointments();
+    if (!appointmentsHydrated || !token) {
+      return;
     }
-  }, [loadAppointments, token]);
+
+    loadAppointments();
+  }, [appointmentsHydrated, loadAppointments, token]);
 
   const value = useMemo(
-    () => ({ appointments, isLoading, loadAppointments, addAppointment, updateAppointment, deleteAppointment }),
-    [appointments, isLoading, loadAppointments, addAppointment, updateAppointment, deleteAppointment]
+    () => ({
+      appointments,
+      isLoading,
+      isHydrated: appointmentsHydrated,
+      loadAppointments,
+      addAppointment,
+      updateAppointment,
+      deleteAppointment,
+    }),
+    [
+      appointments,
+      appointmentsHydrated,
+      isLoading,
+      loadAppointments,
+      addAppointment,
+      updateAppointment,
+      deleteAppointment,
+    ]
   );
 
   return <AppointmentsContext.Provider value={value}>{children}</AppointmentsContext.Provider>;
