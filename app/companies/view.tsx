@@ -6,7 +6,7 @@ import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { CompaniesContext } from '@/contexts/CompaniesContext';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
@@ -321,12 +321,10 @@ export default function ViewCompanyModal() {
         </View>
       ) : null}
 
-      {attachments ? (
-        <View>
-          <ThemedText style={styles.sectionTitle}>Adjuntos</ThemedText>
-          <FileGallery filesJson={attachments} onChangeFilesJson={() => {}} editable={false} />
-        </View>
-      ) : null}
+      <View>
+        <ThemedText style={styles.sectionTitle}>Adjuntos</ThemedText>
+        <FileGallery entityType="company" entityId={company.id} />
+      </View>
 
       {canEdit ? (
         <TouchableOpacity style={styles.editButton} onPress={() => router.push(`/companies/${company.id}`)}>

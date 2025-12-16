@@ -8,7 +8,7 @@ import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 
 export default function ViewPaymentModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,11 +52,6 @@ export default function ViewPaymentModal() {
       : 'Otro';
 
   const category = categories.find(c => c.id === payment.category_id);
-  const filesJson = payment.attached_files
-    ? typeof payment.attached_files === 'string'
-      ? payment.attached_files
-      : JSON.stringify(payment.attached_files)
-    : '';
 
   const accountName =
     cashBoxes.find(cb => cb.id === Number(payment.paid_with_account))?.name ||
@@ -82,16 +77,8 @@ export default function ViewPaymentModal() {
       <ThemedText style={styles.label}>Total</ThemedText>
       <ThemedText style={styles.value}>${payment.price}</ThemedText>
 
-      {filesJson ? (
-        <>
-          <ThemedText style={styles.label}>Archivos</ThemedText>
-          <FileGallery
-            filesJson={filesJson}
-            onChangeFilesJson={() => {}}
-            invoiceMarkingEnabled
-          />
-        </>
-      ) : null}
+      <ThemedText style={styles.label}>Archivos</ThemedText>
+      <FileGallery entityType="payment" entityId={payment.id} />
 
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{payment.id}</ThemedText>

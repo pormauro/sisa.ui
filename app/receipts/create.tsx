@@ -21,7 +21,7 @@ import { ConfigContext } from '@/contexts/ConfigContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -584,7 +584,7 @@ export default function CreateReceipt() {
         </>
       )}
 
-      <FileGallery filesJson={attachedFiles} onChangeFilesJson={setAttachedFiles} editable />
+      <FileGallery entityType="receipt" entityId={0} />
 
       <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleSubmit} disabled={loading}>
         {loading ? <ActivityIndicator color={buttonTextColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear Recibo</ThemedText>}

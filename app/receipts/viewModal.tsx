@@ -8,7 +8,7 @@ import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 
 export default function ViewReceiptModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,12 +52,6 @@ export default function ViewReceiptModal() {
       : 'Otro';
 
   const category = categories.find(c => c.id === receipt.category_id);
-  const filesJson = receipt.attached_files
-    ? typeof receipt.attached_files === 'string'
-      ? receipt.attached_files
-      : JSON.stringify(receipt.attached_files)
-    : '';
-
   const accountName =
     cashBoxes.find(cb => cb.id === Number(receipt.paid_in_account))?.name ||
     receipt.paid_in_account;
@@ -82,12 +76,8 @@ export default function ViewReceiptModal() {
       <ThemedText style={styles.label}>Total</ThemedText>
       <ThemedText style={styles.value}>${receipt.price}</ThemedText>
 
-      {filesJson ? (
-        <>
-          <ThemedText style={styles.label}>Archivos</ThemedText>
-          <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} />
-        </>
-      ) : null}
+      <ThemedText style={styles.label}>Archivos</ThemedText>
+      <FileGallery entityType="receipt" entityId={receiptId} />
 
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{receipt.id}</ThemedText>
