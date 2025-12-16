@@ -94,7 +94,11 @@ export default function ViewAppointmentModal() {
 
       <View style={styles.filesSection}>
         <ThemedText style={[styles.label, { color: labelColor }]}>Archivos adjuntos</ThemedText>
-        <FileGallery entityType="appointment" entityId={appointment.id} />
+        <FileGallery
+          entityType="appointment"
+          entityId={appointment.id}
+          filesJson={appointment.attached_files ?? null}
+        />
       </View>
 
       <ThemedText style={[styles.label, { color: labelColor }]}>ID</ThemedText>

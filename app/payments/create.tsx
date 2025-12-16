@@ -764,7 +764,7 @@ export default function CreatePayment() {
         </>
       )}
 
-      <FileGallery entityType="payment" entityId={0} />
+      <FileGallery entityType="payment" entityId={0} filesJson={attachedFiles} />
 
       <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleSubmit} disabled={loading}>
         {loading ? (
@@ -801,4 +801,3 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
-

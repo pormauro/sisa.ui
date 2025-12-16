@@ -77,7 +77,11 @@ export default function ViewReceiptModal() {
       <ThemedText style={styles.value}>${receipt.price}</ThemedText>
 
       <ThemedText style={styles.label}>Archivos</ThemedText>
-      <FileGallery entityType="receipt" entityId={receiptId} />
+      <FileGallery
+        entityType="receipt"
+        entityId={receiptId}
+        filesJson={receipt.attached_files ?? null}
+      />
 
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{receipt.id}</ThemedText>

@@ -78,7 +78,11 @@ export default function ViewPaymentModal() {
       <ThemedText style={styles.value}>${payment.price}</ThemedText>
 
       <ThemedText style={styles.label}>Archivos</ThemedText>
-      <FileGallery entityType="payment" entityId={payment.id} />
+      <FileGallery
+        entityType="payment"
+        entityId={payment.id}
+        filesJson={payment.attached_files ?? null}
+      />
 
       <ThemedText style={styles.label}>ID</ThemedText>
       <ThemedText style={styles.value}>{payment.id}</ThemedText>

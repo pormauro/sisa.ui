@@ -226,7 +226,7 @@ export default function ViewJobModal() {
       ) : null}
 
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos</ThemedText>
-      <FileGallery entityType="job" entityId={job.id} />
+      <FileGallery entityType="job" entityId={job.id} filesJson={job.attached_files ?? null} />
 
       <ThemedText style={[styles.label, { color: textColor }]}>ID</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>
