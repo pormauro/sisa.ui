@@ -147,7 +147,17 @@ const installFetchSniffer = () => {
       let responseBody: unknown;
       try {
         const cloned = response.clone();
-        responseBody = await cloned.json().catch(async () => (await cloned.text()) || null);
+        const text = await cloned.text();
+
+        if (!text) {
+          responseBody = text;
+        } else {
+          try {
+            responseBody = JSON.parse(text);
+          } catch {
+            responseBody = text;
+          }
+        }
       } catch (parseError) {
         console.warn('[networkSniffer] Failed to parse fetch response', parseError);
         responseBody = undefined;

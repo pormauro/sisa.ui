@@ -51,7 +51,20 @@ export const FileContext = FilesContext;
 
 const FILES_DIR = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? ''}files/`;
 const ENTITY_INDEX_KEY = 'FILES_ENTITY_INDEX_V1';
-const TEMP_DIR = FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? '';
+const resolveTempDirectory = async (): Promise<string> => {
+  const base = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+
+  if (!base) {
+    throw new Error('No se pudo resolver un directorio temporal para descargas.');
+  }
+
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+  const tempDir = `${normalizedBase}tmp/`;
+
+  await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true }).catch(() => {});
+
+  return tempDir;
+};
 
 type EntityFileIndex = Record<string, number[]>;
 
@@ -229,12 +242,9 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error('No hay token disponible para descargar el archivo.');
       }
 
-      if (!TEMP_DIR) {
-        throw new Error('No se pudo resolver un directorio temporal para descargas.');
-      }
-
       const url = `${BASE_URL}/files/${fileId}`;
-      const tempUri = `${TEMP_DIR}file_${fileId}_${Date.now()}`;
+      const tempDir = await resolveTempDirectory();
+      const tempUri = `${tempDir}file_${fileId}_${Date.now()}`;
 
       const result = await FileSystem.downloadAsync(url, tempUri, {
         headers: {
@@ -353,7 +363,8 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return null;
       }
 
-      const tempPath = `${TEMP_DIR}uploaded_${uploaded.id}_${Date.now()}`;
+      const tempDir = await resolveTempDirectory();
+      const tempPath = `${tempDir}uploaded_${uploaded.id}_${Date.now()}`;
       await FileSystem.copyAsync({ from: fileUri, to: tempPath });
 
       const storedMeta = await storeDownloadedFile(
@@ -412,6 +423,8 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const directories = [
       FileSystem.documentDirectory ? `${FileSystem.documentDirectory}files/` : null,
       FileSystem.cacheDirectory ? `${FileSystem.cacheDirectory}files/` : null,
+      FileSystem.documentDirectory ? `${FileSystem.documentDirectory}tmp/` : null,
+      FileSystem.cacheDirectory ? `${FileSystem.cacheDirectory}tmp/` : null,
     ].filter(Boolean) as string[];
 
     for (const dir of directories) {
