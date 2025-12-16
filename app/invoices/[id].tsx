@@ -13,7 +13,7 @@ import { FileContext } from '@/contexts/FilesContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { SearchableSelect } from '@/components/SearchableSelect';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { BASE_URL } from '@/config/Index';
 import { formatCurrency } from '@/utils/currency';
@@ -1115,11 +1115,7 @@ export default function EditInvoiceScreen() {
       </View>
 
       <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-      <FileGallery
-        filesJson={attachedFiles}
-        onChangeFilesJson={setAttachedFiles}
-        editable={canUpdate}
-      />
+      <FileGallery entityType="invoice" entityId={invoiceId} />
 
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}

@@ -20,7 +20,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -657,10 +657,8 @@ export default function PaymentDetailPage() {
       )}
 
       <FileGallery
-        filesJson={attachedFiles}
-        onChangeFilesJson={setAttachedFiles}
-        editable={canEdit}
-        invoiceMarkingEnabled
+        entityType="payment"
+        entityId={paymentId}
       />
 
       {canEdit && (

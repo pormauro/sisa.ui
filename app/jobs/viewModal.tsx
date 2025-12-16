@@ -6,7 +6,7 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { formatTimeInterval } from '@/utils/time';
 import { formatCurrency } from '@/utils/currency';
 import { calculateJobTotal } from '@/utils/jobCost';
@@ -94,12 +94,6 @@ export default function ViewJobModal() {
   const appliedTariffName = tariff?.name ?? (manualRate !== null ? 'Tarifa manual' : null);
   const totalCost =
     appliedHourlyRate !== null ? calculateJobTotal(appliedHourlyRate, job.start_time, job.end_time) : null;
-
-  const filesJson = job?.attached_files
-    ? typeof job.attached_files === 'string'
-      ? job.attached_files
-      : JSON.stringify(job.attached_files)
-    : '';
 
   const background = useThemeColor({}, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -231,12 +225,8 @@ export default function ViewJobModal() {
         </>
       ) : null}
 
-      {filesJson ? (
-        <>
-          <ThemedText style={[styles.label, { color: textColor }]}>Archivos</ThemedText>
-          <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} />
-        </>
-      ) : null}
+      <ThemedText style={[styles.label, { color: textColor }]}>Archivos</ThemedText>
+      <FileGallery entityType="job" entityId={job.id} />
 
       <ThemedText style={[styles.label, { color: textColor }]}>ID</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>

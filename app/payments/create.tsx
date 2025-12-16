@@ -21,7 +21,7 @@ import { ConfigContext } from '@/contexts/ConfigContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
@@ -764,12 +764,7 @@ export default function CreatePayment() {
         </>
       )}
 
-      <FileGallery
-        filesJson={attachedFiles}
-        onChangeFilesJson={setAttachedFiles}
-        editable
-        invoiceMarkingEnabled
-      />
+      <FileGallery entityType="payment" entityId={0} />
 
       <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleSubmit} disabled={loading}>
         {loading ? (

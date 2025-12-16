@@ -8,7 +8,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 
 const parseDateTime = (date: string, time: string) => {
   const [hours = '00', minutes = '00'] = time.split(':');
@@ -69,7 +69,6 @@ export default function ViewAppointmentModal() {
     );
   }
 
-  const filesJson = appointment.attached_files || '';
   const canEdit = permissions.includes('updateAppointment');
 
   return (
@@ -93,12 +92,10 @@ export default function ViewAppointmentModal() {
       <ThemedText style={[styles.label, { color: labelColor }]}>Ubicación</ThemedText>
       <ThemedText style={styles.value}>{appointment.location || 'Sin ubicación'}</ThemedText>
 
-      {filesJson ? (
-        <View style={styles.filesSection}>
-          <ThemedText style={[styles.label, { color: labelColor }]}>Archivos adjuntos</ThemedText>
-          <FileGallery filesJson={filesJson} onChangeFilesJson={() => {}} editable={false} />
-        </View>
-      ) : null}
+      <View style={styles.filesSection}>
+        <ThemedText style={[styles.label, { color: labelColor }]}>Archivos adjuntos</ThemedText>
+        <FileGallery entityType="appointment" entityId={appointment.id} />
+      </View>
 
       <ThemedText style={[styles.label, { color: labelColor }]}>ID</ThemedText>
       <ThemedText style={styles.value}>{appointment.id}</ThemedText>

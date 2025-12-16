@@ -15,7 +15,7 @@ import { AppointmentsContext } from '@/contexts/AppointmentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { JobsContext } from '@/contexts/JobsContext';
-import FileGallery from '@/components/FileGallery';
+import { FileGallery } from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -339,11 +339,7 @@ export default function CreateAppointmentScreen() {
           />
 
           <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-          <FileGallery
-            filesJson={attachedFiles}
-            onChangeFilesJson={setAttachedFiles}
-            editable
-          />
+          <FileGallery entityType="appointment" entityId={0} />
         </View>
 
         <TouchableOpacity
