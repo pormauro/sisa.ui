@@ -78,10 +78,22 @@ export const BootstrapProvider = ({ children }: { children: React.ReactNode }) =
   );
 
   const runBootstrap = useCallback(async () => {
-    if (!token) {
-      setIsReady(false);
+    const markSkipped = () => {
+      const completedAt = Date.now();
+      setStatus({
+        permissions: { source: 'skipped', error: null, completedAt },
+        companies: { source: 'skipped', error: null, completedAt },
+        memberCompanies: { source: 'skipped', error: null, completedAt },
+        categories: { source: 'skipped', error: null, completedAt },
+        invoices: { source: 'skipped', error: null, completedAt },
+      });
       setLastError(null);
-      setStatus(createInitialBootstrapStatus());
+      setIsBootstrapping(false);
+      setIsReady(true);
+    };
+
+    if (!token) {
+      markSkipped();
       return;
     }
 
@@ -116,8 +128,7 @@ export const BootstrapProvider = ({ children }: { children: React.ReactNode }) =
 
     if (!token) {
       bootstrapTokenRef.current = null;
-      setIsReady(false);
-      setIsBootstrapping(false);
+      void runBootstrap();
       return;
     }
 
