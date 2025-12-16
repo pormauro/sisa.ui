@@ -1115,7 +1115,7 @@ export default function EditInvoiceScreen() {
       </View>
 
       <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-      <FileGallery entityType="invoice" entityId={invoiceId} />
+      <FileGallery entityType="invoice" entityId={invoiceId} filesJson={attachedFiles} />
 
       <TouchableOpacity
         style={[styles.collapseTrigger, { borderColor }]}

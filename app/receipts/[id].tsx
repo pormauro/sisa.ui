@@ -649,7 +649,7 @@ export default function ReceiptDetailPage() {
         </>
       )}
 
-      <FileGallery entityType="receipt" entityId={receiptId} />
+      <FileGallery entityType="receipt" entityId={receiptId} filesJson={attachedFiles} />
 
       {canEdit && (
         <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate} disabled={loading}>

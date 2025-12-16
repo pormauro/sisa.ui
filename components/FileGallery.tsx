@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { useFiles, FileRecord } from '@/contexts/FilesContext';
@@ -6,31 +6,73 @@ import { useFiles, FileRecord } from '@/contexts/FilesContext';
 type FileGalleryProps = {
   entityType: string;
   entityId: number;
+  filesJson?: string | number[] | { id: number }[] | null;
 };
 
-const FileGallery: React.FC<FileGalleryProps> = ({ entityType, entityId }) => {
-  const { getFilesForEntity, ensureFilesDownloadedForEntity, openFile } = useFiles();
+const parseAttachedFiles = (
+  raw: FileGalleryProps['filesJson'],
+): number[] => {
+  if (!raw) return [];
+
+  const normalizeArray = (value: unknown): number[] => {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map(item => {
+        if (typeof item === 'number') {
+          return item;
+        }
+        if (typeof item === 'string') {
+          const parsed = Number(item);
+          return Number.isFinite(parsed) ? parsed : null;
+        }
+        if (item && typeof item === 'object' && 'id' in item) {
+          const parsed = Number((item as any).id);
+          return Number.isFinite(parsed) ? parsed : null;
+        }
+        return null;
+      })
+      .filter((value): value is number => Number.isFinite(value ?? NaN));
+  };
+
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return normalizeArray(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  return normalizeArray(raw);
+};
+
+const FileGallery: React.FC<FileGalleryProps> = ({ entityType, entityId, filesJson }) => {
+  const { getFilesForEntity, ensureFilesDownloadedForEntity, openFile, registerEntityFiles } = useFiles();
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const fileIds = useMemo(() => parseAttachedFiles(filesJson), [filesJson]);
 
   useEffect(() => {
     const fetchFiles = async () => {
       setIsLoading(true);
+      await registerEntityFiles(entityType, entityId, fileIds);
       const filesForEntity = await getFilesForEntity(entityType, entityId);
       setFiles(filesForEntity);
       setIsLoading(false);
     };
 
     fetchFiles();
-  }, [entityType, entityId, getFilesForEntity]);
+  }, [entityType, entityId, fileIds, getFilesForEntity, registerEntityFiles]);
 
   useEffect(() => {
     const downloadFiles = async () => {
       await ensureFilesDownloadedForEntity(entityType, entityId);
+      const refreshed = await getFilesForEntity(entityType, entityId);
+      setFiles(refreshed);
     };
 
     downloadFiles();
-  }, [entityType, entityId, ensureFilesDownloadedForEntity]);
+  }, [entityType, entityId, ensureFilesDownloadedForEntity, getFilesForEntity, fileIds]);
 
   const handleOpenFile = async (file: FileRecord) => {
     try {

@@ -659,6 +659,7 @@ export default function PaymentDetailPage() {
       <FileGallery
         entityType="payment"
         entityId={paymentId}
+        filesJson={attachedFiles}
       />
 
       {canEdit && (
@@ -706,4 +707,3 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
-

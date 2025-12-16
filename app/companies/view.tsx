@@ -323,7 +323,11 @@ export default function ViewCompanyModal() {
 
       <View>
         <ThemedText style={styles.sectionTitle}>Adjuntos</ThemedText>
-        <FileGallery entityType="company" entityId={company.id} />
+        <FileGallery
+          entityType="company"
+          entityId={company.id}
+          filesJson={company.attached_files ?? null}
+        />
       </View>
 
       {canEdit ? (

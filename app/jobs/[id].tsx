@@ -707,7 +707,7 @@ export default function EditJobScreen() {
 
       {/* Archivos adjuntos */}
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
-      <FileGallery entityType="job" entityId={jobId} />
+      <FileGallery entityType="job" entityId={jobId} filesJson={attachedFiles} />
 
       {/* Botones */}
       {canEdit && (

@@ -339,7 +339,7 @@ export default function CreateAppointmentScreen() {
           />
 
           <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-          <FileGallery entityType="appointment" entityId={0} />
+          <FileGallery entityType="appointment" entityId={0} filesJson={attachedFiles} />
         </View>
 
         <TouchableOpacity
@@ -407,4 +407,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
