@@ -1,6 +1,6 @@
 // app/receipts/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -28,6 +28,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export default function ReceiptDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -74,6 +75,22 @@ export default function ReceiptDetailPage() {
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draft, setDraft, draftHydrated] = useCachedState<{
+    receiptDate: string;
+    paidInAccount: string;
+    payerType: 'client' | 'provider' | 'other';
+    description: string;
+    categoryId: string;
+    price: string;
+    payProvider: boolean;
+    providerId: string;
+    payerClientId: string;
+    payerProviderId: string;
+    payerOther: string;
+    attachedFiles: string;
+  } | null>(`drafts.receipts.edit.${receiptId}`, null);
+  const draftAppliedRef = useRef(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -88,6 +105,28 @@ export default function ReceiptDetailPage() {
     () => getDisplayCategories(categories, 'income'),
     [categories]
   );
+
+  useEffect(() => {
+    if (!draftHydrated || draftAppliedRef.current) {
+      return;
+    }
+    draftAppliedRef.current = true;
+    if (draft) {
+      setReceiptDate(new Date(draft.receiptDate));
+      setPaidInAccount(draft.paidInAccount);
+      setPayerType(draft.payerType);
+      setDescription(draft.description);
+      setCategoryId(draft.categoryId);
+      setPrice(draft.price);
+      setPayProvider(draft.payProvider);
+      setProviderId(draft.providerId);
+      setPayerClientId(draft.payerClientId);
+      setPayerProviderId(draft.payerProviderId);
+      setPayerOther(draft.payerOther);
+      setAttachedFiles(draft.attachedFiles);
+    }
+    setDraftReady(true);
+  }, [draft, draftHydrated]);
 
   const cashBoxItems = useMemo(
     () => [
@@ -307,6 +346,9 @@ export default function ReceiptDetailPage() {
   }, [permissions]);
 
   useEffect(() => {
+    if (draftHydrated && draft) {
+      return;
+    }
     if (receipt) {
       if (hasAttemptedLoad) {
         setHasAttemptedLoad(false);
@@ -339,6 +381,7 @@ export default function ReceiptDetailPage() {
           ? String(receipt.provider_id)
           : ''
       );
+      setDraftReady(true);
       return;
     }
 
@@ -351,7 +394,42 @@ export default function ReceiptDetailPage() {
     Promise.resolve(loadReceipts()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [receipt, hasAttemptedLoad, isFetchingItem, loadReceipts]);
+  }, [receipt, hasAttemptedLoad, isFetchingItem, loadReceipts, draft, draftHydrated]);
+
+  useEffect(() => {
+    if (!draftReady) {
+      return;
+    }
+    setDraft({
+      receiptDate: receiptDate.toISOString(),
+      paidInAccount,
+      payerType,
+      description,
+      categoryId,
+      price,
+      payProvider,
+      providerId,
+      payerClientId,
+      payerProviderId,
+      payerOther,
+      attachedFiles,
+    });
+  }, [
+    attachedFiles,
+    categoryId,
+    description,
+    draftReady,
+    paidInAccount,
+    payProvider,
+    payerClientId,
+    payerOther,
+    payerProviderId,
+    payerType,
+    price,
+    providerId,
+    receiptDate,
+    setDraft,
+  ]);
 
   if (!receipt) {
     return (
@@ -396,6 +474,7 @@ export default function ReceiptDetailPage() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Recibo actualizado');
+            setDraft(null);
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo actualizar el recibo');
@@ -417,6 +496,7 @@ export default function ReceiptDetailPage() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Recibo eliminado');
+            setDraft(null);
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo eliminar el recibo');

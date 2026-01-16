@@ -1,5 +1,5 @@
 // app/tariffs/create.tsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -14,6 +14,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export default function CreateTariff() {
   const router = useRouter();
@@ -24,6 +25,12 @@ export default function CreateTariff() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draft, setDraft, draftHydrated] = useCachedState<{ name: string; amount: string } | null>(
+    'drafts.tariffs.create',
+    null
+  );
+  const draftAppliedRef = useRef(false);
 
   useEffect(() => {
     if (!permissions.includes('addTariff')) {
@@ -36,6 +43,25 @@ export default function CreateTariff() {
     cancelSelection();
   }, [cancelSelection]);
 
+  useEffect(() => {
+    if (!draftHydrated || draftAppliedRef.current) {
+      return;
+    }
+    draftAppliedRef.current = true;
+    if (draft) {
+      setName(draft.name);
+      setAmount(draft.amount);
+    }
+    setDraftReady(true);
+  }, [draft, draftHydrated]);
+
+  useEffect(() => {
+    if (!draftReady) {
+      return;
+    }
+    setDraft({ name, amount });
+  }, [amount, draftReady, name, setDraft]);
+
   const handleSubmit = async () => {
     if (!name || !amount) {
       Alert.alert('Error', 'Completa todos los campos.');
@@ -46,6 +72,7 @@ export default function CreateTariff() {
     setLoading(false);
     if (newTariff) {
       Alert.alert('Éxito', 'Tarifa creada.');
+      setDraft(null);
       completeSelection(newTariff.id.toString());
       router.back();
     } else {

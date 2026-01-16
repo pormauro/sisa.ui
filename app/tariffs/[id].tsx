@@ -1,5 +1,5 @@
 // app/tariffs/[id].tsx
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -14,6 +14,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export default function EditTariff() {
   const router = useRouter();
@@ -30,11 +31,32 @@ export default function EditTariff() {
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draft, setDraft, draftHydrated] = useCachedState<{ name: string; amount: string } | null>(
+    `drafts.tariffs.edit.${tariffId}`,
+    null
+  );
+  const draftAppliedRef = useRef(false);
 
   const canEdit = permissions.includes('updateTariff');
   const canDelete = permissions.includes('deleteTariff');
 
   useEffect(() => {
+    if (!draftHydrated || draftAppliedRef.current) {
+      return;
+    }
+    draftAppliedRef.current = true;
+    if (draft) {
+      setName(draft.name);
+      setAmount(draft.amount);
+      setDraftReady(true);
+    }
+  }, [draft, draftHydrated]);
+
+  useEffect(() => {
+    if (draftHydrated && draft) {
+      return;
+    }
     if (tariff) {
       if (hasAttemptedLoad) {
         setHasAttemptedLoad(false);
@@ -44,6 +66,7 @@ export default function EditTariff() {
       }
       setName(tariff.name);
       setAmount(String(tariff.amount));
+      setDraftReady(true);
       return;
     }
 
@@ -56,7 +79,14 @@ export default function EditTariff() {
     Promise.resolve(loadTariffs()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [tariff, hasAttemptedLoad, isFetchingItem, loadTariffs]);
+  }, [tariff, hasAttemptedLoad, isFetchingItem, loadTariffs, draft, draftHydrated]);
+
+  useEffect(() => {
+    if (!draftReady) {
+      return;
+    }
+    setDraft({ name, amount });
+  }, [amount, draftReady, name, setDraft]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -101,6 +131,7 @@ export default function EditTariff() {
     setLoading(false);
     if (success) {
       Alert.alert('Éxito', 'Tarifa actualizada.');
+      setDraft(null);
       completeSelection(tariffId.toString());
       router.back();
     } else {
@@ -121,6 +152,7 @@ export default function EditTariff() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Tarifa eliminada.');
+            setDraft(null);
             cancelSelection();
             router.back();
           } else {
