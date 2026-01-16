@@ -21,12 +21,13 @@ import { sortByNewest } from '@/utils/sort';
 import { formatCurrency } from '@/utils/currency';
 import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 
-type SortField = 'updatedAt' | 'jobDate' | 'clientName';
+type SortField = 'updatedAt' | 'jobDate' | 'clientName' | 'status';
 type SortDirection = 'asc' | 'desc';
 
 const SORT_OPTIONS: { label: string; value: SortField }[] = [
   { label: 'Nombre del cliente', value: 'clientName' },
   { label: 'Fecha del trabajo', value: 'jobDate' },
+  { label: 'Estado', value: 'status' },
   { label: 'Última modificación', value: 'updatedAt' },
 ];
 
@@ -40,7 +41,7 @@ export default function JobsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
-  const [sortField, setSortField] = useState<SortField>('updatedAt');
+  const [sortField, setSortField] = useState<SortField>('jobDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [filtersVisible, setFiltersVisible] = useState(false);
 
@@ -123,6 +124,20 @@ export default function JobsScreen() {
       return items;
     }
 
+    if (sortField === 'status') {
+      const statusOrder = new Map(statuses.map(status => [status.id, status.order_index]));
+      const items = [...filteredJobs];
+      items.sort((a, b) => {
+        const aOrder = statusOrder.get(a.status_id ?? -1) ?? Number.MAX_SAFE_INTEGER;
+        const bOrder = statusOrder.get(b.status_id ?? -1) ?? Number.MAX_SAFE_INTEGER;
+        if (aOrder !== bOrder) {
+          return sortDirection === 'asc' ? aOrder - bOrder : bOrder - aOrder;
+        }
+        return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
+      });
+      return items;
+    }
+
     const list =
       sortField === 'updatedAt'
         ? sortByNewest(filteredJobs, getJobUpdatedValue)
@@ -135,10 +150,11 @@ export default function JobsScreen() {
     getJobUpdatedValue,
     getJobDateValue,
     getClientName,
+    statuses,
   ]);
 
   const currentSortLabel = useMemo(
-    () => SORT_OPTIONS.find(option => option.value === sortField)?.label ?? 'Última modificación',
+    () => SORT_OPTIONS.find(option => option.value === sortField)?.label ?? 'Fecha del trabajo',
     [sortField]
   );
 
@@ -149,7 +165,7 @@ export default function JobsScreen() {
 
   const handleSelectSort = useCallback((option: SortField) => {
     setSortField(option);
-    if (option === 'clientName') {
+    if (option === 'clientName' || option === 'status') {
       setSortDirection('asc');
     } else {
       setSortDirection('desc');
