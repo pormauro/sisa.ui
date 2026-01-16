@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/create.tsx
-import React, { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   TextInput,
   TouchableOpacity,
@@ -31,6 +31,7 @@ import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatCurrency } from '@/utils/currency';
+import { useCachedState } from '@/hooks/useCachedState';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -134,6 +135,22 @@ export default function CreateJobScreen() {
   const [participants, setParticipants] = useState<number[]>(() =>
     userId ? [Number(userId)] : []
   );
+  const [draftReady, setDraftReady] = useState(false);
+  const [draft, setDraft, draftHydrated] = useCachedState<{
+    selectedClient: string;
+    selectedFolder: string;
+    selectedStatusId: number | null;
+    selectedTariff: string;
+    manualAmount: string;
+    manualAmountTouched: boolean;
+    description: string;
+    attachedFiles: string;
+    jobDate: string;
+    startTime: string;
+    endTime: string;
+    participants: number[];
+  } | null>('drafts.jobs.create', null);
+  const draftAppliedRef = useRef(false);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
@@ -149,6 +166,78 @@ export default function CreateJobScreen() {
       setJobDate(initialJobDateFromParam);
     }
   }, [initialJobDateFromParam]);
+
+  useEffect(() => {
+    if (!draft || selectedStatus || !draft.selectedStatusId) {
+      return;
+    }
+    const restoredStatus = statuses.find(status => status.id === draft.selectedStatusId) ?? null;
+    if (restoredStatus) {
+      setSelectedStatus(restoredStatus);
+    }
+  }, [draft, selectedStatus, statuses]);
+
+  useEffect(() => {
+    if (!draftHydrated || draftAppliedRef.current) {
+      return;
+    }
+    draftAppliedRef.current = true;
+    if (draft) {
+      setSelectedClient(draft.selectedClient);
+      setSelectedFolder(draft.selectedFolder);
+      setSelectedTariff(draft.selectedTariff);
+      setManualAmount(draft.manualAmount);
+      setManualAmountTouched(draft.manualAmountTouched);
+      setDescription(draft.description);
+      setAttachedFiles(draft.attachedFiles);
+      setJobDate(draft.jobDate);
+      setStartTime(draft.startTime);
+      setEndTime(draft.endTime);
+      setParticipants(draft.participants);
+      if (draft.selectedStatusId) {
+        const restoredStatus = statuses.find(status => status.id === draft.selectedStatusId) ?? null;
+        setSelectedStatus(restoredStatus);
+      } else {
+        setSelectedStatus(null);
+      }
+    }
+    setDraftReady(true);
+  }, [draft, draftHydrated, statuses]);
+
+  useEffect(() => {
+    if (!draftReady) {
+      return;
+    }
+    setDraft({
+      selectedClient,
+      selectedFolder,
+      selectedStatusId: selectedStatus?.id ?? null,
+      selectedTariff,
+      manualAmount,
+      manualAmountTouched,
+      description,
+      attachedFiles,
+      jobDate,
+      startTime,
+      endTime,
+      participants,
+    });
+  }, [
+    attachedFiles,
+    description,
+    draftReady,
+    endTime,
+    jobDate,
+    manualAmount,
+    manualAmountTouched,
+    participants,
+    selectedClient,
+    selectedFolder,
+    selectedStatus,
+    selectedTariff,
+    setDraft,
+    startTime,
+  ]);
 
   const clientItems = useMemo(
     () => [
@@ -371,6 +460,7 @@ export default function CreateJobScreen() {
       setLoading(false);
       if (created) {
         Alert.alert('Éxito', 'Trabajo creado.');
+        setDraft(null);
         if (created.id != null) {
           completeSelection(created.id.toString());
         } else {

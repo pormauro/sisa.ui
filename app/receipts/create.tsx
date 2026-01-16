@@ -1,5 +1,5 @@
 // app/receipts/create.tsx
-import React, { useState, useContext, useEffect, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   TextInput,
@@ -28,6 +28,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { RadioGroup } from '@/components/RadioGroup';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
+import { useCachedState } from '@/hooks/useCachedState';
 
 export default function CreateReceipt() {
   const router = useRouter();
@@ -60,6 +61,22 @@ export default function CreateReceipt() {
   const [payerOther, setPayerOther] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draft, setDraft, draftHydrated] = useCachedState<{
+    receiptDate: string;
+    paidInAccount: string;
+    payerType: 'client' | 'provider' | 'other';
+    description: string;
+    categoryId: string;
+    price: string;
+    payProvider: boolean;
+    providerId: string;
+    payerClientId: string;
+    payerProviderId: string;
+    payerOther: string;
+    attachedFiles: string;
+  } | null>('drafts.receipts.create', null);
+  const draftAppliedRef = useRef(false);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -73,6 +90,63 @@ export default function CreateReceipt() {
     () => getDisplayCategories(categories, 'income'),
     [categories]
   );
+
+  useEffect(() => {
+    if (!draftHydrated || draftAppliedRef.current) {
+      return;
+    }
+    draftAppliedRef.current = true;
+    if (draft) {
+      setReceiptDate(new Date(draft.receiptDate));
+      setPaidInAccount(draft.paidInAccount);
+      setPayerType(draft.payerType);
+      setDescription(draft.description);
+      setCategoryId(draft.categoryId);
+      setPrice(draft.price);
+      setPayProvider(draft.payProvider);
+      setProviderId(draft.providerId);
+      setPayerClientId(draft.payerClientId);
+      setPayerProviderId(draft.payerProviderId);
+      setPayerOther(draft.payerOther);
+      setAttachedFiles(draft.attachedFiles);
+    }
+    setDraftReady(true);
+  }, [draft, draftHydrated]);
+
+  useEffect(() => {
+    if (!draftReady) {
+      return;
+    }
+    setDraft({
+      receiptDate: receiptDate.toISOString(),
+      paidInAccount,
+      payerType,
+      description,
+      categoryId,
+      price,
+      payProvider,
+      providerId,
+      payerClientId,
+      payerProviderId,
+      payerOther,
+      attachedFiles,
+    });
+  }, [
+    attachedFiles,
+    categoryId,
+    description,
+    draftReady,
+    paidInAccount,
+    payProvider,
+    payerClientId,
+    payerOther,
+    payerProviderId,
+    payerType,
+    price,
+    providerId,
+    receiptDate,
+    setDraft,
+  ]);
 
   const cashBoxItems = useMemo(
     () => [
@@ -362,6 +436,7 @@ export default function CreateReceipt() {
     setLoading(false);
     if (newReceipt) {
       Alert.alert('Éxito', 'Recibo creado.');
+      setDraft(null);
       router.back();
     } else {
       Alert.alert('Error', 'No se pudo crear el recibo.');

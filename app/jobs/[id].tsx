@@ -31,6 +31,7 @@ import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatCurrency } from '@/utils/currency';
+import { useCachedState } from '@/hooks/useCachedState';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -127,11 +128,94 @@ export default function EditJobScreen() {
   const [participants, setParticipants] = useState<number[]>([]);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draft, setDraft, draftHydrated] = useCachedState<{
+    selectedClientId: string;
+    selectedFolderId: number | null;
+    selectedStatusId: number | null;
+    selectedTariffId: string;
+    manualAmountInput: string;
+    manualAmountTouched: boolean;
+    description: string;
+    attachedFiles: string;
+    jobDate: string;
+    startTime: string;
+    endTime: string;
+    participants: number[];
+  } | null>(`drafts.jobs.edit.${jobId}`, null);
+  const draftAppliedRef = useRef(false);
   const previousClientIdRef = useRef<string | null>(null);
   const isInitializingRef = useRef(true);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
   const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
+
+  useEffect(() => {
+    if (!draftHydrated || draftAppliedRef.current) {
+      return;
+    }
+    if (draft) {
+      draftAppliedRef.current = true;
+      setSelectedClientId(draft.selectedClientId);
+      const restoredFolder = draft.selectedFolderId
+        ? folders.find(folder => folder.id === draft.selectedFolderId) ?? null
+        : null;
+      setSelectedFolder(
+        restoredFolder
+          ? { id: restoredFolder.id, name: restoredFolder.name }
+          : null
+      );
+      const restoredStatus = draft.selectedStatusId
+        ? statuses.find(status => status.id === draft.selectedStatusId) ?? null
+        : null;
+      setSelectedStatus(
+        restoredStatus
+          ? {
+              id: restoredStatus.id,
+              name: restoredStatus.label,
+              backgroundColor: restoredStatus.background_color,
+            }
+          : null
+      );
+      setSelectedTariffId(draft.selectedTariffId);
+      setManualAmountInput(draft.manualAmountInput);
+      setManualAmountTouched(draft.manualAmountTouched);
+      setDescription(draft.description);
+      setAttachedFiles(draft.attachedFiles);
+      setJobDate(draft.jobDate);
+      setStartTime(draft.startTime);
+      setEndTime(draft.endTime);
+      setParticipants(draft.participants);
+      setDraftReady(true);
+      return;
+    }
+    draftAppliedRef.current = true;
+    setDraftReady(true);
+  }, [draft, draftHydrated, folders, statuses]);
+
+  useEffect(() => {
+    if (!draft || selectedStatus || !draft.selectedStatusId) {
+      return;
+    }
+    const restoredStatus = statuses.find(status => status.id === draft.selectedStatusId) ?? null;
+    if (restoredStatus) {
+      setSelectedStatus({
+        id: restoredStatus.id,
+        name: restoredStatus.label,
+        backgroundColor: restoredStatus.background_color,
+      });
+    }
+  }, [draft, selectedStatus, statuses]);
+
+  useEffect(() => {
+    if (!draft || selectedFolder || !draft.selectedFolderId) {
+      return;
+    }
+    const restoredFolder = folders.find(folder => folder.id === draft.selectedFolderId) ?? null;
+    if (restoredFolder) {
+      setSelectedFolder({ id: restoredFolder.id, name: restoredFolder.name });
+    }
+  }, [draft, folders, selectedFolder]);
 
   const clientItems = useMemo(
     () => [
@@ -156,6 +240,9 @@ export default function EditJobScreen() {
 
   // carga inicial del job
   useEffect(() => {
+    if (draftHydrated && draft) {
+      return;
+    }
     if (job) {
       isInitializingRef.current = true;
       if (hasAttemptedLoad) {
@@ -212,6 +299,7 @@ export default function EditJobScreen() {
       const ids = parts.map((p: any) => (typeof p === 'number' ? p : p.id));
       if (ids.length === 0 && userId) ids.push(Number(userId));
       setParticipants(ids);
+      setDraftReady(true);
       return;
     }
 
@@ -225,7 +313,42 @@ export default function EditJobScreen() {
     Promise.resolve(loadJobs()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId]);
+  }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId, draft, draftHydrated]);
+
+  useEffect(() => {
+    if (!draftReady) {
+      return;
+    }
+    setDraft({
+      selectedClientId,
+      selectedFolderId: selectedFolder?.id ?? null,
+      selectedStatusId: selectedStatus?.id ?? null,
+      selectedTariffId,
+      manualAmountInput,
+      manualAmountTouched,
+      description,
+      attachedFiles,
+      jobDate,
+      startTime,
+      endTime,
+      participants,
+    });
+  }, [
+    attachedFiles,
+    description,
+    draftReady,
+    endTime,
+    jobDate,
+    manualAmountInput,
+    manualAmountTouched,
+    participants,
+    selectedClientId,
+    selectedFolder,
+    selectedStatus,
+    selectedTariffId,
+    setDraft,
+    startTime,
+  ]);
 
   useEffect(() => () => {
     cancelSelection();
@@ -429,6 +552,7 @@ export default function EditJobScreen() {
 
       if (updated) {
         Alert.alert('Éxito', 'Trabajo actualizado.');
+        setDraft(null);
         if (!Number.isNaN(jobId)) {
           completeSelection(jobId.toString());
         } else {
@@ -468,6 +592,7 @@ export default function EditJobScreen() {
           setLoading(false);
           if (success) {
             Alert.alert('Éxito', 'Trabajo eliminado.');
+            setDraft(null);
             router.back();
           } else {
             Alert.alert('Error', 'No se pudo eliminar el trabajo.');
