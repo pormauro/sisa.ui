@@ -77,6 +77,20 @@ const parseManualAmountInput = (value: string): number | null | undefined => {
   return parsed;
 };
 
+const formatLocalDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseLocalDate = (value: string): Date => {
+  if (!value) return new Date();
+  const [year, month, day] = value.split('-').map(Number);
+  if (!year || !month || !day) return new Date(value);
+  return new Date(year, month - 1, day);
+};
+
 export default function EditJobScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
@@ -109,6 +123,7 @@ export default function EditJobScreen() {
   // estados para pickers
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedFolder,  setSelectedFolder]  = useState<ModalPickerItem | null>(null);
+  const [folderTouched, setFolderTouched] = useState(false);
   const [selectedStatus,  setSelectedStatus]  = useState<ModalPickerItem | null>(null);
   const [selectedTariffId, setSelectedTariffId] = useState<string>('');
   const [manualAmountInput, setManualAmountInput] = useState<string>('');
@@ -147,7 +162,7 @@ export default function EditJobScreen() {
   const previousClientIdRef = useRef<string | null>(null);
   const isInitializingRef = useRef(true);
   const timeInterval = useMemo(() => formatTimeInterval(startTime, endTime), [startTime, endTime]);
-  const jobDateValue = useMemo(() => new Date(jobDate), [jobDate]);
+  const jobDateValue = useMemo(() => parseLocalDate(jobDate), [jobDate]);
   const isJobDateInvalid = Number.isNaN(jobDateValue.getTime());
 
   useEffect(() => {
@@ -255,6 +270,7 @@ export default function EditJobScreen() {
 
       const fol = folders.find(f => f.id === job.folder_id);
       setSelectedFolder(fol ? { id: fol.id, name: fol.name } : null);
+      setFolderTouched(false);
 
       const statusObj = job.status_id != null ? statuses.find(s => s.id === job.status_id) : undefined;
       setSelectedStatus(
@@ -366,6 +382,7 @@ export default function EditJobScreen() {
 
     previousClientIdRef.current = selectedClientId;
     setSelectedFolder(null);
+    setFolderTouched(true);
   }, [selectedClientId]);
 
   useEffect(() => {
@@ -421,14 +438,17 @@ export default function EditJobScreen() {
     const normalizedId = pendingFolderId.toString().trim();
     if (!normalizedId || normalizedId === 'null') {
       setSelectedFolder(null);
+      setFolderTouched(true);
       return;
     }
     const matchingFolder = folders.find(f => f.id.toString() === normalizedId);
     if (matchingFolder) {
       setSelectedFolder({ id: matchingFolder.id, name: matchingFolder.name });
+      setFolderTouched(true);
       return;
     }
     setSelectedFolder({ id: normalizedId, name: `Carpeta #${normalizedId}` });
+    setFolderTouched(true);
   }, [pendingSelections, consumeSelection, folders]);
 
   useEffect(() => {
@@ -532,6 +552,10 @@ export default function EditJobScreen() {
     const parsedTariffId = selectedTariffId ? Number.parseInt(selectedTariffId, 10) : null;
     const tariffIdValue =
       parsedTariffId !== null && !Number.isNaN(parsedTariffId) ? parsedTariffId : null;
+    const resolvedFolderId =
+      folderTouched
+        ? (selectedFolder ? Number(selectedFolder.id) : null)
+        : (job?.folder_id ?? null);
 
     const saveJob = async () => {
       setLoading(true);
@@ -540,10 +564,10 @@ export default function EditJobScreen() {
         description,
         start_time: startTime,
         end_time: endTime,
-        tariff_id: tariffIdValue,
+        tariff_id: manualAmountTouched ? null : tariffIdValue,
         manual_amount: manualAmountValue,
         attached_files: attachedFiles || null,
-        folder_id: selectedFolder ? Number(selectedFolder.id) : null,
+        folder_id: resolvedFolderId,
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
         participants,
@@ -626,7 +650,7 @@ export default function EditJobScreen() {
           onChange={(e, selected) => {
             setShowDatePicker(false);
             if (selected) {
-              const d = selected.toISOString().split('T')[0];
+              const d = formatLocalDate(selected);
               setJobDate(d);
             }
           }}
@@ -676,10 +700,12 @@ export default function EditJobScreen() {
 
             if (item.id === NO_FOLDER_VALUE) {
               setSelectedFolder(null);
+              setFolderTouched(true);
               return;
             }
 
             setSelectedFolder(item);
+            setFolderTouched(true);
           }}
           placeholder="-- Carpeta --"
           disabled={!selectedClientId}
