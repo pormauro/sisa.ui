@@ -77,6 +77,29 @@ const parseManualAmountInput = (value: string): number | null | undefined => {
   return parsed;
 };
 
+const normalizeTimeInput = (value: string): string => {
+  const trimmed = value.trim();
+  const [timePart] = trimmed.split(/[T\s]/).slice(-1);
+  const match = timePart?.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+  if (!match) {
+    return '';
+  }
+  return `${match[1]}:${match[2]}`;
+};
+
+const isValidDateInput = (value: string): boolean => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+};
+
 export default function CreateJobScreen() {
   const router = useRouter();
   const { client_id: clientIdParam, job_date } = useLocalSearchParams<{
@@ -441,12 +464,29 @@ export default function CreateJobScreen() {
     const tariffIdValue =
       parsedTariffId !== null && !Number.isNaN(parsedTariffId) ? parsedTariffId : null;
 
+    if (!isValidDateInput(jobDate)) {
+      Alert.alert('Fecha inválida', 'Ingresa una fecha válida (YYYY-MM-DD).');
+      return;
+    }
+
+    const normalizedStartTime = normalizeTimeInput(startTime);
+    const normalizedEndTime = normalizeTimeInput(endTime);
+
+    if (!normalizedStartTime || !normalizedEndTime) {
+      Alert.alert('Hora inválida', 'Ingresa una hora válida en formato HH:mm.');
+      return;
+    }
+
+    const [safeStartTime, safeEndTime] = normalizedStartTime <= normalizedEndTime
+      ? [normalizedStartTime, normalizedEndTime]
+      : [normalizedEndTime, normalizedStartTime];
+
     const saveJob = async () => {
       const jobData = {
         client_id: Number.parseInt(selectedClient, 10),
         description,
-        start_time: startTime,
-        end_time: endTime,
+        start_time: safeStartTime,
+        end_time: safeEndTime,
         tariff_id: tariffIdValue,
         manual_amount: manualAmountValue,
         attached_files: attachedFiles || null,
@@ -471,19 +511,6 @@ export default function CreateJobScreen() {
         Alert.alert('Error', 'No se pudo crear el trabajo.');
       }
     };
-    const start = new Date(`1970-01-01T${startTime}`);
-    const end = new Date(`1970-01-01T${endTime}`);
-    if (end <= start) {
-      Alert.alert(
-        'Advertencia',
-        'La hora de fin es anterior o igual a la hora de inicio. ¿Deseas guardar de todos modos?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Guardar', onPress: saveJob },
-        ]
-      );
-      return;
-    }
     await saveJob();
   };
 

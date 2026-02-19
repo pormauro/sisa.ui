@@ -24,6 +24,10 @@ export interface Job {
   start_time: string;
   /** Hora de finalización en formato HH:mm */
   end_time: string;
+  /** Fecha y hora de inicio derivada en formato ISO local (YYYY-MM-DDTHH:mm:ss) */
+  datetime_start?: string;
+  /** Fecha y hora de finalización derivada en formato ISO local (YYYY-MM-DDTHH:mm:ss) */
+  datetime_end?: string;
   type_of_work?: string;
   /** Identificador de estado asociado */
   status_id: number | null;
@@ -147,7 +151,76 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
     setJobs(prev => ensureSortedByNewest(prev, getJobSortValue, job => job.id));
   }, [setJobs]);
 
-  const normalizeTime = (time: string) => (time && time.length === 5 ? `${time}:00` : time);
+  const extractDate = (value?: string | null): string | null => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const [firstPart] = trimmed.split(/[T\s]/);
+    return /^\d{4}-\d{2}-\d{2}$/.test(firstPart) ? firstPart : null;
+  };
+
+  const extractTime = (value?: string | null): string | null => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const parts = trimmed.split(/[T\s]/);
+    const timeCandidate = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+    const match = timeCandidate.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+    if (!match) return null;
+    const [, hours, minutes] = match;
+    return `${hours}:${minutes}`;
+  };
+
+  const buildDateTime = (jobDate?: string | null, time?: string | null): string | null => {
+    const datePart = extractDate(jobDate);
+    const timePart = extractTime(time);
+    if (!datePart || !timePart) {
+      return null;
+    }
+    return `${datePart}T${timePart}:00`;
+  };
+
+  const shouldSwapTimes = (startTime?: string | null, endTime?: string | null): boolean => {
+    const start = extractTime(startTime);
+    const end = extractTime(endTime);
+    if (!start || !end) return false;
+    return end < start;
+  };
+
+  const normalizeJobPayload = (jobData: Omit<Job, 'id' | 'user_id'>) => {
+    const normalizedStartTime = extractTime(jobData.start_time) ?? '';
+    const normalizedEndTime = extractTime(jobData.end_time) ?? '';
+    const normalizedJobDate = extractDate(jobData.job_date) ?? null;
+
+    const startTime = shouldSwapTimes(normalizedStartTime, normalizedEndTime)
+      ? normalizedEndTime
+      : normalizedStartTime;
+    const endTime = shouldSwapTimes(normalizedStartTime, normalizedEndTime)
+      ? normalizedStartTime
+      : normalizedEndTime;
+
+    return {
+      ...jobData,
+      start_time: startTime,
+      end_time: endTime,
+      tariff_id: jobData.tariff_id ?? null,
+      manual_amount: jobData.manual_amount ?? null,
+      status_id: jobData.status_id ?? null,
+      attached_files:
+        typeof jobData.attached_files === 'string'
+          ? jobData.attached_files
+          : jobData.attached_files
+          ? JSON.stringify(jobData.attached_files)
+          : null,
+      participants:
+        jobData.participants && jobData.participants.length > 0
+          ? JSON.stringify(jobData.participants)
+          : null,
+      folder_id: jobData.folder_id ?? null,
+      job_date: normalizedJobDate,
+    };
+  };
 
   const loadJobs = useCallback(async () => {
     try {
@@ -163,11 +236,20 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
               : j.participants
             : null;
 
+          const normalizedJobDate = extractDate(j.job_date) ?? null;
+          const normalizedStartTime = extractTime(j.start_time) ?? '';
+          const normalizedEndTime = extractTime(j.end_time) ?? '';
+
           return {
             ...j,
             id: toNumber(j.id),
             user_id: toNumber(j.user_id),
             client_id: toNumber(j.client_id),
+            job_date: normalizedJobDate,
+            start_time: normalizedStartTime,
+            end_time: normalizedEndTime,
+            datetime_start: buildDateTime(normalizedJobDate, normalizedStartTime),
+            datetime_end: buildDateTime(normalizedJobDate, normalizedEndTime),
             status_id: toNullableNumber(j.status_id),
             folder_id: toNullableNumber(j.folder_id),
             product_service_id: toNullableNumber(j.product_service_id),
@@ -186,26 +268,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   const addJob = async (jobData: Omit<Job, 'id' | 'user_id'>): Promise<Job | null> => {
     try {
-      const payload = {
-        ...jobData,
-        start_time: normalizeTime(jobData.start_time),
-        end_time: normalizeTime(jobData.end_time),
-        tariff_id: jobData.tariff_id ?? null,
-        manual_amount: jobData.manual_amount ?? null,
-        status_id: jobData.status_id ?? null,
-        attached_files:
-          typeof jobData.attached_files === 'string'
-            ? jobData.attached_files
-            : jobData.attached_files
-            ? JSON.stringify(jobData.attached_files)
-            : null,
-        participants:
-          jobData.participants && jobData.participants.length > 0
-            ? JSON.stringify(jobData.participants)
-            : null,
-        folder_id: jobData.folder_id ?? null,
-        job_date: jobData.job_date ?? null,
-      };
+      const payload = normalizeJobPayload(jobData);
       const res = await fetch(`${BASE_URL}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -253,26 +316,7 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateJob = async (id: number, jobData: Omit<Job, 'id' | 'user_id'>): Promise<boolean> => {
     try {
-      const payload = {
-        ...jobData,
-        start_time: normalizeTime(jobData.start_time),
-        end_time: normalizeTime(jobData.end_time),
-        tariff_id: jobData.tariff_id ?? null,
-        manual_amount: jobData.manual_amount ?? null,
-        status_id: jobData.status_id ?? null,
-        attached_files:
-          typeof jobData.attached_files === 'string'
-            ? jobData.attached_files
-            : jobData.attached_files
-            ? JSON.stringify(jobData.attached_files)
-            : null,
-        participants:
-          jobData.participants && jobData.participants.length > 0
-            ? JSON.stringify(jobData.participants)
-            : null,
-        folder_id: jobData.folder_id ?? null,
-        job_date: jobData.job_date ?? null,
-      };
+      const payload = normalizeJobPayload(jobData);
       const res = await fetch(`${BASE_URL}/jobs/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
