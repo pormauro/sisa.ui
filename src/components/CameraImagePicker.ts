@@ -99,7 +99,9 @@ async function ensureUnderMaxSize(
  * 2. Asegurar que la imagen procesada esté por debajo de 1MB
  * 3. Retornar el URI final de la imagen
  */
-export async function pickAndProcessImage(fromCamera: boolean): Promise<string | null> {
+export async function pickAndProcessImage(
+  fromCamera: boolean
+): Promise<{ uri: string; fileName: string } | null> {
   try {
     const result = await pickImageFromSource(fromCamera);
     // Verifica si el usuario canceló la acción
@@ -112,7 +114,9 @@ export async function pickAndProcessImage(fromCamera: boolean): Promise<string |
       return null;
     }
     const finalUri = await ensureUnderMaxSize(asset.uri, asset.width, asset.height);
-    return finalUri;
+    const baseName = asset.fileName ? asset.fileName.replace(/\.[^/.]+$/, '') : 'photo';
+    const fileName = `${baseName}.jpg`;
+    return { uri: finalUri, fileName };
   } catch (error: any) {
     Alert.alert('Error al seleccionar imagen', error.message);
     return null;
@@ -122,9 +126,13 @@ export async function pickAndProcessImage(fromCamera: boolean): Promise<string |
 /**
  * Sube la imagen (finalUri) al servidor usando multipart/form-data y retorna el file_id devuelto.
  */
-export async function uploadImage(localUri: string, token: string): Promise<number | null> {
+export async function uploadImage(
+  localUri: string,
+  token: string,
+  originalName?: string
+): Promise<number | null> {
   try {
-    let filename = localUri.split('/').pop() || 'photo.jpg';
+    let filename = originalName || localUri.split('/').pop() || 'photo.jpg';
     if (!/\.\w+$/.test(filename)) {
       filename = `${filename}.jpg`;
     }
