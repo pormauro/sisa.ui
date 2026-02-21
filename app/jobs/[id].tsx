@@ -627,7 +627,10 @@ export default function EditJobScreen() {
           onChange={(e, selected) => {
             setShowDatePicker(false);
             if (selected) {
-              const d = selected.toISOString().split('T')[0];
+              const year = selected.getFullYear();
+              const month = String(selected.getMonth() + 1).padStart(2, '0');
+              const day = String(selected.getDate()).padStart(2, '0');
+              const d = `${year}-${month}-${day}`;
               setJobDate(d);
             }
           }}
