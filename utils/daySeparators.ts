@@ -6,7 +6,15 @@ const padNumber = (value: number): string => value.toString().padStart(2, '0');
 
 const parseDateValue = (value?: string | null): Date | null => {
   if (!value) return null;
-  const normalized = value.includes(' ') ? value.replace(' ', 'T') : value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return new Date(`${trimmed}T00:00:00`);
+  }
+
+  const normalized = trimmed.includes(' ') ? trimmed.replace(' ', 'T') : trimmed;
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return null;
   return date;
@@ -27,7 +35,7 @@ const capitalize = (text: string): string =>
 const formatDayLabel = (value?: string | null): string => {
   const date = parseDateValue(value);
   if (!date) return 'Sin fecha';
-  const label = date.toLocaleDateString('es-ES', {
+  const label = date.toLocaleDateString('es-AR', {
     weekday: 'long',
     day: 'numeric',
     month: 'short',
