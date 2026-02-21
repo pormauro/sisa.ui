@@ -49,16 +49,25 @@ type FilesContextType = {
 const FilesContext = createContext<FilesContextType>({} as FilesContextType);
 export const FileContext = FilesContext;
 
-const FILES_DIR = `${FileSystem.documentDirectory ?? FileSystem.cacheDirectory ?? ''}files/`;
-const ENTITY_INDEX_KEY = 'FILES_ENTITY_INDEX_V1';
-const resolveTempDirectory = async (): Promise<string> => {
-  const base = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+const getAvailableBaseDirectory = (): string | null => {
+  const base = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+  if (!base) return null;
+  return base.endsWith('/') ? base : `${base}/`;
+};
 
-  if (!base) {
-    throw new Error('No se pudo resolver un directorio temporal para descargas.');
+const FILES_DIR = (() => {
+  const base = getAvailableBaseDirectory();
+  return base ? `${base}files/` : null;
+})();
+const ENTITY_INDEX_KEY = 'FILES_ENTITY_INDEX_V1';
+const resolveTempDirectory = async (): Promise<string | null> => {
+  const normalizedBase = getAvailableBaseDirectory();
+
+  if (!normalizedBase) {
+    console.warn('No se pudo resolver un directorio temporal para descargas.');
+    return null;
   }
 
-  const normalizedBase = base.endsWith('/') ? base : `${base}/`;
   const tempDir = `${normalizedBase}tmp/`;
 
   await FileSystem.makeDirectoryAsync(tempDir, { intermediates: true }).catch(() => {});
@@ -138,7 +147,7 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // ---- ensure directory ----
   useEffect(() => {
-    if (!FileSystem.documentDirectory && !FileSystem.cacheDirectory) return;
+    if (!FILES_DIR) return;
     FileSystem.makeDirectoryAsync(FILES_DIR, { intermediates: true }).catch(() => {});
   }, []);
 
@@ -244,6 +253,10 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const url = `${BASE_URL}/files/${fileId}`;
       const tempDir = await resolveTempDirectory();
+      if (!tempDir) {
+        return null;
+      }
+
       const tempUri = `${tempDir}file_${fileId}_${Date.now()}`;
 
       const result = await FileSystem.downloadAsync(url, tempUri, {
@@ -314,12 +327,17 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const remoteMeta = cachedMeta ?? (await fetchRemoteMetadata(fileId));
-      const downloadedMeta = await downloadAndCacheFile(
-        fileId,
-        remoteMeta?.originalName,
-        remoteMeta?.mimeType,
-      );
-      return downloadedMeta?.localUri ?? null;
+      try {
+        const downloadedMeta = await downloadAndCacheFile(
+          fileId,
+          remoteMeta?.originalName,
+          remoteMeta?.mimeType,
+        );
+        return downloadedMeta?.localUri ?? null;
+      } catch (error) {
+        console.warn('No se pudo descargar y cachear el archivo', fileId, error);
+        return null;
+      }
     },
     [downloadAndCacheFile, fetchRemoteMetadata, isOnline, token],
   );
@@ -364,8 +382,11 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const tempDir = await resolveTempDirectory();
-      const tempPath = `${tempDir}uploaded_${uploaded.id}_${Date.now()}`;
-      await FileSystem.copyAsync({ from: fileUri, to: tempPath });
+      const tempPath = tempDir ? `${tempDir}uploaded_${uploaded.id}_${Date.now()}` : fileUri;
+
+      if (tempDir) {
+        await FileSystem.copyAsync({ from: fileUri, to: tempPath });
+      }
 
       const storedMeta = await storeDownloadedFile(
         uploaded.id,
