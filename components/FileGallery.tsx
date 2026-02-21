@@ -104,7 +104,12 @@ const FileGallery: React.FC<FileGalleryProps> = ({ entityType, entityId, filesJs
       {isLoading ? (
         <ThemedText>Cargando archivos...</ThemedText>
       ) : (
-        <FlatList data={files} keyExtractor={item => item.id.toString()} renderItem={renderItem} />
+        <FlatList
+          data={files}
+          keyExtractor={item => item.id.toString()}
+          renderItem={renderItem}
+          scrollEnabled={false}
+        />
       )}
     </View>
   );
