@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './ThemedText';
 import { useFiles, FileRecord } from '@/contexts/FilesContext';
 
@@ -77,12 +77,12 @@ const FileGallery: React.FC<FileGalleryProps> = ({ entityType, entityId, filesJs
   const handleOpenFile = async (file: FileRecord) => {
     try {
       await openFile(file);
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'El archivo no está disponible para abrir');
     }
   };
 
-  const renderItem = ({ item }: { item: FileRecord }) => {
+  const renderItem = (item: FileRecord) => {
     const isDownloaded = item.downloaded === 1;
 
     return (
@@ -104,12 +104,11 @@ const FileGallery: React.FC<FileGalleryProps> = ({ entityType, entityId, filesJs
       {isLoading ? (
         <ThemedText>Cargando archivos...</ThemedText>
       ) : (
-        <FlatList
-          data={files}
-          keyExtractor={item => item.id.toString()}
-          renderItem={renderItem}
-          scrollEnabled={false}
-        />
+        files.map(file => (
+          <View key={file.id.toString()}>
+            {renderItem(file)}
+          </View>
+        ))
       )}
     </View>
   );
