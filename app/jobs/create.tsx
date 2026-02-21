@@ -168,6 +168,15 @@ export default function CreateJobScreen() {
   }, [initialJobDateFromParam]);
 
   useEffect(() => {
+    const hasNavigationParams =
+      !!initialClientFromParam || !!initialJobDateFromParam;
+
+    if (!hasNavigationParams) {
+      setDraft(null);
+    }
+  }, [initialClientFromParam, initialJobDateFromParam, setDraft]);
+
+  useEffect(() => {
     if (!draft || selectedStatus || !draft.selectedStatusId) {
       return;
     }
