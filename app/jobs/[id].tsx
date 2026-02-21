@@ -129,6 +129,7 @@ export default function EditJobScreen() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
+  const [clientChangedByUser, setClientChangedByUser] = useState(false);
   const [draft, setDraft, draftHydrated] = useCachedState<{
     selectedClientId: string;
     selectedFolderId: number | null;
@@ -355,8 +356,7 @@ export default function EditJobScreen() {
   }, [cancelSelection]);
 
   useEffect(() => {
-    if (isInitializingRef.current) {
-      previousClientIdRef.current = selectedClientId;
+    if (!clientChangedByUser) {
       return;
     }
 
@@ -366,7 +366,8 @@ export default function EditJobScreen() {
 
     previousClientIdRef.current = selectedClientId;
     setSelectedFolder(null);
-  }, [selectedClientId]);
+    setClientChangedByUser(false);
+  }, [selectedClientId, clientChangedByUser]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.jobs.client)) {
@@ -642,11 +643,13 @@ export default function EditJobScreen() {
         onValueChange={(value) => {
           const stringValue = value?.toString() ?? '';
           if (stringValue === NEW_CLIENT_VALUE) {
+            setClientChangedByUser(true);
             setSelectedClientId('');
             beginSelection(SELECTION_KEYS.jobs.client);
             router.push('/clients/create');
             return;
           }
+          setClientChangedByUser(true);
           setSelectedClientId(stringValue);
         }}
         placeholder="-- Cliente --"
