@@ -513,7 +513,14 @@ export default function CreateJobScreen() {
       </TouchableOpacity>
       {showDatePicker && (
         <DateTimePicker
-          value={isJobDateInvalid ? new Date() : jobDateValue}
+          value={
+            isJobDateInvalid
+              ? new Date()
+              : (() => {
+                  const [year, month, day] = jobDate.split('-').map(Number);
+                  return new Date(year, month - 1, day);
+                })()
+          }
           mode="date"
           display="default"
           onChange={(e, selected) => {
