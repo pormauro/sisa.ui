@@ -7,7 +7,6 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import MapView, { Marker, MapPressEvent } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/ThemedText';
@@ -24,6 +23,15 @@ interface AddressLocationPickerProps {
 const DEFAULT_COORDINATE = { latitude: -34.6037, longitude: -58.3816 };
 const DEFAULT_DELTA = { latitudeDelta: 0.1, longitudeDelta: 0.1 };
 
+let MapView: any = View;
+let Marker: any = null;
+
+if (Platform.OS !== 'web') {
+  const Maps = require('react-native-maps');
+  MapView = Maps.default;
+  Marker = Maps.Marker;
+}
+
 const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   latitude,
   longitude,
@@ -33,7 +41,7 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const resolvedLatitude = toNumericCoordinate(latitude);
   const resolvedLongitude = toNumericCoordinate(longitude);
   const hasCoordinate = resolvedLatitude !== null && resolvedLongitude !== null;
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<any>(null);
 
   const previewRegion = useMemo(
     () => ({
@@ -75,13 +83,12 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
   const buttonTextColor = useThemeColor({}, 'buttonText');
   const background = useThemeColor({}, 'background');
   const accentColor = useThemeColor({}, 'tint');
-  const successColor = useThemeColor({ light: '#2e7d32', dark: '#66bb6a' }, 'text');
   const actionSurface = useThemeColor({ light: '#F5F9FF', dark: '#111827' }, 'background');
   const errorColor = useThemeColor({ light: '#b91c1c', dark: '#f87171' }, 'text');
 
   const statusBadgeColor = useThemeColor({ light: '#1b5e20', dark: '#2e7d32' }, 'text');
 
-  const handleMapPress = useCallback((event: MapPressEvent) => {
+  const handleMapPress = useCallback((event: any) => {
     const { latitude: lat, longitude: lng } = event.nativeEvent.coordinate;
     setSelectedCoordinate({ latitude: lat, longitude: lng });
   }, []);
@@ -125,6 +132,46 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
       setIsRequestingLocation(false);
     }
   }, []);
+
+  if (Platform.OS === 'web') {
+    return (
+      <View>
+        <View style={[styles.previewWrapper, styles.webFallbackPreview, { borderColor }]}>
+          <Ionicons name="map-outline" size={30} color={accentColor} />
+          <ThemedText style={styles.webFallbackTitle}>Mapa no disponible en web</ThemedText>
+          <ThemedText style={styles.webFallbackSubtitle}>
+            {hasCoordinate
+              ? `Coordenadas: ${resolvedLatitude!.toFixed(6)}, ${resolvedLongitude!.toFixed(6)}`
+              : 'Sin ubicación seleccionada'}
+          </ThemedText>
+        </View>
+
+        {editable ? (
+          <View style={styles.actionsRow}>
+            <View
+              style={[
+                styles.positionButton,
+                { borderColor: accentColor, backgroundColor: actionSurface },
+              ]}
+            >
+              <Ionicons name="information-circle-outline" size={20} color={accentColor} />
+              <ThemedText style={[styles.positionButtonText, { color: accentColor }]}>Disponible solo en app móvil</ThemedText>
+            </View>
+            {hasCoordinate ? (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.clearButton, { borderColor }]}
+                onPress={handleClear}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="close-circle" size={18} color={errorColor} style={styles.clearIcon} />
+                <ThemedText style={[styles.actionButtonText, styles.clearButtonText]}>Quitar punto</ThemedText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View>
@@ -201,13 +248,13 @@ const AddressLocationPicker: React.FC<AddressLocationPickerProps> = ({
             style={styles.modalMap}
             initialRegion={previewRegion}
             onPress={handleMapPress}
-            showsUserLocation={Platform.OS !== 'web'}
+            showsUserLocation
           >
             {selectedCoordinate ? (
               <Marker
                 coordinate={selectedCoordinate}
                 draggable
-                onDragEnd={event => {
+                onDragEnd={(event: any) => {
                   const { latitude: lat, longitude: lng } = event.nativeEvent.coordinate;
                   setSelectedCoordinate({ latitude: lat, longitude: lng });
                 }}
@@ -265,6 +312,21 @@ const styles = StyleSheet.create({
     height: 180,
     marginTop: 8,
     position: 'relative',
+  },
+  webFallbackPreview: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  webFallbackTitle: {
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  webFallbackSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    opacity: 0.8,
   },
   mapPreview: {
     flex: 1,
