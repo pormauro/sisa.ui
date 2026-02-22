@@ -255,39 +255,39 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     const isDownloaded = item.downloaded === 1;
 
     return (
-      <TouchableOpacity
-        style={[styles.fileCard, { opacity: isDownloaded ? 1 : 0.5 }]}
-        onPress={() => openFile(item)}
-        disabled={!isDownloaded}
-      >
-        {renderPreview(item)}
+      <View style={styles.fileCardWrapper}>
+        <TouchableOpacity
+          style={[styles.fileCard, { opacity: isDownloaded ? 1 : 0.5 }]}
+          onPress={() => openFile(item)}
+          disabled={!isDownloaded}
+        >
+          {renderPreview(item)}
 
-        <ThemedText numberOfLines={1} style={styles.fileName}>
-          {item.name}
-        </ThemedText>
+          <ThemedText numberOfLines={1} style={styles.fileName}>
+            {item.name}
+          </ThemedText>
 
-        <ThemedText style={styles.fileStatus}>
-          {isDownloaded ? 'Offline OK' : 'Descargando...'}
-        </ThemedText>
+          {!isDownloaded && <ThemedText style={styles.fileStatus}>No disponible offline</ThemedText>}
 
-        {invoiceMarkingEnabled && (
-          <TouchableOpacity
-            onPress={() => {
-              const updated = new Map(invoiceMap);
-              updated.set(item.id, !invoiceMap.get(item.id));
-              syncFilesJson(fileIds, updated);
-            }}
-          >
-            <ThemedText>{invoiceMap.get(item.id) ? '💰 Factura' : 'Marcar factura'}</ThemedText>
-          </TouchableOpacity>
-        )}
+          {invoiceMarkingEnabled && (
+            <TouchableOpacity
+              onPress={() => {
+                const updated = new Map(invoiceMap);
+                updated.set(item.id, !invoiceMap.get(item.id));
+                syncFilesJson(fileIds, updated);
+              }}
+            >
+              <ThemedText>{invoiceMap.get(item.id) ? '💰 Factura' : 'Marcar factura'}</ThemedText>
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
 
         {editable && (
-          <TouchableOpacity onPress={() => removeFile(item.id)}>
-            <ThemedText style={styles.delete}>Eliminar</ThemedText>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => removeFile(item.id)}>
+            <MaterialIcons name="close" size={16} color="#fff" />
           </TouchableOpacity>
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -342,13 +342,17 @@ const styles = StyleSheet.create({
   fileCard: {
     width: 180,
     height: 190,
-    marginRight: 12,
     padding: 10,
     borderRadius: 12,
     backgroundColor: '#1e1e1e',
     borderWidth: 1,
     borderColor: '#333',
     justifyContent: 'space-between',
+  },
+
+  fileCardWrapper: {
+    position: 'relative',
+    marginRight: 12,
   },
 
   preview: {
@@ -384,13 +388,21 @@ const styles = StyleSheet.create({
 
   fileStatus: {
     fontSize: 12,
-    color: '#888',
+    color: '#f6ad55',
   },
 
-  delete: {
-    marginTop: 4,
-    color: '#ff5b5b',
-    fontSize: 12,
+  deleteButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#dc3545',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ffffff55',
   },
 
   addButton: {
