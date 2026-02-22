@@ -1,0 +1,15 @@
+diff --git a/node_modules/metro/package.json b/node_modules/metro/package.json
+index 726f5f1..716599b 100644
+--- a/node_modules/metro/package.json
++++ b/node_modules/metro/package.json
+@@ -8,7 +8,9 @@
+   "exports": {
+     ".": "./src/index.js",
+     "./package.json": "./package.json",
+-    "./private/*": "./src/*.js"
++    "./private/*": "./src/*.js",
++    "./src/lib/TerminalReporter": "./src/lib/TerminalReporter.js",
++    "./src/lib/TerminalReporter.js": "./src/lib/TerminalReporter.js"
+   },
+   "repository": {
+     "type": "git",
