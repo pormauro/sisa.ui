@@ -1,6 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  Modal,
+  Image,
+} from 'react-native';
+import { Video } from 'expo-av';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from './ThemedText';
 import { useFiles, FileRecord } from '@/contexts/FilesContext';
 
@@ -27,10 +37,6 @@ const parseAttachedFiles = (
       .map(item => {
         if (typeof item === 'number') {
           return { id: item, isInvoice: false };
-        }
-        if (typeof item === 'string') {
-          const parsed = Number(item);
-          return Number.isFinite(parsed) ? { id: parsed, isInvoice: false } : null;
         }
         if (item && typeof item === 'object' && 'id' in item) {
           const parsed = Number((item as any).id);
@@ -62,12 +68,24 @@ const FileGallery: React.FC<FileGalleryProps> = ({
   editable = false,
   invoiceMarkingEnabled = false,
 }) => {
-  const { getFilesForEntity, ensureFilesDownloadedForEntity, openFile, registerEntityFiles, uploadFile } = useFiles();
+  const {
+    getFilesForEntity,
+    ensureFilesDownloadedForEntity,
+    openFile,
+    registerEntityFiles,
+    uploadFile,
+  } = useFiles();
+
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [actionMenuVisible, setActionMenuVisible] = useState(false);
+
   const parsedFiles = useMemo(() => parseAttachedFiles(filesJson), [filesJson]);
   const fileIds = useMemo(() => parsedFiles.map(file => file.id), [parsedFiles]);
-  const invoiceMap = useMemo(() => new Map(parsedFiles.map(file => [file.id, file.isInvoice])), [parsedFiles]);
+  const invoiceMap = useMemo(
+    () => new Map(parsedFiles.map(file => [file.id, file.isInvoice])),
+    [parsedFiles],
+  );
 
   const syncFilesJson = (ids: number[], invoiceById: Map<number, boolean>) => {
     if (!onChangeFilesJson) return;
@@ -87,9 +105,8 @@ const FileGallery: React.FC<FileGalleryProps> = ({
       setFiles(filesForEntity);
       setIsLoading(false);
     };
-
     fetchFiles();
-  }, [entityType, entityId, fileIds, getFilesForEntity, registerEntityFiles]);
+  }, [entityType, entityId, fileIds]);
 
   useEffect(() => {
     const downloadFiles = async () => {
@@ -97,35 +114,12 @@ const FileGallery: React.FC<FileGalleryProps> = ({
       const refreshed = await getFilesForEntity(entityType, entityId);
       setFiles(refreshed);
     };
-
     downloadFiles();
-  }, [entityType, entityId, ensureFilesDownloadedForEntity, getFilesForEntity, fileIds]);
+  }, [entityType, entityId, fileIds]);
 
-  const handleOpenFile = async (file: FileRecord) => {
-    try {
-      await openFile(file);
-    } catch {
-      Alert.alert('Error', 'El archivo no está disponible para abrir');
-    }
-  };
-
-  const handleAddFile = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
-    if (result.canceled || !result.assets?.[0]) {
-      return;
-    }
-
-    const picked = result.assets[0];
-    const uploaded = await uploadFile(
-      picked.uri,
-      picked.name ?? `archivo_${Date.now()}`,
-      picked.mimeType ?? 'application/octet-stream',
-      picked.size ?? 0,
-    );
-
-    if (!uploaded) {
-      return;
-    }
+  const handleUpload = async (uri: string, name: string, mime: string, size: number) => {
+    const uploaded = await uploadFile(uri, name, mime, size);
+    if (!uploaded) return;
 
     const updatedIds = Array.from(new Set([...fileIds, uploaded.id]));
     const updatedInvoiceMap = new Map(invoiceMap);
@@ -133,18 +127,101 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     syncFilesJson(updatedIds, updatedInvoiceMap);
   };
 
-  const handleDeleteFile = (fileId: number) => {
-    const updatedIds = fileIds.filter(id => id !== fileId);
-    const updatedInvoiceMap = new Map(invoiceMap);
-    updatedInvoiceMap.delete(fileId);
-    syncFilesJson(updatedIds, updatedInvoiceMap);
+  const removeFile = (id: number) => {
+    Alert.alert('Eliminar archivo', '¿Seguro que querés quitarlo?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: () => {
+          const newIds = fileIds.filter(f => f !== id);
+          const newMap = new Map(invoiceMap);
+          newMap.delete(id);
+          syncFilesJson(newIds, newMap);
+        },
+      },
+    ]);
   };
 
-  const handleToggleInvoice = (fileId: number) => {
-    const updatedInvoiceMap = new Map(invoiceMap);
-    const current = Boolean(updatedInvoiceMap.get(fileId));
-    updatedInvoiceMap.set(fileId, !current);
-    syncFilesJson(fileIds, updatedInvoiceMap);
+  const handlePickDocument = async () => {
+    setActionMenuVisible(false);
+
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const file = result.assets[0];
+    await handleUpload(
+      file.uri,
+      file.name ?? `archivo_${Date.now()}`,
+      file.mimeType ?? 'application/octet-stream',
+      file.size ?? 0,
+    );
+  };
+
+  const handleTakePhoto = async () => {
+    setActionMenuVisible(false);
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permiso requerido', 'Se necesita acceso a la cámara');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const photo = result.assets[0];
+    await handleUpload(photo.uri, `photo_${Date.now()}.jpg`, 'image/jpeg', photo.fileSize ?? 0);
+  };
+
+  const handleRecordVideo = async () => {
+    setActionMenuVisible(false);
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permiso requerido', 'Se necesita acceso a la cámara');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const video = result.assets[0];
+    await handleUpload(video.uri, `video_${Date.now()}.mp4`, 'video/mp4', video.fileSize ?? 0);
+  };
+
+  const renderPreview = (file: FileRecord) => {
+    const uri = file.localUri;
+
+    if (file.mime?.includes('image')) {
+      return <Image source={{ uri }} style={styles.preview} />;
+    }
+
+    if (file.mime?.includes('video')) {
+      return (
+        <Video
+          source={{ uri }}
+          style={styles.preview}
+          resizeMode="cover"
+          shouldPlay={false}
+          isMuted
+        />
+      );
+    }
+
+    return <ThemedText style={styles.fileIcon}>📁</ThemedText>;
   };
 
   const renderItem = (item: FileRecord) => {
@@ -152,22 +229,37 @@ const FileGallery: React.FC<FileGalleryProps> = ({
 
     return (
       <TouchableOpacity
-        style={[styles.fileItem, { opacity: isDownloaded ? 1 : 0.5 }]}
-        onPress={() => handleOpenFile(item)}
+        style={[styles.fileCard, { opacity: isDownloaded ? 1 : 0.5 }]}
+        onPress={() => openFile(item)}
         disabled={!isDownloaded}
       >
-        <ThemedText style={styles.fileName}>{item.name}</ThemedText>
-        <ThemedText style={styles.fileStatus}>
-          {isDownloaded ? 'Disponible offline' : 'Pendiente de descarga'}
+        {renderPreview(item)}
+
+        <ThemedText numberOfLines={1} style={styles.fileName}>
+          {item.name}
         </ThemedText>
+
+        <ThemedText style={styles.fileStatus}>
+          {isDownloaded ? 'Offline OK' : 'Descargando...'}
+        </ThemedText>
+
         {invoiceMarkingEnabled && (
-          <TouchableOpacity style={styles.invoiceButton} onPress={() => handleToggleInvoice(item.id)}>
-            <ThemedText>{invoiceMap.get(item.id) ? '✅ Factura' : '☑️ Marcar factura'}</ThemedText>
+          <TouchableOpacity
+            onPress={() => {
+              const updated = new Map(invoiceMap);
+              updated.set(item.id, !invoiceMap.get(item.id));
+              syncFilesJson(fileIds, updated);
+            }}
+          >
+            <ThemedText>
+              {invoiceMap.get(item.id) ? '💰 Factura' : 'Marcar factura'}
+            </ThemedText>
           </TouchableOpacity>
         )}
+
         {editable && (
-          <TouchableOpacity style={styles.deleteButton} onPress={() => handleDeleteFile(item.id)}>
-            <ThemedText style={styles.deleteText}>Eliminar</ThemedText>
+          <TouchableOpacity onPress={() => removeFile(item.id)}>
+            <ThemedText style={styles.delete}>Eliminar</ThemedText>
           </TouchableOpacity>
         )}
       </TouchableOpacity>
@@ -179,65 +271,126 @@ const FileGallery: React.FC<FileGalleryProps> = ({
       {isLoading ? (
         <ThemedText>Cargando archivos...</ThemedText>
       ) : (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {files.map(file => (
-            <View key={file.id.toString()}>
-              {renderItem(file)}
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {files.map(file => (
+              <View key={file.id.toString()}>{renderItem(file)}</View>
+            ))}
+
+            {editable && (
+              <TouchableOpacity style={styles.addButton} onPress={() => setActionMenuVisible(true)}>
+                <ThemedText style={styles.addText}>＋</ThemedText>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
+
+          <Modal transparent visible={actionMenuVisible} animationType="fade">
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <TouchableOpacity onPress={handlePickDocument}>
+                  <ThemedText style={styles.modalOption}>📁 Elegir archivo</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handleTakePhoto}>
+                  <ThemedText style={styles.modalOption}>📷 Sacar foto</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handleRecordVideo}>
+                  <ThemedText style={styles.modalOption}>🎥 Grabar video</ThemedText>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setActionMenuVisible(false)}>
+                  <ThemedText style={styles.modalCancel}>Cancelar</ThemedText>
+                </TouchableOpacity>
+              </View>
             </View>
-          ))}
-          {editable && (
-            <TouchableOpacity style={styles.addButton} onPress={handleAddFile}>
-              <ThemedText style={styles.addText}>Add File</ThemedText>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
+          </Modal>
+        </>
       )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  fileItem: {
-    width: 220,
-    marginBottom: 12,
+  container: { paddingVertical: 12 },
+
+  fileCard: {
+    width: 180,
+    height: 190,
     marginRight: 12,
-    padding: 16,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#1e1e1e',
     borderWidth: 1,
-    borderRadius: 8,
+    borderColor: '#333',
+    justifyContent: 'space-between',
   },
+
+  preview: {
+    width: '100%',
+    height: 90,
+    borderRadius: 8,
+    backgroundColor: '#000',
+  },
+
+  fileIcon: {
+    fontSize: 36,
+    textAlign: 'center',
+  },
+
   fileName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  fileStatus: {
     fontSize: 14,
-    color: '#888',
-  },
-  addButton: {
-    width: 140,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  addText: {
-    fontWeight: 'bold',
-  },
-  deleteButton: {
-    marginTop: 8,
-  },
-  deleteText: {
-    color: '#dc3545',
     fontWeight: '600',
   },
-  invoiceButton: {
-    marginTop: 8,
+
+  fileStatus: {
+    fontSize: 12,
+    color: '#888',
+  },
+
+  delete: {
+    marginTop: 4,
+    color: '#ff5b5b',
+    fontSize: 12,
+  },
+
+  addButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#2a2a2a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  addText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  modalContent: {
+    width: 260,
+    backgroundColor: '#1e1e1e',
+    padding: 20,
+    borderRadius: 12,
+  },
+
+  modalOption: {
+    fontSize: 16,
+    marginBottom: 16,
+  },
+
+  modalCancel: {
+    textAlign: 'center',
+    color: '#dc3545',
+    marginTop: 10,
   },
 });
 
