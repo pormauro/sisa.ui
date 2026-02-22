@@ -8,7 +8,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { Video } from 'expo-av';
+import { VideoView } from 'expo-video';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from './ThemedText';
@@ -202,27 +202,29 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     await handleUpload(video.uri, `video_${Date.now()}.mp4`, 'video/mp4', video.fileSize ?? 0);
   };
 
-  const renderPreview = (file: FileRecord) => {
-    const uri = file.localUri;
+const renderPreview = (file: FileRecord) => {
+  const uri = file.localUri;
 
-    if (file.mime?.includes('image')) {
-      return <Image source={{ uri }} style={styles.preview} />;
-    }
+  if (file.mime?.includes('image')) {
+    return <Image source={{ uri }} style={styles.preview} />;
+  }
 
-    if (file.mime?.includes('video')) {
-      return (
-        <Video
-          source={{ uri }}
-          style={styles.preview}
-          resizeMode="cover"
-          shouldPlay={false}
-          isMuted
-        />
-      );
-    }
+  if (file.mime?.includes('video')) {
+    const player = useVideoPlayer({ uri });
 
-    return <ThemedText style={styles.fileIcon}>📁</ThemedText>;
-  };
+    return (
+      <VideoView
+        player={player}
+        style={styles.preview}
+        contentFit="cover"
+        allowsFullscreen={false}
+        allowsPictureInPicture={false}
+      />
+    );
+  }
+
+  return <ThemedText style={styles.fileIcon}>📁</ThemedText>;
+};
 
   const renderItem = (item: FileRecord) => {
     const isDownloaded = item.downloaded === 1;
