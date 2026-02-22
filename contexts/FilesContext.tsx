@@ -202,56 +202,13 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [loadEntityIndex],
   );
 
-  const fetchRemoteMetadata = useCallback(
-    async (fileId: number): Promise<CachedFileMeta | null> => {
-      if (!token) return null;
-      try {
-        const response = await fetch(`${BASE_URL}/files/${fileId}`, {
-          method: 'HEAD',
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          return null;
-        }
-
-        const originalName = parseFileName(
-          response.headers.get('content-disposition'),
-          `archivo_${fileId}`,
-        );
-        const mimeType = response.headers.get('content-type') ?? undefined;
-        const lengthHeader = response.headers.get('content-length');
-        const size = lengthHeader ? Number(lengthHeader) : undefined;
-
-        const meta: CachedFileMeta = {
-          id: fileId,
-          originalName,
-          storedName: originalName,
-          localUri: '',
-          downloadedAt: Date.now(),
-          mimeType,
-          size: Number.isFinite(size) ? size : undefined,
-        };
-
-        await saveCachedFileMeta(meta);
-        return meta;
-      } catch (error) {
-        console.log('No se pudo obtener metadatos remotos del archivo', error);
-        return null;
-      }
-    },
-    [token],
-  );
-
   const downloadAndCacheFile = useCallback(
     async (fileId: number, fallbackName?: string, fallbackMimeType?: string) => {
       if (!token) {
         throw new Error('No hay token disponible para descargar el archivo.');
       }
 
-      const url = `${BASE_URL}/files/${fileId}`;
+      const url = `${BASE_URL.replace(/\/+$/, '')}/files/${fileId}`;
       const tempDir = await resolveTempDirectory();
       if (!tempDir) {
         return null;
@@ -300,14 +257,9 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return buildRecordFromMeta(cached);
       }
 
-      const remoteMeta = await fetchRemoteMetadata(fileId);
-      if (remoteMeta) {
-        return buildRecordFromMeta(remoteMeta);
-      }
-
       return null;
     },
-    [fetchRemoteMetadata],
+    [],
   );
 
   const getFile = useCallback(
@@ -326,20 +278,15 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return null;
       }
 
-      const remoteMeta = cachedMeta ?? (await fetchRemoteMetadata(fileId));
       try {
-        const downloadedMeta = await downloadAndCacheFile(
-          fileId,
-          remoteMeta?.originalName,
-          remoteMeta?.mimeType,
-        );
+        const downloadedMeta = await downloadAndCacheFile(fileId, cachedMeta?.originalName, cachedMeta?.mimeType);
         return downloadedMeta?.localUri ?? null;
       } catch (error) {
         console.warn('No se pudo descargar y cachear el archivo', fileId, error);
         return null;
       }
     },
-    [downloadAndCacheFile, fetchRemoteMetadata, isOnline, token],
+    [downloadAndCacheFile, isOnline, token],
   );
 
   const uploadFile = useCallback(
