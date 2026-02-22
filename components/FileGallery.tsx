@@ -8,7 +8,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { Video } from 'expo-av';
+import { Video } from 'expo-video';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from './ThemedText';
@@ -214,9 +214,10 @@ const FileGallery: React.FC<FileGalleryProps> = ({
         <Video
           source={{ uri }}
           style={styles.preview}
-          resizeMode="cover"
-          shouldPlay={false}
-          isMuted
+          contentFit="cover"
+          controls={false}
+          muted
+          loop
         />
       );
     }
