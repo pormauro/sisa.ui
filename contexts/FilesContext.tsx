@@ -1,10 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import NetInfo from '@react-native-community/netinfo';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BASE_URL } from '@/config/Index';
+import { openAttachment } from '@/utils/files/openAttachment';
 import {
   CachedFileMeta,
   clearCachedFiles,
@@ -222,6 +223,11 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         },
       });
 
+      if (typeof result.status === 'number' && (result.status < 200 || result.status >= 300)) {
+        await FileSystem.deleteAsync(result.uri, { idempotent: true }).catch(() => {});
+        throw new Error(`No se pudo descargar el archivo ${fileId}. HTTP ${result.status}.`);
+      }
+
       const headers = normalizeHeaders((result?.headers as Record<string, string> | undefined) ?? {});
       const originalName = parseFileName(
         headers['content-disposition'] ?? null,
@@ -381,7 +387,15 @@ export const FilesProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error('Archivo local inexistente');
       }
 
-      await FileSystem.openDocumentAsync(uri);
+      const opened = await openAttachment({
+        uri,
+        mimeType: file.mimeType || file.mime || file.file_type,
+        fileName: file.original_name || file.name,
+      });
+
+      if (!opened) {
+        throw new Error('No se pudo abrir el archivo con la plataforma actual.');
+      }
     },
     [getFile],
   );
