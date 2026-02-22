@@ -339,7 +339,13 @@ export default function CreateAppointmentScreen() {
           />
 
           <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-          <FileGallery entityType="appointment" entityId={0} filesJson={attachedFiles} />
+          <FileGallery
+            entityType="appointment"
+            entityId={0}
+            filesJson={attachedFiles}
+            onChangeFilesJson={setAttachedFiles}
+            editable
+          />
         </View>
 
         <TouchableOpacity

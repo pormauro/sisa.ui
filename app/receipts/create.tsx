@@ -659,7 +659,13 @@ export default function CreateReceipt() {
         </>
       )}
 
-      <FileGallery entityType="receipt" entityId={0} filesJson={attachedFiles} />
+      <FileGallery
+        entityType="receipt"
+        entityId={0}
+        filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable
+      />
 
       <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleSubmit} disabled={loading}>
         {loading ? <ActivityIndicator color={buttonTextColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Crear Recibo</ThemedText>}
