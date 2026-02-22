@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { VideoView } from 'expo-video';
+import * as ExpoVideo from 'expo-video';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from './ThemedText';
@@ -210,7 +211,7 @@ const renderPreview = (file: FileRecord) => {
   }
 
   if (file.mime?.includes('video')) {
-    const player = useVideoPlayer({ uri });
+    const player = ExpoVideo.createVideoPlayer({ uri });
 
     return (
       <VideoView
