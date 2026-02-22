@@ -1,25 +1,22 @@
-// app/components/CircleImagePicker.js
-import React, { useState, useEffect } from 'react';
-import { 
+import React, { useState, useEffect, useContext } from 'react';
+import {
   View,
   TouchableOpacity,
   StyleSheet,
   Alert,
   Image,
   ActivityIndicator,
-  Text
+  Text,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pickAndProcessImage, uploadImage } from '../utils/imageUtils';
 import { BASE_URL } from '../config/index';
+import { FileContext } from '../../contexts/FilesContext';
 
 /**
- * Componente para mostrar la imagen en un círculo. Puede ser:
- * - Sólo lectura (editable={false}), sin botón de cámara.
- * - Editable (editable={true}), con botón de cámara para cambiar la imagen.
- * 
  * Props:
- *  - fileId    : (opcional) ID de archivo en el servidor. Se descargará la imagen de /get_file?file_id=xxx
+ *  - fileId    : (opcional) ID de archivo en el servidor (number o string).
+ *               Se resuelve vía FilesContext.getFile(fileId) (offline-first).
  *  - imageUri  : (opcional) URI local (o remota) a usar directamente.
  *  - editable  : boolean que indica si se muestra el icono de cámara.
  *  - onImageChange(newFileId) : callback cuando se sube con éxito una imagen y se obtiene un nuevo fileId.
@@ -33,58 +30,101 @@ export default function CircleImagePicker({
   onImageChange,
   style,
 }) {
+  const files = useContext(FileContext);
+
   const [loading, setLoading] = useState(false);
   const [internalUri, setInternalUri] = useState(null);
   const [hasError, setHasError] = useState(false);
 
-  useEffect(() => {
-    if (imageUri) {
-      // Usar directamente la URI pasada
-      setInternalUri(imageUri);
-      setHasError(false);
-    } else if (fileId) {
-      // Cargar la imagen desde el servidor
-      loadFileFromServer(fileId);
-    } else {
-      // No hay imagen
-      setInternalUri(null);
-      setHasError(false);
-    }
-  }, [fileId, imageUri]);
+  const normalizeFileId = value => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
 
-  const loadFileFromServer = async (fId) => {
+  const loadFileFromServerFallback = async fId => {
+    // Fallback ultra defensivo si el provider no está montado por alguna razón.
+    // Usa /files/{id} (NO /get_file).
     try {
       setLoading(true);
       setHasError(false);
+
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         setHasError(true);
-        setLoading(false);
         return;
       }
-      const response = await fetch(`${BASE_URL}/get_file?file_id=${fId}`, {
+
+      const response = await fetch(`${BASE_URL}/files/${fId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (response.ok) {
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setInternalUri(reader.result);
-          setLoading(false);
-        };
-        reader.readAsDataURL(blob);
-      } else {
+
+      if (!response.ok) {
         setHasError(true);
-        setLoading(false);
+        return;
       }
+
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setInternalUri(reader.result);
+        setLoading(false);
+      };
+      reader.readAsDataURL(blob);
     } catch (error) {
       console.error(error);
       setHasError(true);
+    } finally {
       setLoading(false);
     }
   };
 
-  // Abre cámara o galería, sube la imagen
+  const loadViaFilesContext = async fId => {
+    try {
+      setLoading(true);
+      setHasError(false);
+
+      if (!files || typeof files.getFile !== 'function') {
+        await loadFileFromServerFallback(fId);
+        return;
+      }
+
+      const uri = await files.getFile(fId);
+      if (uri) {
+        setInternalUri(uri);
+        setHasError(false);
+      } else {
+        setInternalUri(null);
+        setHasError(true);
+      }
+    } catch (error) {
+      console.warn('CircleImagePicker: no se pudo resolver fileId', fId, error);
+      setInternalUri(null);
+      setHasError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fId = normalizeFileId(fileId);
+
+    if (imageUri) {
+      setInternalUri(imageUri);
+      setHasError(false);
+      return;
+    }
+
+    if (fId) {
+      setInternalUri(null);
+      void loadViaFilesContext(fId);
+      return;
+    }
+
+    setInternalUri(null);
+    setHasError(false);
+  }, [fileId, imageUri]);
+
   const handleSelectImage = () => {
     Alert.alert(
       'Seleccionar Imagen',
@@ -94,45 +134,49 @@ export default function CircleImagePicker({
         { text: 'Galería', onPress: () => pickAndUpload(false) },
         { text: 'Cancelar', style: 'cancel' },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
-  const pickAndUpload = async (fromCamera) => {
+  const pickAndUpload = async fromCamera => {
     try {
       setLoading(true);
+
       const newUri = await pickAndProcessImage(fromCamera);
-      if (!newUri) {
-        // Usuario canceló
-        setLoading(false);
-        return;
-      }
+      if (!newUri) return;
+
       const token = await AsyncStorage.getItem('token');
       if (!token) {
         Alert.alert('Error', 'No se encontró token');
-        setLoading(false);
         return;
       }
 
-      // Subir la imagen
       const newFileId = await uploadImage(newUri, token);
-      if (newFileId) {
-        setInternalUri(newUri);
-        setHasError(false);
-        if (onImageChange) {
-          onImageChange(newFileId);
-        }
-      } else {
+
+      if (!newFileId) {
         Alert.alert('Error', 'No se pudo subir la imagen');
+        return;
+      }
+
+      setInternalUri(newUri);
+      setHasError(false);
+
+      if (onImageChange) onImageChange(newFileId);
+
+      if (files && typeof files.getFile === 'function') {
+        try {
+          await files.getFile(newFileId);
+        } catch {
+          // ignore precache error
+        }
       }
     } catch (err) {
-      Alert.alert('Error', err.message);
+      Alert.alert('Error', err?.message ?? 'Error seleccionando/subiendo imagen');
     } finally {
       setLoading(false);
     }
   };
 
-  // Aplicar el tamaño (width/height) dinámicamente
   const circleStyle = {
     width: size,
     height: size,
@@ -147,17 +191,19 @@ export default function CircleImagePicker({
         </View>
       )}
 
-      {/* Mostrar la imagen si tenemos URI, o un placeholder azul */}
       {internalUri && !hasError ? (
         <Image
           source={{ uri: internalUri }}
-          style={[styles.image, { width: size, height: size, borderRadius: size / 2 }, loading && { opacity: 0.4 }]}
+          style={[
+            styles.image,
+            { width: size, height: size, borderRadius: size / 2 },
+            loading && { opacity: 0.4 },
+          ]}
         />
       ) : (
         <View style={[styles.image, styles.placeholder, circleStyle]} />
       )}
 
-      {/* Botón de cámara si es editable */}
       {editable && !loading && (
         <TouchableOpacity style={styles.cameraButton} onPress={handleSelectImage}>
           <Text style={styles.cameraIcon}>📷</Text>
@@ -169,14 +215,9 @@ export default function CircleImagePicker({
 
 const styles = StyleSheet.create({
   container: {
-    alignSelf: 'center',
-    position: 'relative',
+    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    zIndex: 2,
   },
   image: {
     resizeMode: 'cover',
@@ -186,18 +227,24 @@ const styles = StyleSheet.create({
   },
   cameraButton: {
     position: 'absolute',
-    right: 0,
     bottom: 0,
-    width: '30%',
-    height: '30%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: '50%',
+    right: 0,
+    backgroundColor: '#0008',
+    borderRadius: 18,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 3,
   },
   cameraIcon: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 16,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0006',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
 });
