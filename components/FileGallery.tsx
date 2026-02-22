@@ -173,7 +173,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images,
       quality: 0.8,
     });
 
@@ -193,7 +193,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ImagePicker.MediaType.Videos,
       quality: 0.8,
     });
 
@@ -218,7 +218,7 @@ const renderPreview = (file: FileRecord) => {
         player={player}
         style={styles.preview}
         contentFit="cover"
-        allowsFullscreen={false}
+        fullscreenOptions={{ enabled: false }}
         allowsPictureInPicture={false}
       />
     );
