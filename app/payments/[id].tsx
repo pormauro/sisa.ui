@@ -660,6 +660,9 @@ export default function PaymentDetailPage() {
         entityType="payment"
         entityId={paymentId}
         filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable={canEdit}
+        invoiceMarkingEnabled
       />
 
       {canEdit && (

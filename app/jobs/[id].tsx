@@ -845,7 +845,14 @@ export default function EditJobScreen() {
 
       {/* Archivos adjuntos */}
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
-      <FileGallery entityType="job" entityId={jobId} filesJson={attachedFiles} />
+      <FileGallery
+        entityType="job"
+        entityId={jobId}
+        filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable={canEdit}
+        invoiceMarkingEnabled
+      />
 
       {/* Botones */}
       {canEdit && (

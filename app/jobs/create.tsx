@@ -727,7 +727,14 @@ export default function CreateJobScreen() {
 
       {/* Archivos adjuntos */}
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos adjuntos</ThemedText>
-      <FileGallery entityType="job" entityId={0} filesJson={attachedFiles} />
+      <FileGallery
+        entityType="job"
+        entityId={0}
+        filesJson={attachedFiles}
+        onChangeFilesJson={setAttachedFiles}
+        editable
+        invoiceMarkingEnabled
+      />
 
       <TouchableOpacity
         style={[styles.submitBtn, { backgroundColor: submitBtnColor }]}
