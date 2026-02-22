@@ -8,8 +8,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import { VideoView } from 'expo-video';
-import * as ExpoVideo from 'expo-video';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from './ThemedText';
@@ -173,14 +172,19 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaType.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     });
 
     if (result.canceled || !result.assets?.[0]) return;
 
     const photo = result.assets[0];
-    await handleUpload(photo.uri, `photo_${Date.now()}.jpg`, 'image/jpeg', photo.fileSize ?? 0);
+    await handleUpload(
+      photo.uri,
+      `photo_${Date.now()}.jpg`,
+      photo.mimeType ?? 'image/jpeg',
+      photo.fileSize ?? 0,
+    );
   };
 
   const handleRecordVideo = async () => {
@@ -193,39 +197,59 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaType.Videos,
+      mediaTypes: ['videos'],
       quality: 0.8,
     });
 
     if (result.canceled || !result.assets?.[0]) return;
 
     const video = result.assets[0];
-    await handleUpload(video.uri, `video_${Date.now()}.mp4`, 'video/mp4', video.fileSize ?? 0);
+    await handleUpload(
+      video.uri,
+      `video_${Date.now()}.mp4`,
+      video.mimeType ?? 'video/mp4',
+      video.fileSize ?? 0,
+    );
   };
 
-const renderPreview = (file: FileRecord) => {
-  const uri = file.localUri;
+  const getMime = (file: FileRecord) =>
+    String(file.mimeType || file.mime || file.file_type || '').toLowerCase();
 
-  if (file.mime?.includes('image')) {
-    return <Image source={{ uri }} style={styles.preview} />;
-  }
+  const isImageFile = (file: FileRecord) => getMime(file).includes('image');
+  const isVideoFile = (file: FileRecord) => getMime(file).includes('video');
 
-  if (file.mime?.includes('video')) {
-    const player = ExpoVideo.createVideoPlayer({ uri });
+  const renderPreview = (file: FileRecord) => {
+    const uri = file.localUri;
+    const downloaded = file.downloaded === 1 && Boolean(uri);
+
+    if (isImageFile(file)) {
+      // Si no está descargado, evitamos intentar renderizar una URI inexistente.
+      if (!downloaded) {
+        return (
+          <View style={[styles.preview, styles.placeholder]}>
+            <MaterialIcons name="image" size={34} color="#CFCFCF" />
+          </View>
+        );
+      }
+
+      return <Image source={{ uri }} style={styles.preview} />;
+    }
+
+    if (isVideoFile(file)) {
+      // Requisito: sin previsualización. Solo placeholder + icono de play.
+      return (
+        <View style={[styles.preview, styles.videoPlaceholder, !downloaded && styles.notReady]}>
+          <MaterialIcons name="play-circle-outline" size={44} color="#FFFFFF" />
+        </View>
+      );
+    }
 
     return (
-      <VideoView
-        player={player}
-        style={styles.preview}
-        contentFit="cover"
-        fullscreenOptions={{ enabled: false }}
-        allowsPictureInPicture={false}
-      />
+      <View style={[styles.preview, styles.placeholder, !downloaded && styles.notReady]}>
+        <ThemedText style={styles.fileIcon}>📁</ThemedText>
+      </View>
     );
-  }
-
-  return <ThemedText style={styles.fileIcon}>📁</ThemedText>;
-};
+  };
 
   const renderItem = (item: FileRecord) => {
     const isDownloaded = item.downloaded === 1;
@@ -254,9 +278,7 @@ const renderPreview = (file: FileRecord) => {
               syncFilesJson(fileIds, updated);
             }}
           >
-            <ThemedText>
-              {invoiceMap.get(item.id) ? '💰 Factura' : 'Marcar factura'}
-            </ThemedText>
+            <ThemedText>{invoiceMap.get(item.id) ? '💰 Factura' : 'Marcar factura'}</ThemedText>
           </TouchableOpacity>
         )}
 
@@ -334,6 +356,20 @@ const styles = StyleSheet.create({
     height: 90,
     borderRadius: 8,
     backgroundColor: '#000',
+  },
+
+  placeholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  videoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  notReady: {
+    opacity: 0.7,
   },
 
   fileIcon: {
