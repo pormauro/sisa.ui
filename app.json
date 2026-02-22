@@ -41,7 +41,8 @@
         {
           "locationWhenInUsePermission": "Permitir que SISA acceda a tu ubicación para posicionar direcciones de empresas en el mapa."
         }
-      ]
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true
