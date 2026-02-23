@@ -27,6 +27,7 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
 import { formatCompanyAddress } from '@/utils/address';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import {
   coordinateInputValue,
   createEmptyCompanyAddress,
@@ -891,7 +892,7 @@ export default function CreateCompanyPage() {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    paddingBottom: 160,
+    paddingBottom: FORM_BOTTOM_SPACING,
   },
   sectionTitle: {
     fontSize: 20,

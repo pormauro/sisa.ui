@@ -26,6 +26,7 @@ import IconSelector from '@/components/IconSelector';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { PAYMENT_TEMPLATE_ICON_OPTIONS } from '@/constants/paymentTemplateIconOptions';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 
 const NEW_CLIENT_VALUE = '__new_client__';
 const NEW_PROVIDER_VALUE = '__new_provider__';
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 32,
+    paddingBottom: FORM_BOTTOM_SPACING,
   },
   label: {
     fontSize: 16,

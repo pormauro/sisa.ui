@@ -34,6 +34,7 @@ import { calculateJobTotal, parseJobIdsParam } from '@/utils/jobTotals';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { isStatusFacturado } from '@/utils/statuses';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 
 type InvoiceRouteParams = {
   jobIds?: string | string[];
@@ -1011,6 +1012,7 @@ export default function CreateInvoiceScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
+    paddingBottom: FORM_BOTTOM_SPACING,
     gap: 16,
   },
   sectionTitle: {

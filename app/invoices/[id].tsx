@@ -35,6 +35,7 @@ import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { ensureAuthResponse } from '@/utils/auth/tokenGuard';
 import { openAttachment } from '@/utils/files/openAttachment';
 import { fileStorage } from '@/utils/files/storage';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { Buffer } from 'buffer';
 
 const formatNumberForInput = (value: number): string => value.toFixed(2).replace('.', ',');
@@ -1211,6 +1212,7 @@ export default function EditInvoiceScreen() {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
+    paddingBottom: FORM_BOTTOM_SPACING,
     gap: 16,
   },
   loaderContainer: {
@@ -1392,6 +1394,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bottomSpacing: {
-    height: 24,
+    height: FORM_BOTTOM_SPACING,
   },
 });
