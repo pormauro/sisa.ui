@@ -1,6 +1,7 @@
 // app/providers/create.tsx
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, View } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter } from 'expo-router';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -154,7 +155,7 @@ export default function CreateProvider() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   select: { marginBottom: 8 },
   companySummary: {

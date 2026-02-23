@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { useCachedState } from '@/hooks/useCachedState';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 
 export default function EditTariff() {
   const router = useRouter();
@@ -220,7 +221,7 @@ export default function EditTariff() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },

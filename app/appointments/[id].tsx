@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentsContext } from '@/contexts/AppointmentsContext';
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 120,
+    paddingBottom: FORM_BOTTOM_SPACING,
   },
   card: {
     borderWidth: 1,

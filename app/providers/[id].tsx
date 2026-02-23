@@ -2,6 +2,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ProvidersContext } from '@/contexts/ProvidersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
@@ -254,7 +255,7 @@ export default function ProviderDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   select: { marginBottom: 8 },
   companySummary: {

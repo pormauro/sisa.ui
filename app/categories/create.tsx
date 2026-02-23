@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -151,7 +152,7 @@ export default function CreateCategory() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

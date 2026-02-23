@@ -2,6 +2,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -336,7 +337,7 @@ export default function ClientDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120, flexGrow: 1 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

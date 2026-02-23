@@ -1,6 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/cash_boxes/[id].tsx
 import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CashBoxesContext, CashBox } from '@/contexts/CashBoxesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -240,7 +241,7 @@ export default function CashBoxDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120, flexGrow: 1 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING, flexGrow: 1 },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   helperText: { marginBottom: 12, fontSize: 12 },

@@ -7,6 +7,7 @@ import {
   Alert,
   TouchableOpacity,
 } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
 import { Ionicons } from '@expo/vector-icons';
@@ -299,7 +300,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingBottom: 120,
+    paddingBottom: FORM_BOTTOM_SPACING,
   },
   emptyText: {
     textAlign: 'center',

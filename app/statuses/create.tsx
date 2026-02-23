@@ -1,6 +1,7 @@
 // app/statuses/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
 import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, View } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter } from 'expo-router';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -152,7 +153,7 @@ export default function CreateStatus() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   helperText: { marginBottom: 12, fontSize: 14 },
