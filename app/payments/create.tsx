@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -785,7 +786,7 @@ export default function CreatePayment() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   select: {

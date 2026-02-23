@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
@@ -752,7 +753,7 @@ export default function ReceiptDetailPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

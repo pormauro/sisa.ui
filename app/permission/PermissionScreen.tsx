@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Button,
 } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import Checkbox from 'expo-checkbox';
 import UserSelector, { type Profile as SelectorProfile } from './UserSelector'; // Asegúrate de que la ruta sea correcta
 import { AuthContext } from '@/contexts/AuthContext';
@@ -557,7 +558,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   contentContainer: {
-    paddingBottom: 120,
+    paddingBottom: FORM_BOTTOM_SPACING,
   },
   title: {
     fontSize: 26,

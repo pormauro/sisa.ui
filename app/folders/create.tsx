@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
 import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, View } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FoldersContext } from '@/contexts/FoldersContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -199,7 +200,7 @@ export default function CreateFolderPage() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   select: {
     marginBottom: 8,

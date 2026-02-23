@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { ProfileContext, ProfileForm } from '@/contexts/ProfileContext';
@@ -132,7 +133,7 @@ export default function ProfileScreen(): JSX.Element {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  contentContainer: { paddingBottom: 120 },
+  contentContainer: { paddingBottom: FORM_BOTTOM_SPACING },
   subtitle: {
     fontSize: 22,
     fontWeight: 'bold',

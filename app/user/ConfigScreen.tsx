@@ -1,6 +1,7 @@
 // app/user/ConfigScreen.tsx
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, ScrollView, Alert, View, TouchableOpacity, Switch } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { Ionicons } from '@expo/vector-icons';
 import { ConfigContext } from '@/contexts/ConfigContext';
 import { FileContext } from '@/contexts/FilesContext';
@@ -274,7 +275,7 @@ const ConfigScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
-  contentContainer: { paddingBottom: 120 },
+  contentContainer: { paddingBottom: FORM_BOTTOM_SPACING },
   subtitle: {
     fontSize: 22,
     fontWeight: 'bold',

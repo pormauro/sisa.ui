@@ -1,6 +1,7 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/products_services/create.tsx
 import React, { useState, useContext, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter } from 'expo-router';
 import { ProductsServicesContext } from '@/contexts/ProductsServicesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -178,7 +179,7 @@ export default function CreateProductService() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 120 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   row: { flexDirection: 'row', gap: 16, marginVertical: 8 },
