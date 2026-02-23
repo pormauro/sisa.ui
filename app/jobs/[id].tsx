@@ -32,6 +32,7 @@ import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatCurrency } from '@/utils/currency';
 import { useCachedState } from '@/hooks/useCachedState';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -916,7 +917,7 @@ export default function EditJobScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:  { padding: 16, flexGrow: 1 },
+  container:  { padding: 16, paddingBottom: FORM_BOTTOM_SPACING, flexGrow: 1 },
   label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
   select: { marginBottom: 12 },
   helperText: { marginTop: -4, marginBottom: 8, fontSize: 12 },

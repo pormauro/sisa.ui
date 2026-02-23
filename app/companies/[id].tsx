@@ -27,6 +27,7 @@ import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
 import { formatCompanyAddress } from '@/utils/address';
 import { toNumericCoordinate } from '@/utils/coordinates';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 
 const IVA_OPTIONS = [
   { label: 'Responsable Inscripto', value: 'Responsable Inscripto' },
@@ -900,7 +901,7 @@ export default function EditCompanyPage() {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    paddingBottom: 160,
+    paddingBottom: FORM_BOTTOM_SPACING,
   },
   sectionTitle: {
     fontSize: 20,
