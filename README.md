@@ -118,6 +118,7 @@ La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/
 - `npm run lint`: ejecuta `expo lint` con la configuración ESLint del proyecto.
 - `npm run reset-project`: restaura el esqueleto inicial de Expo.
 - `npm install`: al finalizar `postinstall` ejecuta automáticamente `scripts/migrations/accounting-invoice-repair.php --apply` **si** existe PHP en PATH y están definidas `DB_NAME` + `DB_USER` (usa `SKIP_ACCOUNTING_INVOICE_REPAIR=1` para omitirlo explícitamente).
+- `php updates_install.php`: hook para instalaciones/actualizaciones que ejecuta `scripts/migrations/accounting-invoice-repair.php --apply` y devuelve el código de salida de la migración.
 
 ## Soporte y troubleshooting
 - **Problemas de compilación**: borra cachés con `npx expo start --clear`, reinstala dependencias (`rm -rf node_modules && npm install`) o ejecuta `npx expo-doctor`.
