@@ -117,6 +117,7 @@ La documentación funcional y técnica ampliada se mantiene en la carpeta `docs/
 - `npm run android`, `npm run ios`, `npm run web`: abre la app directamente en cada plataforma.
 - `npm run lint`: ejecuta `expo lint` con la configuración ESLint del proyecto.
 - `npm run reset-project`: restaura el esqueleto inicial de Expo.
+- `npm install`: al finalizar `postinstall` ejecuta automáticamente `scripts/migrations/accounting-invoice-repair.php --apply` **si** existe PHP en PATH y están definidas `DB_NAME` + `DB_USER` (usa `SKIP_ACCOUNTING_INVOICE_REPAIR=1` para omitirlo explícitamente).
 
 ## Soporte y troubleshooting
 - **Problemas de compilación**: borra cachés con `npx expo start --clear`, reinstala dependencias (`rm -rf node_modules && npm install`) o ejecuta `npx expo-doctor`.

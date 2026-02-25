@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && node ./scripts/run-accounting-invoice-repair.js",
     "lint": "expo lint",
     "check:cache": "node ./scripts/verify-context-cache.js"
   },
