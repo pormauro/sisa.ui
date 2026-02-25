@@ -1,7 +1,7 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking } from 'react-native';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
@@ -13,13 +13,17 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
+import { BASE_URL } from '@/config/Index';
+import { AuthContext } from '@/contexts/AuthContext';
 
 
 export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
+  const { token } = useContext(AuthContext);
   const canEditClient = permissions.includes('updateClient');
   const canDeleteClient = permissions.includes('deleteClient');
   const canViewClientCalendar = permissions.includes('listAppointments') || permissions.includes('listJobs');
+  const canExportClientJobsPdf = permissions.includes('exportClientJobsPdf');
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
@@ -88,11 +92,11 @@ export default function ClientDetailPage() {
   }, [client?.company, companies, companyId]);
 
   useEffect(() => {
-    if (!canEditClient && !canDeleteClient) {
+    if (!canEditClient && !canDeleteClient && !canExportClientJobsPdf) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este cliente.');
       router.back();
     }
-  }, [permissions]);
+  }, [canDeleteClient, canEditClient, canExportClientJobsPdf, router]);
 
   useEffect(() => {
     if (!companies.length) {
@@ -214,6 +218,68 @@ export default function ClientDetailPage() {
     );
   };
 
+  const handleGenerateClientJobsReport = async () => {
+    if (!canExportClientJobsPdf) {
+      Alert.alert('Acceso denegado', 'No tienes permiso para generar este reporte.');
+      return;
+    }
+
+    if (!Number.isFinite(clientId)) {
+      Alert.alert('Cliente inválido', 'No se pudo determinar el cliente para generar el reporte.');
+      return;
+    }
+
+    if (!token) {
+      Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para generar el reporte.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${BASE_URL}/jobs/client/${clientId}/report/pdf`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const downloadPath = typeof data?.download_url === 'string' ? data.download_url : '';
+      const normalizedDownloadUrl = downloadPath
+        ? /^https?:\/\//i.test(downloadPath)
+          ? downloadPath
+          : `${BASE_URL}${downloadPath.startsWith('/') ? '' : '/'}${downloadPath}`
+        : '';
+
+      Alert.alert(
+        'Reporte generado',
+        'El PDF fue generado correctamente.',
+        [
+          normalizedDownloadUrl
+            ? {
+                text: 'Descargar',
+                onPress: () => {
+                  void Linking.openURL(normalizedDownloadUrl);
+                },
+              }
+            : { text: 'OK' },
+          { text: 'Cerrar', style: 'cancel' },
+        ]
+      );
+    } catch (error) {
+      console.error('Error al generar reporte de trabajos del cliente:', error);
+      Alert.alert('Error', 'No se pudo generar el reporte.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -305,6 +371,19 @@ export default function ClientDetailPage() {
           onPress={() => router.push({ pathname: '/clients/calendar', params: { id: client.id.toString() } })}
         >
           <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Abrir Calendario A</ThemedText>
+        </TouchableOpacity>
+      )}
+      {canExportClientJobsPdf && (
+        <TouchableOpacity
+          style={[styles.calendarButton, { backgroundColor: buttonColor }]}
+          onPress={handleGenerateClientJobsReport}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={buttonTextColor} />
+          ) : (
+            <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Generar informe PDF</ThemedText>
+          )}
         </TouchableOpacity>
       )}
       {canEditClient && (

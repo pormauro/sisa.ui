@@ -2120,6 +2120,99 @@
             "description": "**GET {{baseUrl}}/jobs/{{jobId}}/history**\n\nDescripción: Endpoint `Job History` dentro de Jobs.\n\n> Comentario: Requiere enviar el encabezado Authorization con el valor `Bearer {{auth_token}}`."
           },
           "response": []
+        },
+        {
+          "name": "Generate Client Jobs PDF",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/jobs/client/{{client_id}}/report/pdf",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "jobs",
+                "client",
+                "{{client_id}}",
+                "report",
+                "pdf"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains file_id\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.file_id).to.exist;",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains report_id\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.report_id).to.exist;",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.download_url) {",
+                  "        pm.collectionVariables.set(\"download_url\", jsonData.download_url);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Download Generated Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}{{download_url}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "{{download_url}}"
+              ]
+            }
+          },
+          "response": []
         }
       ],
       "description": "Endpoints para gestionar Jobs. Utiliza autenticación Bearer mediante la variable `{{auth_token}}`."
@@ -10056,6 +10149,14 @@
         "content": "Identificador de la transferencia creada; se usa para filtrar asientos `origin_id`.",
         "type": "text/plain"
       }
+    },
+    {
+      "key": "client_id",
+      "value": ""
+    },
+    {
+      "key": "download_url",
+      "value": ""
     }
   ]
 }
