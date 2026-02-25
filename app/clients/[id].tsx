@@ -19,7 +19,6 @@ export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
   const canEditClient = permissions.includes('updateClient');
   const canDeleteClient = permissions.includes('deleteClient');
-  const canViewClientCalendar = permissions.includes('listAppointments') || permissions.includes('listJobs');
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
@@ -92,7 +91,7 @@ export default function ClientDetailPage() {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este cliente.');
       router.back();
     }
-  }, [permissions]);
+  }, [canDeleteClient, canEditClient, router]);
 
   useEffect(() => {
     if (!companies.length) {
@@ -214,6 +213,7 @@ export default function ClientDetailPage() {
     );
   };
 
+
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -299,14 +299,6 @@ export default function ClientDetailPage() {
           router.push(`/tariffs/${value}`);
         }}
       />
-      {canViewClientCalendar && (
-        <TouchableOpacity
-          style={[styles.calendarButton, { backgroundColor: buttonColor }]}
-          onPress={() => router.push({ pathname: '/clients/calendar', params: { id: client.id.toString() } })}
-        >
-          <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Abrir Calendario A</ThemedText>
-        </TouchableOpacity>
-      )}
       {canEditClient && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -370,16 +362,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     padding: 10,
-  },
-  calendarButton: {
-    marginTop: 8,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  calendarButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   submitButton: {
     marginTop: 16,

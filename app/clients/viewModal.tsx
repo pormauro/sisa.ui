@@ -1,7 +1,7 @@
 // /app/clients/viewModal.tsx
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import React, { useCallback, useContext, useEffect } from 'react';
-import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
+import { ScrollView, View, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import CircleImagePicker from '@/components/CircleImagePicker';
@@ -14,6 +14,12 @@ import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { AuthContext } from '@/contexts/AuthContext';
+import { BASE_URL } from '@/config/Index';
+import { ensureAuthResponse } from '@/utils/auth/tokenGuard';
+import { openAttachment } from '@/utils/files/openAttachment';
+import { fileStorage } from '@/utils/files/storage';
+import { Buffer } from 'buffer';
 
 export default function ViewClientModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,6 +32,8 @@ export default function ViewClientModal() {
   const { getTotalForClient } = useClientFinalizedJobTotals();
   const { getSummary: getInvoiceSummary } = useClientInvoiceSummary();
   const { permissions } = useContext(PermissionsContext);
+  const { token } = useContext(AuthContext);
+  const [isGeneratingClientReport, setIsGeneratingClientReport] = useState(false);
 
   const client = clients.find(c => c.id === clientId);
   const tariff = tariffs.find(t => t.id === client?.tariff_id);
@@ -35,6 +43,7 @@ export default function ViewClientModal() {
   const canViewReceipts = permissions.includes('listReceipts');
   const canViewAccounting = canViewInvoices || canViewReceipts;
   const canViewClientCalendar = permissions.includes('listAppointments') || canViewJobs;
+  const canExportClientJobsPdf = permissions.includes('exportClientJobsPdf');
 
   useEffect(() => {
     const title = client?.business_name ?? 'Cliente';
@@ -79,6 +88,100 @@ export default function ViewClientModal() {
     router.push(`/clients/unpaidInvoices?id=${client.id}`);
   };
 
+
+  const downloadReportFromUrl = async (downloadUrl: string) => {
+      if (!token) {
+        Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para descargar el reporte.');
+        return;
+      }
+
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/pdf',
+        },
+      });
+
+      await ensureAuthResponse(response);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(errorText || 'No se pudo descargar el PDF generado.');
+      }
+
+      const contentType = response.headers.get('content-type') ?? 'application/pdf';
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error('El PDF descargado está vacío.');
+      }
+
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const safeClientName = (client.business_name || `cliente_${client.id}`)
+        .trim()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+        .toLowerCase();
+      const fileName = `trabajos_${safeClientName || `cliente_${client.id}`}_${Date.now()}.pdf`;
+      const storagePath = `${fileStorage.documentDirectory ?? ''}${fileName}`;
+      const { uri } = await fileStorage.write(storagePath, base64, 'application/pdf');
+
+      await openAttachment({
+        uri,
+        fileName,
+        mimeType: contentType.split(';')[0] || 'application/pdf',
+        kind: 'pdf',
+      });
+    };
+
+  const handleGenerateClientJobsPdf = async () => {
+    if (!canExportClientJobsPdf) {
+      Alert.alert('Permiso requerido', 'No tenés permiso para generar este reporte.');
+      return;
+    }
+
+    if (!token) {
+      Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para generar el reporte.');
+      return;
+    }
+
+    setIsGeneratingClientReport(true);
+    try {
+      const response = await fetch(`${BASE_URL}/jobs/client/${client.id}/report/pdf`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
+      });
+
+      await ensureAuthResponse(response);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        throw new Error(errorText || 'No se pudo generar el reporte de trabajos.');
+      }
+
+      const data = await response.json();
+      const rawDownloadUrl = typeof data?.download_url === 'string' ? data.download_url : '';
+      if (!rawDownloadUrl) {
+        Alert.alert('Reporte generado', 'El backend no devolvió una URL de descarga.');
+        return;
+      }
+
+      const resolvedDownloadUrl = /^https?:\/\//i.test(rawDownloadUrl)
+        ? rawDownloadUrl
+        : `${BASE_URL}${rawDownloadUrl.startsWith('/') ? '' : '/'}${rawDownloadUrl}`;
+
+      await downloadReportFromUrl(resolvedDownloadUrl);
+    } catch (error) {
+      console.error('Error al generar/descargar reporte PDF del cliente:', error);
+      Alert.alert('Error', 'No se pudo generar o descargar el reporte de trabajos.');
+    } finally {
+      setIsGeneratingClientReport(false);
+    }
+  };
+
   const actionButtons = [
     {
       key: 'edit',
@@ -93,6 +196,15 @@ export default function ViewClientModal() {
       icon: 'calendar-outline' as const,
       visible: canViewClientCalendar,
       onPress: () => router.push(`/clients/calendar?id=${client.id}`),
+    },
+    {
+      key: 'client-jobs-pdf',
+      label: 'Informe PDF',
+      icon: 'download-outline' as const,
+      visible: canExportClientJobsPdf,
+      onPress: () => {
+        void handleGenerateClientJobsPdf();
+      },
     },
     {
       key: 'jobs',
@@ -215,6 +327,13 @@ export default function ViewClientModal() {
         </>
       ) : null}
 
+      {isGeneratingClientReport ? (
+        <View style={styles.loadingReportRow}>
+          <ActivityIndicator size="small" />
+          <ThemedText style={styles.loadingReportText}>Generando informe PDF...</ThemedText>
+        </View>
+      ) : null}
+
       {actionButtons.length ? (
         <View style={styles.actionsContainer}>
           {actionButtons.map(button => (
@@ -270,6 +389,15 @@ const styles = StyleSheet.create({
   invoiceSummaryLabel: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', opacity: 0.8 },
   invoiceSummaryValue: { fontSize: 18, fontWeight: '700', marginTop: 6 },
   invoiceSummaryMeta: { marginTop: 4, fontSize: 12, fontWeight: '600' },
+  loadingReportRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 8,
+  },
+  loadingReportText: {
+    fontSize: 14,
+  },
   actionsContainer: {
     marginTop: 24,
     flexDirection: 'row',
