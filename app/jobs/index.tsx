@@ -1,5 +1,5 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
-import React, { useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useMemo, useCallback, useLayoutEffect } from 'react';
 import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DaySeparator } from '@/components/DaySeparator';
@@ -20,6 +20,7 @@ import { formatTimeInterval } from '@/utils/time';
 import { sortByNewest } from '@/utils/sort';
 import { formatCurrency } from '@/utils/currency';
 import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
+import { useNavigation } from '@react-navigation/native';
 
 type SortField = 'updatedAt' | 'jobDate' | 'clientName' | 'status';
 type SortDirection = 'asc' | 'desc';
@@ -39,6 +40,7 @@ export default function JobsScreen() {
   const { tariffs } = useContext(TariffsContext);
   const { folders } = useContext(FoldersContext);
   const router = useRouter();
+  const navigation = useNavigation();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [sortField, setSortField] = useState<SortField>('jobDate');
@@ -60,6 +62,28 @@ export default function JobsScreen() {
 
   const canListJobs = permissions.includes('listJobs');
   const { refreshing, handleRefresh } = usePullToRefresh(loadJobs, canListJobs);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={[
+            styles.headerControlsToggleButton,
+            { backgroundColor: inputBackground, borderColor }
+          ]}
+          onPress={() => setControlsExpanded(prev => !prev)}
+          accessibilityRole="button"
+          accessibilityLabel={controlsExpanded ? 'Ocultar buscador y filtros' : 'Mostrar buscador y filtros'}
+        >
+          <Ionicons
+            name={controlsExpanded ? 'close' : 'options'}
+            size={18}
+            color={inputTextColor}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [borderColor, controlsExpanded, inputBackground, inputTextColor, navigation]);
 
   useEffect(() => {
     if (!canListJobs) {
@@ -300,25 +324,7 @@ export default function JobsScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.headerRow}>
-        <ThemedText style={styles.screenTitle}>Trabajos</ThemedText>
-        <TouchableOpacity
-          style={[
-            styles.controlsToggleButton,
-            { backgroundColor: inputBackground, borderColor }
-          ]}
-          onPress={() => setControlsExpanded(prev => !prev)}
-          accessibilityRole="button"
-          accessibilityLabel={controlsExpanded ? 'Ocultar buscador y filtros' : 'Mostrar buscador y filtros'}
-        >
-          <Ionicons
-            name={controlsExpanded ? 'close' : 'options'}
-            size={20}
-            color={inputTextColor}
-          />
-        </TouchableOpacity>
-      </View>
+    <ThemedView style={[styles.container, { backgroundColor: background }]}> 
       {controlsExpanded && (
         <>
           <View style={styles.searchRow}>
@@ -437,23 +443,13 @@ export default function JobsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  screenTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  controlsToggleButton: {
+  headerControlsToggleButton: {
     borderWidth: 1,
     borderRadius: 999,
-    width: 40,
-    height: 40,
+    width: 34,
+    height: 34,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   searchRow: {
     flexDirection: 'row',
