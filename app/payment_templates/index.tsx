@@ -158,6 +158,39 @@ export default function PaymentTemplatesScreen() {
   const canCreate = permissions.includes('addPaymentTemplate');
   const canDelete = permissions.includes('deletePaymentTemplate');
   const canEdit = permissions.includes('updatePaymentTemplate');
+  const canAddPayment = permissions.includes('addPayment');
+
+  const openPaymentFromTemplate = useCallback(
+    (item: TemplateListItem) => {
+      if (!canAddPayment) {
+        Alert.alert('Acceso denegado', 'No tienes permiso para agregar pagos.');
+        return;
+      }
+
+      router.push({
+        pathname: '/payments/create',
+        params: {
+          templateId: item.id.toString(),
+          fromTemplate: '1',
+          paidWithAccount: item.default_paid_with_account ?? '',
+          creditorType: item.default_creditor_type,
+          creditorClientId: item.default_creditor_client_id?.toString() ?? '',
+          creditorProviderId: item.default_creditor_provider_id?.toString() ?? '',
+          creditorOther: item.default_creditor_other ?? '',
+          categoryId: item.default_category_id?.toString() ?? '',
+          amount:
+            typeof item.default_amount === 'number'
+              ? item.default_amount.toString()
+              : '',
+          chargeClient: item.default_charge_client ? '1' : '0',
+          chargeClientId: item.default_charge_client_id?.toString() ?? '',
+          paymentDate: item.default_payment_date ?? '',
+          description: item.description ?? '',
+        },
+      });
+    },
+    [canAddPayment, router]
+  );
 
   const handleDelete = useCallback(
     (id: number) => {
@@ -182,7 +215,7 @@ export default function PaymentTemplatesScreen() {
           title={item.name}
           subtitle={`${item.displayAmount} · Actualizada ${item.displayUpdatedAt}`}
           icon={resolvePaymentTemplateIcon(item.icon_name)}
-          onPress={() => router.push(`/payment_templates/viewModal?id=${item.id}`)}
+          onPress={() => openPaymentFromTemplate(item)}
           onLongPress={canEdit ? () => router.push(`/payment_templates/${item.id}`) : undefined}
         />
         {canDelete ? (
@@ -196,7 +229,16 @@ export default function PaymentTemplatesScreen() {
         ) : null}
       </View>
     ),
-    [borderColor, canDelete, canEdit, handleDelete, inputBackground, router, tintColor]
+    [
+      borderColor,
+      canDelete,
+      canEdit,
+      handleDelete,
+      inputBackground,
+      openPaymentFromTemplate,
+      router,
+      tintColor,
+    ]
   );
 
   return (
@@ -333,4 +375,3 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 });
-
