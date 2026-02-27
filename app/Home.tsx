@@ -58,9 +58,7 @@ const Menu: React.FC = () => {
   const visibleSections = MENU_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter(isEnabled),
-  }))
-    .filter((section) => section.key !== 'shortcuts')
-    .filter((section) => section.items.length > 0);
+  })).filter((section) => section.items.length > 0);
 
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');

@@ -109,13 +109,7 @@ export const BottomNavigationBar: React.FC = () => {
     router.push(`/companies/viewModal?id=${company.id}`);
   };
 
-  const brandLabel = useMemo(() => {
-    if (!selectedCompany) {
-      return 'Empresas';
-    }
-    const name = (selectedCompany.name ?? selectedCompany.legal_name ?? '').trim() || `Empresa #${selectedCompany.id}`;
-    return name.length > 16 ? `${name.slice(0, 15)}…` : name;
-  }, [selectedCompany]);
+  const brandLabel = 'Empresas';
 
   const brandImageSource = companyLogoUri
     ? { uri: companyLogoUri }
@@ -125,8 +119,8 @@ export const BottomNavigationBar: React.FC = () => {
     { key: 'home', label: 'Inicio', icon: 'home', route: '/Home' },
     { key: 'notifications', label: 'Avisos', icon: 'notifications-outline', badge: unreadCount, route: '/notifications' },
     { key: 'brand', label: brandLabel, isBrand: true, action: openCompanyModal },
-    { key: 'profile', label: 'Perfil', icon: 'person-circle-outline', route: '/user/ProfileScreen' },
-    { key: 'shortcuts', label: 'Atajos', icon: 'flash-outline', route: '/menu/shortcuts', translateY: -4 },
+    { key: 'payments', label: 'Pagos', icon: 'cash-outline', route: '/payment_templates' },
+    { key: 'jobs', label: 'Trabajos', icon: 'briefcase-outline', route: '/jobs' },
   ];
 
   const bottomPadding = Math.max(insets.bottom + 8, 12);
