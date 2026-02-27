@@ -34,6 +34,7 @@ import { formatCurrency } from '@/utils/currency';
 import { formatDateForApi } from '@/utils/dateTime';
 import { useCachedState } from '@/hooks/useCachedState';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
+import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -263,9 +264,16 @@ export default function CreateJobScreen() {
   );
 
   const filteredFolders = useMemo(() => {
-    if (!selectedClient) return [];
-    const cid = parseInt(selectedClient, 10);
-    return folders.filter(f => f.client_id === cid);
+    if (!selectedClient) {
+      return [];
+    }
+
+    const clientId = Number.parseInt(selectedClient, 10);
+    if (Number.isNaN(clientId)) {
+      return [];
+    }
+
+    return getDisplayFolders(folders, clientId);
   }, [folders, selectedClient]);
 
   const folderItems = useMemo(
@@ -273,7 +281,7 @@ export default function CreateJobScreen() {
       { label: '-- Sin carpeta --', value: '' },
       { label: '➕ Agregar carpeta', value: NEW_FOLDER_VALUE },
       ...filteredFolders.map(folder => ({
-        label: folder.name,
+        label: getFolderIndentedName(folder.name, folder.level),
         value: folder.id.toString(),
       })),
     ],

@@ -33,6 +33,7 @@ import { TariffsContext } from '@/contexts/TariffsContext';
 import { formatCurrency } from '@/utils/currency';
 import { useCachedState } from '@/hooks/useCachedState';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
+import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -470,9 +471,18 @@ export default function EditJobScreen() {
         ];
       }
 
-      const clientFolders = folders
-        .filter(f => f.client_id === Number(selectedClientId))
-        .map(f => ({ id: f.id, name: f.name }));
+      const clientId = Number(selectedClientId);
+      if (Number.isNaN(clientId)) {
+        return [
+          { id: NO_FOLDER_VALUE, name: '-- Sin carpeta --' },
+          { id: NEW_FOLDER_VALUE, name: '➕ Agregar carpeta' },
+        ];
+      }
+
+      const clientFolders = getDisplayFolders(folders, clientId).map(f => ({
+        id: f.id,
+        name: getFolderIndentedName(f.name, f.level),
+      }));
 
       return [
         { id: NO_FOLDER_VALUE, name: '-- Sin carpeta --' },
