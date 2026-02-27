@@ -44,6 +44,7 @@ export default function JobsScreen() {
   const [sortField, setSortField] = useState<SortField>('jobDate');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [filtersVisible, setFiltersVisible] = useState(false);
+  const [controlsExpanded, setControlsExpanded] = useState(false);
 
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -300,45 +301,67 @@ export default function JobsScreen() {
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
-      <View style={styles.searchRow}>
-        <TextInput
-          style={[
-            styles.search,
-            { backgroundColor: inputBackground, color: inputTextColor, borderColor }
-          ]}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Buscar trabajo..."
-          placeholderTextColor={placeholderColor}
-        />
+      <View style={styles.headerRow}>
+        <ThemedText style={styles.screenTitle}>Trabajos</ThemedText>
         <TouchableOpacity
           style={[
-            styles.sortDirectionButton,
+            styles.controlsToggleButton,
             { backgroundColor: inputBackground, borderColor }
           ]}
-          onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+          onPress={() => setControlsExpanded(prev => !prev)}
+          accessibilityRole="button"
+          accessibilityLabel={controlsExpanded ? 'Ocultar buscador y filtros' : 'Mostrar buscador y filtros'}
         >
           <Ionicons
-            name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+            name={controlsExpanded ? 'close' : 'options'}
             size={20}
             color={inputTextColor}
           />
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.filterButton,
-            { backgroundColor: inputBackground, borderColor }
-          ]}
-          onPress={() => setFiltersVisible(true)}
-        >
-          <Ionicons name="filter" size={20} color={inputTextColor} />
-        </TouchableOpacity>
       </View>
-      <View style={styles.filterSummaryRow}>
-        <ThemedText style={styles.filterSummaryText}>
-          Ordenado por {currentSortLabel} · {sortDirectionLabel}
-        </ThemedText>
-      </View>
+      {controlsExpanded && (
+        <>
+          <View style={styles.searchRow}>
+            <TextInput
+              style={[
+                styles.search,
+                { backgroundColor: inputBackground, color: inputTextColor, borderColor }
+              ]}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Buscar trabajo..."
+              placeholderTextColor={placeholderColor}
+            />
+            <TouchableOpacity
+              style={[
+                styles.sortDirectionButton,
+                { backgroundColor: inputBackground, borderColor }
+              ]}
+              onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+            >
+              <Ionicons
+                name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={inputTextColor}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                { backgroundColor: inputBackground, borderColor }
+              ]}
+              onPress={() => setFiltersVisible(true)}
+            >
+              <Ionicons name="filter" size={20} color={inputTextColor} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.filterSummaryRow}>
+            <ThemedText style={styles.filterSummaryText}>
+              Ordenado por {currentSortLabel} · {sortDirectionLabel}
+            </ThemedText>
+          </View>
+        </>
+      )}
       <FlatList
         data={jobsWithSeparators}
         keyExtractor={(item) =>
@@ -414,6 +437,24 @@ export default function JobsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  controlsToggleButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
