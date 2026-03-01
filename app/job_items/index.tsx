@@ -14,7 +14,10 @@ import { PermissionsContext } from "@/contexts/PermissionsContext";
 import { useThemeColor } from "@/hooks/useThemeColor";
 
 export default function JobItemsScreen() {
-  const { job_id } = useLocalSearchParams<{ job_id?: string }>();
+  const { job_id, jobId: camelCaseJobId } = useLocalSearchParams<{
+    job_id?: string;
+    jobId?: string;
+  }>();
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
   const { jobItems, loadJobItems, deleteJobItem, reorderJobItems } =
@@ -22,7 +25,7 @@ export default function JobItemsScreen() {
 
   const canListJobItems = permissions.includes("listJobItems");
   const canReorderJobItems = permissions.includes("updateJobItem");
-  const jobId = Number(job_id);
+  const jobId = Number(job_id ?? camelCaseJobId);
   const textColor = useThemeColor({}, "text");
   const borderColor = useThemeColor(
     { light: "#ddd", dark: "#555" },
