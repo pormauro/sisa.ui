@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useMemo } from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { JobsContext } from '@/contexts/JobsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
@@ -57,6 +57,7 @@ export default function ViewJobModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const jobId = Number(id);
   const navigation = useNavigation();
+  const router = useRouter();
   const { jobs } = useContext(JobsContext);
   const { clients } = useContext(ClientsContext);
   const { statuses } = useContext(StatusesContext);
@@ -230,6 +231,16 @@ export default function ViewJobModal() {
       <ThemedText style={[styles.label, { color: textColor }]}>Archivos</ThemedText>
       <FileGallery entityType="job" entityId={job.id} filesJson={job.attached_files ?? null} />
 
+
+      {permissions.includes('updateJob') ? (
+        <TouchableOpacity
+          style={[styles.editButton, { backgroundColor: accentColor }]}
+          onPress={() => router.push(`/jobs/${job.id}`)}
+        >
+          <ThemedText style={styles.editButtonText}>Editar trabajo</ThemedText>
+        </TouchableOpacity>
+      ) : null}
+
       <ThemedText style={[styles.label, { color: textColor }]}>ID</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>
       <JobItemsSection
@@ -244,6 +255,19 @@ export default function ViewJobModal() {
 
 const styles = StyleSheet.create({
   container: { padding: 16, flexGrow: 1 },
+  editButton: {
+    marginTop: 16,
+    alignSelf: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
   timeCostCard: {

@@ -121,6 +121,11 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
     void loadJobItems(jobId);
   }, [editingJobItemDescription, editingJobItemId, jobId, loadJobItems, permissions, updateJobItem]);
 
+  const handleCancelInlineEditJobItem = useCallback(() => {
+    setEditingJobItemId(null);
+    setEditingJobItemDescription('');
+  }, []);
+
   const handleCreateInlineJobItem = useCallback(async () => {
     if (!permissions.includes('addJobItem') || isCreatingItem) {
       return;
@@ -207,18 +212,14 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
                         <Ionicons name="checkmark" size={22} color={btnSaveColor} />
                       )}
                     </TouchableOpacity>
-
-                    {canDelete ? (
-                      <TouchableOpacity
-                        onPress={() => handleDeleteJobItem(item.id)}
-                        style={styles.actionIconButton}
-                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={styles.actionIconButton} />
-                    )}
+                    <TouchableOpacity
+                      onPress={handleCancelInlineEditJobItem}
+                      disabled={isSavingInline}
+                      style={styles.actionIconButton}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                    >
+                      <Ionicons name="close" size={22} color={placeholderColor} />
+                    </TouchableOpacity>
                   </View>
                 </>
               ) : (
@@ -306,7 +307,6 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
                 />
               )}
             </TouchableOpacity>
-            <View style={styles.actionIconButton} />
           </View>
         </View>
       )}
@@ -339,9 +339,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   itemActionsGroup: {
-    width: 56,
+    minWidth: 24,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
+    gap: 8,
     marginLeft: 4,
   },
   actionIconButton: { width: 24, alignItems: 'center', justifyContent: 'center' },
