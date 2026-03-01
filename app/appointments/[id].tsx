@@ -16,7 +16,6 @@ import { AppointmentsContext } from '@/contexts/AppointmentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { JobsContext } from '@/contexts/JobsContext';
-import { FileGallery } from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -27,13 +26,6 @@ import { SELECTION_KEYS } from '@/constants/selectionKeys';
 
 const NEW_CLIENT_VALUE = '__new_client__';
 const NEW_JOB_VALUE = '__new_job__';
-
-const parseDateTime = (date: string, time: string) => {
-  const [hours = '00', minutes = '00'] = time.split(':');
-  const parsed = new Date(`${date}T00:00:00`);
-  parsed.setHours(Number(hours), Number(minutes), 0, 0);
-  return parsed;
-};
 
 const formatDateLabel = (date: Date) =>
   date.toLocaleDateString('es-AR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -59,8 +51,7 @@ export default function EditAppointmentScreen() {
   const [dateTime, setDateTime] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [location, setLocation] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState('');
+  const [comment, setComment] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -87,11 +78,9 @@ export default function EditAppointmentScreen() {
     }
     setSelectedClient(appointment.client_id.toString());
     setSelectedJob(appointment.job_id ? appointment.job_id.toString() : '');
-    setDateTime(parseDateTime(appointment.appointment_date, appointment.appointment_time));
-    const existingLocation = appointment.location || '';
-    setLocation(existingLocation);
+    setDateTime(new Date(appointment.appointment));
+    setComment(appointment.comment ?? '');
     lastSyncedClientRef.current = appointment.client_id.toString();
-    setAttachedFiles(appointment.attached_files || '');
   }, [appointment, loadAppointments]);
 
   useEffect(() => {
@@ -211,32 +200,26 @@ export default function EditAppointmentScreen() {
     }
     if (lastSyncedClientRef.current !== selectedClient) {
       lastSyncedClientRef.current = selectedClient || null;
-      setLocation('');
     }
   }, [selectedClient]);
 
-  const handleLocationChange = (value: string) => {
-    setLocation(value);
-  };
-
   const handleSave = async () => {
     if (!appointment) return;
-    if (!selectedClient || !location.trim()) {
-      Alert.alert('Campos incompletos', 'Selecciona un cliente e ingresa la ubicación de la visita.');
+    if (!selectedClient) {
+      Alert.alert('Campos incompletos', 'Selecciona un cliente para la visita.');
       return;
     }
+
     const appointmentDate = formatDateForApi(dateTime);
     const appointmentTime = formatTimeForApi(dateTime);
+    const appointmentDateTime = `${appointmentDate} ${appointmentTime}`;
 
     setIsSaving(true);
     const ok = await updateAppointment(appointment.id, {
       client_id: Number(selectedClient),
       job_id: selectedJob ? Number(selectedJob) : null,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime,
-      location: location.trim(),
-      site_image_file_id: null,
-      attached_files: attachedFiles || null,
+      appointment: appointmentDateTime,
+      comment: comment.trim() ? comment.trim() : null,
     });
     setIsSaving(false);
 
@@ -278,7 +261,7 @@ export default function EditAppointmentScreen() {
   }
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -370,22 +353,14 @@ export default function EditAppointmentScreen() {
             />
           )}
 
-          <ThemedText style={styles.label}>Ubicación</ThemedText>
+          <ThemedText style={styles.label}>Comentario (opcional)</ThemedText>
           <TextInput
             style={[styles.input, { borderColor, color: inputTextColor }]}
-            value={location}
-            onChangeText={handleLocationChange}
-            placeholder="Dirección o referencia"
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Agregar comentario"
             placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-          <FileGallery
-            entityType="appointment"
-            entityId={appointmentId}
-            filesJson={attachedFiles}
-            onChangeFilesJson={setAttachedFiles}
-            editable={canEdit}
+            multiline
           />
         </View>
 
@@ -462,6 +437,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
+    minHeight: 88,
+    textAlignVertical: 'top',
   },
   saveButton: {
     alignItems: 'center',

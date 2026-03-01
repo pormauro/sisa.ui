@@ -16,7 +16,6 @@ import { AppointmentsContext } from '@/contexts/AppointmentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { JobsContext } from '@/contexts/JobsContext';
-import { FileGallery } from '@/components/FileGallery';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -54,7 +53,6 @@ export default function CreateAppointmentScreen() {
   const [selectedClient, setSelectedClient] = useState(initialClientParam);
   const [selectedJob, setSelectedJob] = useState('');
   const pendingJobSelectionRef = useRef<string | null>(null);
-  const previousClientRef = useRef<string | null>(initialClientParam || null);
   const [dateTime, setDateTime] = useState<Date>(() => {
     const now = new Date();
     now.setSeconds(0, 0);
@@ -72,8 +70,7 @@ export default function CreateAppointmentScreen() {
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [location, setLocation] = useState('');
-  const [attachedFiles, setAttachedFiles] = useState('');
+  const [comment, setComment] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   const screenBackground = useThemeColor({}, 'background');
@@ -200,35 +197,22 @@ export default function CreateAppointmentScreen() {
     setDateTime(updated);
   };
 
-  useEffect(() => {
-    if (previousClientRef.current === selectedClient) {
-      return;
-    }
-    previousClientRef.current = selectedClient;
-    setLocation('');
-  }, [selectedClient]);
-
-  const handleLocationChange = (value: string) => {
-    setLocation(value);
-  };
-
   const handleSave = async () => {
-    if (!selectedClient || !location.trim()) {
-      Alert.alert('Campos incompletos', 'Selecciona un cliente e ingresa la ubicación de la visita.');
+    if (!selectedClient) {
+      Alert.alert('Campos incompletos', 'Selecciona un cliente para la visita.');
       return;
     }
+
     const appointmentDate = formatDateForApi(dateTime);
     const appointmentTime = formatTimeForApi(dateTime);
+    const appointment = `${appointmentDate} ${appointmentTime}`;
 
     setIsSaving(true);
     const result = await addAppointment({
       client_id: Number(selectedClient),
       job_id: selectedJob ? Number(selectedJob) : null,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime,
-      location: location.trim(),
-      site_image_file_id: null,
-      attached_files: attachedFiles || null,
+      appointment,
+      comment: comment.trim() ? comment.trim() : null,
     });
     setIsSaving(false);
 
@@ -239,7 +223,7 @@ export default function CreateAppointmentScreen() {
   };
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
+    <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}>
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -330,22 +314,14 @@ export default function CreateAppointmentScreen() {
             />
           )}
 
-          <ThemedText style={styles.label}>Ubicación</ThemedText>
+          <ThemedText style={styles.label}>Comentario (opcional)</ThemedText>
           <TextInput
             style={[styles.input, { borderColor, color: inputTextColor }]}
-            value={location}
-            onChangeText={handleLocationChange}
-            placeholder="Dirección o referencia"
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Agregar comentario"
             placeholderTextColor={placeholderColor}
-          />
-
-          <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
-          <FileGallery
-            entityType="appointment"
-            entityId={0}
-            filesJson={attachedFiles}
-            onChangeFilesJson={setAttachedFiles}
-            editable
+            multiline
           />
         </View>
 
@@ -403,6 +379,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
+    minHeight: 88,
+    textAlignVertical: 'top',
   },
   saveButton: {
     alignItems: 'center',
