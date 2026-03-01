@@ -909,7 +909,7 @@ export default function EditJobScreen() {
                 </ThemedText>
 
                 {permissions.includes('updateJobItem') && (
-                  <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}`)}>
+                  <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}?job_id=${jobId}`)}>
                     <ThemedText style={styles.editButton}>Editar</ThemedText>
                   </TouchableOpacity>
                 )}

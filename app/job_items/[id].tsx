@@ -60,6 +60,8 @@ export default function EditJobItemScreen() {
 
     if (item?.job_id) {
       await loadJobItems(item.job_id);
+      router.push(`/job_items/index?job_id=${item.job_id}`);
+      return;
     }
 
     router.back();
@@ -79,15 +81,31 @@ export default function EditJobItemScreen() {
 
     if (item?.job_id) {
       await loadJobItems(item.job_id);
+      router.push(`/job_items/index?job_id=${item.job_id}`);
+      return;
     }
 
     router.back();
+  };
+
+  const handleOpenList = () => {
+    const targetJobId = item?.job_id ?? (Number.isNaN(jobId) ? null : jobId);
+    if (!targetJobId) {
+      router.back();
+      return;
+    }
+    router.push(`/job_items/index?job_id=${targetJobId}`);
   };
 
   if (!item) {
     return (
       <ThemedView style={styles.container}>
         <ThemedText style={{ color: textColor }}>Item no encontrado.</ThemedText>
+        {!Number.isNaN(jobId) && jobId > 0 && (
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleOpenList}>
+            <ThemedText style={styles.secondaryButtonText}>Ir a la lista de items</ThemedText>
+          </TouchableOpacity>
+        )}
       </ThemedView>
     );
   }
@@ -129,6 +147,10 @@ export default function EditJobItemScreen() {
             <ThemedText style={styles.buttonText}>Eliminar</ThemedText>
           </TouchableOpacity>
         )}
+
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleOpenList}>
+          <ThemedText style={styles.secondaryButtonText}>Ir a la lista de items</ThemedText>
+        </TouchableOpacity>
       </ScrollView>
     </ThemedView>
   );
@@ -158,5 +180,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#dc3545',
     alignItems: 'center',
   },
+  secondaryButton: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2C2546',
+    alignItems: 'center',
+  },
+  secondaryButtonText: { color: '#2C2546', fontWeight: '600' },
   buttonText: { color: '#fff', fontWeight: '600' },
 });
