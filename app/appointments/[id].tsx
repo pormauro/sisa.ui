@@ -56,6 +56,7 @@ export default function EditAppointmentScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const lastSyncedClientRef = useRef<string | null>(null);
+  const isInitializedRef = useRef(false);
   const pendingJobSelectionRef = useRef<string | null>(null);
 
   const screenBackground = useThemeColor({}, 'background');
@@ -76,11 +77,13 @@ export default function EditAppointmentScreen() {
       loadAppointments();
       return;
     }
+
     setSelectedClient(appointment.client_id.toString());
     setSelectedJob(appointment.job_id ? appointment.job_id.toString() : '');
     setDateTime(new Date(appointment.appointment));
     setComment(appointment.comment ?? '');
     lastSyncedClientRef.current = appointment.client_id.toString();
+    isInitializedRef.current = true;
   }, [appointment, loadAppointments]);
 
   useEffect(() => {
@@ -154,13 +157,13 @@ export default function EditAppointmentScreen() {
   }, [clientJobs, jobPlaceholder, selectedClient, selectedJob]);
 
   useEffect(() => {
-    if (!selectedClient) {
-      setSelectedJob('');
-      pendingJobSelectionRef.current = null;
+    if (!isInitializedRef.current) {
       return;
     }
 
-    if (!jobs.length) {
+    if (!selectedClient) {
+      setSelectedJob('');
+      pendingJobSelectionRef.current = null;
       return;
     }
 
@@ -182,7 +185,7 @@ export default function EditAppointmentScreen() {
     }
 
     setSelectedJob('');
-  }, [clientJobs, jobs.length, selectedClient, selectedJob]);
+  }, [clientJobs, selectedClient, selectedJob]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.appointments.client)) {
