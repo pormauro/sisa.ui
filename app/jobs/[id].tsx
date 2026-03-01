@@ -135,6 +135,9 @@ export default function EditJobScreen() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
+  const [editingJobItemId, setEditingJobItemId] = useState<number | null>(null);
+  const [editingJobItemDescription, setEditingJobItemDescription] = useState('');
+  const [savingJobItemId, setSavingJobItemId] = useState<number | null>(null);
   const [clientChangedByUser, setClientChangedByUser] = useState(false);
   const [draft, setDraft, draftHydrated] = useCachedState<{
     selectedClientId: string;
@@ -582,6 +585,45 @@ export default function EditJobScreen() {
     [jobItems, jobId, loadJobItems, permissions, updateJobItem]
   );
 
+  const handleStartInlineEditJobItem = useCallback((itemId: number) => {
+    if (!permissions.includes('updateJobItem')) {
+      return;
+    }
+
+    const item = jobItems.find(current => current.id === itemId);
+    if (!item) {
+      return;
+    }
+
+    setEditingJobItemId(itemId);
+    setEditingJobItemDescription(item.description ?? '');
+  }, [jobItems, permissions]);
+
+  const handleSaveInlineEditJobItem = useCallback(async () => {
+    if (!permissions.includes('updateJobItem') || editingJobItemId == null) {
+      return;
+    }
+
+    const nextDescription = editingJobItemDescription.trim();
+    if (!nextDescription) {
+      Alert.alert('Descripción requerida', 'El item debe tener una descripción.');
+      return;
+    }
+
+    setSavingJobItemId(editingJobItemId);
+    const ok = await updateJobItem(jobId, editingJobItemId, { description: nextDescription });
+    setSavingJobItemId(null);
+
+    if (!ok) {
+      Alert.alert('Error', 'No se pudo actualizar el item.');
+      return;
+    }
+
+    setEditingJobItemId(null);
+    setEditingJobItemDescription('');
+    void loadJobItems(jobId);
+  }, [editingJobItemDescription, editingJobItemId, jobId, loadJobItems, permissions, updateJobItem]);
+
   const handleSubmit = async () => {
     if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
@@ -926,18 +968,14 @@ export default function EditJobScreen() {
         {jobItems.length === 0 ? (
           <ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>
         ) : (
-          jobItems.map(item => (
-            <TouchableOpacity
+          jobItems.map(item => {
+            const isEditingInline = editingJobItemId === item.id;
+            const isSavingInline = savingJobItemId === item.id;
+
+            return (
+            <View
               key={item.id}
               style={[styles.itemChecklistRow, { borderColor }]}
-              activeOpacity={0.7}
-              onPress={() => void handleToggleJobItem(item.id)}
-              onLongPress={() => {
-                if (permissions.includes('updateJobItem')) {
-                  router.push(`/job_items/${item.id}?job_id=${jobId}`);
-                }
-              }}
-              delayLongPress={350}
             >
               <Ionicons
                 name={item.status === 'done' ? 'checkmark-circle' : 'ellipse-outline'}
@@ -945,15 +983,65 @@ export default function EditJobScreen() {
                 color={item.status === 'done' ? '#22c55e' : textColor}
               />
 
-              <ThemedText
-                style={[
-                  styles.itemChecklistDescription,
-                  { color: textColor },
-                  item.status === 'done' && styles.itemChecklistDescriptionDone,
-                ]}
-              >
-                {item.description?.trim() || 'Sin descripción'}
-              </ThemedText>
+              {isEditingInline ? (
+                <>
+                  <TextInput
+                    style={[
+                      styles.itemInlineInput,
+                      {
+                        color: inputTextColor,
+                        borderColor,
+                        backgroundColor: inputBackground,
+                      },
+                    ]}
+                    value={editingJobItemDescription}
+                    onChangeText={setEditingJobItemDescription}
+                    placeholder="Descripción del item"
+                    placeholderTextColor={placeholderColor}
+                    editable={!isSavingInline}
+                  />
+                  <TouchableOpacity
+                    onPress={() => void handleSaveInlineEditJobItem()}
+                    disabled={isSavingInline}
+                    style={styles.inlineConfirmButton}
+                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                  >
+                    {isSavingInline ? (
+                      <ActivityIndicator size="small" color={btnSaveColor} />
+                    ) : (
+                      <Ionicons name="checkmark" size={22} color={btnSaveColor} />
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.itemTextPressable}
+                  activeOpacity={0.7}
+                  onPress={() => void handleToggleJobItem(item.id)}
+                  onLongPress={() => handleStartInlineEditJobItem(item.id)}
+                  delayLongPress={350}
+                >
+                  <ThemedText
+                    style={[
+                      styles.itemChecklistDescription,
+                      { color: textColor },
+                      item.status === 'done' && styles.itemChecklistDescriptionDone,
+                    ]}
+                  >
+                    {item.description?.trim() || 'Sin descripción'}
+                  </ThemedText>
+                </TouchableOpacity>
+              )}
+
+              {permissions.includes('updateJobItem') && !isEditingInline && (
+                <TouchableOpacity
+                  onPress={() => router.push(`/job_items/${item.id}?job_id=${jobId}`)}
+                  style={styles.editIconButton}
+                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                >
+                  <Ionicons name="create-outline" size={20} color={textColor} />
+                </TouchableOpacity>
+              )}
 
               {permissions.includes('deleteJobItem') && (
                 <TouchableOpacity
@@ -964,8 +1052,8 @@ export default function EditJobScreen() {
                   <Ionicons name="trash-outline" size={20} color="#ef4444" />
                 </TouchableOpacity>
               )}
-            </TouchableOpacity>
-          ))
+            </View>
+          )})
         )}
 
         {permissions.includes('addJobItem') && (
@@ -1069,6 +1157,20 @@ const styles = StyleSheet.create({
   },
   itemChecklistDescription: { flex: 1, fontSize: 15 },
   itemChecklistDescriptionDone: { textDecorationLine: 'line-through', opacity: 0.7 },
+  itemTextPressable: { flex: 1 },
+  itemInlineInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    fontSize: 15,
+  },
+  inlineConfirmButton: {
+    paddingLeft: 6,
+    paddingVertical: 4,
+  },
+  editIconButton: { paddingLeft: 4 },
   deleteIconButton: { paddingLeft: 4 },
   addItemButton: {
     marginTop: 15,
