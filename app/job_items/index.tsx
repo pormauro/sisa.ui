@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ThemedText } from '@/components/ThemedText';
@@ -6,7 +6,6 @@ import { ThemedView } from '@/components/ThemedView';
 import { JobItemsContext } from '@/contexts/JobItemsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { formatCurrency } from '@/utils/currency';
 
 export default function JobItemsScreen() {
   const { job_id } = useLocalSearchParams<{ job_id?: string }>();
@@ -24,8 +23,6 @@ export default function JobItemsScreen() {
       void loadJobItems(jobId);
     }
   }, [canListJobItems, jobId, loadJobItems]);
-
-  const total = useMemo(() => jobItems.reduce((sum, item) => sum + item.total, 0), [jobItems]);
 
   const handleDelete = async (id: number) => {
     Alert.alert('Eliminar item', '¿Seguro que quieres eliminar este item?', [
@@ -70,11 +67,11 @@ export default function JobItemsScreen() {
         renderItem={({ item }) => (
           <View style={[styles.row, { borderColor }]}> 
             <View style={{ flex: 1 }}>
-              <ThemedText style={[styles.description, { color: textColor }]}>{item.description}</ThemedText>
-              <ThemedText style={{ color: textColor }}>
-                {item.quantity} × {formatCurrency(item.unit_price)}
-              </ThemedText>
-              <ThemedText style={[styles.itemTotal, { color: textColor }]}>{formatCurrency(item.total)}</ThemedText>
+              <ThemedText style={[styles.description, { color: textColor }]}>{item.title}</ThemedText>
+              {!!item.description && <ThemedText style={{ color: textColor }}>{item.description}</ThemedText>}
+              <ThemedText style={{ color: textColor }}>Estado: {item.status}</ThemedText>
+              <ThemedText style={{ color: textColor }}>Orden: {item.order_index}</ThemedText>
+              {!!item.time_note && <ThemedText style={{ color: textColor }}>Tiempo: {item.time_note}</ThemedText>}
             </View>
             <View style={styles.actions}>
               {permissions.includes('updateJobItem') && (
@@ -91,8 +88,6 @@ export default function JobItemsScreen() {
           </View>
         )}
       />
-
-      <ThemedText style={[styles.total, { color: textColor }]}>Total: {formatCurrency(total)}</ThemedText>
 
       {permissions.includes('addJobItem') && !Number.isNaN(jobId) && jobId > 0 && (
         <TouchableOpacity style={styles.button} onPress={() => router.push(`/job_items/create?job_id=${jobId}`)}>
@@ -123,10 +118,8 @@ const styles = StyleSheet.create({
   },
   description: { fontWeight: '600' },
   actions: { gap: 8, alignItems: 'flex-end' },
-  itemTotal: { marginTop: 4, fontWeight: '600' },
   edit: { color: '#3b82f6', fontWeight: '600' },
   delete: { color: '#ef4444', fontWeight: '600' },
-  total: { fontWeight: '700', fontSize: 16, marginTop: 8 },
   button: {
     marginTop: 16,
     backgroundColor: '#2C2546',

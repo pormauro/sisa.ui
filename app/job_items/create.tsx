@@ -13,9 +13,11 @@ export default function CreateJobItemScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { addJobItem, loadJobItems } = useContext(JobItemsContext);
 
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unitPrice, setUnitPrice] = useState('');
+  const [status, setStatus] = useState<'open' | 'done' | 'cancelled'>('open');
+  const [orderIndex, setOrderIndex] = useState('1');
+  const [timeNote, setTimeNote] = useState('');
 
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -29,16 +31,18 @@ export default function CreateJobItemScreen() {
       return;
     }
 
-    if (!description.trim() || !unitPrice.trim() || Number.isNaN(parsedJobId)) {
-      Alert.alert('Campos incompletos', 'Completá descripción y precio unitario.');
+    if (!title.trim() || Number.isNaN(parsedJobId)) {
+      Alert.alert('Campos incompletos', 'Completá al menos el título del ítem.');
       return;
     }
 
     const ok = await addJobItem({
       job_id: parsedJobId,
-      description: description.trim(),
-      quantity: Number(quantity || 0),
-      unit_price: Number(unitPrice || 0),
+      title: title.trim(),
+      description: description.trim() || null,
+      status,
+      order_index: Number(orderIndex || 0),
+      time_note: timeNote.trim() || null,
     });
 
     if (ok) {
@@ -53,6 +57,15 @@ export default function CreateJobItemScreen() {
   return (
     <ThemedView style={styles.wrapper}>
       <ScrollView contentContainerStyle={styles.container}>
+        <ThemedText style={[styles.label, { color: textColor }]}>Título</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Título del item"
+          placeholderTextColor="#888"
+        />
+
         <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
@@ -62,20 +75,36 @@ export default function CreateJobItemScreen() {
           placeholderTextColor="#888"
         />
 
-        <ThemedText style={[styles.label, { color: textColor }]}>Cantidad</ThemedText>
+        <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
+        <ScrollView horizontal contentContainerStyle={styles.statusOptions} showsHorizontalScrollIndicator={false}>
+          {(['open', 'done', 'cancelled'] as const).map(option => (
+            <TouchableOpacity
+              key={option}
+              style={[styles.statusChip, status === option && styles.statusChipActive]}
+              onPress={() => setStatus(option)}
+            >
+              <ThemedText style={[styles.statusChipText, status === option && styles.statusChipTextActive]}>
+                {option}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <ThemedText style={[styles.label, { color: textColor }]}>Orden</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={quantity}
+          value={orderIndex}
           keyboardType="numeric"
-          onChangeText={setQuantity}
+          onChangeText={setOrderIndex}
         />
 
-        <ThemedText style={[styles.label, { color: textColor }]}>Precio unitario</ThemedText>
+        <ThemedText style={[styles.label, { color: textColor }]}>Nota de tiempo</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={unitPrice}
-          keyboardType="numeric"
-          onChangeText={setUnitPrice}
+          value={timeNote}
+          onChangeText={setTimeNote}
+          placeholder="00:30:00"
+          placeholderTextColor="#888"
         />
 
         <TouchableOpacity style={styles.button} onPress={() => void handleSave()}>
@@ -99,4 +128,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { color: '#fff', fontWeight: '600' },
+  statusOptions: { gap: 8, marginBottom: 8 },
+  statusChip: {
+    borderWidth: 1,
+    borderColor: '#2C2546',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  statusChipActive: { backgroundColor: '#2C2546' },
+  statusChipText: { color: '#2C2546', fontWeight: '600' },
+  statusChipTextActive: { color: '#fff' },
 });

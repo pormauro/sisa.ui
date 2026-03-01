@@ -24,22 +24,28 @@ export default function EditJobItemScreen() {
 
   const item = useMemo(() => jobItems.find(i => i.id === itemId), [jobItems, itemId]);
 
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [quantity, setQuantity] = useState('1');
-  const [unitPrice, setUnitPrice] = useState('0');
+  const [status, setStatus] = useState<'open' | 'done' | 'cancelled'>('open');
+  const [orderIndex, setOrderIndex] = useState('0');
+  const [timeNote, setTimeNote] = useState('');
 
   useEffect(() => {
     if (!item) {
       return;
     }
-    setDescription(item.description);
-    setQuantity(String(item.quantity));
-    setUnitPrice(String(item.unit_price));
+    setTitle(item.title);
+    setDescription(item.description ?? '');
+    setStatus(item.status);
+    setOrderIndex(String(item.order_index));
+    setTimeNote(item.time_note ?? '');
   }, [item]);
 
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+
+  const resolveJobId = () => item?.job_id ?? (!Number.isNaN(jobId) && jobId > 0 ? jobId : null);
 
   const handleSave = async () => {
     if (!permissions.includes('updateJobItem')) {
@@ -47,10 +53,18 @@ export default function EditJobItemScreen() {
       return;
     }
 
-    const ok = await updateJobItem(itemId, {
-      description: description.trim(),
-      quantity: Number(quantity || 0),
-      unit_price: Number(unitPrice || 0),
+    const targetJobId = resolveJobId();
+    if (!targetJobId || !title.trim()) {
+      Alert.alert('Campos incompletos', 'Completá al menos el título del ítem.');
+      return;
+    }
+
+    const ok = await updateJobItem(targetJobId, itemId, {
+      title: title.trim(),
+      description: description.trim() || null,
+      status,
+      order_index: Number(orderIndex || 0),
+      time_note: timeNote.trim() || null,
     });
 
     if (!ok) {
@@ -58,18 +72,19 @@ export default function EditJobItemScreen() {
       return;
     }
 
-    if (item?.job_id) {
-      await loadJobItems(item.job_id);
-      router.push(`/job_items/index?job_id=${item.job_id}`);
-      return;
-    }
-
-    router.back();
+    await loadJobItems(targetJobId);
+    router.push(`/job_items/index?job_id=${targetJobId}`);
   };
 
   const handleDelete = async () => {
     if (!permissions.includes('deleteJobItem')) {
       Alert.alert('Acceso denegado', 'No tienes permiso para eliminar items.');
+      return;
+    }
+
+    const targetJobId = resolveJobId();
+    if (!targetJobId) {
+      Alert.alert('Error', 'No se encontró el trabajo asociado al ítem.');
       return;
     }
 
@@ -79,17 +94,12 @@ export default function EditJobItemScreen() {
       return;
     }
 
-    if (item?.job_id) {
-      await loadJobItems(item.job_id);
-      router.push(`/job_items/index?job_id=${item.job_id}`);
-      return;
-    }
-
-    router.back();
+    await loadJobItems(targetJobId);
+    router.push(`/job_items/index?job_id=${targetJobId}`);
   };
 
   const handleOpenList = () => {
-    const targetJobId = item?.job_id ?? (Number.isNaN(jobId) ? null : jobId);
+    const targetJobId = resolveJobId();
     if (!targetJobId) {
       router.back();
       return;
@@ -113,6 +123,13 @@ export default function EditJobItemScreen() {
   return (
     <ThemedView style={styles.wrapper}>
       <ScrollView contentContainerStyle={styles.container}>
+        <ThemedText style={[styles.label, { color: textColor }]}>Título</ThemedText>
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
+          value={title}
+          onChangeText={setTitle}
+        />
+
         <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
@@ -120,20 +137,36 @@ export default function EditJobItemScreen() {
           onChangeText={setDescription}
         />
 
-        <ThemedText style={[styles.label, { color: textColor }]}>Cantidad</ThemedText>
+        <ThemedText style={[styles.label, { color: textColor }]}>Estado</ThemedText>
+        <ScrollView horizontal contentContainerStyle={styles.statusOptions} showsHorizontalScrollIndicator={false}>
+          {(['open', 'done', 'cancelled'] as const).map(option => (
+            <TouchableOpacity
+              key={option}
+              style={[styles.statusChip, status === option && styles.statusChipActive]}
+              onPress={() => setStatus(option)}
+            >
+              <ThemedText style={[styles.statusChipText, status === option && styles.statusChipTextActive]}>
+                {option}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        <ThemedText style={[styles.label, { color: textColor }]}>Orden</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={quantity}
+          value={orderIndex}
           keyboardType="numeric"
-          onChangeText={setQuantity}
+          onChangeText={setOrderIndex}
         />
 
-        <ThemedText style={[styles.label, { color: textColor }]}>Precio unitario</ThemedText>
+        <ThemedText style={[styles.label, { color: textColor }]}>Nota de tiempo</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={unitPrice}
-          keyboardType="numeric"
-          onChangeText={setUnitPrice}
+          value={timeNote}
+          onChangeText={setTimeNote}
+          placeholder="00:45:00"
+          placeholderTextColor="#888"
         />
 
         {permissions.includes('updateJobItem') && (
@@ -190,4 +223,15 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: { color: '#2C2546', fontWeight: '600' },
   buttonText: { color: '#fff', fontWeight: '600' },
+  statusOptions: { gap: 8, marginBottom: 8 },
+  statusChip: {
+    borderWidth: 1,
+    borderColor: '#2C2546',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  statusChipActive: { backgroundColor: '#2C2546' },
+  statusChipText: { color: '#2C2546', fontWeight: '600' },
+  statusChipTextActive: { color: '#fff' },
 });
