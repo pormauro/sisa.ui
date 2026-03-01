@@ -105,6 +105,7 @@ export default function EditJobScreen() {
   const job = jobs.find(j => j.id === jobId);
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
+  const canListJobItems = permissions.includes('listJobItems');
   const NEW_CLIENT_VALUE  = '__new_client__';
   const NEW_STATUS_VALUE  = '__new_status__';
   const NEW_FOLDER_VALUE  = '__new_folder__';
@@ -321,12 +322,12 @@ export default function EditJobScreen() {
   }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId, draft, draftHydrated]);
 
   useEffect(() => {
-    if (!jobId || Number.isNaN(jobId)) {
+    if (!canListJobItems || !jobId || Number.isNaN(jobId)) {
       return;
     }
 
     void loadJobItems(jobId);
-  }, [jobId, loadJobItems]);
+  }, [canListJobItems, jobId, loadJobItems]);
 
   useEffect(() => {
     if (!draftReady) {
@@ -886,6 +887,7 @@ export default function EditJobScreen() {
 
 
       {/* Items del trabajo */}
+      {canListJobItems && (
       <View style={styles.itemsContainer}>
         <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Items del trabajo</ThemedText>
 
@@ -946,6 +948,7 @@ export default function EditJobScreen() {
           </ThemedText>
         </View>
       </View>
+      )}
 
       {/* Botones */}
       {canEdit && (
