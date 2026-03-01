@@ -445,8 +445,8 @@ export default function CreateJobScreen() {
   }, [pendingSelections, consumeSelection]);
 
   const handleSubmit = async () => {
-    if (!selectedClient || !description || !jobDate || !startTime || !endTime) {
-      Alert.alert('Error', 'Completa todos los campos obligatorios.');
+    if (!selectedClient) {
+      Alert.alert('Error', 'Selecciona un cliente para continuar.');
       return;
     }
 
@@ -547,7 +547,7 @@ export default function CreateJobScreen() {
       )}
 
       {/* Cliente */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
+      <ThemedText style={[styles.label, { color: textColor }]}>Cliente</ThemedText>
       <SearchableSelect
         style={styles.select}
         items={clientItems}
@@ -671,7 +671,7 @@ export default function CreateJobScreen() {
       />
 
       {/* Descripción */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
+      <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
       <TextInput
         style={[styles.input, { height: 80, backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
         placeholder="Describe este trabajo"
