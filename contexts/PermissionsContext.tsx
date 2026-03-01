@@ -16,6 +16,8 @@ interface PermissionsContextProps {
 const PERMISSION_ALIASES: Record<string, string[]> = {
   addJobItem: ['createJobItem'],
   createJobItem: ['addJobItem'],
+  listJobItems: ['listJobItem'],
+  listJobItem: ['listJobItems'],
 };
 
 const expandWithAliases = (values: string[]): string[] => {

@@ -14,15 +14,16 @@ export default function JobItemsScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { jobItems, loadJobItems, deleteJobItem } = useContext(JobItemsContext);
 
+  const canListJobItems = permissions.includes('listJobItems');
   const jobId = Number(job_id);
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
 
   useEffect(() => {
-    if (!Number.isNaN(jobId) && jobId > 0) {
+    if (canListJobItems && !Number.isNaN(jobId) && jobId > 0) {
       void loadJobItems(jobId);
     }
-  }, [jobId, loadJobItems]);
+  }, [canListJobItems, jobId, loadJobItems]);
 
   const total = useMemo(() => jobItems.reduce((sum, item) => sum + item.total, 0), [jobItems]);
 
@@ -46,6 +47,16 @@ export default function JobItemsScreen() {
       },
     ]);
   };
+
+
+  if (!canListJobItems) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText style={[styles.title, { color: textColor }]}>Items del trabajo</ThemedText>
+        <ThemedText style={{ color: textColor }}>No tienes permiso para ver los items del trabajo.</ThemedText>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={styles.container}>
