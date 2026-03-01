@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { FileGallery } from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -92,7 +93,7 @@ export default function EditJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
-  const { jobItems, loadJobItems, deleteJobItem } = useContext(JobItemsContext);
+  const { jobItems, loadJobItems, deleteJobItem, updateJobItem } = useContext(JobItemsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -541,14 +542,45 @@ export default function EditJobScreen() {
   );
 
   // submit
-  const handleDeleteJobItem = async (itemId: number) => {
-    const ok = await deleteJobItem(itemId);
-    if (ok) {
+  const handleDeleteJobItem = useCallback(
+    (itemId: number) => {
+      Alert.alert('Eliminar item', '¿Seguro que querés eliminar este item?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            const ok = await deleteJobItem(itemId);
+            if (ok) {
+              void loadJobItems(jobId);
+            } else {
+              Alert.alert('Error', 'No se pudo eliminar el item.');
+            }
+          },
+        },
+      ]);
+    },
+    [deleteJobItem, jobId, loadJobItems]
+  );
+
+  const handleToggleJobItem = useCallback(
+    async (itemId: number) => {
+      const item = jobItems.find(current => current.id === itemId);
+      if (!item || !permissions.includes('updateJobItem')) {
+        return;
+      }
+
+      const nextStatus = item.status === 'done' ? 'open' : 'done';
+      const ok = await updateJobItem(jobId, itemId, { status: nextStatus });
+      if (!ok) {
+        Alert.alert('Error', 'No se pudo actualizar el item.');
+        return;
+      }
+
       void loadJobItems(jobId);
-    } else {
-      Alert.alert('Error', 'No se pudo eliminar el item.');
-    }
-  };
+    },
+    [jobItems, jobId, loadJobItems, permissions, updateJobItem]
+  );
 
   const handleSubmit = async () => {
     if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
@@ -895,42 +927,44 @@ export default function EditJobScreen() {
           <ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>
         ) : (
           jobItems.map(item => (
-            <View key={item.id} style={[styles.itemRow, { borderColor }]}>
-              <View style={{ flex: 1 }}>
-                <ThemedText style={[styles.itemDescription, { color: textColor }]}> 
-                  {item.title}
-                </ThemedText>
-                {!!item.description && (
-                  <ThemedText style={[styles.itemDetails, { color: textColor }]}>
-                    {item.description}
-                  </ThemedText>
-                )}
-                <ThemedText style={[styles.itemDetails, { color: textColor }]}>
-                  Estado: {item.status} · Orden: {item.order_index}
-                </ThemedText>
-                {!!item.time_note && (
-                  <ThemedText style={[styles.itemDetails, { color: textColor }]}>
-                    Tiempo: {item.time_note}
-                  </ThemedText>
-                )}
-              </View>
+            <TouchableOpacity
+              key={item.id}
+              style={[styles.itemChecklistRow, { borderColor }]}
+              activeOpacity={0.7}
+              onPress={() => void handleToggleJobItem(item.id)}
+              onLongPress={() => {
+                if (permissions.includes('updateJobItem')) {
+                  router.push(`/job_items/${item.id}?job_id=${jobId}`);
+                }
+              }}
+              delayLongPress={350}
+            >
+              <Ionicons
+                name={item.status === 'done' ? 'checkmark-circle' : 'ellipse-outline'}
+                size={24}
+                color={item.status === 'done' ? '#22c55e' : textColor}
+              />
 
-              <View style={styles.itemActions}>
+              <ThemedText
+                style={[
+                  styles.itemChecklistDescription,
+                  { color: textColor },
+                  item.status === 'done' && styles.itemChecklistDescriptionDone,
+                ]}
+              >
+                {item.description?.trim() || 'Sin descripción'}
+              </ThemedText>
 
-
-                {permissions.includes('updateJobItem') && (
-                  <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}?job_id=${jobId}`)}>
-                    <ThemedText style={styles.editButton}>Editar</ThemedText>
-                  </TouchableOpacity>
-                )}
-
-                {permissions.includes('deleteJobItem') && (
-                  <TouchableOpacity onPress={() => void handleDeleteJobItem(item.id)}>
-                    <ThemedText style={styles.deleteButton}>Eliminar</ThemedText>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
+              {permissions.includes('deleteJobItem') && (
+                <TouchableOpacity
+                  onPress={() => handleDeleteJobItem(item.id)}
+                  style={styles.deleteIconButton}
+                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                </TouchableOpacity>
+              )}
+            </TouchableOpacity>
           ))
         )}
 
@@ -1026,17 +1060,16 @@ const styles = StyleSheet.create({
   intervalText: { textAlign: 'center', marginBottom: 12 },
   itemsContainer: { marginTop: 25 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  itemRow: {
+  itemChecklistRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    columnGap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
   },
-  itemDescription: { fontWeight: '600' },
-  itemDetails: { fontSize: 13, opacity: 0.7 },
-  itemActions: { alignItems: 'flex-end' },
-  editButton: { color: '#3b82f6', marginTop: 4 },
-  deleteButton: { color: '#ef4444', marginTop: 4 },
+  itemChecklistDescription: { flex: 1, fontSize: 15 },
+  itemChecklistDescriptionDone: { textDecorationLine: 'line-through', opacity: 0.7 },
+  deleteIconButton: { paddingLeft: 4 },
   addItemButton: {
     marginTop: 15,
     padding: 12,
