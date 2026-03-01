@@ -875,6 +875,7 @@ export default function EditJobScreen() {
       />
 
       {/* Botones */}
+      <ThemedText style={[styles.idText, { color: textColor }]}>ID: {jobId}</ThemedText>
       {canEdit && (
         <TouchableOpacity style={[styles.btnSave, { backgroundColor: btnSaveColor }]} onPress={handleSubmit} disabled={loading}>
           {loading
@@ -944,6 +945,7 @@ const styles = StyleSheet.create({
   infoLabel: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   infoValue: { fontSize: 16, marginBottom: 8 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
+  idText: { marginTop: 20, marginBottom: 8, fontSize: 16, fontWeight: '600' },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },

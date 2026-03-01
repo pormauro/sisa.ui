@@ -233,6 +233,15 @@ export default function ViewJobModal() {
       <FileGallery entityType="job" entityId={job.id} filesJson={job.attached_files ?? null} />
 
 
+      <JobItemsSection
+        jobId={job.id}
+        canListJobItems={canListJobItems}
+        permissions={permissions}
+        mode="view"
+      />
+
+      <ThemedText style={[styles.inlineId, { color: textColor }]}>ID: {job.id}</ThemedText>
+
       {permissions.includes('updateJob') ? (
         <MenuButton
           title="Editar trabajo"
@@ -241,15 +250,6 @@ export default function ViewJobModal() {
           showChevron={false}
         />
       ) : null}
-
-      <ThemedText style={[styles.label, { color: textColor }]}>ID</ThemedText>
-      <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>
-      <JobItemsSection
-        jobId={job.id}
-        canListJobItems={canListJobItems}
-        permissions={permissions}
-        mode="view"
-      />
     </ScrollView>
   );
 }
@@ -258,6 +258,7 @@ const styles = StyleSheet.create({
   container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
+  inlineId: { marginTop: 8, marginBottom: 8, fontSize: 16, fontWeight: '600' },
   timeCostCard: {
     marginTop: 16,
     padding: 16,
