@@ -28,6 +28,7 @@ type JobItemsContextType = {
   addJobItem: (data: NewJobItemPayload) => Promise<boolean>;
   updateJobItem: (jobId: number, id: number, data: UpdateJobItemPayload) => Promise<boolean>;
   deleteJobItem: (id: number) => Promise<boolean>;
+  reorderJobItems: (jobId: number, orderedItems: JobItem[]) => Promise<boolean>;
 };
 
 export const JobItemsContext = createContext<JobItemsContextType>({
@@ -36,6 +37,7 @@ export const JobItemsContext = createContext<JobItemsContextType>({
   addJobItem: async () => false,
   updateJobItem: async () => false,
   deleteJobItem: async () => false,
+  reorderJobItems: async () => false,
 });
 
 const toNumber = (value: unknown): number => {
@@ -205,6 +207,39 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const reorderJobItems = async (jobId: number, orderedItems: JobItem[]) => {
+    const normalizedItems = orderedItems.map((item, index) => ({
+      ...item,
+      order_index: index,
+    }));
+
+    const previousItems = jobItems;
+    setJobItems(sortByOrderIndex(normalizedItems));
+
+    try {
+      const updates = normalizedItems.map(item =>
+        fetch(`${BASE_URL}/jobs/${jobId}/items/${item.id}`, {
+          method: 'PUT',
+          headers: authHeaders,
+          body: JSON.stringify({ order_index: item.order_index }),
+        })
+      );
+
+      const responses = await Promise.all(updates);
+      const hasErrors = responses.some(res => !res.ok);
+      if (hasErrors) {
+        setJobItems(previousItems);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error reordering job items:', error);
+      setJobItems(previousItems);
+      return false;
+    }
+  };
+
   return (
     <JobItemsContext.Provider
       value={{
@@ -213,6 +248,7 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addJobItem,
         updateJobItem,
         deleteJobItem,
+        reorderJobItems,
       }}
     >
       {children}

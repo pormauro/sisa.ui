@@ -1,9 +1,10 @@
-import React, { useContext, useEffect } from 'react';
-import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import DraggableFlatList, { RenderItemParams, ScaleDecorator } from 'react-native-draggable-flatlist';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import { JobItemsContext } from '@/contexts/JobItemsContext';
+import { JobItem, JobItemsContext } from '@/contexts/JobItemsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useThemeColor } from '@/hooks/useThemeColor';
 
@@ -11,18 +12,30 @@ export default function JobItemsScreen() {
   const { job_id } = useLocalSearchParams<{ job_id?: string }>();
   const router = useRouter();
   const { permissions } = useContext(PermissionsContext);
-  const { jobItems, loadJobItems, deleteJobItem } = useContext(JobItemsContext);
+  const { jobItems, loadJobItems, deleteJobItem, reorderJobItems } = useContext(JobItemsContext);
 
   const canListJobItems = permissions.includes('listJobItems');
+  const canReorderJobItems = permissions.includes('updateJobItem');
   const jobId = Number(job_id);
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#ddd', dark: '#555' }, 'background');
+
+  const [items, setItems] = useState<JobItem[]>([]);
 
   useEffect(() => {
     if (canListJobItems && !Number.isNaN(jobId) && jobId > 0) {
       void loadJobItems(jobId);
     }
   }, [canListJobItems, jobId, loadJobItems]);
+
+  useEffect(() => {
+    setItems(jobItems);
+  }, [jobItems]);
+
+  const emptyList = useMemo(
+    () => <ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>,
+    [textColor]
+  );
 
   const handleDelete = async (id: number) => {
     Alert.alert('Eliminar item', '¿Seguro que quieres eliminar este item?', [
@@ -45,6 +58,54 @@ export default function JobItemsScreen() {
     ]);
   };
 
+  const handleDragEnd = async (orderedItems: JobItem[]) => {
+    setItems(orderedItems);
+    if (Number.isNaN(jobId) || jobId <= 0) {
+      return;
+    }
+
+    const ok = await reorderJobItems(jobId, orderedItems);
+    if (!ok) {
+      Alert.alert('Error', 'No se pudo guardar el nuevo orden de los items.');
+      await loadJobItems(jobId);
+    }
+  };
+
+  const renderItem = ({ item, drag, isActive }: RenderItemParams<JobItem>) => (
+    <ScaleDecorator>
+      <TouchableOpacity
+        activeOpacity={0.95}
+        delayLongPress={180}
+        disabled={!canReorderJobItems}
+        onLongPress={canReorderJobItems ? drag : undefined}
+        style={[
+          styles.row,
+          {
+            borderColor,
+            backgroundColor: isActive ? 'rgba(44,37,70,0.12)' : 'transparent',
+          },
+        ]}
+      >
+        <View style={{ flex: 1 }}>
+          {!!item.description && <ThemedText style={{ color: textColor }}>{item.description}</ThemedText>}
+          <ThemedText style={{ color: textColor }}>Estado: {item.status}</ThemedText>
+        </View>
+        <View style={styles.actions}>
+          {canReorderJobItems && <ThemedText style={styles.drag}>≡ Arrastrar</ThemedText>}
+          {permissions.includes('updateJobItem') && (
+            <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}?job_id=${item.job_id}`)}>
+              <ThemedText style={styles.edit}>Editar</ThemedText>
+            </TouchableOpacity>
+          )}
+          {permissions.includes('deleteJobItem') && (
+            <TouchableOpacity onPress={() => void handleDelete(item.id)}>
+              <ThemedText style={styles.delete}>Eliminar</ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
+      </TouchableOpacity>
+    </ScaleDecorator>
+  );
 
   if (!canListJobItems) {
     return (
@@ -58,32 +119,19 @@ export default function JobItemsScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedText style={[styles.title, { color: textColor }]}>Items del trabajo</ThemedText>
+      {canReorderJobItems && (
+        <ThemedText style={[styles.helpText, { color: textColor }]}>Mantén presionado un item para arrastrarlo.</ThemedText>
+      )}
 
-      <FlatList
-        data={jobItems}
+      <DraggableFlatList
+        data={items}
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>}
-        renderItem={({ item }) => (
-          <View style={[styles.row, { borderColor }]}> 
-            <View style={{ flex: 1 }}>
-              {!!item.description && <ThemedText style={{ color: textColor }}>{item.description}</ThemedText>}
-              <ThemedText style={{ color: textColor }}>Estado: {item.status}</ThemedText>
-            </View>
-            <View style={styles.actions}>
-              {permissions.includes('updateJobItem') && (
-                <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}?job_id=${item.job_id}`)}>
-                  <ThemedText style={styles.edit}>Editar</ThemedText>
-                </TouchableOpacity>
-              )}
-              {permissions.includes('deleteJobItem') && (
-                <TouchableOpacity onPress={() => void handleDelete(item.id)}>
-                  <ThemedText style={styles.delete}>Eliminar</ThemedText>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
+        ListEmptyComponent={emptyList}
+        renderItem={renderItem}
+        onDragEnd={({ data }) => {
+          void handleDragEnd(data);
+        }}
       />
 
       {permissions.includes('addJobItem') && !Number.isNaN(jobId) && jobId > 0 && (
@@ -104,6 +152,7 @@ export default function JobItemsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   title: { fontSize: 20, fontWeight: '700', marginBottom: 12 },
+  helpText: { fontSize: 12, marginBottom: 8, opacity: 0.9 },
   listContent: { gap: 8, paddingBottom: 16 },
   row: {
     borderBottomWidth: 1,
@@ -115,6 +164,7 @@ const styles = StyleSheet.create({
   },
   description: { fontWeight: '600' },
   actions: { gap: 8, alignItems: 'flex-end' },
+  drag: { color: '#6b7280', fontWeight: '600' },
   edit: { color: '#3b82f6', fontWeight: '600' },
   delete: { color: '#ef4444', fontWeight: '600' },
   button: {
