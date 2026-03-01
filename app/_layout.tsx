@@ -20,6 +20,7 @@ import { ConfigProvider } from '@/contexts/ConfigContext';
 import { FilesProvider } from '@/contexts/FilesContext';
 import { FoldersProvider } from '@/contexts/FoldersContext';
 import { JobsProvider } from '@/contexts/JobsContext';
+import { JobItemsProvider } from '@/contexts/JobItemsContext';
 import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
 import { PaymentsProvider } from '@/contexts/PaymentsContext';
 import { InvoicesProvider } from '@/contexts/InvoicesContext';
@@ -163,6 +164,7 @@ export default function RootLayout() {
                                               <StatusesProvider>
                                                 <TariffsProvider>
                                                   <JobsProvider>
+                                                    <JobItemsProvider>
                                                     <AppointmentsProvider>
                                                       <PaymentTemplatesProvider>
                                                         <PaymentsProvider>
@@ -185,6 +187,7 @@ export default function RootLayout() {
                                                         </PaymentsProvider>
                                                       </PaymentTemplatesProvider>
                                                     </AppointmentsProvider>
+                                                    </JobItemsProvider>
                                                   </JobsProvider>
                                                 </TariffsProvider>
                                               </StatusesProvider>

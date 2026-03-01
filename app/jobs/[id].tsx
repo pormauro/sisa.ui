@@ -30,6 +30,7 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
+import { JobItemsContext } from '@/contexts/JobItemsContext';
 import { formatCurrency } from '@/utils/currency';
 import { useCachedState } from '@/hooks/useCachedState';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
@@ -91,6 +92,7 @@ export default function EditJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
+  const { jobItems, loadJobItems, deleteJobItem } = useContext(JobItemsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -319,6 +321,14 @@ export default function EditJobScreen() {
   }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId, draft, draftHydrated]);
 
   useEffect(() => {
+    if (!jobId || Number.isNaN(jobId)) {
+      return;
+    }
+
+    void loadJobItems(jobId);
+  }, [jobId, loadJobItems]);
+
+  useEffect(() => {
     if (!draftReady) {
       return;
     }
@@ -530,6 +540,15 @@ export default function EditJobScreen() {
   );
 
   // submit
+  const handleDeleteJobItem = async (itemId: number) => {
+    const ok = await deleteJobItem(itemId);
+    if (ok) {
+      void loadJobItems(jobId);
+    } else {
+      Alert.alert('Error', 'No se pudo eliminar el item.');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
@@ -865,6 +884,62 @@ export default function EditJobScreen() {
         invoiceMarkingEnabled
       />
 
+
+      {/* Items del trabajo */}
+      <View style={styles.itemsContainer}>
+        <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Items del trabajo</ThemedText>
+
+        {jobItems.length === 0 ? (
+          <ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>
+        ) : (
+          jobItems.map(item => (
+            <View key={item.id} style={[styles.itemRow, { borderColor }]}>
+              <View style={{ flex: 1 }}>
+                <ThemedText style={[styles.itemDescription, { color: textColor }]}> 
+                  {item.description}
+                </ThemedText>
+                <ThemedText style={[styles.itemDetails, { color: textColor }]}>
+                  {item.quantity} × {formatCurrency(item.unit_price)}
+                </ThemedText>
+              </View>
+
+              <View style={styles.itemActions}>
+                <ThemedText style={[styles.itemTotal, { color: textColor }]}>
+                  {formatCurrency(item.total)}
+                </ThemedText>
+
+                {permissions.includes('updateJobItem') && (
+                  <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}`)}>
+                    <ThemedText style={styles.editButton}>Editar</ThemedText>
+                  </TouchableOpacity>
+                )}
+
+                {permissions.includes('deleteJobItem') && (
+                  <TouchableOpacity onPress={() => void handleDeleteJobItem(item.id)}>
+                    <ThemedText style={styles.deleteButton}>Eliminar</ThemedText>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ))
+        )}
+
+        {permissions.includes('addJobItem') && (
+          <TouchableOpacity
+            style={styles.addItemButton}
+            onPress={() => router.push(`/job_items/create?job_id=${jobId}`)}
+          >
+            <ThemedText style={styles.addItemText}>+ Agregar item</ThemedText>
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.totalContainer}>
+          <ThemedText style={[styles.totalText, { color: textColor }]}>
+            Total: {formatCurrency(jobItems.reduce((sum, i) => sum + i.total, 0))}
+          </ThemedText>
+        </View>
+      </View>
+
       {/* Botones */}
       {canEdit && (
         <TouchableOpacity style={[styles.btnSave, { backgroundColor: btnSaveColor }]} onPress={handleSubmit} disabled={loading}>
@@ -935,6 +1010,30 @@ const styles = StyleSheet.create({
   infoLabel: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   infoValue: { fontSize: 16, marginBottom: 8 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
+  itemsContainer: { marginTop: 25 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  itemDescription: { fontWeight: '600' },
+  itemDetails: { fontSize: 13, opacity: 0.7 },
+  itemActions: { alignItems: 'flex-end' },
+  itemTotal: { fontWeight: 'bold' },
+  editButton: { color: '#3b82f6', marginTop: 4 },
+  deleteButton: { color: '#ef4444', marginTop: 4 },
+  addItemButton: {
+    marginTop: 15,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#2C2546',
+    alignItems: 'center',
+  },
+  addItemText: { color: '#fff', fontWeight: '600' },
+  totalContainer: { marginTop: 15, alignItems: 'flex-end' },
+  totalText: { fontSize: 16, fontWeight: 'bold' },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },
