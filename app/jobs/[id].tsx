@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
 import { FileGallery } from '@/components/FileGallery';
 import { JobsContext } from '@/contexts/JobsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -31,11 +30,11 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { TariffsContext } from '@/contexts/TariffsContext';
-import { JobItemsContext } from '@/contexts/JobItemsContext';
 import { formatCurrency } from '@/utils/currency';
 import { useCachedState } from '@/hooks/useCachedState';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
+import { JobItemsSection } from '@/components/jobs/JobItemsSection';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -93,7 +92,6 @@ export default function EditJobScreen() {
   const { folders } = useContext(FoldersContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
-  const { jobItems, loadJobItems, deleteJobItem, updateJobItem } = useContext(JobItemsContext);
   const { userId } = useContext(AuthContext);
   const {
     beginSelection,
@@ -135,9 +133,6 @@ export default function EditJobScreen() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
-  const [editingJobItemId, setEditingJobItemId] = useState<number | null>(null);
-  const [editingJobItemDescription, setEditingJobItemDescription] = useState('');
-  const [savingJobItemId, setSavingJobItemId] = useState<number | null>(null);
   const [clientChangedByUser, setClientChangedByUser] = useState(false);
   const [draft, setDraft, draftHydrated] = useCachedState<{
     selectedClientId: string;
@@ -325,13 +320,6 @@ export default function EditJobScreen() {
     });
   }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId, draft, draftHydrated]);
 
-  useEffect(() => {
-    if (!canListJobItems || !jobId || Number.isNaN(jobId)) {
-      return;
-    }
-
-    void loadJobItems(jobId);
-  }, [canListJobItems, jobId, loadJobItems]);
 
   useEffect(() => {
     if (!draftReady) {
@@ -545,85 +533,6 @@ export default function EditJobScreen() {
   );
 
   // submit
-  const handleDeleteJobItem = useCallback(
-    (itemId: number) => {
-      Alert.alert('Eliminar item', '¿Seguro que querés eliminar este item?', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            const ok = await deleteJobItem(itemId);
-            if (ok) {
-              void loadJobItems(jobId);
-            } else {
-              Alert.alert('Error', 'No se pudo eliminar el item.');
-            }
-          },
-        },
-      ]);
-    },
-    [deleteJobItem, jobId, loadJobItems]
-  );
-
-  const handleToggleJobItem = useCallback(
-    async (itemId: number) => {
-      const item = jobItems.find(current => current.id === itemId);
-      if (!item || !permissions.includes('updateJobItem')) {
-        return;
-      }
-
-      const nextStatus = item.status === 'done' ? 'open' : 'done';
-      const ok = await updateJobItem(jobId, itemId, { status: nextStatus });
-      if (!ok) {
-        Alert.alert('Error', 'No se pudo actualizar el item.');
-        return;
-      }
-
-      void loadJobItems(jobId);
-    },
-    [jobItems, jobId, loadJobItems, permissions, updateJobItem]
-  );
-
-  const handleStartInlineEditJobItem = useCallback((itemId: number) => {
-    if (!permissions.includes('updateJobItem')) {
-      return;
-    }
-
-    const item = jobItems.find(current => current.id === itemId);
-    if (!item) {
-      return;
-    }
-
-    setEditingJobItemId(itemId);
-    setEditingJobItemDescription(item.description ?? '');
-  }, [jobItems, permissions]);
-
-  const handleSaveInlineEditJobItem = useCallback(async () => {
-    if (!permissions.includes('updateJobItem') || editingJobItemId == null) {
-      return;
-    }
-
-    const nextDescription = editingJobItemDescription.trim();
-    if (!nextDescription) {
-      Alert.alert('Descripción requerida', 'El item debe tener una descripción.');
-      return;
-    }
-
-    setSavingJobItemId(editingJobItemId);
-    const ok = await updateJobItem(jobId, editingJobItemId, { description: nextDescription });
-    setSavingJobItemId(null);
-
-    if (!ok) {
-      Alert.alert('Error', 'No se pudo actualizar el item.');
-      return;
-    }
-
-    setEditingJobItemId(null);
-    setEditingJobItemDescription('');
-    void loadJobItems(jobId);
-  }, [editingJobItemDescription, editingJobItemId, jobId, loadJobItems, permissions, updateJobItem]);
-
   const handleSubmit = async () => {
     if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
@@ -958,123 +867,12 @@ export default function EditJobScreen() {
         editable={canEdit}
         invoiceMarkingEnabled
       />
-
-
-      {/* Items del trabajo */}
-      {canListJobItems && (
-      <View style={styles.itemsContainer}>
-        <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Items del trabajo</ThemedText>
-
-        {jobItems.length === 0 ? (
-          <ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>
-        ) : (
-          jobItems.map(item => {
-            const isEditingInline = editingJobItemId === item.id;
-            const isSavingInline = savingJobItemId === item.id;
-
-            return (
-            <View
-              key={item.id}
-              style={[styles.itemChecklistRow, { borderColor }]}
-            >
-              <Ionicons
-                name={item.status === 'done' ? 'checkmark-circle' : 'ellipse-outline'}
-                size={24}
-                color={item.status === 'done' ? '#22c55e' : textColor}
-              />
-
-              {isEditingInline ? (
-                <>
-                  <TextInput
-                    style={[
-                      styles.itemInlineInput,
-                      {
-                        color: inputTextColor,
-                        borderColor,
-                        backgroundColor: inputBackground,
-                      },
-                    ]}
-                    value={editingJobItemDescription}
-                    onChangeText={setEditingJobItemDescription}
-                    placeholder="Descripción del item"
-                    placeholderTextColor={placeholderColor}
-                    editable={!isSavingInline}
-                  />
-                  <TouchableOpacity
-                    onPress={() => void handleSaveInlineEditJobItem()}
-                    disabled={isSavingInline}
-                    style={styles.inlineConfirmButton}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                  >
-                    {isSavingInline ? (
-                      <ActivityIndicator size="small" color={btnSaveColor} />
-                    ) : (
-                      <Ionicons name="checkmark" size={22} color={btnSaveColor} />
-                    )}
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <TouchableOpacity
-                  style={styles.itemTextPressable}
-                  activeOpacity={0.7}
-                  onPress={() => void handleToggleJobItem(item.id)}
-                  onLongPress={() => handleStartInlineEditJobItem(item.id)}
-                  delayLongPress={350}
-                >
-                  <ThemedText
-                    style={[
-                      styles.itemChecklistDescription,
-                      { color: textColor },
-                      item.status === 'done' && styles.itemChecklistDescriptionDone,
-                    ]}
-                  >
-                    {item.description?.trim() || 'Sin descripción'}
-                  </ThemedText>
-                </TouchableOpacity>
-              )}
-
-              {permissions.includes('updateJobItem') && !isEditingInline && (
-                <TouchableOpacity
-                  onPress={() => router.push(`/job_items/${item.id}?job_id=${jobId}`)}
-                  style={styles.editIconButton}
-                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                >
-                  <Ionicons name="create-outline" size={20} color={textColor} />
-                </TouchableOpacity>
-              )}
-
-              {permissions.includes('deleteJobItem') && (
-                <TouchableOpacity
-                  onPress={() => handleDeleteJobItem(item.id)}
-                  style={styles.deleteIconButton}
-                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                </TouchableOpacity>
-              )}
-            </View>
-          )})
-        )}
-
-        {permissions.includes('addJobItem') && (
-          <TouchableOpacity
-            style={styles.addItemButton}
-            onPress={() => router.push(`/job_items/create?job_id=${jobId}`)}
-          >
-            <ThemedText style={styles.addItemText}>+ Agregar item</ThemedText>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity
-          style={[styles.viewItemsListButton, { borderColor }]}
-          onPress={() => router.push(`/job_items?job_id=${jobId}`)}
-        >
-          <ThemedText style={[styles.viewItemsListText, { color: textColor }]}>Ver lista de items</ThemedText>
-        </TouchableOpacity>
-
-
-      </View>
-      )}
+      <JobItemsSection
+        jobId={jobId}
+        canListJobItems={canListJobItems}
+        permissions={permissions}
+        mode="edit"
+      />
 
       {/* Botones */}
       {canEdit && (
@@ -1146,48 +944,6 @@ const styles = StyleSheet.create({
   infoLabel: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   infoValue: { fontSize: 16, marginBottom: 8 },
   intervalText: { textAlign: 'center', marginBottom: 12 },
-  itemsContainer: { marginTop: 25 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  itemChecklistRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    columnGap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  itemChecklistDescription: { flex: 1, fontSize: 15 },
-  itemChecklistDescriptionDone: { textDecorationLine: 'line-through', opacity: 0.7 },
-  itemTextPressable: { flex: 1 },
-  itemInlineInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-    fontSize: 15,
-  },
-  inlineConfirmButton: {
-    paddingLeft: 6,
-    paddingVertical: 4,
-  },
-  editIconButton: { paddingLeft: 4 },
-  deleteIconButton: { paddingLeft: 4 },
-  addItemButton: {
-    marginTop: 15,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#2C2546',
-    alignItems: 'center',
-  },
-  addItemText: { color: '#fff', fontWeight: '600' },
-  viewItemsListButton: {
-    marginTop: 10,
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  viewItemsListText: { fontWeight: '600' },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },
