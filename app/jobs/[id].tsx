@@ -534,8 +534,8 @@ export default function EditJobScreen() {
 
   // submit
   const handleSubmit = async () => {
-    if (!selectedClientId || !description || !jobDate || !startTime || !endTime) {
-      Alert.alert('Error', 'Completa los campos obligatorios.');
+    if (!selectedClientId) {
+      Alert.alert('Error', 'Selecciona un cliente para continuar.');
       return;
     }
     const manualAmountValue = parseManualAmountInput(manualAmountInput);
@@ -659,7 +659,7 @@ export default function EditJobScreen() {
       )}
 
       {/* Cliente */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Cliente *</ThemedText>
+      <ThemedText style={[styles.label, { color: textColor }]}>Cliente</ThemedText>
       <SearchableSelect
         style={styles.select}
         items={clientItems}
@@ -793,7 +793,7 @@ export default function EditJobScreen() {
       />
 
       {/* Descripción */}
-      <ThemedText style={[styles.label, { color: textColor }]}>Descripción *</ThemedText>
+      <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
       <TextInput
         style={[styles.input, { height: 80, backgroundColor: inputBackground, borderColor, color: inputTextColor }]}
         multiline
