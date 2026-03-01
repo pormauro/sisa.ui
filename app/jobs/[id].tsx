@@ -933,6 +933,13 @@ export default function EditJobScreen() {
           </TouchableOpacity>
         )}
 
+        <TouchableOpacity
+          style={[styles.viewItemsListButton, { borderColor }]}
+          onPress={() => router.push(`/job_items?job_id=${jobId}`)}
+        >
+          <ThemedText style={[styles.viewItemsListText, { color: textColor }]}>Ver lista de items</ThemedText>
+        </TouchableOpacity>
+
         <View style={styles.totalContainer}>
           <ThemedText style={[styles.totalText, { color: textColor }]}>
             Total: {formatCurrency(jobItems.reduce((sum, i) => sum + i.total, 0))}
@@ -1032,6 +1039,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addItemText: { color: '#fff', fontWeight: '600' },
+  viewItemsListButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  viewItemsListText: { fontWeight: '600' },
   totalContainer: { marginTop: 15, alignItems: 'flex-end' },
   totalText: { fontSize: 16, fontWeight: 'bold' },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
