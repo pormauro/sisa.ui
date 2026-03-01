@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
@@ -96,7 +96,7 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [token]
   );
 
-  const loadJobItems = async (jobId: number) => {
+  const loadJobItems = useCallback(async (jobId: number) => {
     try {
       const res = await fetch(`${BASE_URL}/jobs/${jobId}/items`, {
         headers: authHeaders,
@@ -115,9 +115,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (error) {
       console.error('Error loading job items:', error);
     }
-  };
+  }, [authHeaders, setJobItems]);
 
-  const addJobItem = async (data: NewJobItemPayload) => {
+  const addJobItem = useCallback(async (data: NewJobItemPayload) => {
     try {
       const res = await fetch(`${BASE_URL}/jobs/${data.job_id}/items`, {
         method: 'POST',
@@ -150,9 +150,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error creating job item:', error);
       return false;
     }
-  };
+  }, [authHeaders, setJobItems]);
 
-  const updateJobItem = async (jobId: number, id: number, data: UpdateJobItemPayload) => {
+  const updateJobItem = useCallback(async (jobId: number, id: number, data: UpdateJobItemPayload) => {
     try {
       const res = await fetch(`${BASE_URL}/jobs/${jobId}/items/${id}`, {
         method: 'PUT',
@@ -177,9 +177,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error updating job item:', error);
       return false;
     }
-  };
+  }, [authHeaders, setJobItems]);
 
-  const deleteJobItem = async (id: number) => {
+  const deleteJobItem = useCallback(async (id: number) => {
     try {
       const targetItem = jobItems.find(item => item.id === id);
       if (!targetItem) {
@@ -203,7 +203,7 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error deleting job item:', error);
       return false;
     }
-  };
+  }, [authHeaders, jobItems, setJobItems]);
 
   return (
     <JobItemsContext.Provider
