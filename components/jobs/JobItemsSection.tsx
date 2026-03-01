@@ -1,7 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { JobItemsContext } from '@/contexts/JobItemsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -14,12 +13,13 @@ type JobItemsSectionProps = {
 };
 
 export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: JobItemsSectionProps) {
-  const router = useRouter();
-  const { jobItems, loadJobItems, deleteJobItem, updateJobItem } = useContext(JobItemsContext);
+  const { jobItems, loadJobItems, addJobItem, deleteJobItem, updateJobItem } = useContext(JobItemsContext);
 
   const [editingJobItemId, setEditingJobItemId] = useState<number | null>(null);
   const [editingJobItemDescription, setEditingJobItemDescription] = useState('');
   const [savingJobItemId, setSavingJobItemId] = useState<number | null>(null);
+  const [newItemDescription, setNewItemDescription] = useState('');
+  const [isCreatingItem, setIsCreatingItem] = useState(false);
 
   const textColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#999', dark: '#555' }, 'background');
@@ -121,6 +121,37 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
     void loadJobItems(jobId);
   }, [editingJobItemDescription, editingJobItemId, jobId, loadJobItems, permissions, updateJobItem]);
 
+  const handleCreateInlineJobItem = useCallback(async () => {
+    if (!permissions.includes('addJobItem') || isCreatingItem) {
+      return;
+    }
+
+    const description = newItemDescription.trim();
+    if (!description) {
+      return;
+    }
+
+    setIsCreatingItem(true);
+    const nextOrderIndex =
+      visibleItems.length > 0 ? Math.max(...visibleItems.map(item => item.order_index || 0)) + 1 : 1;
+
+    const ok = await addJobItem({
+      job_id: jobId,
+      description,
+      status: 'open',
+      order_index: nextOrderIndex,
+    });
+    setIsCreatingItem(false);
+
+    if (!ok) {
+      Alert.alert('Error', 'No se pudo crear el item.');
+      return;
+    }
+
+    setNewItemDescription('');
+    void loadJobItems(jobId);
+  }, [addJobItem, isCreatingItem, jobId, loadJobItems, newItemDescription, permissions, visibleItems]);
+
   if (!canListJobItems) {
     return null;
   }
@@ -135,6 +166,8 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
         visibleItems.map(item => {
           const isEditingInline = editingJobItemId === item.id;
           const isSavingInline = savingJobItemId === item.id;
+
+          const canDelete = isEditMode && permissions.includes('deleteJobItem');
 
           return (
             <View key={item.id} style={[styles.itemChecklistRow, { borderColor }]}>
@@ -161,56 +194,77 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
                     placeholderTextColor={placeholderColor}
                     editable={!isSavingInline}
                   />
-                  <TouchableOpacity
-                    onPress={() => void handleSaveInlineEditJobItem()}
-                    disabled={isSavingInline}
-                    style={styles.inlineConfirmButton}
-                    hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                  >
-                    {isSavingInline ? (
-                      <ActivityIndicator size="small" color={btnSaveColor} />
+                  <View style={styles.itemActionsGroup}>
+                    <TouchableOpacity
+                      onPress={() => void handleSaveInlineEditJobItem()}
+                      disabled={isSavingInline}
+                      style={styles.actionIconButton}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                    >
+                      {isSavingInline ? (
+                        <ActivityIndicator size="small" color={btnSaveColor} />
+                      ) : (
+                        <Ionicons name="checkmark" size={22} color={btnSaveColor} />
+                      )}
+                    </TouchableOpacity>
+
+                    {canDelete ? (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteJobItem(item.id)}
+                        style={styles.actionIconButton}
+                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                      </TouchableOpacity>
                     ) : (
-                      <Ionicons name="checkmark" size={22} color={btnSaveColor} />
+                      <View style={styles.actionIconButton} />
                     )}
-                  </TouchableOpacity>
+                  </View>
                 </>
               ) : (
-                <TouchableOpacity
-                  style={styles.itemTextPressable}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (isEditMode) {
-                      void handleToggleJobItem(item.id);
-                    }
-                  }}
-                  onLongPress={() => {
-                    if (isEditMode) {
-                      handleStartInlineEditJobItem(item.id);
-                    }
-                  }}
-                  delayLongPress={350}
-                  disabled={!isEditMode}
-                >
-                  <ThemedText
-                    style={[
-                      styles.itemChecklistDescription,
-                      { color: textColor },
-                      item.status === 'done' && styles.itemChecklistDescriptionDone,
-                    ]}
+                <>
+                  <TouchableOpacity
+                    style={styles.itemTextPressable}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (isEditMode) {
+                        void handleToggleJobItem(item.id);
+                      }
+                    }}
+                    onLongPress={() => {
+                      if (isEditMode) {
+                        handleStartInlineEditJobItem(item.id);
+                      }
+                    }}
+                    delayLongPress={350}
+                    disabled={!isEditMode}
                   >
-                    {item.description?.trim() || 'Sin descripción'}
-                  </ThemedText>
-                </TouchableOpacity>
-              )}
+                    <ThemedText
+                      style={[
+                        styles.itemChecklistDescription,
+                        { color: textColor },
+                        item.status === 'done' && styles.itemChecklistDescriptionDone,
+                      ]}
+                    >
+                      {item.description?.trim() || 'Sin descripción'}
+                    </ThemedText>
+                  </TouchableOpacity>
 
-              {isEditMode && permissions.includes('deleteJobItem') && (
-                <TouchableOpacity
-                  onPress={() => handleDeleteJobItem(item.id)}
-                  style={styles.deleteIconButton}
-                  hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#ef4444" />
-                </TouchableOpacity>
+                  <View style={styles.itemActionsGroup}>
+                    <View style={styles.actionIconButton} />
+                    {canDelete ? (
+                      <TouchableOpacity
+                        onPress={() => handleDeleteJobItem(item.id)}
+                        style={styles.actionIconButton}
+                        hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.actionIconButton} />
+                    )}
+                  </View>
+                </>
               )}
             </View>
           );
@@ -218,15 +272,43 @@ export function JobItemsSection({ jobId, canListJobItems, permissions, mode }: J
       )}
 
       {isEditMode && permissions.includes('addJobItem') && (
-        <TouchableOpacity style={styles.addItemButton} onPress={() => router.push(`/job_items/create?job_id=${jobId}`)}>
-          <ThemedText style={styles.addItemText}>+ Agregar item</ThemedText>
-        </TouchableOpacity>
-      )}
-
-      {isEditMode && (
-        <TouchableOpacity style={[styles.viewItemsListButton, { borderColor }]} onPress={() => router.push(`/job_items?job_id=${jobId}`)}>
-          <ThemedText style={[styles.viewItemsListText, { color: textColor }]}>Ver lista de items</ThemedText>
-        </TouchableOpacity>
+        <View style={[styles.itemChecklistRow, { borderColor }]}>
+          <Ionicons name="ellipse-outline" size={24} color={textColor} />
+          <TextInput
+            style={[
+              styles.itemInlineInput,
+              {
+                color: inputTextColor,
+                borderColor,
+                backgroundColor: inputBackground,
+              },
+            ]}
+            value={newItemDescription}
+            onChangeText={setNewItemDescription}
+            placeholder="Descripción del item"
+            placeholderTextColor={placeholderColor}
+            editable={!isCreatingItem}
+          />
+          <View style={styles.itemActionsGroup}>
+            <TouchableOpacity
+              onPress={() => void handleCreateInlineJobItem()}
+              disabled={isCreatingItem || !newItemDescription.trim()}
+              style={styles.actionIconButton}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            >
+              {isCreatingItem ? (
+                <ActivityIndicator size="small" color={btnSaveColor} />
+              ) : (
+                <Ionicons
+                  name="checkmark"
+                  size={22}
+                  color={newItemDescription.trim() ? btnSaveColor : placeholderColor}
+                />
+              )}
+            </TouchableOpacity>
+            <View style={styles.actionIconButton} />
+          </View>
+        </View>
       )}
     </View>
   );
@@ -248,25 +330,6 @@ const styles = StyleSheet.create({
   itemTextPressable: { flex: 1 },
   itemChecklistDescription: { fontSize: 15, flexShrink: 1 },
   itemChecklistDescriptionDone: { textDecorationLine: 'line-through', opacity: 0.6 },
-  deleteIconButton: { paddingLeft: 4 },
-  addItemButton: {
-    marginTop: 6,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#2563eb',
-  },
-  addItemText: { color: '#fff', fontWeight: '600' },
-  viewItemsListButton: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  viewItemsListText: { fontWeight: '600' },
   itemInlineInput: {
     flex: 1,
     borderWidth: 1,
@@ -275,8 +338,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontSize: 14,
   },
-  inlineConfirmButton: {
+  itemActionsGroup: {
+    width: 56,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginLeft: 4,
-    padding: 4,
   },
+  actionIconButton: { width: 24, alignItems: 'center', justifyContent: 'center' },
 });
