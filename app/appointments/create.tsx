@@ -138,6 +138,10 @@ export default function CreateAppointmentScreen() {
       return;
     }
 
+    if (!jobs.length) {
+      return;
+    }
+
     if (!selectedJob) {
       pendingJobSelectionRef.current = null;
       return;
@@ -156,7 +160,7 @@ export default function CreateAppointmentScreen() {
     }
 
     setSelectedJob('');
-  }, [clientJobs, selectedClient, selectedJob]);
+  }, [clientJobs, jobs.length, selectedClient, selectedJob]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.appointments.client)) {

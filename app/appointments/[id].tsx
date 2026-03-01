@@ -134,6 +134,10 @@ export default function EditAppointmentScreen() {
       return;
     }
 
+    if (!jobs.length) {
+      return;
+    }
+
     if (!selectedJob) {
       pendingJobSelectionRef.current = null;
       return;
@@ -152,7 +156,7 @@ export default function EditAppointmentScreen() {
     }
 
     setSelectedJob('');
-  }, [clientJobs, selectedClient, selectedJob]);
+  }, [clientJobs, jobs.length, selectedClient, selectedJob]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.appointments.client)) {
