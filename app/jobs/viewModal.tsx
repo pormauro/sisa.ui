@@ -15,6 +15,7 @@ import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
+import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 
 const getContrastingTextColor = (color: string): string => {
   if (!color) return '#fff';
@@ -239,7 +240,7 @@ export default function ViewJobModal() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, flexGrow: 1 },
+  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
   timeCostCard: {
