@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useContext, useEffect, useMemo } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { JobsContext } from '@/contexts/JobsContext';
@@ -6,16 +6,16 @@ import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { FoldersContext } from '@/contexts/FoldersContext';
+import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { FileGallery } from '@/components/FileGallery';
 import { formatTimeInterval } from '@/utils/time';
 import { formatCurrency } from '@/utils/currency';
 import { calculateJobTotal } from '@/utils/jobCost';
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedButton } from '@/components/ThemedButton';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
-import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
+import { JobItemsSection } from '@/components/jobs/JobItemsSection';
 
 const getContrastingTextColor = (color: string): string => {
   if (!color) return '#fff';
@@ -56,13 +56,14 @@ const getContrastingTextColor = (color: string): string => {
 export default function ViewJobModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const jobId = Number(id);
-  const router = useRouter();
   const navigation = useNavigation();
   const { jobs } = useContext(JobsContext);
   const { clients } = useContext(ClientsContext);
   const { statuses } = useContext(StatusesContext);
   const { tariffs } = useContext(TariffsContext);
   const { folders } = useContext(FoldersContext);
+  const { permissions } = useContext(PermissionsContext);
+  const canListJobItems = permissions.includes('listJobItems');
 
   const job = jobs.find(j => j.id === jobId);
   const client = clients.find(c => c.id === job?.client_id);
@@ -231,16 +232,18 @@ export default function ViewJobModal() {
 
       <ThemedText style={[styles.label, { color: textColor }]}>ID</ThemedText>
       <ThemedText style={[styles.value, { color: textColor }]}>{job.id}</ThemedText>
-
-      <View style={styles.editButton}>
-        <ThemedButton title="Editar" onPress={() => router.push(`/jobs/${job.id}`)} />
-      </View>
+      <JobItemsSection
+        jobId={job.id}
+        canListJobItems={canListJobItems}
+        permissions={permissions}
+        mode="view"
+      />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING, flexGrow: 1 },
+  container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
   timeCostCard: {
@@ -260,5 +263,4 @@ const styles = StyleSheet.create({
   cardValue: { fontSize: 20, fontWeight: '700' },
   costBreakdown: { marginTop: 12 },
   intervalText: { marginTop: 8, fontSize: 14 },
-  editButton: { marginTop: 16 },
 });
