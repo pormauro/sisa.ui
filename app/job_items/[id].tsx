@@ -113,6 +113,10 @@ export default function EditJobItemScreen() {
   return (
     <ThemedView style={styles.wrapper}>
       <ScrollView contentContainerStyle={styles.container}>
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleOpenList}>
+          <ThemedText style={styles.secondaryButtonText}>Ver lista de items</ThemedText>
+        </TouchableOpacity>
+
         <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
