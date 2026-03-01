@@ -97,15 +97,30 @@ export default function EditAppointmentScreen() {
   }, [jobs, selectedClient]);
 
   const clientItems = useMemo(
-    () => [
-      { label: 'Selecciona un cliente', value: '' },
-      { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
-      ...clients.map(client => ({
-        label: client.business_name,
-        value: client.id.toString(),
-      })),
-    ],
-    [clients]
+    () => {
+      const options = [
+        { label: 'Selecciona un cliente', value: '' },
+        { label: '➕ Nuevo cliente', value: NEW_CLIENT_VALUE },
+        ...clients.map(client => ({
+          label: client.business_name,
+          value: client.id.toString(),
+        })),
+      ];
+
+      const selectedClientExists = selectedClient
+        ? clients.some(client => client.id.toString() === selectedClient)
+        : true;
+
+      if (selectedClient && !selectedClientExists) {
+        options.push({
+          label: `Cliente #${selectedClient} (actual)`,
+          value: selectedClient,
+        });
+      }
+
+      return options;
+    },
+    [clients, selectedClient]
   );
 
   const jobPlaceholder = useMemo(
@@ -123,9 +138,20 @@ export default function EditAppointmentScreen() {
       clientJobs.forEach(job => {
         options.push({ label: job.description, value: job.id.toString() });
       });
+
+      const selectedJobExists = selectedJob
+        ? clientJobs.some(job => job.id.toString() === selectedJob)
+        : true;
+
+      if (selectedJob && !selectedJobExists) {
+        options.push({
+          label: `Trabajo #${selectedJob} (actual)`,
+          value: selectedJob,
+        });
+      }
     }
     return options;
-  }, [clientJobs, jobPlaceholder, selectedClient]);
+  }, [clientJobs, jobPlaceholder, selectedClient, selectedJob]);
 
   useEffect(() => {
     if (!selectedClient) {
