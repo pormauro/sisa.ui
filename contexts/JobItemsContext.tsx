@@ -62,6 +62,28 @@ const normalizeJobItem = (item: any): JobItem => {
   };
 };
 
+type JobItemMutationResponse = {
+  message?: string;
+  item?: unknown;
+};
+
+const readJsonSafely = async <T,>(response: Response): Promise<T | null> => {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+};
+
+const sortByOrderIndex = (items: JobItem[]): JobItem[] => {
+  return [...items].sort((a, b) => {
+    if (a.order_index === b.order_index) {
+      return a.id - b.id;
+    }
+    return a.order_index - b.order_index;
+  });
+};
+
 export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { token } = useContext(AuthContext);
   const [jobItems, setJobItems] = useCachedState<JobItem[]>('job_items', []);
@@ -111,6 +133,18 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return false;
       }
 
+      const payload = await readJsonSafely<JobItemMutationResponse>(res);
+      if (payload?.item) {
+        const createdItem = normalizeJobItem(payload.item);
+        setJobItems(prev => {
+          const alreadyExists = prev.some(item => item.id === createdItem.id);
+          if (alreadyExists) {
+            return prev;
+          }
+          return sortByOrderIndex([...prev, createdItem]);
+        });
+      }
+
       return true;
     } catch (error) {
       console.error('Error creating job item:', error);
@@ -128,6 +162,14 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (!res.ok) {
         return false;
+      }
+
+      const payload = await readJsonSafely<JobItemMutationResponse>(res);
+      if (payload?.item) {
+        const updatedItem = normalizeJobItem(payload.item);
+        setJobItems(prev =>
+          sortByOrderIndex(prev.map(item => (item.id === id ? { ...item, ...updatedItem } : item)))
+        );
       }
 
       return true;
@@ -152,6 +194,8 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (!res.ok) {
         return false;
       }
+
+      await readJsonSafely<JobItemMutationResponse>(res);
 
       setJobItems(prev => prev.filter(item => item.id !== id));
       return true;
