@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { useCachedState } from '@/hooks/useCachedState';
@@ -72,7 +72,7 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [token]
   );
 
-  const loadJobItems = async (jobId: number) => {
+  const loadJobItems = useCallback(async (jobId: number) => {
     try {
       const res = await fetch(`${BASE_URL}/job-items?job_id=${jobId}`, {
         headers: authHeaders,
@@ -91,9 +91,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (error) {
       console.error('Error loading job items:', error);
     }
-  };
+  }, [authHeaders, setJobItems]);
 
-  const addJobItem = async (data: NewJobItemPayload) => {
+  const addJobItem = useCallback(async (data: NewJobItemPayload) => {
     try {
       const res = await fetch(`${BASE_URL}/job-items`, {
         method: 'POST',
@@ -110,9 +110,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error creating job item:', error);
       return false;
     }
-  };
+  }, [authHeaders]);
 
-  const updateJobItem = async (id: number, data: Partial<JobItem>) => {
+  const updateJobItem = useCallback(async (id: number, data: Partial<JobItem>) => {
     try {
       const res = await fetch(`${BASE_URL}/job-items/${id}`, {
         method: 'PUT',
@@ -129,9 +129,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error updating job item:', error);
       return false;
     }
-  };
+  }, [authHeaders]);
 
-  const deleteJobItem = async (id: number) => {
+  const deleteJobItem = useCallback(async (id: number) => {
     try {
       const res = await fetch(`${BASE_URL}/job-items/${id}`, {
         method: 'DELETE',
@@ -148,7 +148,7 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error deleting job item:', error);
       return false;
     }
-  };
+  }, [authHeaders, setJobItems]);
 
   return (
     <JobItemsContext.Provider

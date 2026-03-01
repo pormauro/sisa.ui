@@ -103,6 +103,11 @@ export default function EditJobScreen() {
   } = usePendingSelection();
 
   const job = jobs.find(j => j.id === jobId);
+  const currentJobItems = useMemo(
+    () => jobItems.filter(item => item.job_id === jobId),
+    [jobItems, jobId]
+  );
+
   const canEdit   = permissions.includes('updateJob');
   const canDelete = permissions.includes('deleteJob');
   const NEW_CLIENT_VALUE  = '__new_client__';
@@ -889,10 +894,10 @@ export default function EditJobScreen() {
       <View style={styles.itemsContainer}>
         <ThemedText style={[styles.sectionTitle, { color: textColor }]}>Items del trabajo</ThemedText>
 
-        {jobItems.length === 0 ? (
+        {currentJobItems.length === 0 ? (
           <ThemedText style={{ color: textColor }}>No hay items cargados.</ThemedText>
         ) : (
-          jobItems.map(item => (
+          currentJobItems.map(item => (
             <View key={item.id} style={[styles.itemRow, { borderColor }]}>
               <View style={{ flex: 1 }}>
                 <ThemedText style={[styles.itemDescription, { color: textColor }]}> 
@@ -909,7 +914,7 @@ export default function EditJobScreen() {
                 </ThemedText>
 
                 {permissions.includes('updateJobItem') && (
-                  <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}`)}>
+                  <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}?job_id=${jobId}`)}>
                     <ThemedText style={styles.editButton}>Editar</ThemedText>
                   </TouchableOpacity>
                 )}
@@ -935,7 +940,7 @@ export default function EditJobScreen() {
 
         <View style={styles.totalContainer}>
           <ThemedText style={[styles.totalText, { color: textColor }]}>
-            Total: {formatCurrency(jobItems.reduce((sum, i) => sum + i.total, 0))}
+            Total: {formatCurrency(currentJobItems.reduce((sum, i) => sum + i.total, 0))}
           </ThemedText>
         </View>
       </View>
