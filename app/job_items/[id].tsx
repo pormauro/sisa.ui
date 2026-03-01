@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { JobItemsContext } from '@/contexts/JobItemsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -24,21 +24,17 @@ export default function EditJobItemScreen() {
 
   const item = useMemo(() => jobItems.find(i => i.id === itemId), [jobItems, itemId]);
 
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'open' | 'done' | 'cancelled'>('open');
   const [orderIndex, setOrderIndex] = useState('0');
-  const [timeNote, setTimeNote] = useState('');
 
   useEffect(() => {
     if (!item) {
       return;
     }
-    setTitle(item.title);
     setDescription(item.description ?? '');
     setStatus(item.status);
     setOrderIndex(String(item.order_index));
-    setTimeNote(item.time_note ?? '');
   }, [item]);
 
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -54,17 +50,15 @@ export default function EditJobItemScreen() {
     }
 
     const targetJobId = resolveJobId();
-    if (!targetJobId || !title.trim()) {
-      Alert.alert('Campos incompletos', 'Completá al menos el título del ítem.');
+    if (!targetJobId || !description.trim()) {
+      Alert.alert('Campos incompletos', 'Completá la descripción del ítem.');
       return;
     }
 
     const ok = await updateJobItem(targetJobId, itemId, {
-      title: title.trim(),
       description: description.trim() || null,
       status,
       order_index: Number(orderIndex || 0),
-      time_note: timeNote.trim() || null,
     });
 
     if (!ok) {
@@ -123,13 +117,6 @@ export default function EditJobItemScreen() {
   return (
     <ThemedView style={styles.wrapper}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ThemedText style={[styles.label, { color: textColor }]}>Título</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={title}
-          onChangeText={setTitle}
-        />
-
         <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
@@ -152,22 +139,21 @@ export default function EditJobItemScreen() {
           ))}
         </ScrollView>
 
-        <ThemedText style={[styles.label, { color: textColor }]}>Orden</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={orderIndex}
-          keyboardType="numeric"
-          onChangeText={setOrderIndex}
-        />
-
-        <ThemedText style={[styles.label, { color: textColor }]}>Nota de tiempo</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={timeNote}
-          onChangeText={setTimeNote}
-          placeholder="00:45:00"
-          placeholderTextColor="#888"
-        />
+        <ThemedText style={[styles.label, { color: textColor }]}>Posición</ThemedText>
+        <View style={styles.positionRow}>
+          <TouchableOpacity
+            style={styles.positionButton}
+            onPress={() => setOrderIndex(String(Math.max(0, Number(orderIndex || 0) - 1)))}
+          >
+            <ThemedText style={styles.positionButtonText}>Mover arriba</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.positionButton}
+            onPress={() => setOrderIndex(String(Number(orderIndex || 0) + 1))}
+          >
+            <ThemedText style={styles.positionButtonText}>Mover abajo</ThemedText>
+          </TouchableOpacity>
+        </View>
 
         {permissions.includes('updateJobItem') && (
           <TouchableOpacity style={styles.button} onPress={() => void handleSave()}>
@@ -234,4 +220,13 @@ const styles = StyleSheet.create({
   statusChipActive: { backgroundColor: '#2C2546' },
   statusChipText: { color: '#2C2546', fontWeight: '600' },
   statusChipTextActive: { color: '#fff' },
+  positionRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  positionButton: {
+    borderWidth: 1,
+    borderColor: '#2C2546',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  positionButtonText: { color: '#2C2546', fontWeight: '600' },
 });

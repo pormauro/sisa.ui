@@ -67,11 +67,8 @@ export default function JobItemsScreen() {
         renderItem={({ item }) => (
           <View style={[styles.row, { borderColor }]}> 
             <View style={{ flex: 1 }}>
-              <ThemedText style={[styles.description, { color: textColor }]}>{item.title}</ThemedText>
               {!!item.description && <ThemedText style={{ color: textColor }}>{item.description}</ThemedText>}
               <ThemedText style={{ color: textColor }}>Estado: {item.status}</ThemedText>
-              <ThemedText style={{ color: textColor }}>Orden: {item.order_index}</ThemedText>
-              {!!item.time_note && <ThemedText style={{ color: textColor }}>Tiempo: {item.time_note}</ThemedText>}
             </View>
             <View style={styles.actions}>
               {permissions.includes('updateJobItem') && (
