@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-// eslint-disable-next-line import/no-unresolved
 import { Calendar, DateObject, LocaleConfig } from 'react-native-calendars';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AppointmentsContext, Appointment } from '@/contexts/AppointmentsContext';
@@ -41,6 +40,20 @@ LocaleConfig.locales.es = {
 };
 LocaleConfig.defaultLocale = 'es';
 
+const toDateOnly = (value?: string | null) => {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  return value.slice(0, 10);
+};
+
+const toTimeOnly = (value?: string | null) => {
+  if (!value || typeof value !== 'string') {
+    return '';
+  }
+  return value.slice(11, 16);
+};
+
 const today = new Date().toISOString().split('T')[0];
 
 const buildAppointmentSortValue = (appointment: Appointment) => {
@@ -50,11 +63,8 @@ const buildAppointmentSortValue = (appointment: Appointment) => {
   if (appointment.updated_at) {
     return appointment.updated_at;
   }
-  if (appointment.appointment_date) {
-    const time = appointment.appointment_time?.length === 5
-      ? `${appointment.appointment_time}:00`
-      : appointment.appointment_time ?? '00:00:00';
-    return `${appointment.appointment_date}T${time}`;
+  if (appointment.appointment) {
+    return appointment.appointment;
   }
   return appointment.id;
 };
@@ -78,8 +88,8 @@ const toTimeSeconds = (time?: string | null) => {
 };
 
 const compareAppointmentsByTime = (a: Appointment, b: Appointment) => {
-  const aTime = toTimeSeconds(a.appointment_time);
-  const bTime = toTimeSeconds(b.appointment_time);
+  const aTime = toTimeSeconds(toTimeOnly(a.appointment));
+  const bTime = toTimeSeconds(toTimeOnly(b.appointment));
 
   const aHasTime = Number.isFinite(aTime);
   const bHasTime = Number.isFinite(bTime);
@@ -172,10 +182,14 @@ export default function AppointmentsCalendarScreen() {
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce<Record<string, Appointment[]>>((acc, appointment) => {
-      if (!acc[appointment.appointment_date]) {
-        acc[appointment.appointment_date] = [];
+      const appointmentDate = toDateOnly(appointment.appointment);
+      if (!appointmentDate) {
+        return acc;
       }
-      acc[appointment.appointment_date].push(appointment);
+      if (!acc[appointmentDate]) {
+        acc[appointmentDate] = [];
+      }
+      acc[appointmentDate].push(appointment);
       return acc;
     }, {});
   }, [appointments]);
@@ -252,7 +266,7 @@ export default function AppointmentsCalendarScreen() {
     ({ item }: { item: Appointment }) => {
       const client = clients.find(c => c.id === item.client_id);
       const job = item.job_id ? jobs.find(j => j.id === item.job_id) : undefined;
-      const appointmentTime = item.appointment_time?.slice(0, 5) || item.appointment_time;
+      const appointmentTime = toTimeOnly(item.appointment);
       return (
         <TouchableOpacity
           style={[styles.card, { backgroundColor: cardBackground, borderColor }]}
@@ -268,7 +282,7 @@ export default function AppointmentsCalendarScreen() {
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {item.location?.trim() || 'Sin ubicación'}
+                {item.comment?.trim() || 'Sin comentario'}
               </ThemedText>
             </View>
             {canDelete ? (
