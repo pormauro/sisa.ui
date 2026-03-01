@@ -6,26 +6,31 @@ import { useCachedState } from '@/hooks/useCachedState';
 export type JobItem = {
   id: number;
   job_id: number;
-  description: string;
-  quantity: number;
-  unit_price: number;
-  total: number;
+  title: string;
+  description?: string | null;
+  status: 'open' | 'done' | 'cancelled';
+  order_index: number;
+  time_note?: string | null;
   created_at?: string;
   updated_at?: string;
 };
 
 type NewJobItemPayload = {
   job_id: number;
-  description: string;
-  quantity: number;
-  unit_price: number;
+  title: string;
+  description?: string | null;
+  status: 'open' | 'done' | 'cancelled';
+  order_index: number;
+  time_note?: string | null;
 };
+
+type UpdateJobItemPayload = Partial<Omit<NewJobItemPayload, 'job_id'>>;
 
 type JobItemsContextType = {
   jobItems: JobItem[];
   loadJobItems: (jobId: number) => Promise<void>;
   addJobItem: (data: NewJobItemPayload) => Promise<boolean>;
-  updateJobItem: (id: number, data: Partial<JobItem>) => Promise<boolean>;
+  updateJobItem: (jobId: number, id: number, data: UpdateJobItemPayload) => Promise<boolean>;
   deleteJobItem: (id: number) => Promise<boolean>;
 };
 
@@ -42,19 +47,22 @@ const toNumber = (value: unknown): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-const normalizeJobItem = (item: any): JobItem => {
-  const quantity = toNumber(item?.quantity);
-  const unitPrice = toNumber(item?.unit_price);
-  const explicitTotal = toNumber(item?.total);
-  const total = explicitTotal > 0 ? explicitTotal : quantity * unitPrice;
+const normalizeStatus = (status: unknown): JobItem['status'] => {
+  if (status === 'done' || status === 'cancelled') {
+    return status;
+  }
+  return 'open';
+};
 
+const normalizeJobItem = (item: any): JobItem => {
   return {
     id: toNumber(item?.id),
     job_id: toNumber(item?.job_id),
-    description: item?.description ?? '',
-    quantity,
-    unit_price: unitPrice,
-    total,
+    title: item?.title ?? '',
+    description: item?.description ?? null,
+    status: normalizeStatus(item?.status),
+    order_index: toNumber(item?.order_index),
+    time_note: item?.time_note ?? null,
     created_at: item?.created_at,
     updated_at: item?.updated_at,
   };
@@ -74,7 +82,7 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadJobItems = async (jobId: number) => {
     try {
-      const res = await fetch(`${BASE_URL}/job-items?job_id=${jobId}`, {
+      const res = await fetch(`${BASE_URL}/jobs/${jobId}/items`, {
         headers: authHeaders,
       });
       if (!res.ok) {
@@ -95,10 +103,16 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addJobItem = async (data: NewJobItemPayload) => {
     try {
-      const res = await fetch(`${BASE_URL}/job-items`, {
+      const res = await fetch(`${BASE_URL}/jobs/${data.job_id}/items`, {
         method: 'POST',
         headers: authHeaders,
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          title: data.title,
+          description: data.description,
+          status: data.status,
+          order_index: data.order_index,
+          time_note: data.time_note,
+        }),
       });
 
       if (!res.ok) {
@@ -112,9 +126,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const updateJobItem = async (id: number, data: Partial<JobItem>) => {
+  const updateJobItem = async (jobId: number, id: number, data: UpdateJobItemPayload) => {
     try {
-      const res = await fetch(`${BASE_URL}/job-items/${id}`, {
+      const res = await fetch(`${BASE_URL}/jobs/${jobId}/items/${id}`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify(data),
@@ -133,7 +147,12 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const deleteJobItem = async (id: number) => {
     try {
-      const res = await fetch(`${BASE_URL}/job-items/${id}`, {
+      const targetItem = jobItems.find(item => item.id === id);
+      if (!targetItem) {
+        return false;
+      }
+
+      const res = await fetch(`${BASE_URL}/jobs/${targetItem.job_id}/items/${id}`, {
         method: 'DELETE',
         headers: authHeaders,
       });

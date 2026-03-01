@@ -898,17 +898,25 @@ export default function EditJobScreen() {
             <View key={item.id} style={[styles.itemRow, { borderColor }]}>
               <View style={{ flex: 1 }}>
                 <ThemedText style={[styles.itemDescription, { color: textColor }]}> 
-                  {item.description}
+                  {item.title}
                 </ThemedText>
+                {!!item.description && (
+                  <ThemedText style={[styles.itemDetails, { color: textColor }]}>
+                    {item.description}
+                  </ThemedText>
+                )}
                 <ThemedText style={[styles.itemDetails, { color: textColor }]}>
-                  {item.quantity} × {formatCurrency(item.unit_price)}
+                  Estado: {item.status} · Orden: {item.order_index}
                 </ThemedText>
+                {!!item.time_note && (
+                  <ThemedText style={[styles.itemDetails, { color: textColor }]}>
+                    Tiempo: {item.time_note}
+                  </ThemedText>
+                )}
               </View>
 
               <View style={styles.itemActions}>
-                <ThemedText style={[styles.itemTotal, { color: textColor }]}>
-                  {formatCurrency(item.total)}
-                </ThemedText>
+
 
                 {permissions.includes('updateJobItem') && (
                   <TouchableOpacity onPress={() => router.push(`/job_items/${item.id}?job_id=${jobId}`)}>
@@ -942,11 +950,7 @@ export default function EditJobScreen() {
           <ThemedText style={[styles.viewItemsListText, { color: textColor }]}>Ver lista de items</ThemedText>
         </TouchableOpacity>
 
-        <View style={styles.totalContainer}>
-          <ThemedText style={[styles.totalText, { color: textColor }]}>
-            Total: {formatCurrency(jobItems.reduce((sum, i) => sum + i.total, 0))}
-          </ThemedText>
-        </View>
+
       </View>
       )}
 
@@ -1031,7 +1035,6 @@ const styles = StyleSheet.create({
   itemDescription: { fontWeight: '600' },
   itemDetails: { fontSize: 13, opacity: 0.7 },
   itemActions: { alignItems: 'flex-end' },
-  itemTotal: { fontWeight: 'bold' },
   editButton: { color: '#3b82f6', marginTop: 4 },
   deleteButton: { color: '#ef4444', marginTop: 4 },
   addItemButton: {
@@ -1050,8 +1053,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   viewItemsListText: { fontWeight: '600' },
-  totalContainer: { marginTop: 15, alignItems: 'flex-end' },
-  totalText: { fontSize: 16, fontWeight: 'bold' },
   btnSave:    { marginTop: 20, padding: 16, borderRadius: 8, alignItems: 'center' },
   btnDelete:  { marginTop: 10, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   btnText:    { fontSize: 16, fontWeight: 'bold' },
