@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-// eslint-disable-next-line import/no-unresolved
 import { Calendar, DateObject, LocaleConfig } from 'react-native-calendars';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { AppointmentsContext, Appointment } from '@/contexts/AppointmentsContext';
@@ -79,8 +78,8 @@ const toTimeSeconds = (time?: string | null) => {
 };
 
 const compareAppointmentsByTime = (a: Appointment, b: Appointment) => {
-  const aTime = toTimeSeconds(toTimeOnly(a.appointment));
-  const bTime = toTimeSeconds(toTimeOnly(b.appointment));
+  const aTime = a.appointment ? toTimeSeconds(toTimeOnly(a.appointment)) : Number.POSITIVE_INFINITY;
+  const bTime = b.appointment ? toTimeSeconds(toTimeOnly(b.appointment)) : Number.POSITIVE_INFINITY;
 
   const aHasTime = Number.isFinite(aTime);
   const bHasTime = Number.isFinite(bTime);
@@ -173,6 +172,10 @@ export default function AppointmentsCalendarScreen() {
 
   const appointmentsByDate = useMemo(() => {
     return appointments.reduce<Record<string, Appointment[]>>((acc, appointment) => {
+      if (!appointment.appointment) {
+        return acc;
+      }
+
       const appointmentDate = toDateOnly(appointment.appointment);
       if (!acc[appointmentDate]) {
         acc[appointmentDate] = [];

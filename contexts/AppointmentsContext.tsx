@@ -60,6 +60,25 @@ const normalizeNumber = (value: unknown): number | null => {
 
 const toTimestampString = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+const migrateLegacyAppointmentDateTime = (raw: any): string | null => {
+  if (typeof raw?.appointment === 'string' && raw.appointment.trim()) {
+    return raw.appointment;
+  }
+
+  const appointmentDate = typeof raw?.appointment_date === 'string' ? raw.appointment_date.trim() : '';
+  const appointmentTime = typeof raw?.appointment_time === 'string' ? raw.appointment_time.trim() : '';
+
+  if (appointmentDate && appointmentTime) {
+    return `${appointmentDate} ${appointmentTime}`;
+  }
+
+  if (appointmentDate) {
+    return `${appointmentDate} 00:00:00`;
+  }
+
+  return null;
+};
+
 const getAppointmentSortValue = (appointment: Appointment) => {
   if (appointment.created_at) {
     return appointment.created_at;
@@ -93,7 +112,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
     user_id: Number(raw.user_id),
     client_id: Number(raw.client_id),
     job_id: normalizeNumber(raw.job_id),
-    appointment: raw.appointment,
+    appointment: migrateLegacyAppointmentDateTime(raw) ?? '',
     comment: raw.comment ?? null,
     created_at: raw.created_at ?? null,
     updated_at: raw.updated_at ?? null,
