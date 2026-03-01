@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { JobItemsContext } from '@/contexts/JobItemsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
@@ -13,11 +13,9 @@ export default function CreateJobItemScreen() {
   const { permissions } = useContext(PermissionsContext);
   const { addJobItem, loadJobItems } = useContext(JobItemsContext);
 
-  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'open' | 'done' | 'cancelled'>('open');
   const [orderIndex, setOrderIndex] = useState('1');
-  const [timeNote, setTimeNote] = useState('');
 
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const textColor = useThemeColor({}, 'text');
@@ -31,18 +29,16 @@ export default function CreateJobItemScreen() {
       return;
     }
 
-    if (!title.trim() || Number.isNaN(parsedJobId)) {
-      Alert.alert('Campos incompletos', 'Completá al menos el título del ítem.');
+    if (!description.trim() || Number.isNaN(parsedJobId)) {
+      Alert.alert('Campos incompletos', 'Completá la descripción del ítem.');
       return;
     }
 
     const ok = await addJobItem({
       job_id: parsedJobId,
-      title: title.trim(),
       description: description.trim() || null,
       status,
       order_index: Number(orderIndex || 0),
-      time_note: timeNote.trim() || null,
     });
 
     if (ok) {
@@ -57,15 +53,6 @@ export default function CreateJobItemScreen() {
   return (
     <ThemedView style={styles.wrapper}>
       <ScrollView contentContainerStyle={styles.container}>
-        <ThemedText style={[styles.label, { color: textColor }]}>Título</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Título del item"
-          placeholderTextColor="#888"
-        />
-
         <ThemedText style={[styles.label, { color: textColor }]}>Descripción</ThemedText>
         <TextInput
           style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
@@ -90,22 +77,21 @@ export default function CreateJobItemScreen() {
           ))}
         </ScrollView>
 
-        <ThemedText style={[styles.label, { color: textColor }]}>Orden</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={orderIndex}
-          keyboardType="numeric"
-          onChangeText={setOrderIndex}
-        />
-
-        <ThemedText style={[styles.label, { color: textColor }]}>Nota de tiempo</ThemedText>
-        <TextInput
-          style={[styles.input, { backgroundColor: inputBackground, borderColor, color: textColor }]}
-          value={timeNote}
-          onChangeText={setTimeNote}
-          placeholder="00:30:00"
-          placeholderTextColor="#888"
-        />
+        <ThemedText style={[styles.label, { color: textColor }]}>Posición</ThemedText>
+        <View style={styles.positionRow}>
+          <TouchableOpacity
+            style={styles.positionButton}
+            onPress={() => setOrderIndex(String(Math.max(0, Number(orderIndex || 0) - 1)))}
+          >
+            <ThemedText style={styles.positionButtonText}>Mover arriba</ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.positionButton}
+            onPress={() => setOrderIndex(String(Number(orderIndex || 0) + 1))}
+          >
+            <ThemedText style={styles.positionButtonText}>Mover abajo</ThemedText>
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity style={styles.button} onPress={() => void handleSave()}>
           <ThemedText style={styles.buttonText}>Guardar</ThemedText>
@@ -128,6 +114,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { color: '#fff', fontWeight: '600' },
+
+  positionRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  positionButton: {
+    borderWidth: 1,
+    borderColor: '#2C2546',
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  positionButtonText: { color: '#2C2546', fontWeight: '600' },
   statusOptions: { gap: 8, marginBottom: 8 },
   statusChip: {
     borderWidth: 1,

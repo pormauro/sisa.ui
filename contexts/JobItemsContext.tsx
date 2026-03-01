@@ -6,22 +6,18 @@ import { useCachedState } from '@/hooks/useCachedState';
 export type JobItem = {
   id: number;
   job_id: number;
-  title: string;
   description?: string | null;
   status: 'open' | 'done' | 'cancelled';
   order_index: number;
-  time_note?: string | null;
   created_at?: string;
   updated_at?: string;
 };
 
 type NewJobItemPayload = {
   job_id: number;
-  title: string;
   description?: string | null;
   status: 'open' | 'done' | 'cancelled';
   order_index: number;
-  time_note?: string | null;
 };
 
 type UpdateJobItemPayload = Partial<Omit<NewJobItemPayload, 'job_id'>>;
@@ -58,11 +54,9 @@ const normalizeJobItem = (item: any): JobItem => {
   return {
     id: toNumber(item?.id),
     job_id: toNumber(item?.job_id),
-    title: item?.title ?? '',
     description: item?.description ?? null,
     status: normalizeStatus(item?.status),
     order_index: toNumber(item?.order_index),
-    time_note: item?.time_note ?? null,
     created_at: item?.created_at,
     updated_at: item?.updated_at,
   };
@@ -107,11 +101,9 @@ export const JobItemsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         method: 'POST',
         headers: authHeaders,
         body: JSON.stringify({
-          title: data.title,
           description: data.description,
           status: data.status,
           order_index: data.order_index,
-          time_note: data.time_note,
         }),
       });
 
