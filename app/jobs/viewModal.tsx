@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useNavigation } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useMemo } from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { JobsContext } from '@/contexts/JobsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
@@ -57,6 +57,7 @@ export default function ViewJobModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const jobId = Number(id);
   const navigation = useNavigation();
+  const router = useRouter();
   const { jobs } = useContext(JobsContext);
   const { clients } = useContext(ClientsContext);
   const { statuses } = useContext(StatusesContext);
@@ -64,6 +65,7 @@ export default function ViewJobModal() {
   const { folders } = useContext(FoldersContext);
   const { permissions } = useContext(PermissionsContext);
   const canListJobItems = permissions.includes('listJobItems');
+  const canEditJob = permissions.includes('updateJob');
 
   const job = jobs.find(j => j.id === jobId);
   const client = clients.find(c => c.id === job?.client_id);
@@ -238,6 +240,15 @@ export default function ViewJobModal() {
         permissions={permissions}
         mode="view"
       />
+
+      {canEditJob ? (
+        <TouchableOpacity
+          style={[styles.btnEdit, { backgroundColor: accentColor }]}
+          onPress={() => router.push(`/jobs/${job.id}`)}
+        >
+          <ThemedText style={styles.btnEditText}>Editar trabajo</ThemedText>
+        </TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 }
@@ -263,4 +274,16 @@ const styles = StyleSheet.create({
   cardValue: { fontSize: 20, fontWeight: '700' },
   costBreakdown: { marginTop: 12 },
   intervalText: { marginTop: 8, fontSize: 14 },
+  btnEdit: {
+    marginTop: 24,
+    marginBottom: 8,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  btnEditText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
