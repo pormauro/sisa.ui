@@ -46,6 +46,11 @@ export default function EditAppointmentScreen() {
 
   const appointment = appointments.find(item => item.id === appointmentId);
 
+  const jobDescription = useMemo(() => {
+    if (!appointment || !appointment.job_id) return null;
+    return jobs.find(job => job.id === appointment.job_id)?.description || null;
+  }, [appointment, jobs]);
+
   const [selectedClient, setSelectedClient] = useState('');
   const [selectedJob, setSelectedJob] = useState('');
   const [dateTime, setDateTime] = useState<Date>(new Date());
@@ -98,6 +103,11 @@ export default function EditAppointmentScreen() {
     const clientId = Number(selectedClient);
     return jobs.filter(job => job.client_id === clientId);
   }, [jobs, selectedClient]);
+
+  const selectedJobDescription = useMemo(() => {
+    if (!selectedJob) return null;
+    return jobs.find(job => job.id.toString() === selectedJob)?.description || null;
+  }, [selectedJob, jobs]);
 
   const clientItems = useMemo(
     () => {
@@ -357,6 +367,11 @@ export default function EditAppointmentScreen() {
               router.push(`/jobs/${value}`);
             }}
           />
+          {selectedJobDescription || jobDescription ? (
+            <ThemedText style={[styles.helperText, { color: placeholderColor }]}>
+              {selectedJobDescription || jobDescription}
+            </ThemedText>
+          ) : null}
 
           <ThemedText style={styles.label}>Fecha de la visita</ThemedText>
           <TouchableOpacity
@@ -457,6 +472,11 @@ const styles = StyleSheet.create({
   },
   select: {
     marginBottom: 16,
+  },
+  helperText: {
+    marginTop: -8,
+    marginBottom: 16,
+    fontSize: 14,
   },
   selector: {
     borderWidth: 1,
