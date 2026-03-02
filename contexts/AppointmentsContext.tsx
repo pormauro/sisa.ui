@@ -58,6 +58,15 @@ const normalizeNumber = (value: unknown): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const resolveRelatedId = (raw: any, directKey: 'client_id' | 'job_id', nestedKey: 'client' | 'job'): number | null => {
+  const directValue = normalizeNumber(raw?.[directKey]);
+  if (directValue !== null) {
+    return directValue;
+  }
+
+  return normalizeNumber(raw?.[nestedKey]?.id);
+};
+
 const toTimestampString = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
 const migrateLegacyAppointmentDateTime = (raw: any): string | null => {
@@ -110,8 +119,8 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
   const parseAppointment = useCallback((raw: any): Appointment => ({
     id: Number(raw.id),
     user_id: Number(raw.user_id),
-    client_id: Number(raw.client_id),
-    job_id: normalizeNumber(raw.job_id),
+    client_id: resolveRelatedId(raw, 'client_id', 'client') ?? 0,
+    job_id: resolveRelatedId(raw, 'job_id', 'job'),
     appointment: migrateLegacyAppointmentDateTime(raw) ?? '',
     comment: raw.comment ?? null,
     created_at: raw.created_at ?? null,
