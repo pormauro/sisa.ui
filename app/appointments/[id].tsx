@@ -367,11 +367,7 @@ export default function EditAppointmentScreen() {
               router.push(`/jobs/${value}`);
             }}
           />
-          {selectedJobDescription || jobDescription ? (
-            <ThemedText style={[styles.helperText, { color: placeholderColor }]}>
-              {selectedJobDescription || jobDescription}
-            </ThemedText>
-          ) : null}
+
 
           <ThemedText style={styles.label}>Fecha de la visita</ThemedText>
           <TouchableOpacity
