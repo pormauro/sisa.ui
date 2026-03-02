@@ -41,7 +41,11 @@ export default function CreateAppointmentScreen() {
   const { jobs } = useContext(JobsContext);
   const { beginSelection, consumeSelection, pendingSelections } = usePendingSelection();
 
-  const { date, client_id } = useLocalSearchParams<{ date?: string; client_id?: string | string[] }>();
+  const { date, client_id, job_id } = useLocalSearchParams<{
+    date?: string;
+    client_id?: string | string[];
+    job_id?: string | string[];
+  }>();
   const initialDateParam = Array.isArray(date) ? date[0] : date;
   const initialClientParam = useMemo(() => {
     if (!client_id) {
@@ -50,8 +54,16 @@ export default function CreateAppointmentScreen() {
     return Array.isArray(client_id) ? client_id[0] ?? '' : client_id;
   }, [client_id]);
 
+
+  const initialJobParam = useMemo(() => {
+    if (!job_id) {
+      return '';
+    }
+    return Array.isArray(job_id) ? job_id[0] ?? '' : job_id;
+  }, [job_id]);
+
   const [selectedClient, setSelectedClient] = useState(initialClientParam);
-  const [selectedJob, setSelectedJob] = useState('');
+  const [selectedJob, setSelectedJob] = useState(initialJobParam);
   const pendingJobSelectionRef = useRef<string | null>(null);
   const [dateTime, setDateTime] = useState<Date>(() => {
     const now = new Date();
@@ -85,7 +97,11 @@ export default function CreateAppointmentScreen() {
     if (!selectedClient && initialClientParam) {
       setSelectedClient(initialClientParam);
     }
-  }, [initialClientParam, selectedClient]);
+    if (!selectedJob && initialJobParam) {
+      pendingJobSelectionRef.current = initialJobParam;
+      setSelectedJob(initialJobParam);
+    }
+  }, [initialClientParam, initialJobParam, selectedClient, selectedJob]);
 
   useEffect(() => {
     if (!permissions.includes('addAppointment')) {

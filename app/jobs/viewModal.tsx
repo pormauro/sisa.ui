@@ -17,6 +17,7 @@ import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 import { JobItemsSection } from '@/components/jobs/JobItemsSection';
 import { MenuButton } from '@/components/MenuButton';
+import { JobAppointmentsList } from '@/components/JobAppointmentsList';
 
 const getContrastingTextColor = (color: string): string => {
   if (!color) return '#fff';
@@ -240,6 +241,11 @@ export default function ViewJobModal() {
         mode="view"
       />
 
+      <View style={styles.visitsSection}>
+        <ThemedText style={[styles.label, styles.visitsLabel, { color: textColor }]}>Historial de visitas</ThemedText>
+        <JobAppointmentsList jobId={job.id} />
+      </View>
+
       <ThemedText style={[styles.inlineId, { color: textColor }]}>ID: {job.id}</ThemedText>
 
       {permissions.includes('updateJob') ? (
@@ -258,6 +264,8 @@ const styles = StyleSheet.create({
   container: { padding: 16, flexGrow: 1 },
   label: { marginTop: 8, fontSize: 16, fontWeight: 'bold' },
   value: { fontSize: 16, marginBottom: 8 },
+  visitsSection: { marginTop: 8 },
+  visitsLabel: { marginTop: 0, marginBottom: 0 },
   inlineId: { marginTop: 8, marginBottom: 8, fontSize: 16, fontWeight: '600' },
   timeCostCard: {
     marginTop: 16,

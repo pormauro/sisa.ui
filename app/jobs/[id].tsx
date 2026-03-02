@@ -35,6 +35,7 @@ import { useCachedState } from '@/hooks/useCachedState';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
 import { JobItemsSection } from '@/components/jobs/JobItemsSection';
+import { JobAppointmentsList } from '@/components/JobAppointmentsList';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
 
@@ -867,6 +868,26 @@ export default function EditJobScreen() {
         editable={canEdit}
         invoiceMarkingEnabled
       />
+
+      <View style={styles.appointmentsHeader}>
+        <ThemedText style={[styles.label, styles.appointmentsLabel, { color: textColor }]}>Visitas asociadas</ThemedText>
+        <TouchableOpacity
+          onPress={() =>
+            router.push({
+              pathname: '/appointments/create',
+              params: {
+                job_id: jobId,
+                client_id: selectedClientId,
+              },
+            })
+          }
+        >
+          <ThemedText style={{ color: btnSaveColor }}>+ Nueva</ThemedText>
+        </TouchableOpacity>
+      </View>
+
+      <JobAppointmentsList jobId={jobId} isEditable />
+
       <JobItemsSection
         jobId={jobId}
         canListJobItems={canListJobItems}
@@ -939,6 +960,14 @@ export default function EditJobScreen() {
 const styles = StyleSheet.create({
   container:  { padding: 16, paddingBottom: FORM_BOTTOM_SPACING, flexGrow: 1 },
   label:      { marginTop: 16, marginBottom: 4, fontSize: 16, fontWeight: '600' },
+  appointmentsLabel: { marginTop: 0, marginBottom: 0 },
+  appointmentsHeader: {
+    marginTop: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   select: { marginBottom: 12 },
   helperText: { marginTop: -4, marginBottom: 8, fontSize: 12 },
   input:      { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12 },
