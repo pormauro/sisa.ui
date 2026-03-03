@@ -17,7 +17,20 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.pormauro.sisa"
+      "package": "com.pormauro.sisa",
+      "intentFilters": [
+        {
+          "action": "SEND",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "*/*"
+            }
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
