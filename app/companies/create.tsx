@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import CircleImagePicker from '@/components/CircleImagePicker';
-import AddressLocationPicker from '@/components/AddressLocationPicker';
 import CollapsibleSection from '@/components/CollapsibleSection';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -26,7 +25,6 @@ import {
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { useSuperAdministrator } from '@/hooks/useSuperAdministrator';
 import { analyzeAdministratorIdsInput } from '@/utils/administratorIds';
-import { formatCompanyAddress } from '@/utils/address';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import {
   coordinateInputValue,
@@ -136,20 +134,6 @@ export default function CreateCompanyPage() {
     });
   };
 
-  const updateAddressCoordinates = (
-    index: number,
-    coordinate: { latitude: number; longitude: number } | null,
-  ) => {
-    setAddresses(prev => {
-      const updated = [...prev];
-      updated[index] = {
-        ...updated[index],
-        latitude: coordinate ? coordinate.latitude.toString() : '',
-        longitude: coordinate ? coordinate.longitude.toString() : '',
-      };
-      return updated;
-    });
-  };
 
   const addAddress = () => {
     setAddresses(prev => [...prev, createEmptyCompanyAddress()]);
@@ -731,17 +715,10 @@ export default function CreateCompanyPage() {
               />
             </View>
 
-            <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
+            <ThemedText style={styles.label}>Coordenadas</ThemedText>
             <ThemedText style={styles.helperText}>
-              Dirección para GPS:{' '}
-              {formatCompanyAddress(address) || 'Completá la dirección para posicionar el punto.'}
+              Pegá manualmente la latitud y longitud para esta dirección.
             </ThemedText>
-            <AddressLocationPicker
-              latitude={address.latitude}
-              longitude={address.longitude}
-              onChange={(coordinate) => updateAddressCoordinates(index, coordinate)}
-              editable
-            />
 
             <View style={styles.coordinateInputsRow}>
               <View style={styles.coordinateInputContainer}>

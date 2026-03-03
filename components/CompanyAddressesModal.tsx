@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import AddressLocationPicker from '@/components/AddressLocationPicker';
 import { CompanyAddress } from '@/contexts/CompaniesContext';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import {
@@ -94,41 +93,12 @@ const CompanyAddressesModal: React.FC<CompanyAddressesModalProps> = ({
     });
   }, []);
 
-  const updateDraftCoordinates = useCallback((
-    index: number,
-    coordinate: { latitude: number; longitude: number } | null,
-  ) => {
-    setDrafts(prev => {
-      const next = [...prev];
-      next[index] = {
-        ...next[index],
-        latitude: coordinate ? coordinate.latitude.toString() : '',
-        longitude: coordinate ? coordinate.longitude.toString() : '',
-      };
-      return next;
-    });
-  }, []);
 
   const updateExistingDraftField = useCallback(
     (index: number, field: keyof CompanyAddress, value: string) => {
       setExistingDrafts(prev => {
         const next = [...prev];
         next[index] = { ...next[index], [field]: value };
-        return next;
-      });
-    },
-    []
-  );
-
-  const updateExistingDraftCoordinates = useCallback(
-    (index: number, coordinate: { latitude: number; longitude: number } | null) => {
-      setExistingDrafts(prev => {
-        const next = [...prev];
-        next[index] = {
-          ...next[index],
-          latitude: coordinate ? coordinate.latitude.toString() : '',
-          longitude: coordinate ? coordinate.longitude.toString() : '',
-        };
         return next;
       });
     },
@@ -480,13 +450,10 @@ const CompanyAddressesModal: React.FC<CompanyAddressesModalProps> = ({
                       />
                     </View>
 
-                    <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
-                    <AddressLocationPicker
-                      latitude={address.latitude}
-                      longitude={address.longitude}
-                      editable
-                      onChange={coordinate => updateExistingDraftCoordinates(index, coordinate)}
-                    />
+                    <ThemedText style={styles.label}>Coordenadas</ThemedText>
+                    <ThemedText style={styles.helperText}>
+                      Pegá manualmente la latitud y longitud para esta dirección.
+                    </ThemedText>
 
                     <View style={styles.coordinateRow}>
                       <View style={styles.coordinateInputContainer}>
@@ -684,13 +651,10 @@ const CompanyAddressesModal: React.FC<CompanyAddressesModalProps> = ({
                       />
                     </View>
 
-                    <ThemedText style={styles.label}>Ubicación GPS</ThemedText>
-                    <AddressLocationPicker
-                      latitude={draft.latitude}
-                      longitude={draft.longitude}
-                      editable
-                      onChange={coordinate => updateDraftCoordinates(index, coordinate)}
-                    />
+                    <ThemedText style={styles.label}>Coordenadas</ThemedText>
+                    <ThemedText style={styles.helperText}>
+                      Pegá manualmente la latitud y longitud para esta dirección.
+                    </ThemedText>
 
                     <View style={styles.coordinateRow}>
                       <View style={styles.coordinateInputContainer}>
