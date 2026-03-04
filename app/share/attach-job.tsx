@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,14 +17,17 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AuthContext } from '@/contexts/AuthContext';
 import { Job, JobsContext } from '@/contexts/JobsContext';
 import { useFiles } from '@/contexts/FilesContext';
+import { recordShareDebug } from '@/utils/shareDebug';
 
 const normalizeUriForUpload = async (uri: string): Promise<string> => {
   if (!uri.startsWith('content://')) {
+    recordShareDebug('attach-job:normalize-skip', { uri, reason: 'not-content-uri' });
     return uri;
   }
 
   const base = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
   if (!base) {
+    recordShareDebug('attach-job:normalize-skip', { uri, reason: 'missing-filesystem-base' });
     return uri;
   }
 
@@ -33,6 +36,8 @@ const normalizeUriForUpload = async (uri: string): Promise<string> => {
 
   const destination = `${tempDir}shared_${Date.now()}`;
   await FileSystem.copyAsync({ from: uri, to: destination });
+
+  recordShareDebug('attach-job:normalize-content-uri', { uri, destination });
 
   return destination;
 };
@@ -58,6 +63,19 @@ export default function AttachJobScreen() {
   const sharedMime = typeof params.mime === 'string' ? decodeURIComponent(params.mime) : 'application/octet-stream';
   const sharedSize = typeof params.size === 'string' ? Number.parseInt(params.size, 10) || 0 : 0;
 
+  useEffect(() => {
+    recordShareDebug('attach-job:params-decoded', {
+      params,
+      sharedUri,
+      sharedName,
+      sharedMime,
+      sharedSize,
+      jobsCount: jobs.length,
+      isOffline,
+      hasToken: Boolean(token),
+    });
+  }, [params, sharedUri, sharedName, sharedMime, sharedSize, jobs.length, isOffline, token]);
+
   const filteredJobs = useMemo(() => {
     const term = search.trim().toLowerCase();
     if (!term) {
@@ -71,6 +89,14 @@ export default function AttachJobScreen() {
   }, [jobs, search]);
 
   const handleAttach = async (job: Job) => {
+    recordShareDebug('attach-job:attach-start', {
+      jobId: job.id,
+      sharedUri,
+      sharedName,
+      sharedMime,
+      sharedSize,
+    });
+
     if (!sharedUri) {
       Alert.alert('Sin archivo', 'No se encontró un archivo para adjuntar.');
       return;
@@ -81,6 +107,13 @@ export default function AttachJobScreen() {
       const net = await NetInfo.fetch();
       const isConnected = Boolean(net.isConnected && net.isInternetReachable !== false);
 
+      recordShareDebug('attach-job:connectivity-check', {
+        netInfo: net,
+        isConnected,
+        isOffline,
+        hasToken: Boolean(token),
+      });
+
       if (!token || isOffline || !isConnected) {
         Alert.alert('Sin conexión', 'Necesitas internet para adjuntar archivos desde compartir.');
         router.back();
@@ -88,18 +121,35 @@ export default function AttachJobScreen() {
       }
 
       const uploadUri = await normalizeUriForUpload(sharedUri);
+      recordShareDebug('attach-job:normalized-uri', {
+        sharedUri,
+        uploadUri,
+      });
+
       const uploaded = await uploadFile(uploadUri, sharedName, sharedMime, sharedSize);
+
+      recordShareDebug('attach-job:upload-result', {
+        uploaded,
+      });
 
       if (!uploaded?.id) {
         Alert.alert('Error', 'No se pudo subir el archivo compartido.');
         return;
       }
 
+      recordShareDebug('attach-job:navigate-to-job', {
+        jobId: job.id,
+        sharedFileId: uploaded.id,
+      });
+
       router.replace({
         pathname: `/jobs/${job.id}`,
         params: { sharedFileId: String(uploaded.id) },
       });
     } catch (error) {
+      recordShareDebug('attach-job:error', {
+        error,
+      });
       console.error('Error al adjuntar archivo compartido', error);
       Alert.alert('Error', 'No se pudo completar el adjunto desde compartir.');
     } finally {
