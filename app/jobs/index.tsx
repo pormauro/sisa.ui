@@ -1,10 +1,11 @@
 // C:/Users/Mauri/Documents/GitHub/router/app/jobs/index.tsx
 import React, { useContext, useEffect, useState, useMemo, useCallback, useLayoutEffect } from 'react';
-import { View, FlatList, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { DaySeparator } from '@/components/DaySeparator';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { SearchableSelect, SearchableSelectItem } from '@/components/SearchableSelect';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Fuse from 'fuse.js';
@@ -25,9 +26,11 @@ import { useNavigation } from '@react-navigation/native';
 type SortField = 'createdAt' | 'updatedAt';
 
 const SORT_OPTIONS: { label: string; value: SortField }[] = [
-  { label: 'Más nuevo primero', value: 'createdAt' },
-  { label: 'Última modificación', value: 'updatedAt' },
+  { label: 'Fecha de trabajo', value: 'createdAt' },
+  { label: 'Última intervención', value: 'updatedAt' },
 ];
+
+const CLIENT_ALL_VALUE = 'all';
 
 export default function JobsScreen() {
   const { jobs, loadJobs, deleteJob } = useContext(JobsContext);
@@ -39,6 +42,7 @@ export default function JobsScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const [search, setSearch] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
@@ -48,7 +52,6 @@ export default function JobsScreen() {
   const background = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
-  const placeholderColor = useThemeColor({ light: '#666', dark: '#ccc' }, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const itemBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const itemBorderColor = useThemeColor({ light: '#ddd', dark: '#444' }, 'background');
@@ -119,20 +122,6 @@ export default function JobsScreen() {
   const areAllStatusesSelected =
     statuses.length > 0 && allStatusIds.every(statusId => selectedStatusIds.includes(statusId));
 
-  const filteredJobs = useMemo(() => {
-    const baseJobs = search ? fuse.search(search).map(result => result.item as Job) : jobs;
-
-    if (areAllStatusesSelected || statuses.length === 0) {
-      return baseJobs;
-    }
-
-    if (selectedStatusIds.length === 0) {
-      return [];
-    }
-
-    return baseJobs.filter(job => job.status_id != null && selectedStatusIds.includes(job.status_id));
-  }, [areAllStatusesSelected, fuse, jobs, search, selectedStatusIds, statuses.length]);
-
   const toggleStatusFilter = useCallback((statusId: number) => {
     setSelectedStatusIds(prev =>
       prev.includes(statusId) ? prev.filter(id => id !== statusId) : [...prev, statusId]
@@ -183,27 +172,82 @@ export default function JobsScreen() {
     [jobsForSearch]
   );
 
-  const sortedJobs = useMemo(() => {
-    if (sortField === 'updatedAt') {
-      return sortByNewest(filteredJobs, getJobUpdatedValue);
+  const clientItems = useMemo<SearchableSelectItem[]>(
+    () => [
+      { label: 'Todos', value: CLIENT_ALL_VALUE },
+      ...clients.map(client => ({ label: client.business_name, value: client.id })),
+    ],
+    [clients]
+  );
+
+  const clientFilteredJobs = useMemo(() => {
+    if (selectedClientId == null) {
+      return jobs;
     }
 
-    return sortByNewest(filteredJobs, getJobCreatedValue);
+    return jobs.filter(job => job.client_id === selectedClientId);
+  }, [jobs, selectedClientId]);
+
+  const statusFilteredJobs = useMemo(() => {
+    if (areAllStatusesSelected || statuses.length === 0) {
+      return clientFilteredJobs;
+    }
+
+    if (selectedStatusIds.length === 0) {
+      return [];
+    }
+
+    return clientFilteredJobs.filter(job => job.status_id != null && selectedStatusIds.includes(job.status_id));
+  }, [areAllStatusesSelected, clientFilteredJobs, selectedStatusIds, statuses.length]);
+
+  const searchedJobs = useMemo(() => {
+    if (!search.trim()) {
+      return statusFilteredJobs;
+    }
+
+    if (!fuse) {
+      return statusFilteredJobs;
+    }
+
+    const statusFilteredIds = new Set(statusFilteredJobs.map(job => job.id));
+    return fuse
+      .search(search)
+      .map(result => result.item as Job)
+      .filter(job => statusFilteredIds.has(job.id));
+  }, [fuse, search, statusFilteredJobs]);
+
+  const sortedJobs = useMemo(() => {
+    if (sortField === 'updatedAt') {
+      return sortByNewest(searchedJobs, getJobUpdatedValue);
+    }
+
+    return sortByNewest(searchedJobs, getJobCreatedValue);
   }, [
-    filteredJobs,
+    searchedJobs,
     sortField,
     getJobUpdatedValue,
     getJobCreatedValue,
   ]);
 
   const currentSortLabel = useMemo(
-    () => SORT_OPTIONS.find(option => option.value === sortField)?.label ?? 'Fecha del trabajo',
+    () => SORT_OPTIONS.find(option => option.value === sortField)?.label ?? 'Fecha de trabajo',
     [sortField]
   );
 
   const handleSelectSort = useCallback((option: SortField) => {
     setSortField(option);
-    setFiltersVisible(false);
+  }, []);
+
+  const handleSelectClient = useCallback((value: string | number | null) => {
+    if (value === null || value === CLIENT_ALL_VALUE) {
+      setSelectedClientId(null);
+      setSearch('');
+      return;
+    }
+
+    const parsedValue = typeof value === 'number' ? value : Number(value);
+    setSelectedClientId(Number.isFinite(parsedValue) ? parsedValue : null);
+    setSearch('');
   }, []);
 
   // Función para buscar el objeto status que corresponda al trabajo
@@ -336,15 +380,13 @@ export default function JobsScreen() {
       {controlsExpanded && (
         <>
           <View style={styles.searchRow}>
-            <TextInput
-              style={[
-                styles.search,
-                { backgroundColor: inputBackground, color: inputTextColor, borderColor }
-              ]}
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Buscar trabajo o cliente..."
-              placeholderTextColor={placeholderColor}
+            <SearchableSelect
+              style={styles.clientSelect}
+              items={clientItems}
+              selectedValue={selectedClientId ?? CLIENT_ALL_VALUE}
+              onValueChange={handleSelectClient}
+              placeholder="Cliente"
+              showSearch
             />
             <TouchableOpacity
               style={[
@@ -358,7 +400,7 @@ export default function JobsScreen() {
           </View>
           <View style={styles.filterSummaryRow}>
             <ThemedText style={styles.filterSummaryText}>
-              Ordenado por {currentSortLabel} · Estados: {areAllStatusesSelected ? 'Todos' : selectedStatusIds.length}
+              Cliente: {selectedClientId == null ? 'Todos' : getClientName(selectedClientId) ?? 'Sin nombre'} · Orden: {currentSortLabel} · Estados: {areAllStatusesSelected ? 'Todos' : selectedStatusIds.length}
             </ThemedText>
           </View>
         </>
@@ -381,7 +423,7 @@ export default function JobsScreen() {
         style={[styles.addButton, { backgroundColor: addButtonColor }]}
         onPress={() => router.push('/jobs/create')}
       >
-        <ThemedText style={[styles.addText, { color: addButtonTextColor }]}>
+        <ThemedText style={[styles.addText, { color: addButtonTextColor }]}> 
           ➕ Nuevo Trabajo
         </ThemedText>
       </TouchableOpacity>
@@ -392,7 +434,7 @@ export default function JobsScreen() {
         onRequestClose={() => setFiltersVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: inputBackground }]}>
+          <View style={[styles.modalContent, { backgroundColor: inputBackground }]}> 
             <View style={styles.modalHeader}>
               <ThemedText style={styles.modalTitle}>Filtro</ThemedText>
               <TouchableOpacity
@@ -405,68 +447,65 @@ export default function JobsScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.modalSection}>
+              <ThemedText style={styles.modalSectionTitle}>Cliente</ThemedText>
+              <SearchableSelect
+                items={clientItems}
+                selectedValue={selectedClientId ?? CLIENT_ALL_VALUE}
+                onValueChange={handleSelectClient}
+                placeholder="Cliente"
+                showSearch
+              />
+
+              <ThemedText style={styles.modalSectionTitle}>Estados</ThemedText>
+              <View style={styles.statusChipsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.statusChip,
+                    { backgroundColor: addButtonColor, opacity: areAllStatusesSelected ? 1 : 0.3 },
+                  ]}
+                  onPress={handleSelectAllStatuses}
+                >
+                  <ThemedText style={styles.statusChipText}>Todos</ThemedText>
+                </TouchableOpacity>
+                {statuses.map(status => {
+                  const isSelected = selectedStatusIds.includes(status.id);
+                  return (
+                    <TouchableOpacity
+                      key={`status-${status.id}`}
+                      style={[
+                        styles.statusChip,
+                        { backgroundColor: status.background_color, opacity: isSelected ? 1 : 0.3 },
+                      ]}
+                      onPress={() => toggleStatusFilter(status.id)}
+                    >
+                      <ThemedText style={styles.statusChipText}>{status.label}</ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
               <ThemedText style={styles.modalSectionTitle}>Orden</ThemedText>
               {SORT_OPTIONS.map(option => {
                 const isSelected = sortField === option.value;
                 return (
                   <TouchableOpacity
                     key={option.value}
-                    style={[
-                      styles.modalOption,
-                      { borderColor },
-                      isSelected && { borderColor: addButtonColor },
-                    ]}
+                    style={styles.compactOption}
                     onPress={() => handleSelectSort(option.value)}
                   >
+                    <Ionicons
+                      name={isSelected ? 'radio-button-on' : 'radio-button-off'}
+                      size={16}
+                      color={isSelected ? addButtonColor : inputTextColor}
+                      style={styles.compactOptionIcon}
+                    />
                     <ThemedText
                       style={[
-                        styles.modalOptionText,
-                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                        styles.compactOptionText,
+                        { color: isSelected ? addButtonColor : inputTextColor },
                       ]}
                     >
                       {option.label}
-                    </ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-
-              <ThemedText style={styles.modalSectionTitle}>Estados</ThemedText>
-              <TouchableOpacity
-                style={[
-                  styles.modalOption,
-                  { borderColor },
-                  areAllStatusesSelected && { borderColor: addButtonColor },
-                ]}
-                onPress={handleSelectAllStatuses}
-              >
-                <ThemedText
-                  style={[
-                    styles.modalOptionText,
-                    areAllStatusesSelected && { color: addButtonColor, fontWeight: '600' },
-                  ]}
-                >
-                  Todos
-                </ThemedText>
-              </TouchableOpacity>
-              {statuses.map(status => {
-                const isSelected = selectedStatusIds.includes(status.id);
-                return (
-                  <TouchableOpacity
-                    key={`status-${status.id}`}
-                    style={[
-                      styles.modalOption,
-                      { borderColor },
-                      isSelected && { borderColor: addButtonColor },
-                    ]}
-                    onPress={() => toggleStatusFilter(status.id)}
-                  >
-                    <ThemedText
-                      style={[
-                        styles.modalOptionText,
-                        isSelected && { color: addButtonColor, fontWeight: '600' },
-                      ]}
-                    >
-                      {status.label}
                     </ThemedText>
                   </TouchableOpacity>
                 );
@@ -494,11 +533,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12
   },
-  search: {
+  clientSelect: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12
   },
   filterButton: {
     borderWidth: 1,
@@ -554,25 +590,43 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     borderRadius: 12,
-    padding: 16
+    padding: 12
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 8,
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold' },
-  modalSection: { marginBottom: 12 },
-  modalSectionTitle: { fontSize: 14, fontWeight: '700', marginTop: 6, marginBottom: 8 },
-  modalOption: {
-    borderWidth: 1,
-    borderRadius: 8,
+  modalTitle: { fontSize: 16, fontWeight: 'bold' },
+  modalSection: { marginBottom: 6 },
+  modalSectionTitle: { fontSize: 12, fontWeight: '700', marginTop: 6, marginBottom: 6, textTransform: 'uppercase' },
+  compactOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 8
+    paddingHorizontal: 4,
   },
-  modalOptionText: { fontSize: 14, textAlign: 'center' },
+  compactOptionIcon: {
+    marginRight: 8,
+  },
+  compactOptionText: { fontSize: 13 },
+  statusChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  statusChip: {
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  statusChipText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   modalCloseButton: {
     borderRadius: 999,
     width: 36,
