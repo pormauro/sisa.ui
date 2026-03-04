@@ -37,6 +37,18 @@ import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
+const SERVER_RESPONSE_TIMEOUT_MS = 20000;
+
+const withServerResponseTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T | null> => {
+  const timeoutPromise = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]);
+};
 
 const parseManualAmountInput = (value: string): number | null | undefined => {
   if (value == null) {
@@ -475,8 +487,17 @@ export default function CreateJobScreen() {
         participants,
       };
       setLoading(true);
-      const created = await addJob(jobData);
+      const created = await withServerResponseTimeout(addJob(jobData), SERVER_RESPONSE_TIMEOUT_MS);
       setLoading(false);
+
+      if (created === null) {
+        Alert.alert(
+          'Tiempo de espera agotado',
+          'El servidor tardó demasiado en responder. Se restauró el estado anterior para que puedas volver a intentarlo.'
+        );
+        return;
+      }
+
       if (created) {
         Alert.alert('Éxito', 'Trabajo creado.');
         setDraft(null);
