@@ -82,8 +82,8 @@ const parseManualAmountInput = (value: string): number | null | undefined => {
 
 export default function EditJobScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string }>();
-  const { id } = params;
+  const params = useLocalSearchParams<{ id: string; sharedFileId?: string }>();
+  const { id, sharedFileId } = params;
   const jobId = Number(id);
 
   const { jobs, loadJobs, updateJob, deleteJob } = useContext(JobsContext);
@@ -186,7 +186,21 @@ export default function EditJobScreen() {
       setManualAmountInput(draft.manualAmountInput);
       setManualAmountTouched(draft.manualAmountTouched);
       setDescription(draft.description);
-      setAttachedFiles(draft.attachedFiles);
+      let parsedAttachedFiles: number[] = [];
+      if (draft.attachedFiles) {
+        try {
+          parsedAttachedFiles = JSON.parse(draft.attachedFiles);
+        } catch {}
+      }
+
+      const normalizedSharedFileId = Array.isArray(sharedFileId) ? sharedFileId[0] : sharedFileId;
+      if (normalizedSharedFileId) {
+        const sharedIdNum = Number(normalizedSharedFileId);
+        if (sharedIdNum && !parsedAttachedFiles.includes(sharedIdNum)) {
+          parsedAttachedFiles.push(sharedIdNum);
+        }
+      }
+      setAttachedFiles(parsedAttachedFiles.length ? JSON.stringify(parsedAttachedFiles) : '');
       setJobDate(draft.jobDate);
       setStartTime(draft.startTime);
       setEndTime(draft.endTime);
@@ -196,7 +210,7 @@ export default function EditJobScreen() {
     }
     draftAppliedRef.current = true;
     setDraftReady(true);
-  }, [draft, draftHydrated, folders, statuses]);
+  }, [draft, draftHydrated, folders, sharedFileId, statuses]);
 
   useEffect(() => {
     if (!draft || selectedStatus || !draft.selectedStatusId) {
@@ -272,11 +286,20 @@ export default function EditJobScreen() {
       const extractTime = (dt?: string) => (dt && dt.includes(' ') ? dt.split(' ')[1].slice(0,5) : dt || '');
 
       setDescription(job.description || '');
-      const attachments = job.attached_files
+      let attachments = job.attached_files
         ? (typeof job.attached_files === 'string'
             ? JSON.parse(job.attached_files)
             : job.attached_files)
         : [];
+
+      const normalizedSharedFileId = Array.isArray(sharedFileId) ? sharedFileId[0] : sharedFileId;
+      if (normalizedSharedFileId) {
+        const sharedIdNum = Number(normalizedSharedFileId);
+        if (sharedIdNum && !attachments.includes(sharedIdNum)) {
+          attachments.push(sharedIdNum);
+        }
+      }
+
       setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
       setJobDate(extractDate(job.job_date));
       setStartTime(extractTime(job.start_time));
@@ -318,7 +341,7 @@ export default function EditJobScreen() {
     Promise.resolve(loadJobs()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [job, clients, folders, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId, draft, draftHydrated]);
+  }, [job, clients, folders, sharedFileId, statuses, hasAttemptedLoad, isFetchingItem, loadJobs, userId, draft, draftHydrated]);
 
 
   useEffect(() => {

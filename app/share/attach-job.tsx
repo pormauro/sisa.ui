@@ -18,27 +18,6 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { Job, JobsContext } from '@/contexts/JobsContext';
 import { useFiles } from '@/contexts/FilesContext';
 
-const parseAttachedFiles = (value: Job['attached_files']): number[] => {
-  if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return value.map(Number).filter(Number.isFinite);
-  }
-
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      if (Array.isArray(parsed)) {
-        return parsed.map(Number).filter(Number.isFinite);
-      }
-    } catch {
-      return [];
-    }
-  }
-
-  return [];
-};
-
 const normalizeUriForUpload = async (uri: string): Promise<string> => {
   if (!uri.startsWith('content://')) {
     return uri;
@@ -68,7 +47,7 @@ export default function AttachJobScreen() {
   }>();
 
   const { token, isOffline } = useContext(AuthContext);
-  const { jobs, updateJob } = useContext(JobsContext);
+  const { jobs } = useContext(JobsContext);
   const { uploadFile } = useFiles();
 
   const [search, setSearch] = useState('');
@@ -116,33 +95,10 @@ export default function AttachJobScreen() {
         return;
       }
 
-      const updatedAttachedFiles = [...parseAttachedFiles(job.attached_files), uploaded.id];
-
-      const updated = await updateJob(job.id, {
-        client_id: job.client_id,
-        description: job.description,
-        start_time: job.start_time,
-        end_time: job.end_time,
-        type_of_work: job.type_of_work,
-        status_id: job.status_id,
-        folder_id: job.folder_id,
-        product_service_id: job.product_service_id,
-        multiplicative_value: job.multiplicative_value,
-        tariff_id: job.tariff_id,
-        manual_amount: job.manual_amount,
-        attached_files: updatedAttachedFiles,
-        participants: job.participants,
-        job_date: job.job_date,
-        created_at: job.created_at,
-        updated_at: job.updated_at,
+      router.replace({
+        pathname: `/jobs/${job.id}`,
+        params: { sharedFileId: String(uploaded.id) },
       });
-
-      if (!updated) {
-        Alert.alert('Error', 'No se pudo actualizar el trabajo con el archivo.');
-        return;
-      }
-
-      router.replace(`/jobs/${job.id}`);
     } catch (error) {
       console.error('Error al adjuntar archivo compartido', error);
       Alert.alert('Error', 'No se pudo completar el adjunto desde compartir.');
