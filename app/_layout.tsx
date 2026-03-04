@@ -65,15 +65,20 @@ function RootLayoutContent() {
       return;
     }
 
+    const isLoginRoute = pathname.startsWith('/login');
+    const isRootRoute = pathname === '/' || pathname === '/Index';
+
     if (username && isReady) {
-      router.replace('/Home');
+      if (isRootRoute || isLoginRoute) {
+        router.replace('/Home');
+      }
       return;
     }
 
-    if (!username) {
+    if (!username && !isLoginRoute) {
       router.replace('/login/Login');
     }
-  }, [isLoading, isReady, router, username]);
+  }, [isLoading, isReady, pathname, router, username]);
 
   if (isLoading || (username && !isReady)) {
     return (
