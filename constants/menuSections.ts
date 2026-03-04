@@ -114,6 +114,11 @@ export const MENU_SECTIONS: MenuSection[] = [
         icon: 'git-network-outline',
         requiredPermissions: ['listNetworkLogs'],
       },
+      {
+        title: 'Depurador de Share',
+        route: '/share/debug',
+        icon: 'share-social-outline',
+      },
     ],
   },
 ];

@@ -88,3 +88,13 @@ export const recordShareDebug = (stage: string, values: Record<string, unknown>)
     await setCachedData(SHARE_DEBUG_CACHE_KEY, limited);
   })();
 };
+
+export const getShareDebugHistory = async (): Promise<ShareDebugEntry[]> => {
+  const existing = (await getCachedData<ShareDebugEntry[]>(SHARE_DEBUG_CACHE_KEY)) ?? [];
+  return existing;
+};
+
+export const clearShareDebugHistory = async (): Promise<void> => {
+  await setCachedData(SHARE_DEBUG_CACHE_KEY, [] as ShareDebugEntry[]);
+  lastSnapshot = null;
+};
