@@ -37,6 +37,18 @@ import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
 import { JobItemsSection } from '@/components/jobs/JobItemsSection';
 
 const NEW_TARIFF_VALUE = '__new_tariff__';
+const SERVER_RESPONSE_TIMEOUT_MS = 20000;
+
+const withServerResponseTimeout = async <T,>(
+  promise: Promise<T>,
+  timeoutMs: number
+): Promise<T | null> => {
+  const timeoutPromise = new Promise<null>((resolve) => {
+    setTimeout(() => resolve(null), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]);
+};
 
 const parseManualAmountInput = (value: string): number | null | undefined => {
   if (value == null) {
@@ -573,7 +585,7 @@ export default function EditJobScreen() {
 
     const saveJob = async () => {
       setLoading(true);
-      const updated = await updateJob(jobId, {
+      const updated = await withServerResponseTimeout(updateJob(jobId, {
         client_id: Number.parseInt(selectedClientId, 10),
         description,
         start_time: startTime,
@@ -585,8 +597,16 @@ export default function EditJobScreen() {
         job_date: jobDate,
         status_id: selectedStatus ? Number(selectedStatus.id) : null,
         participants,
-      });
+      }), SERVER_RESPONSE_TIMEOUT_MS);
       setLoading(false);
+
+      if (updated === null) {
+        Alert.alert(
+          'Tiempo de espera agotado',
+          'El servidor tardó demasiado en responder. Se restauró el estado anterior para que puedas volver a intentarlo.'
+        );
+        return;
+      }
 
       if (updated) {
         Alert.alert('Éxito', 'Trabajo actualizado.');
