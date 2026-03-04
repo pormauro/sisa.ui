@@ -22,13 +22,10 @@ import { formatCurrency } from '@/utils/currency';
 import { withDaySeparators, type DaySeparatedItem } from '@/utils/daySeparators';
 import { useNavigation } from '@react-navigation/native';
 
-type SortField = 'updatedAt' | 'jobDate' | 'clientName' | 'status';
-type SortDirection = 'asc' | 'desc';
+type SortField = 'createdAt' | 'updatedAt';
 
 const SORT_OPTIONS: { label: string; value: SortField }[] = [
-  { label: 'Nombre del cliente', value: 'clientName' },
-  { label: 'Fecha del trabajo', value: 'jobDate' },
-  { label: 'Estado', value: 'status' },
+  { label: 'Más nuevo primero', value: 'createdAt' },
   { label: 'Última modificación', value: 'updatedAt' },
 ];
 
@@ -43,8 +40,8 @@ export default function JobsScreen() {
   const navigation = useNavigation();
   const [search, setSearch] = useState('');
   const [loadingId, setLoadingId] = useState<number | null>(null);
-  const [sortField, setSortField] = useState<SortField>('jobDate');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortField, setSortField] = useState<SortField>('createdAt');
+  const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
   const [filtersVisible, setFiltersVisible] = useState(false);
   const [controlsExpanded, setControlsExpanded] = useState(false);
 
@@ -101,12 +98,50 @@ export default function JobsScreen() {
     }, [canListJobs, loadJobs])
   );
 
-  const fuse = useMemo(() => new Fuse(jobs, { keys: ['description', 'type_of_work'] }), [jobs]);
+
+  useEffect(() => {
+    if (statuses.length === 0) {
+      setSelectedStatusIds([]);
+      return;
+    }
+
+    setSelectedStatusIds(prev => {
+      if (prev.length === 0) {
+        return statuses.map(status => status.id);
+      }
+
+      const validIds = prev.filter(id => statuses.some(status => status.id === id));
+      return validIds.length === 0 ? statuses.map(status => status.id) : validIds;
+    });
+  }, [statuses]);
+
+  const allStatusIds = useMemo(() => statuses.map(status => status.id), [statuses]);
+  const areAllStatusesSelected =
+    statuses.length > 0 && allStatusIds.every(statusId => selectedStatusIds.includes(statusId));
+
   const filteredJobs = useMemo(() => {
-    if (!search) return jobs;
-    const result = fuse.search(search);
-    return result.map(r => r.item);
-  }, [search, jobs, fuse]);
+    const baseJobs = search ? fuse.search(search).map(result => result.item as Job) : jobs;
+
+    if (areAllStatusesSelected || statuses.length === 0) {
+      return baseJobs;
+    }
+
+    if (selectedStatusIds.length === 0) {
+      return [];
+    }
+
+    return baseJobs.filter(job => job.status_id != null && selectedStatusIds.includes(job.status_id));
+  }, [areAllStatusesSelected, fuse, jobs, search, selectedStatusIds, statuses.length]);
+
+  const toggleStatusFilter = useCallback((statusId: number) => {
+    setSelectedStatusIds(prev =>
+      prev.includes(statusId) ? prev.filter(id => id !== statusId) : [...prev, statusId]
+    );
+  }, []);
+
+  const handleSelectAllStatuses = useCallback(() => {
+    setSelectedStatusIds(allStatusIds);
+  }, [allStatusIds]);
 
   const getJobUpdatedValue = useCallback((job: Job) => {
     if (job.updated_at) return job.updated_at;
@@ -114,8 +149,11 @@ export default function JobsScreen() {
     return job.job_date ?? job.id;
   }, []);
 
-  const getJobDateValue = useCallback((job: Job) => {
+  const getJobCreatedValue = useCallback((job: Job) => {
+    if (job.created_at) return job.created_at;
+    if (job.updated_at) return job.updated_at;
     if (!job.job_date) return job.id;
+
     const time = job.start_time
       ? job.start_time.length === 5
         ? `${job.start_time}:00`
@@ -134,48 +172,28 @@ export default function JobsScreen() {
     [clients]
   );
 
+
+  const jobsForSearch = useMemo(
+    () => jobs.map(job => ({ ...job, client_name: getClientName(job.client_id) ?? '' })),
+    [getClientName, jobs]
+  );
+
+  const fuse = useMemo(
+    () => new Fuse(jobsForSearch, { keys: ['description', 'type_of_work', 'client_name'] }),
+    [jobsForSearch]
+  );
+
   const sortedJobs = useMemo(() => {
-    if (sortField === 'clientName') {
-      const items = [...filteredJobs];
-      items.sort((a, b) => {
-        const aName = (getClientName(a.client_id) ?? '').trim();
-        const bName = (getClientName(b.client_id) ?? '').trim();
-        const comparison = aName.localeCompare(bName, undefined, { sensitivity: 'base' });
-        if (comparison !== 0) {
-          return sortDirection === 'asc' ? comparison : -comparison;
-        }
-        return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
-      });
-      return items;
+    if (sortField === 'updatedAt') {
+      return sortByNewest(filteredJobs, getJobUpdatedValue);
     }
 
-    if (sortField === 'status') {
-      const statusOrder = new Map(statuses.map(status => [status.id, status.order_index]));
-      const items = [...filteredJobs];
-      items.sort((a, b) => {
-        const aOrder = statusOrder.get(a.status_id ?? -1) ?? Number.MAX_SAFE_INTEGER;
-        const bOrder = statusOrder.get(b.status_id ?? -1) ?? Number.MAX_SAFE_INTEGER;
-        if (aOrder !== bOrder) {
-          return sortDirection === 'asc' ? aOrder - bOrder : bOrder - aOrder;
-        }
-        return sortDirection === 'asc' ? a.id - b.id : b.id - a.id;
-      });
-      return items;
-    }
-
-    const list =
-      sortField === 'updatedAt'
-        ? sortByNewest(filteredJobs, getJobUpdatedValue)
-        : sortByNewest(filteredJobs, getJobDateValue);
-    return sortDirection === 'asc' ? [...list].reverse() : list;
+    return sortByNewest(filteredJobs, getJobCreatedValue);
   }, [
     filteredJobs,
     sortField,
-    sortDirection,
     getJobUpdatedValue,
-    getJobDateValue,
-    getClientName,
-    statuses,
+    getJobCreatedValue,
   ]);
 
   const currentSortLabel = useMemo(
@@ -183,18 +201,8 @@ export default function JobsScreen() {
     [sortField]
   );
 
-  const sortDirectionLabel = useMemo(
-    () => (sortDirection === 'asc' ? 'Ascendente' : 'Descendente'),
-    [sortDirection]
-  );
-
   const handleSelectSort = useCallback((option: SortField) => {
     setSortField(option);
-    if (option === 'clientName' || option === 'status') {
-      setSortDirection('asc');
-    } else {
-      setSortDirection('desc');
-    }
     setFiltersVisible(false);
   }, []);
 
@@ -335,22 +343,9 @@ export default function JobsScreen() {
               ]}
               value={search}
               onChangeText={setSearch}
-              placeholder="Buscar trabajo..."
+              placeholder="Buscar trabajo o cliente..."
               placeholderTextColor={placeholderColor}
             />
-            <TouchableOpacity
-              style={[
-                styles.sortDirectionButton,
-                { backgroundColor: inputBackground, borderColor }
-              ]}
-              onPress={() => setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'))}
-            >
-              <Ionicons
-                name={sortDirection === 'asc' ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color={inputTextColor}
-              />
-            </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.filterButton,
@@ -363,7 +358,7 @@ export default function JobsScreen() {
           </View>
           <View style={styles.filterSummaryRow}>
             <ThemedText style={styles.filterSummaryText}>
-              Ordenado por {currentSortLabel} · {sortDirectionLabel}
+              Ordenado por {currentSortLabel} · Estados: {areAllStatusesSelected ? 'Todos' : selectedStatusIds.length}
             </ThemedText>
           </View>
         </>
@@ -410,6 +405,7 @@ export default function JobsScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.modalSection}>
+              <ThemedText style={styles.modalSectionTitle}>Orden</ThemedText>
               {SORT_OPTIONS.map(option => {
                 const isSelected = sortField === option.value;
                 return (
@@ -429,6 +425,48 @@ export default function JobsScreen() {
                       ]}
                     >
                       {option.label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <ThemedText style={styles.modalSectionTitle}>Estados</ThemedText>
+              <TouchableOpacity
+                style={[
+                  styles.modalOption,
+                  { borderColor },
+                  areAllStatusesSelected && { borderColor: addButtonColor },
+                ]}
+                onPress={handleSelectAllStatuses}
+              >
+                <ThemedText
+                  style={[
+                    styles.modalOptionText,
+                    areAllStatusesSelected && { color: addButtonColor, fontWeight: '600' },
+                  ]}
+                >
+                  Todos
+                </ThemedText>
+              </TouchableOpacity>
+              {statuses.map(status => {
+                const isSelected = selectedStatusIds.includes(status.id);
+                return (
+                  <TouchableOpacity
+                    key={`status-${status.id}`}
+                    style={[
+                      styles.modalOption,
+                      { borderColor },
+                      isSelected && { borderColor: addButtonColor },
+                    ]}
+                    onPress={() => toggleStatusFilter(status.id)}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.modalOptionText,
+                        isSelected && { color: addButtonColor, fontWeight: '600' },
+                      ]}
+                    >
+                      {status.label}
                     </ThemedText>
                   </TouchableOpacity>
                 );
@@ -466,15 +504,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 8,
     padding: 12,
-    marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  sortDirectionButton: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     marginLeft: 8,
     alignItems: 'center',
     justifyContent: 'center'
@@ -535,6 +564,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: 'bold' },
   modalSection: { marginBottom: 12 },
+  modalSectionTitle: { fontSize: 14, fontWeight: '700', marginTop: 6, marginBottom: 8 },
   modalOption: {
     borderWidth: 1,
     borderRadius: 8,
