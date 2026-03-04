@@ -939,7 +939,7 @@ export default function EditJobScreen() {
            contentContainerStyle={[styles.container, { backgroundColor: background }]}
            keyboardShouldPersistTaps="handled"
            // <-- Le decimos al FlatList que también re-renderice si cambia cualquiera de estos estados
-          extraData={{
+          extraData={[
             selectedClientId,
             selectedFolder,
             description,
@@ -952,8 +952,8 @@ export default function EditJobScreen() {
             manualAmountTouched,
             participants,
             selectedTariffId,
-            jobId: job?.id,
-          }}
+            job?.id,
+          ]}
         />
        </ThemedView>
   );
