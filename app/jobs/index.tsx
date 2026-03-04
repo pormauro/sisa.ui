@@ -132,6 +132,10 @@ export default function JobsScreen() {
     setSelectedStatusIds(allStatusIds);
   }, [allStatusIds]);
 
+  const handleClearStatusSelection = useCallback(() => {
+    setSelectedStatusIds([]);
+  }, []);
+
   const getJobUpdatedValue = useCallback((job: Job) => {
     if (job.updated_at) return job.updated_at;
     if (job.created_at) return job.created_at;
@@ -461,11 +465,28 @@ export default function JobsScreen() {
                 <TouchableOpacity
                   style={[
                     styles.statusChip,
-                    { backgroundColor: addButtonColor, opacity: areAllStatusesSelected ? 1 : 0.3 },
+                    {
+                      backgroundColor: addButtonColor,
+                      opacity: areAllStatusesSelected ? 1 : 0.3,
+                    },
                   ]}
                   onPress={handleSelectAllStatuses}
                 >
-                  <ThemedText style={styles.statusChipText}>Todos</ThemedText>
+                  <ThemedText style={[styles.statusChipText, styles.statusChipTextDark]}>Todos</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.statusChip,
+                    {
+                      backgroundColor: inputBackground,
+                      borderWidth: 1,
+                      borderColor,
+                      opacity: selectedStatusIds.length === 0 ? 1 : 0.7,
+                    },
+                  ]}
+                  onPress={handleClearStatusSelection}
+                >
+                  <ThemedText style={[styles.statusChipText, { color: inputTextColor }]}>Ninguno</ThemedText>
                 </TouchableOpacity>
                 {statuses.map(status => {
                   const isSelected = selectedStatusIds.includes(status.id);
@@ -626,6 +647,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+  },
+  statusChipTextDark: {
+    color: '#000',
   },
   modalCloseButton: {
     borderRadius: 999,
