@@ -1,5 +1,7 @@
 import { Platform } from 'react-native';
 
+import { recordShareDebug } from '@/utils/shareDebug';
+
 const decodeSafely = (value: string): string => {
   try {
     return decodeURIComponent(value);
@@ -28,12 +30,27 @@ const buildAttachJobPath = (params: Record<string, string>) => {
 };
 
 export function redirectSystemPath({ path, initial }: { path: string; initial: boolean }) {
+  recordShareDebug('native-intent:received', {
+    path,
+    initial,
+    platform: Platform.OS,
+  });
+
   if (Platform.OS === 'web' || !initial || !path) {
+    recordShareDebug('native-intent:passthrough', {
+      reason: 'web-or-not-initial-or-empty-path',
+      path,
+    });
     return path;
   }
 
   if (path.startsWith('content://') || path.startsWith('file://')) {
-    return buildAttachJobPath({ uri: path });
+    const attachPath = buildAttachJobPath({ uri: path });
+    recordShareDebug('native-intent:raw-uri', {
+      path,
+      attachPath,
+    });
+    return attachPath;
   }
 
   const streamUri = getQueryValue(path, [
@@ -44,6 +61,7 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
   ]);
 
   if (!streamUri) {
+    recordShareDebug('native-intent:no-stream-uri', { path });
     return path;
   }
 
@@ -56,5 +74,15 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
   if (mime) params.mime = mime;
   if (size) params.size = size;
 
-  return buildAttachJobPath(params);
+  const attachPath = buildAttachJobPath(params);
+
+  recordShareDebug('native-intent:stream-uri-detected', {
+    streamUri,
+    name,
+    mime,
+    size,
+    attachPath,
+  });
+
+  return attachPath;
 }
