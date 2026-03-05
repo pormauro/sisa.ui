@@ -285,8 +285,9 @@ export default function ClientDetailPage() {
       end_date: string;
       status_ids?: number[];
       display_options?: {
-        show_start_time: boolean;
-        show_end_time: boolean;
+        show_start_time?: boolean;
+        show_end_time?: boolean;
+        show_time?: boolean;
       };
     } = {
       start_date: formatDateParam(startDate),
@@ -301,6 +302,10 @@ export default function ClientDetailPage() {
       payload.display_options = {
         show_start_time: showStartTime,
         show_end_time: showEndTime,
+      };
+    } else {
+      payload.display_options = {
+        show_time: false,
       };
     }
 
@@ -322,7 +327,24 @@ export default function ClientDetailPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const contentType = response.headers.get('content-type') ?? '';
+        let backendMessage = '';
+
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          backendMessage =
+            (typeof errorData?.message === 'string' && errorData.message) ||
+            (typeof errorData?.error === 'string' && errorData.error) ||
+            '';
+        } else {
+          backendMessage = (await response.text()).trim();
+        }
+
+        throw new Error(
+          backendMessage
+            ? `HTTP ${response.status}: ${backendMessage}`
+            : `HTTP ${response.status}`
+        );
       }
 
       const data = await response.json();
@@ -351,7 +373,8 @@ export default function ClientDetailPage() {
       setReportModalVisible(false);
     } catch (error) {
       console.error('Error al generar reporte de trabajos del cliente:', error);
-      Alert.alert('Error', 'No se pudo generar el reporte.');
+      const errorMessage = error instanceof Error ? error.message : 'No se pudo generar el reporte.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsGeneratingReport(false);
     }
