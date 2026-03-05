@@ -70,7 +70,12 @@ export default function ClientDetailPage() {
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
 
-  const formatDateParam = (date: Date): string => date.toISOString().split('T')[0];
+  const formatDateParam = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const formatLabelDate = (date: Date): string =>
     date.toLocaleDateString('es-AR', {
@@ -287,7 +292,6 @@ export default function ClientDetailPage() {
       display_options?: {
         show_start_time?: boolean;
         show_end_time?: boolean;
-        show_time?: boolean;
       };
     } = {
       start_date: formatDateParam(startDate),
@@ -302,10 +306,6 @@ export default function ClientDetailPage() {
       payload.display_options = {
         show_start_time: showStartTime,
         show_end_time: showEndTime,
-      };
-    } else {
-      payload.display_options = {
-        show_time: false,
       };
     }
 
