@@ -1,8 +1,7 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking, Modal } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
@@ -14,18 +13,13 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
-import { BASE_URL } from '@/config/Index';
-import { AuthContext } from '@/contexts/AuthContext';
-import { StatusesContext } from '@/contexts/StatusesContext';
 
 
 export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
-  const { token } = useContext(AuthContext);
   const canEditClient = permissions.includes('updateClient');
   const canDeleteClient = permissions.includes('deleteClient');
   const canViewClientCalendar = permissions.includes('listAppointments') || permissions.includes('listJobs');
-  const canExportClientJobsPdf = permissions.includes('exportClientJobsPdf');
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
@@ -33,7 +27,6 @@ export default function ClientDetailPage() {
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const { companies, loadCompanies } = useContext(CompaniesContext);
-  const { statuses } = useContext(StatusesContext);
   const {
     beginSelection,
     completeSelection,
@@ -47,7 +40,6 @@ export default function ClientDetailPage() {
   const NEW_TARIFF_VALUE = 'new_tariff';
 
   const screenBackground = useThemeColor({}, 'background');
-  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
   const inputTextColor = useThemeColor({}, 'text');
   const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
   const buttonColor = useThemeColor({}, 'button');
@@ -57,36 +49,9 @@ export default function ClientDetailPage() {
 
   const [companyId, setCompanyId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [tariffId, setTariffId] = useState<string>('');
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
-  const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
-  const [startDate, setStartDate] = useState<Date>(() => new Date());
-  const [endDate, setEndDate] = useState<Date>(() => new Date());
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [showStartTime, setShowStartTime] = useState(false);
-  const [showEndTime, setShowEndTime] = useState(false);
-
-  const formatDateParam = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  const formatLabelDate = (date: Date): string =>
-    date.toLocaleDateString('es-AR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-
-  const allStatusIds = useMemo(() => statuses.map(status => status.id), [statuses]);
-  const areAllStatusesSelected =
-    statuses.length > 0 && allStatusIds.every(statusId => selectedStatusIds.includes(statusId));
 
   const tariffItems = useMemo(
     () => [
@@ -122,11 +87,11 @@ export default function ClientDetailPage() {
   }, [client?.company, companies, companyId]);
 
   useEffect(() => {
-    if (!canEditClient && !canDeleteClient && !canExportClientJobsPdf) {
+    if (!canEditClient && !canDeleteClient) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este cliente.');
       router.back();
     }
-  }, [canDeleteClient, canEditClient, canExportClientJobsPdf, router]);
+  }, [canDeleteClient, canEditClient, router]);
 
   useEffect(() => {
     if (!companies.length) {
@@ -179,21 +144,6 @@ export default function ClientDetailPage() {
     });
   }, [client, hasAttemptedLoad, isFetchingItem, loadClients]);
 
-  useEffect(() => {
-    if (statuses.length === 0) {
-      setSelectedStatusIds([]);
-      return;
-    }
-
-    setSelectedStatusIds(prev => {
-      if (prev.length === 0) {
-        return statuses.map(status => status.id);
-      }
-
-      const validIds = prev.filter(id => statuses.some(status => status.id === id));
-      return validIds;
-    });
-  }, [statuses]);
 
   if (!client) {
     return (
@@ -261,128 +211,6 @@ export default function ClientDetailPage() {
           }
         },
       ]
-    );
-  };
-
-  const handleGenerateClientJobsReport = async (reportType: 'detailed-vertical' | 'summary-landscape') => {
-    if (!canExportClientJobsPdf) {
-      Alert.alert('Acceso denegado', 'No tienes permiso para generar este reporte.');
-      return;
-    }
-
-    if (!Number.isFinite(clientId)) {
-      Alert.alert('Cliente inválido', 'No se pudo determinar el cliente para generar el reporte.');
-      return;
-    }
-
-    if (!token) {
-      Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para generar el reporte.');
-      return;
-    }
-
-    if (startDate > endDate) {
-      Alert.alert('Rango inválido', 'La fecha de inicio no puede ser mayor que la de fin.');
-      return;
-    }
-
-    const payload: {
-      start_date: string;
-      end_date: string;
-      status_ids?: number[];
-      display_options?: {
-        show_start_time?: boolean;
-        show_end_time?: boolean;
-      };
-    } = {
-      start_date: formatDateParam(startDate),
-      end_date: formatDateParam(endDate),
-    };
-
-    if (selectedStatusIds.length > 0) {
-      payload.status_ids = selectedStatusIds;
-    }
-
-    if (reportType === 'detailed-vertical') {
-      payload.display_options = {
-        show_start_time: showStartTime,
-        show_end_time: showEndTime,
-      };
-    }
-
-    const endpoint =
-      reportType === 'detailed-vertical'
-        ? `${BASE_URL}/clients/${clientId}/jobs/report/pdf`
-        : `${BASE_URL}/jobs/client/${clientId}/report/pdf/summary-landscape`;
-
-    setIsGeneratingReport(true);
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type') ?? '';
-        let backendMessage = '';
-
-        if (contentType.includes('application/json')) {
-          const errorData = await response.json();
-          backendMessage =
-            (typeof errorData?.message === 'string' && errorData.message) ||
-            (typeof errorData?.error === 'string' && errorData.error) ||
-            '';
-        } else {
-          backendMessage = (await response.text()).trim();
-        }
-
-        throw new Error(
-          backendMessage
-            ? `HTTP ${response.status}: ${backendMessage}`
-            : `HTTP ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-      const downloadPath = typeof data?.download_url === 'string' ? data.download_url : '';
-      const normalizedDownloadUrl = downloadPath
-        ? /^https?:\/\//i.test(downloadPath)
-          ? downloadPath
-          : `${BASE_URL}${downloadPath.startsWith('/') ? '' : '/'}${downloadPath}`
-        : '';
-
-      Alert.alert(
-        'Reporte generado',
-        'El PDF fue generado correctamente.',
-        [
-          normalizedDownloadUrl
-            ? {
-                text: 'Descargar',
-                onPress: () => {
-                  void Linking.openURL(normalizedDownloadUrl);
-                },
-              }
-            : { text: 'OK' },
-          { text: 'Cerrar', style: 'cancel' },
-        ]
-      );
-      setReportModalVisible(false);
-    } catch (error) {
-      console.error('Error al generar reporte de trabajos del cliente:', error);
-      const errorMessage = error instanceof Error ? error.message : 'No se pudo generar el reporte.';
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setIsGeneratingReport(false);
-    }
-  };
-
-  const toggleStatusFilter = (statusId: number) => {
-    setSelectedStatusIds(prev =>
-      prev.includes(statusId) ? prev.filter(id => id !== statusId) : [...prev, statusId]
     );
   };
 
@@ -480,19 +308,6 @@ export default function ClientDetailPage() {
           <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Abrir Calendario A</ThemedText>
         </TouchableOpacity>
       )}
-      {canExportClientJobsPdf && (
-        <TouchableOpacity
-          style={[styles.calendarButton, { backgroundColor: buttonColor }]}
-          onPress={() => setReportModalVisible(true)}
-          disabled={isGeneratingReport}
-        >
-          {isGeneratingReport ? (
-            <ActivityIndicator color={buttonTextColor} />
-          ) : (
-            <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Generar informes PDF</ThemedText>
-          )}
-        </TouchableOpacity>
-      )}
       {canEditClient && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
@@ -518,160 +333,6 @@ export default function ClientDetailPage() {
           )}
         </TouchableOpacity>
       )}
-      <Modal
-        animationType="slide"
-        transparent
-        visible={reportModalVisible}
-        onRequestClose={() => setReportModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}> 
-            <ThemedText style={[styles.modalTitle, { color: inputTextColor }]}>Generar informe de trabajos</ThemedText>
-
-            <ThemedText style={styles.modalLabel}>Rango de fechas</ThemedText>
-            <View style={styles.dateRow}>
-              <TouchableOpacity
-                style={[styles.dateButton, { borderColor }]}
-                onPress={() => setShowStartPicker(true)}
-              >
-                <ThemedText style={{ color: inputTextColor }}>Desde: {formatLabelDate(startDate)}</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.dateButton, { borderColor }]}
-                onPress={() => setShowEndPicker(true)}
-              >
-                <ThemedText style={{ color: inputTextColor }}>Hasta: {formatLabelDate(endDate)}</ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            {showStartPicker && (
-              <DateTimePicker
-                value={startDate}
-                mode="date"
-                display="default"
-                onChange={(_, selectedDate) => {
-                  setShowStartPicker(false);
-                  if (selectedDate) {
-                    setStartDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-
-            {showEndPicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                display="default"
-                onChange={(_, selectedDate) => {
-                  setShowEndPicker(false);
-                  if (selectedDate) {
-                    setEndDate(selectedDate);
-                  }
-                }}
-              />
-            )}
-
-            <ThemedText style={styles.modalLabel}>Estados</ThemedText>
-            <View style={styles.statusChipsContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.statusChip,
-                  {
-                    backgroundColor: buttonColor,
-                    opacity: areAllStatusesSelected ? 1 : 0.3,
-                  },
-                ]}
-                onPress={() => setSelectedStatusIds(allStatusIds)}
-              >
-                <ThemedText style={[styles.statusChipText, styles.statusChipTextDark]}>Todos</ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.statusChip,
-                  {
-                    backgroundColor: inputBackground,
-                    borderWidth: 1,
-                    borderColor,
-                    opacity: selectedStatusIds.length === 0 ? 1 : 0.7,
-                  },
-                ]}
-                onPress={() => setSelectedStatusIds([])}
-              >
-                <ThemedText style={[styles.statusChipText, { color: inputTextColor }]}>Ninguno</ThemedText>
-              </TouchableOpacity>
-              {statuses.map(status => {
-                const isSelected = selectedStatusIds.includes(status.id);
-                return (
-                  <TouchableOpacity
-                    key={`status-${status.id}`}
-                    style={[
-                      styles.statusChip,
-                      { backgroundColor: status.background_color, opacity: isSelected ? 1 : 0.3 },
-                    ]}
-                    onPress={() => toggleStatusFilter(status.id)}
-                  >
-                    <ThemedText style={styles.statusChipText}>{status.label}</ThemedText>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <ThemedText style={styles.modalLabel}>Opciones reporte vertical detallado</ThemedText>
-            <View style={styles.displayOptionsRow}>
-              <TouchableOpacity
-                style={[
-                  styles.optionChip,
-                  { backgroundColor: showStartTime ? buttonColor : inputBackground, borderColor },
-                ]}
-                onPress={() => setShowStartTime(prev => !prev)}
-              >
-                <ThemedText style={{ color: showStartTime ? buttonTextColor : inputTextColor }}>
-                  Hora inicio
-                </ThemedText>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.optionChip,
-                  { backgroundColor: showEndTime ? buttonColor : inputBackground, borderColor },
-                ]}
-                onPress={() => setShowEndTime(prev => !prev)}
-              >
-                <ThemedText style={{ color: showEndTime ? buttonTextColor : inputTextColor }}>
-                  Hora fin
-                </ThemedText>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={[styles.modalActionButton, { backgroundColor: buttonColor }]}
-              onPress={() => handleGenerateClientJobsReport('detailed-vertical')}
-              disabled={isGeneratingReport}
-            >
-              {isGeneratingReport ? (
-                <ActivityIndicator color={buttonTextColor} />
-              ) : (
-                <ThemedText style={[styles.modalActionButtonText, { color: buttonTextColor }]}>Generar vertical detallado</ThemedText>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalActionButton, { backgroundColor: buttonColor }]}
-              onPress={() => handleGenerateClientJobsReport('summary-landscape')}
-              disabled={isGeneratingReport}
-            >
-              <ThemedText style={[styles.modalActionButtonText, { color: buttonTextColor }]}>Generar horizontal resumido</ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modalCloseSecondaryButton, { borderColor }]}
-              onPress={() => setReportModalVisible(false)}
-            >
-              <ThemedText style={{ color: inputTextColor }}>Cerrar</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }
@@ -735,83 +396,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteButtonText: { fontSize: 16, fontWeight: 'bold' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  modalContent: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    maxHeight: '90%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  modalLabel: {
-    marginTop: 10,
-    marginBottom: 6,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  dateRow: {
-    flexDirection: 'row',
-    columnGap: 8,
-  },
-  dateButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-  },
-  statusChipsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statusChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  statusChipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  statusChipTextDark: {
-    color: '#fff',
-  },
-  displayOptionsRow: {
-    flexDirection: 'row',
-    columnGap: 8,
-    marginBottom: 4,
-  },
-  optionChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    alignItems: 'center',
-  },
-  modalActionButton: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalActionButtonText: {
-    fontWeight: 'bold',
-  },
-  modalCloseSecondaryButton: {
-    marginTop: 10,
-    borderWidth: 1,
-    borderRadius: 8,
-    alignItems: 'center',
-    padding: 10,
-  },
 });
