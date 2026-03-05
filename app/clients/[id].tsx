@@ -1,8 +1,12 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
+<<<<<<< ours
+import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+=======
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+>>>>>>> theirs
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
@@ -14,18 +18,19 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
+<<<<<<< ours
+=======
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
+>>>>>>> theirs
 
 
 export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
-  const { token } = useContext(AuthContext);
   const canEditClient = permissions.includes('updateClient');
   const canDeleteClient = permissions.includes('deleteClient');
   const canViewClientCalendar = permissions.includes('listAppointments') || permissions.includes('listJobs');
-  const canExportClientJobsPdf = permissions.includes('exportClientJobsPdf');
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
@@ -70,12 +75,7 @@ export default function ClientDetailPage() {
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
 
-  const formatDateParam = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  const formatDateParam = (date: Date): string => date.toISOString().split('T')[0];
 
   const formatLabelDate = (date: Date): string =>
     date.toLocaleDateString('es-AR', {
@@ -122,11 +122,11 @@ export default function ClientDetailPage() {
   }, [client?.company, companies, companyId]);
 
   useEffect(() => {
-    if (!canEditClient && !canDeleteClient && !canExportClientJobsPdf) {
+    if (!canEditClient && !canDeleteClient) {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este cliente.');
       router.back();
     }
-  }, [canDeleteClient, canEditClient, canExportClientJobsPdf, router]);
+  }, [canDeleteClient, canEditClient, router]);
 
   useEffect(() => {
     if (!companies.length) {
@@ -179,6 +179,8 @@ export default function ClientDetailPage() {
     });
   }, [client, hasAttemptedLoad, isFetchingItem, loadClients]);
 
+<<<<<<< ours
+=======
   useEffect(() => {
     if (statuses.length === 0) {
       setSelectedStatusIds([]);
@@ -194,6 +196,7 @@ export default function ClientDetailPage() {
       return validIds;
     });
   }, [statuses]);
+>>>>>>> theirs
 
   if (!client) {
     return (
@@ -264,6 +267,8 @@ export default function ClientDetailPage() {
     );
   };
 
+<<<<<<< ours
+=======
   const handleGenerateClientJobsReport = async (reportType: 'detailed-vertical' | 'summary-landscape') => {
     if (!canExportClientJobsPdf) {
       Alert.alert('Acceso denegado', 'No tienes permiso para generar este reporte.');
@@ -290,8 +295,8 @@ export default function ClientDetailPage() {
       end_date: string;
       status_ids?: number[];
       display_options?: {
-        show_start_time?: boolean;
-        show_end_time?: boolean;
+        show_start_time: boolean;
+        show_end_time: boolean;
       };
     } = {
       start_date: formatDateParam(startDate),
@@ -327,24 +332,7 @@ export default function ClientDetailPage() {
       });
 
       if (!response.ok) {
-        const contentType = response.headers.get('content-type') ?? '';
-        let backendMessage = '';
-
-        if (contentType.includes('application/json')) {
-          const errorData = await response.json();
-          backendMessage =
-            (typeof errorData?.message === 'string' && errorData.message) ||
-            (typeof errorData?.error === 'string' && errorData.error) ||
-            '';
-        } else {
-          backendMessage = (await response.text()).trim();
-        }
-
-        throw new Error(
-          backendMessage
-            ? `HTTP ${response.status}: ${backendMessage}`
-            : `HTTP ${response.status}`
-        );
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const data = await response.json();
@@ -373,8 +361,7 @@ export default function ClientDetailPage() {
       setReportModalVisible(false);
     } catch (error) {
       console.error('Error al generar reporte de trabajos del cliente:', error);
-      const errorMessage = error instanceof Error ? error.message : 'No se pudo generar el reporte.';
-      Alert.alert('Error', errorMessage);
+      Alert.alert('Error', 'No se pudo generar el reporte.');
     } finally {
       setIsGeneratingReport(false);
     }
@@ -386,6 +373,7 @@ export default function ClientDetailPage() {
     );
   };
 
+>>>>>>> theirs
 
   return (
     <ScrollView
@@ -480,6 +468,8 @@ export default function ClientDetailPage() {
           <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Abrir Calendario A</ThemedText>
         </TouchableOpacity>
       )}
+<<<<<<< ours
+=======
       {canExportClientJobsPdf && (
         <TouchableOpacity
           style={[styles.calendarButton, { backgroundColor: buttonColor }]}
@@ -493,6 +483,7 @@ export default function ClientDetailPage() {
           )}
         </TouchableOpacity>
       )}
+>>>>>>> theirs
       {canEditClient && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}

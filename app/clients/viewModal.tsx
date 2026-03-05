@@ -1,28 +1,47 @@
 // /app/clients/viewModal.tsx
 import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import React, { useCallback, useContext, useEffect } from 'react';
-import { ScrollView, View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import { TariffsContext } from '@/contexts/TariffsContext';
 import { InvoicesContext } from '@/contexts/InvoicesContext';
+import { FileContext } from '@/contexts/FilesContext';
+import { StatusesContext } from '@/contexts/StatusesContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { useClientFinalizedJobTotals } from '@/hooks/useClientFinalizedJobTotals';
 import { useClientInvoiceSummary } from '@/hooks/useClientInvoiceSummary';
 import { ThemedText } from '@/components/ThemedText';
 import { useThemeColor } from '@/hooks/useThemeColor';
 import { formatCurrency } from '@/utils/currency';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
+import { BASE_URL } from '@/config/Index';
+import { openAttachment } from '@/utils/files/openAttachment';
+
+type ClientJobsReportType = 'detailed-vertical' | 'summary-landscape';
 
 export default function ViewClientModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientId = Number(id);
   const router = useRouter();
   const navigation = useNavigation();
+  const { token } = useContext(AuthContext);
   const { clients } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const { loadInvoices } = useContext(InvoicesContext);
+  const { statuses, loadStatuses } = useContext(StatusesContext);
+  const { getFile, getFileMetadata } = useContext(FileContext);
   const { getTotalForClient } = useClientFinalizedJobTotals();
   const { getSummary: getInvoiceSummary } = useClientInvoiceSummary();
   const { permissions } = useContext(PermissionsContext);
@@ -35,6 +54,17 @@ export default function ViewClientModal() {
   const canViewReceipts = permissions.includes('listReceipts');
   const canViewAccounting = canViewInvoices || canViewReceipts;
   const canViewClientCalendar = permissions.includes('listAppointments') || canViewJobs;
+  const canExportClientJobsPdf = permissions.includes('exportClientJobsPdf');
+
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
+  const [startDate, setStartDate] = useState<Date>(() => new Date());
+  const [endDate, setEndDate] = useState<Date>(() => new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showStartTime, setShowStartTime] = useState(false);
+  const [showEndTime, setShowEndTime] = useState(false);
 
   useEffect(() => {
     const title = client?.business_name ?? 'Cliente';
@@ -51,11 +81,58 @@ export default function ViewClientModal() {
     }, [canViewInvoices, loadInvoices])
   );
 
+  useEffect(() => {
+    if (!canExportClientJobsPdf || statuses.length > 0) {
+      return;
+    }
+
+    loadStatuses();
+  }, [canExportClientJobsPdf, loadStatuses, statuses.length]);
+
+  useEffect(() => {
+    if (statuses.length === 0) {
+      setSelectedStatusIds([]);
+      return;
+    }
+
+    setSelectedStatusIds(prev => {
+      if (prev.length === 0) {
+        return statuses.map(status => status.id);
+      }
+
+      const validIds = prev.filter(id => statuses.some(status => status.id === id));
+      return validIds;
+    });
+  }, [statuses]);
+
   const background = useThemeColor({}, 'background');
   const linkColor = useThemeColor({}, 'tint');
   const actionBackground = useThemeColor({ light: '#EEF2FF', dark: '#1F2937' }, 'background');
   const actionText = useThemeColor({ light: '#1F2937', dark: '#F3F4F6' }, 'text');
   const actionBorder = useThemeColor({ light: '#CBD5F5', dark: '#374151' }, 'background');
+  const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
+  const inputTextColor = useThemeColor({}, 'text');
+  const borderColor = useThemeColor({ light: '#ccc', dark: '#555' }, 'background');
+  const buttonColor = useThemeColor({}, 'button');
+  const buttonTextColor = useThemeColor({}, 'buttonText');
+
+  const formatDateParam = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatLabelDate = (date: Date): string =>
+    date.toLocaleDateString('es-AR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+  const allStatusIds = useMemo(() => statuses.map(status => status.id), [statuses]);
+  const areAllStatusesSelected =
+    statuses.length > 0 && allStatusIds.every(statusId => selectedStatusIds.includes(statusId));
 
   if (!client) {
     return (
@@ -79,6 +156,152 @@ export default function ViewClientModal() {
     router.push(`/clients/unpaidInvoices?id=${client.id}`);
   };
 
+  const toggleStatusFilter = (statusId: number) => {
+    setSelectedStatusIds(prev =>
+      prev.includes(statusId) ? prev.filter(id => id !== statusId) : [...prev, statusId]
+    );
+  };
+
+  const handleGenerateClientJobsReport = useCallback(
+    async (reportType: ClientJobsReportType) => {
+      if (!canExportClientJobsPdf) {
+        Alert.alert('Acceso denegado', 'No tienes permiso para generar este reporte.');
+        return;
+      }
+
+      if (!Number.isFinite(clientId)) {
+        Alert.alert('Cliente inválido', 'No se pudo determinar el cliente para generar el reporte.');
+        return;
+      }
+
+      if (!token) {
+        Alert.alert('Sesión inválida', 'Iniciá sesión nuevamente para generar el reporte.');
+        return;
+      }
+
+      if (startDate > endDate) {
+        Alert.alert('Rango inválido', 'La fecha de inicio no puede ser mayor que la de fin.');
+        return;
+      }
+
+      const payload: {
+        start_date: string;
+        end_date: string;
+        status_ids?: number[];
+        display_options?: {
+          show_start_time?: boolean;
+          show_end_time?: boolean;
+        };
+      } = {
+        start_date: formatDateParam(startDate),
+        end_date: formatDateParam(endDate),
+      };
+
+      if (selectedStatusIds.length > 0) {
+        payload.status_ids = selectedStatusIds;
+      }
+
+      if (reportType === 'detailed-vertical') {
+        payload.display_options = {
+          show_start_time: showStartTime,
+          show_end_time: showEndTime,
+        };
+      }
+
+      const endpoint =
+        reportType === 'detailed-vertical'
+          ? `${BASE_URL}/clients/${clientId}/jobs/report/pdf`
+          : `${BASE_URL}/jobs/client/${clientId}/report/pdf/summary-landscape`;
+
+      setIsGeneratingReport(true);
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get('content-type') ?? '';
+          let backendMessage = '';
+
+          if (contentType.includes('application/json')) {
+            const errorData = await response.json();
+            backendMessage =
+              (typeof errorData?.message === 'string' && errorData.message) ||
+              (typeof errorData?.error === 'string' && errorData.error) ||
+              '';
+          } else {
+            backendMessage = (await response.text()).trim();
+          }
+
+          throw new Error(
+            backendMessage
+              ? `HTTP ${response.status}: ${backendMessage}`
+              : `HTTP ${response.status}`
+          );
+        }
+
+        const data = await response.json();
+        const directFileId = Number(data?.file_id);
+        const downloadPath = typeof data?.download_url === 'string' ? data.download_url : '';
+        const fileIdFromPath = downloadPath.match(/\/files\/(\d+)/i)?.[1];
+        const resolvedFileId = Number.isFinite(directFileId)
+          ? directFileId
+          : fileIdFromPath
+            ? Number(fileIdFromPath)
+            : NaN;
+
+        if (!Number.isFinite(resolvedFileId)) {
+          Alert.alert('Reporte generado', 'El PDF fue generado, pero no se pudo resolver el archivo para abrirlo.');
+          setReportModalVisible(false);
+          return;
+        }
+
+        const [uri, meta] = await Promise.all([
+          getFile(resolvedFileId),
+          getFileMetadata(resolvedFileId),
+        ]);
+
+        if (!uri) {
+          throw new Error('No se pudo descargar el PDF generado.');
+        }
+
+        await openAttachment({
+          uri,
+          mimeType: meta?.file_type ?? 'application/pdf',
+          fileName: meta?.original_name ?? `reporte_cliente_${clientId}.pdf`,
+          kind: 'pdf',
+        });
+
+        Alert.alert('Reporte generado', 'El PDF se descargó y abrió correctamente.');
+        setReportModalVisible(false);
+      } catch (error) {
+        console.error('Error al generar reporte de trabajos del cliente:', error);
+        const errorMessage = error instanceof Error ? error.message : 'No se pudo generar el reporte.';
+        Alert.alert('Error', errorMessage);
+      } finally {
+        setIsGeneratingReport(false);
+      }
+    },
+    [
+      canExportClientJobsPdf,
+      clientId,
+      endDate,
+      getFile,
+      getFileMetadata,
+      selectedStatusIds,
+      showEndTime,
+      showStartTime,
+      startDate,
+      token,
+    ]
+  );
+
   const actionButtons = [
     {
       key: 'edit',
@@ -86,6 +309,7 @@ export default function ViewClientModal() {
       icon: 'create-outline' as const,
       visible: true,
       onPress: () => router.push(`/clients/${client.id}`),
+      disabled: false,
     },
     {
       key: 'calendar',
@@ -93,6 +317,7 @@ export default function ViewClientModal() {
       icon: 'calendar-outline' as const,
       visible: canViewClientCalendar,
       onPress: () => router.push(`/clients/calendar?id=${client.id}`),
+      disabled: false,
     },
     {
       key: 'jobs',
@@ -100,6 +325,7 @@ export default function ViewClientModal() {
       icon: 'checkmark-done-outline' as const,
       visible: canViewJobs,
       onPress: () => router.push(`/clients/finalizedJobs?id=${client.id}`),
+      disabled: false,
     },
     {
       key: 'accounting',
@@ -107,131 +333,302 @@ export default function ViewClientModal() {
       icon: 'file-tray-stacked-outline' as const,
       visible: canViewAccounting,
       onPress: () => router.push(`/clients/accounting?id=${client.id}`),
+      disabled: false,
+    },
+    {
+      key: 'pdf',
+      label: 'Informes PDF',
+      icon: 'document-text-outline' as const,
+      visible: canExportClientJobsPdf,
+      onPress: () => setReportModalVisible(true),
+      disabled: isGeneratingReport,
     },
   ].filter(button => button.visible);
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
-      <ThemedText style={styles.screenTitle} numberOfLines={2}>
-        {client.business_name && client.business_name.trim().length > 0
-          ? client.business_name
-          : 'Cliente sin nombre'}
-      </ThemedText>
-      <CircleImagePicker fileId={client.profile_file_id} size={200} editable={false} />
+    <>
+      <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
+        <ThemedText style={styles.screenTitle} numberOfLines={2}>
+          {client.business_name && client.business_name.trim().length > 0
+            ? client.business_name
+            : 'Cliente sin nombre'}
+        </ThemedText>
+        <CircleImagePicker fileId={client.profile_file_id} size={200} editable={false} />
 
-      {client.tax_id ? (
-        <>
-          <ThemedText style={styles.label}>CUIT</ThemedText>
-          <ThemedText style={styles.value}>{client.tax_id}</ThemedText>
-        </>
-      ) : null}
+        {client.tax_id ? (
+          <>
+            <ThemedText style={styles.label}>CUIT</ThemedText>
+            <ThemedText style={styles.value}>{client.tax_id}</ThemedText>
+          </>
+        ) : null}
 
-      {client.email ? (
-        <>
-          <ThemedText style={styles.label}>Email</ThemedText>
-          <ThemedText style={styles.value}>{client.email}</ThemedText>
-        </>
-      ) : null}
+        {client.email ? (
+          <>
+            <ThemedText style={styles.label}>Email</ThemedText>
+            <ThemedText style={styles.value}>{client.email}</ThemedText>
+          </>
+        ) : null}
 
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle}>Montos pendientes</ThemedText>
-        <TouchableOpacity
-          style={[styles.sectionRow, !canViewJobs && styles.sectionRowDisabled]}
-          onPress={() => router.push(`/clients/finalizedJobs?id=${client.id}`)}
-          accessibilityRole="button"
-          activeOpacity={0.7}
-          disabled={!canViewJobs}
-        >
-          <ThemedText
-            style={[
-              styles.sectionLabel,
-              canViewJobs ? { color: linkColor, textDecorationLine: 'underline' } : null,
-            ]}
-          >
-            Total no facturado
-          </ThemedText>
-          <ThemedText style={styles.sectionValue}>
-            {formatCurrency(finalizedJobsTotal)}
-          </ThemedText>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sectionRow, !canViewInvoices && styles.sectionRowDisabled]}
-          onPress={handleOpenInvoices}
-          activeOpacity={0.7}
-          disabled={!canViewInvoices}
-          accessibilityRole="button"
-        >
-          <ThemedText
-            style={[
-              styles.sectionLabel,
-              canViewInvoices ? { color: linkColor, textDecorationLine: 'underline' } : null,
-            ]}
-          >
-            Facturas impagas
-          </ThemedText>
-          <ThemedText style={styles.sectionValue}>{formattedUnpaidInvoicesTotal}</ThemedText>
-        </TouchableOpacity>
-      </View>
-
-      {canViewInvoices ? (
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Facturación</ThemedText>
-          <View style={styles.invoiceSummaryRow}>
-            <TouchableOpacity
-              style={[styles.invoiceSummaryCard, { borderColor: actionBorder }]}
-              activeOpacity={0.8}
-              onPress={handleOpenInvoices}
+          <ThemedText style={styles.sectionTitle}>Montos pendientes</ThemedText>
+          <TouchableOpacity
+            style={[styles.sectionRow, !canViewJobs && styles.sectionRowDisabled]}
+            onPress={() => router.push(`/clients/finalizedJobs?id=${client.id}`)}
+            accessibilityRole="button"
+            activeOpacity={0.7}
+            disabled={!canViewJobs}
+          >
+            <ThemedText
+              style={[
+                styles.sectionLabel,
+                canViewJobs ? { color: linkColor, textDecorationLine: 'underline' } : null,
+              ]}
             >
-              <ThemedText style={styles.invoiceSummaryLabel}>Emitidas</ThemedText>
-              <ThemedText style={styles.invoiceSummaryValue}>{formattedIssuedInvoices}</ThemedText>
-              <ThemedText style={[styles.invoiceSummaryMeta, { color: linkColor }]}>
-                {issuedInvoicesCount} {issuedInvoicesCount === 1 ? 'comprobante' : 'comprobantes'}
-              </ThemedText>
+              Total no facturado
+            </ThemedText>
+            <ThemedText style={styles.sectionValue}>
+              {formatCurrency(finalizedJobsTotal)}
+            </ThemedText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sectionRow, !canViewInvoices && styles.sectionRowDisabled]}
+            onPress={handleOpenInvoices}
+            activeOpacity={0.7}
+            disabled={!canViewInvoices}
+            accessibilityRole="button"
+          >
+            <ThemedText
+              style={[
+                styles.sectionLabel,
+                canViewInvoices ? { color: linkColor, textDecorationLine: 'underline' } : null,
+              ]}
+            >
+              Facturas impagas
+            </ThemedText>
+            <ThemedText style={styles.sectionValue}>{formattedUnpaidInvoicesTotal}</ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        {canViewInvoices ? (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Facturación</ThemedText>
+            <View style={styles.invoiceSummaryRow}>
+              <TouchableOpacity
+                style={[styles.invoiceSummaryCard, { borderColor: actionBorder }]}
+                activeOpacity={0.8}
+                onPress={handleOpenInvoices}
+              >
+                <ThemedText style={styles.invoiceSummaryLabel}>Emitidas</ThemedText>
+                <ThemedText style={styles.invoiceSummaryValue}>{formattedIssuedInvoices}</ThemedText>
+                <ThemedText style={[styles.invoiceSummaryMeta, { color: linkColor }]}>
+                  {issuedInvoicesCount} {issuedInvoicesCount === 1 ? 'comprobante' : 'comprobantes'}
+                </ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.invoiceSummaryCard, { borderColor: actionBorder }]}
+                activeOpacity={0.8}
+                onPress={handleOpenInvoices}
+              >
+                <ThemedText style={styles.invoiceSummaryLabel}>Borradores</ThemedText>
+                <ThemedText style={styles.invoiceSummaryValue}>{formattedDraftInvoices}</ThemedText>
+                <ThemedText style={[styles.invoiceSummaryMeta, { color: linkColor }]}> 
+                  {draftInvoicesCount} {draftInvoicesCount === 1 ? 'borrador' : 'borradores'}
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        {tariff ? (
+          <>
+            <ThemedText style={styles.label}>Tarifa</ThemedText>
+            <ThemedText style={styles.value}>{`${tariff.name} - ${tariff.amount}`}</ThemedText>
+          </>
+        ) : client.tariff_id ? (
+          <>
+            <ThemedText style={styles.label}>Tarifa</ThemedText>
+            <ThemedText style={styles.value}>{client.tariff_id}</ThemedText>
+          </>
+        ) : null}
+
+        {actionButtons.length ? (
+          <View style={styles.actionsContainer}>
+            {actionButtons.map(button => (
+              <View style={styles.actionItem} key={button.key}>
+                <TouchableOpacity
+                  style={[
+                    styles.iconCircle,
+                    { backgroundColor: actionBackground, borderColor: actionBorder },
+                    button.disabled ? styles.actionButtonDisabled : null,
+                  ]}
+                  onPress={button.onPress}
+                  activeOpacity={0.85}
+                  disabled={button.disabled}
+                >
+                  <Ionicons name={button.icon} size={22} color={actionText} />
+                </TouchableOpacity>
+                <ThemedText style={[styles.actionLabel, { color: actionText }]}>{button.label}</ThemedText>
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={reportModalVisible}
+        onRequestClose={() => setReportModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: inputBackground, borderColor }]}> 
+            <ThemedText style={[styles.modalTitle, { color: inputTextColor }]}>Generar informe de trabajos</ThemedText>
+
+            <ThemedText style={styles.modalLabel}>Rango de fechas</ThemedText>
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={[styles.dateButton, { borderColor }]}
+                onPress={() => setShowStartPicker(true)}
+              >
+                <ThemedText style={{ color: inputTextColor }}>Desde: {formatLabelDate(startDate)}</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.dateButton, { borderColor }]}
+                onPress={() => setShowEndPicker(true)}
+              >
+                <ThemedText style={{ color: inputTextColor }}>Hasta: {formatLabelDate(endDate)}</ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            {showStartPicker && (
+              <DateTimePicker
+                value={startDate}
+                mode="date"
+                display="default"
+                onChange={(_, selectedDate) => {
+                  setShowStartPicker(false);
+                  if (selectedDate) {
+                    setStartDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+
+            {showEndPicker && (
+              <DateTimePicker
+                value={endDate}
+                mode="date"
+                display="default"
+                onChange={(_, selectedDate) => {
+                  setShowEndPicker(false);
+                  if (selectedDate) {
+                    setEndDate(selectedDate);
+                  }
+                }}
+              />
+            )}
+
+            <ThemedText style={styles.modalLabel}>Estados</ThemedText>
+            <View style={styles.statusChipsContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.statusChip,
+                  {
+                    backgroundColor: buttonColor,
+                    opacity: areAllStatusesSelected ? 1 : 0.3,
+                  },
+                ]}
+                onPress={() => setSelectedStatusIds(allStatusIds)}
+              >
+                <ThemedText style={[styles.statusChipText, styles.statusChipTextDark]}>Todos</ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.statusChip,
+                  {
+                    backgroundColor: inputBackground,
+                    borderWidth: 1,
+                    borderColor,
+                    opacity: selectedStatusIds.length === 0 ? 1 : 0.7,
+                  },
+                ]}
+                onPress={() => setSelectedStatusIds([])}
+              >
+                <ThemedText style={[styles.statusChipText, { color: inputTextColor }]}>Ninguno</ThemedText>
+              </TouchableOpacity>
+              {statuses.map(status => {
+                const isSelected = selectedStatusIds.includes(status.id);
+                return (
+                  <TouchableOpacity
+                    key={`status-${status.id}`}
+                    style={[
+                      styles.statusChip,
+                      { backgroundColor: status.background_color, opacity: isSelected ? 1 : 0.3 },
+                    ]}
+                    onPress={() => toggleStatusFilter(status.id)}
+                  >
+                    <ThemedText style={styles.statusChipText}>{status.label}</ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <ThemedText style={styles.modalLabel}>Opciones reporte vertical detallado</ThemedText>
+            <View style={styles.displayOptionsRow}>
+              <TouchableOpacity
+                style={[
+                  styles.optionChip,
+                  { backgroundColor: showStartTime ? buttonColor : inputBackground, borderColor },
+                ]}
+                onPress={() => setShowStartTime(prev => !prev)}
+              >
+                <ThemedText style={{ color: showStartTime ? buttonTextColor : inputTextColor }}>
+                  Hora inicio
+                </ThemedText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.optionChip,
+                  { backgroundColor: showEndTime ? buttonColor : inputBackground, borderColor },
+                ]}
+                onPress={() => setShowEndTime(prev => !prev)}
+              >
+                <ThemedText style={{ color: showEndTime ? buttonTextColor : inputTextColor }}>
+                  Hora fin
+                </ThemedText>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.modalActionButton, { backgroundColor: buttonColor }]}
+              onPress={() => handleGenerateClientJobsReport('detailed-vertical')}
+              disabled={isGeneratingReport}
+            >
+              {isGeneratingReport ? (
+                <ActivityIndicator color={buttonTextColor} />
+              ) : (
+                <ThemedText style={[styles.modalActionButtonText, { color: buttonTextColor }]}>Generar vertical detallado</ThemedText>
+              )}
             </TouchableOpacity>
+
             <TouchableOpacity
-              style={[styles.invoiceSummaryCard, { borderColor: actionBorder }]}
-              activeOpacity={0.8}
-              onPress={handleOpenInvoices}
+              style={[styles.modalActionButton, { backgroundColor: buttonColor }]}
+              onPress={() => handleGenerateClientJobsReport('summary-landscape')}
+              disabled={isGeneratingReport}
             >
-              <ThemedText style={styles.invoiceSummaryLabel}>Borradores</ThemedText>
-              <ThemedText style={styles.invoiceSummaryValue}>{formattedDraftInvoices}</ThemedText>
-              <ThemedText style={[styles.invoiceSummaryMeta, { color: linkColor }]}>
-                {draftInvoicesCount} {draftInvoicesCount === 1 ? 'borrador' : 'borradores'}
-              </ThemedText>
+              <ThemedText style={[styles.modalActionButtonText, { color: buttonTextColor }]}>Generar horizontal resumido</ThemedText>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalCloseSecondaryButton, { borderColor }]}
+              onPress={() => setReportModalVisible(false)}
+            >
+              <ThemedText style={{ color: inputTextColor }}>Cerrar</ThemedText>
             </TouchableOpacity>
           </View>
         </View>
-      ) : null}
-
-      {tariff ? (
-        <>
-          <ThemedText style={styles.label}>Tarifa</ThemedText>
-          <ThemedText style={styles.value}>{`${tariff.name} - ${tariff.amount}`}</ThemedText>
-        </>
-      ) : client.tariff_id ? (
-        <>
-          <ThemedText style={styles.label}>Tarifa</ThemedText>
-          <ThemedText style={styles.value}>{client.tariff_id}</ThemedText>
-        </>
-      ) : null}
-
-      {actionButtons.length ? (
-        <View style={styles.actionsContainer}>
-          {actionButtons.map(button => (
-            <View style={styles.actionItem} key={button.key}>
-              <TouchableOpacity
-                style={[styles.iconCircle, { backgroundColor: actionBackground, borderColor: actionBorder }]}
-                onPress={button.onPress}
-                activeOpacity={0.85}
-              >
-                <Ionicons name={button.icon} size={22} color={actionText} />
-              </TouchableOpacity>
-              <ThemedText style={[styles.actionLabel, { color: actionText }]}>{button.label}</ThemedText>
-            </View>
-          ))}
-        </View>
-      ) : null}
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
@@ -290,5 +687,87 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionButtonDisabled: {
+    opacity: 0.5,
+  },
   actionLabel: { marginTop: 6, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: '90%',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  modalLabel: {
+    marginTop: 10,
+    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    columnGap: 8,
+  },
+  dateButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+  },
+  statusChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  statusChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  statusChipTextDark: {
+    color: '#fff',
+  },
+  displayOptionsRow: {
+    flexDirection: 'row',
+    columnGap: 8,
+    marginBottom: 4,
+  },
+  optionChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    alignItems: 'center',
+  },
+  modalActionButton: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalActionButtonText: {
+    fontWeight: 'bold',
+  },
+  modalCloseSecondaryButton: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    padding: 10,
+  },
 });
