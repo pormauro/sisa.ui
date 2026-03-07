@@ -1,7 +1,7 @@
 import '@/utils/networkSniffer';
 
 import { Stack, usePathname, useRouter } from 'expo-router';
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
@@ -48,7 +48,7 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 import { primeMemoryCacheFromStorage } from '@/hooks/useCachedState';
 import { getDatabase } from '@/database/Database';
-import { useShareIntent } from '@/utils/useShareIntent';
+import { SharedIntentFile, useShareIntent } from '@/utils/useShareIntent';
 import { recordShareDebug } from '@/utils/shareDebug';
 
 void SplashScreen.preventAutoHideAsync();
@@ -56,7 +56,7 @@ void SplashScreen.preventAutoHideAsync();
 function ShareIntentBridge() {
   const router = useRouter();
 
-  useShareIntent(files => {
+  const handleReceiveFiles = useCallback((files: SharedIntentFile[]) => {
     const file = files[0];
     const uri = file?.filePath ?? file?.contentUri ?? '';
 
@@ -86,7 +86,9 @@ function ShareIntentBridge() {
       pathname: '/share/attach-job',
       params,
     });
-  });
+  }, [router]);
+
+  useShareIntent(handleReceiveFiles);
 
   return null;
 }
