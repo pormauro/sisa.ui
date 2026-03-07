@@ -3,6 +3,7 @@ import '@/utils/networkSniffer';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -145,9 +146,10 @@ export default function RootLayout() {
   }
 
   return (
-    <LogProvider>
-      <NetworkLogProvider>
-        <SafeAreaProvider>
+    <GestureHandlerRootView style={styles.rootContainer}>
+      <LogProvider>
+        <NetworkLogProvider>
+          <SafeAreaProvider>
           <AuthProvider>
             <PermissionsProvider>
               <AppUpdatesProvider>
@@ -214,13 +216,17 @@ export default function RootLayout() {
               </AppUpdatesProvider>
             </PermissionsProvider>
           </AuthProvider>
-        </SafeAreaProvider>
-      </NetworkLogProvider>
-    </LogProvider>
+          </SafeAreaProvider>
+        </NetworkLogProvider>
+      </LogProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
