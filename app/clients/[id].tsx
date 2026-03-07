@@ -1,12 +1,8 @@
 // /app/clients/[id].tsx
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-<<<<<<< ours
-import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
-=======
 import { View, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking, Modal } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
->>>>>>> theirs
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ClientsContext } from '@/contexts/ClientsContext';
 import type { ClientCompanySummary } from '@/contexts/ClientsContext';
@@ -18,12 +14,9 @@ import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS } from '@/constants/selectionKeys';
 import { CompaniesContext, Company } from '@/contexts/CompaniesContext';
-<<<<<<< ours
-=======
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
->>>>>>> theirs
 
 
 export default function ClientDetailPage() {
@@ -31,6 +24,7 @@ export default function ClientDetailPage() {
   const canEditClient = permissions.includes('updateClient');
   const canDeleteClient = permissions.includes('deleteClient');
   const canViewClientCalendar = permissions.includes('listAppointments') || permissions.includes('listJobs');
+  const canExportClientJobsPdf = permissions.includes('exportClientJobsPdf');
 
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>(); // Cambiado aquí
@@ -38,7 +32,8 @@ export default function ClientDetailPage() {
   const { clients, loadClients, updateClient, deleteClient } = useContext(ClientsContext);
   const { tariffs } = useContext(TariffsContext);
   const { companies, loadCompanies } = useContext(CompaniesContext);
-  const { statuses } = useContext(StatusesContext);
+  const { statuses, loadStatuses } = useContext(StatusesContext);
+  const { token } = useContext(AuthContext);
   const {
     beginSelection,
     completeSelection,
@@ -179,8 +174,14 @@ export default function ClientDetailPage() {
     });
   }, [client, hasAttemptedLoad, isFetchingItem, loadClients]);
 
-<<<<<<< ours
-=======
+  useEffect(() => {
+    if (!canExportClientJobsPdf || statuses.length > 0) {
+      return;
+    }
+
+    loadStatuses();
+  }, [canExportClientJobsPdf, loadStatuses, statuses.length]);
+
   useEffect(() => {
     if (statuses.length === 0) {
       setSelectedStatusIds([]);
@@ -196,7 +197,6 @@ export default function ClientDetailPage() {
       return validIds;
     });
   }, [statuses]);
->>>>>>> theirs
 
   if (!client) {
     return (
@@ -267,8 +267,6 @@ export default function ClientDetailPage() {
     );
   };
 
-<<<<<<< ours
-=======
   const handleGenerateClientJobsReport = async (reportType: 'detailed-vertical' | 'summary-landscape') => {
     if (!canExportClientJobsPdf) {
       Alert.alert('Acceso denegado', 'No tienes permiso para generar este reporte.');
@@ -373,8 +371,6 @@ export default function ClientDetailPage() {
     );
   };
 
->>>>>>> theirs
-
   return (
     <ScrollView
       keyboardShouldPersistTaps="handled"
@@ -468,8 +464,6 @@ export default function ClientDetailPage() {
           <ThemedText style={[styles.calendarButtonText, { color: buttonTextColor }]}>Abrir Calendario A</ThemedText>
         </TouchableOpacity>
       )}
-<<<<<<< ours
-=======
       {canExportClientJobsPdf && (
         <TouchableOpacity
           style={[styles.calendarButton, { backgroundColor: buttonColor }]}
@@ -483,7 +477,6 @@ export default function ClientDetailPage() {
           )}
         </TouchableOpacity>
       )}
->>>>>>> theirs
       {canEditClient && (
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: buttonColor }]}
