@@ -7,10 +7,12 @@ import {
   View,
   Modal,
   Image,
+  Pressable,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { ResizeMode, Video } from 'expo-av';
 import { ThemedText } from './ThemedText';
 import { useFiles, FileRecord } from '@/contexts/FilesContext';
 
@@ -79,6 +81,9 @@ const FileGallery: React.FC<FileGalleryProps> = ({
   const [files, setFiles] = useState<FileRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMenuVisible, setActionMenuVisible] = useState(false);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [viewerZoom, setViewerZoom] = useState(1);
 
   const parsedFiles = useMemo(() => parseAttachedFiles(filesJson), [filesJson]);
   const fileIds = useMemo(() => parsedFiles.map(file => file.id), [parsedFiles]);
@@ -218,6 +223,51 @@ const FileGallery: React.FC<FileGalleryProps> = ({
   const isImageFile = (file: FileRecord) => getMime(file).includes('image');
   const isVideoFile = (file: FileRecord) => getMime(file).includes('video');
 
+  const mediaFiles = useMemo(
+    () =>
+      files.filter(file => {
+        const mime = getMime(file);
+        return file.downloaded === 1 && (mime.includes('image') || mime.includes('video'));
+      }),
+    [files],
+  );
+
+  const activeMedia = mediaFiles[viewerIndex];
+
+  const openMediaViewer = (file: FileRecord) => {
+    const mediaIndex = mediaFiles.findIndex(media => media.id === file.id);
+    if (mediaIndex < 0) return;
+    setViewerZoom(1);
+    setViewerIndex(mediaIndex);
+    setViewerVisible(true);
+  };
+
+  const closeMediaViewer = () => {
+    setViewerVisible(false);
+    setViewerZoom(1);
+  };
+
+  const goToPreviousMedia = () => {
+    if (!mediaFiles.length) return;
+    setViewerZoom(1);
+    setViewerIndex(current => (current === 0 ? mediaFiles.length - 1 : current - 1));
+  };
+
+  const goToNextMedia = () => {
+    if (!mediaFiles.length) return;
+    setViewerZoom(1);
+    setViewerIndex(current => (current === mediaFiles.length - 1 ? 0 : current + 1));
+  };
+
+  const handleFilePress = (file: FileRecord) => {
+    if (isImageFile(file) || isVideoFile(file)) {
+      openMediaViewer(file);
+      return;
+    }
+
+    openFile(file);
+  };
+
   const renderPreview = (file: FileRecord) => {
     const uri = file.localUri;
     const downloaded = file.downloaded === 1 && Boolean(uri);
@@ -258,7 +308,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
       <View style={styles.fileCardWrapper}>
         <TouchableOpacity
           style={[styles.fileCard, { opacity: isDownloaded ? 1 : 0.5 }]}
-          onPress={() => openFile(item)}
+          onPress={() => handleFilePress(item)}
           disabled={!isDownloaded}
         >
           {renderPreview(item)}
@@ -328,6 +378,76 @@ const FileGallery: React.FC<FileGalleryProps> = ({
                   <ThemedText style={styles.modalCancel}>Cancelar</ThemedText>
                 </TouchableOpacity>
               </View>
+            </View>
+          </Modal>
+
+          <Modal visible={viewerVisible} animationType="fade" transparent statusBarTranslucent>
+            <View style={styles.viewerOverlay}>
+              <Pressable style={styles.viewerCloseButton} onPress={closeMediaViewer}>
+                <MaterialIcons name="close" size={30} color="#fff" />
+              </Pressable>
+
+              {activeMedia ? (
+                <>
+                  <View style={styles.viewerContent}>
+                    {isImageFile(activeMedia) ? (
+                      <Image
+                        source={{ uri: activeMedia.localUri! }}
+                        style={[
+                          styles.viewerMedia,
+                          {
+                            transform: [{ scale: viewerZoom }],
+                          },
+                        ]}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <Video
+                        source={{ uri: activeMedia.localUri! }}
+                        style={styles.viewerMedia}
+                        useNativeControls
+                        resizeMode={ResizeMode.CONTAIN}
+                        shouldPlay
+                        isLooping
+                      />
+                    )}
+                  </View>
+
+                  <View style={styles.viewerNavigation}>
+                    <Pressable style={styles.arrowButton} onPress={goToPreviousMedia}>
+                      <MaterialIcons name="chevron-left" size={36} color="#fff" />
+                    </Pressable>
+
+                    <ThemedText style={styles.viewerCounter}>
+                      {viewerIndex + 1} / {mediaFiles.length}
+                    </ThemedText>
+
+                    <Pressable style={styles.arrowButton} onPress={goToNextMedia}>
+                      <MaterialIcons name="chevron-right" size={36} color="#fff" />
+                    </Pressable>
+                  </View>
+
+                  {isImageFile(activeMedia) && (
+                    <View style={styles.zoomControls}>
+                      <Pressable
+                        style={styles.zoomButton}
+                        onPress={() => setViewerZoom(value => Math.max(1, Number((value - 0.25).toFixed(2))))}
+                      >
+                        <MaterialIcons name="remove" size={24} color="#fff" />
+                      </Pressable>
+
+                      <ThemedText style={styles.zoomLabel}>{Math.round(viewerZoom * 100)}%</ThemedText>
+
+                      <Pressable
+                        style={styles.zoomButton}
+                        onPress={() => setViewerZoom(value => Math.min(3, Number((value + 0.25).toFixed(2))))}
+                      >
+                        <MaterialIcons name="add" size={24} color="#fff" />
+                      </Pressable>
+                    </View>
+                  )}
+                </>
+              ) : null}
             </View>
           </Modal>
         </>
@@ -442,6 +562,87 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#dc3545',
     marginTop: 10,
+  },
+
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+
+  viewerCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+
+  viewerContent: {
+    width: '100%',
+    height: '70%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  viewerMedia: {
+    width: '100%',
+    height: '100%',
+  },
+
+  viewerNavigation: {
+    width: '100%',
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  arrowButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+
+  viewerCounter: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+
+  zoomControls: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 30,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+
+  zoomButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+
+  zoomLabel: {
+    minWidth: 52,
+    textAlign: 'center',
+    fontWeight: '700',
   },
 });
 
