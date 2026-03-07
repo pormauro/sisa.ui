@@ -29,6 +29,17 @@
               "mimeType": "*/*"
             }
           ]
+        },
+        {
+          "action": "SEND_MULTIPLE",
+          "category": [
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "mimeType": "*/*"
+            }
+          ]
         }
       ]
     },
