@@ -9,6 +9,15 @@ import {
   Image,
   Pressable,
 } from 'react-native';
+import {
+  PanGestureHandler,
+  PinchGestureHandler,
+  State,
+  type PanGestureHandlerGestureEvent,
+  type PanGestureHandlerStateChangeEvent,
+  type PinchGestureHandlerGestureEvent,
+  type PinchGestureHandlerStateChangeEvent,
+} from 'react-native-gesture-handler';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -98,9 +107,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
 
   const gestureStartZoomRef = useRef(1);
   const gestureStartOffsetRef = useRef({ x: 0, y: 0 });
-  const pinchStartDistanceRef = useRef<number | null>(null);
-  const panStartPointRef = useRef({ x: 0, y: 0 });
-  const lastTouchCountRef = useRef(0);
+  const panStartOffsetRef = useRef({ x: 0, y: 0 });
 
   const parsedFiles = useMemo(() => parseAttachedFiles(filesJson), [filesJson]);
   const fileIds = useMemo(() => parsedFiles.map(file => file.id), [parsedFiles]);
@@ -294,21 +301,12 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     };
   };
 
-  const getTouchDistance = (touches: readonly { pageX: number; pageY: number }[]) => {
-    if (touches.length < 2) return 0;
-
-    const [first, second] = touches;
-    return Math.hypot(second.pageX - first.pageX, second.pageY - first.pageY);
-  };
-
   const resetViewerTransform = () => {
     setViewerZoom(1);
     setViewerOffset({ x: 0, y: 0 });
     gestureStartZoomRef.current = 1;
     gestureStartOffsetRef.current = { x: 0, y: 0 };
-    pinchStartDistanceRef.current = null;
-    panStartPointRef.current = { x: 0, y: 0 };
-    lastTouchCountRef.current = 0;
+    panStartOffsetRef.current = { x: 0, y: 0 };
   };
 
   const openMediaViewer = (file: FileRecord) => {
@@ -336,88 +334,72 @@ const FileGallery: React.FC<FileGalleryProps> = ({
     setViewerIndex(current => (current === mediaFiles.length - 1 ? 0 : current + 1));
   };
 
-  const handleImageGestureStart = (event: any) => {
-    const touches = event.nativeEvent.touches as { pageX: number; pageY: number }[];
-    const touchCount = touches.length;
+  const handlePinchGestureEvent = (event: PinchGestureHandlerGestureEvent) => {
+    const rawZoom = gestureStartZoomRef.current * event.nativeEvent.scale;
+    const nextZoom = clamp(Number(rawZoom.toFixed(3)), 1, 3);
+    const nextOffset = clampOffset(gestureStartOffsetRef.current, nextZoom);
 
-    lastTouchCountRef.current = touchCount;
+    setViewerZoom(nextZoom);
+    setViewerOffset(nextOffset);
+  };
 
-    if (touchCount >= 2) {
-      const distance = getTouchDistance(touches);
-      pinchStartDistanceRef.current = distance > 0 ? distance : null;
+  const handlePinchStateChange = (event: PinchGestureHandlerStateChangeEvent) => {
+    const { state, oldState } = event.nativeEvent;
+
+    if (state === State.BEGAN) {
       gestureStartZoomRef.current = viewerZoom;
       gestureStartOffsetRef.current = viewerOffset;
-      return;
     }
 
-    if (touchCount === 1) {
-      panStartPointRef.current = { x: touches[0].pageX, y: touches[0].pageY };
-      gestureStartOffsetRef.current = viewerOffset;
-      pinchStartDistanceRef.current = null;
-    }
-  };
-
-  const handleImageGestureMove = (event: any) => {
-    const touches = event.nativeEvent.touches as { pageX: number; pageY: number }[];
-    const touchCount = touches.length;
-
-    if (touchCount >= 2) {
-      const distance = getTouchDistance(touches);
-
-      if (!pinchStartDistanceRef.current || lastTouchCountRef.current < 2) {
-        pinchStartDistanceRef.current = distance > 0 ? distance : null;
-        gestureStartZoomRef.current = viewerZoom;
-        gestureStartOffsetRef.current = viewerOffset;
-      }
-
-      if (!pinchStartDistanceRef.current) return;
-
-      const rawZoom = gestureStartZoomRef.current * (distance / pinchStartDistanceRef.current);
+    if (oldState === State.ACTIVE) {
+      const rawZoom = gestureStartZoomRef.current * event.nativeEvent.scale;
       const nextZoom = clamp(Number(rawZoom.toFixed(3)), 1, 3);
-      const nextOffset = clampOffset(gestureStartOffsetRef.current, nextZoom);
 
-      setViewerZoom(nextZoom);
-      setViewerOffset(nextOffset);
-      lastTouchCountRef.current = touchCount;
+      if (nextZoom <= 1) {
+        setViewerZoom(1);
+        setViewerOffset({ x: 0, y: 0 });
+        gestureStartZoomRef.current = 1;
+        gestureStartOffsetRef.current = { x: 0, y: 0 };
+        panStartOffsetRef.current = { x: 0, y: 0 };
+      } else {
+        const nextOffset = clampOffset(viewerOffset, nextZoom);
+        setViewerZoom(nextZoom);
+        setViewerOffset(nextOffset);
+        gestureStartZoomRef.current = nextZoom;
+        gestureStartOffsetRef.current = nextOffset;
+        panStartOffsetRef.current = nextOffset;
+      }
+    }
+  };
+
+  const handlePanGestureEvent = (event: PanGestureHandlerGestureEvent) => {
+    if (viewerZoom <= 1) return;
+
+    const { translationX, translationY } = event.nativeEvent;
+    const nextOffset = clampOffset(
+      {
+        x: panStartOffsetRef.current.x + translationX,
+        y: panStartOffsetRef.current.y + translationY,
+      },
+      viewerZoom,
+    );
+
+    setViewerOffset(nextOffset);
+  };
+
+  const handlePanStateChange = (event: PanGestureHandlerStateChangeEvent) => {
+    const { state, oldState } = event.nativeEvent;
+
+    if (state === State.BEGAN) {
+      panStartOffsetRef.current = viewerOffset;
       return;
     }
 
-    if (touchCount === 1 && viewerZoom > 1) {
-      const currentTouch = touches[0];
-
-      if (lastTouchCountRef.current !== 1) {
-        panStartPointRef.current = { x: currentTouch.pageX, y: currentTouch.pageY };
-        gestureStartOffsetRef.current = viewerOffset;
-      }
-
-      const deltaX = currentTouch.pageX - panStartPointRef.current.x;
-      const deltaY = currentTouch.pageY - panStartPointRef.current.y;
-
-      const nextOffset = clampOffset(
-        {
-          x: gestureStartOffsetRef.current.x + deltaX,
-          y: gestureStartOffsetRef.current.y + deltaY,
-        },
-        viewerZoom,
-      );
-
+    if (oldState === State.ACTIVE) {
+      const nextOffset = clampOffset(viewerOffset, viewerZoom);
       setViewerOffset(nextOffset);
-    }
-
-    lastTouchCountRef.current = touchCount;
-  };
-
-  const handleImageGestureEnd = () => {
-    lastTouchCountRef.current = 0;
-    pinchStartDistanceRef.current = null;
-    gestureStartZoomRef.current = viewerZoom;
-    gestureStartOffsetRef.current = viewerOffset;
-
-    if (viewerZoom <= 1) {
-      setViewerZoom(1);
-      setViewerOffset({ x: 0, y: 0 });
-    } else {
-      setViewerOffset(current => clampOffset(current, viewerZoom));
+      panStartOffsetRef.current = nextOffset;
+      gestureStartOffsetRef.current = nextOffset;
     }
   };
 
@@ -553,34 +535,40 @@ const FileGallery: React.FC<FileGalleryProps> = ({
                 <>
                   <View style={styles.viewerContent}>
                     {isImageFile(activeMedia) ? (
-                      <View
-                        style={styles.viewerImageGestureArea}
-                        onLayout={event => {
-                          const { width, height } = event.nativeEvent.layout;
-                          setViewerAreaSize({ width, height });
-                        }}
-                        onStartShouldSetResponder={() => true}
-                        onMoveShouldSetResponder={() => true}
-                        onResponderGrant={handleImageGestureStart}
-                        onResponderMove={handleImageGestureMove}
-                        onResponderRelease={handleImageGestureEnd}
-                        onResponderTerminate={handleImageGestureEnd}
+                      <PanGestureHandler
+                        minPointers={1}
+                        maxPointers={1}
+                        onGestureEvent={handlePanGestureEvent}
+                        onHandlerStateChange={handlePanStateChange}
                       >
-                        <Image
-                          source={{ uri: activeMedia.localUri! }}
-                          style={[
-                            styles.viewerMedia,
-                            {
-                              transform: [
-                                { translateX: viewerOffset.x },
-                                { translateY: viewerOffset.y },
-                                { scale: viewerZoom },
-                              ],
-                            },
-                          ]}
-                          resizeMode="contain"
-                        />
-                      </View>
+                        <PinchGestureHandler
+                          onGestureEvent={handlePinchGestureEvent}
+                          onHandlerStateChange={handlePinchStateChange}
+                        >
+                          <View
+                            style={styles.viewerImageGestureArea}
+                            onLayout={event => {
+                              const { width, height } = event.nativeEvent.layout;
+                              setViewerAreaSize({ width, height });
+                            }}
+                          >
+                            <Image
+                              source={{ uri: activeMedia.localUri! }}
+                              style={[
+                                styles.viewerMedia,
+                                {
+                                  transform: [
+                                    { translateX: viewerOffset.x },
+                                    { translateY: viewerOffset.y },
+                                    { scale: viewerZoom },
+                                  ],
+                                },
+                              ]}
+                              resizeMode="contain"
+                            />
+                          </View>
+                        </PinchGestureHandler>
+                      </PanGestureHandler>
                     ) : (
                       <VideoViewerPlayer uri={activeMedia.localUri!} />
                     )}
