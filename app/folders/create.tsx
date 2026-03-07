@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect, useMemo } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, View } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FoldersContext } from '@/contexts/FoldersContext';
@@ -11,6 +11,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS, type SelectionKey } from '@/constants/selectionKeys';
+import { getDisplayFolders, getFolderIndentedName } from '@/utils/folders';
 
 export default function CreateFolderPage() {
   const router = useRouter();
@@ -48,9 +49,11 @@ export default function CreateFolderPage() {
         ? folderParent.client_id
         : null;
   const [clientId, setClientId] = useState<number | null>(resolvedClientId);
+  const [selectedParentId, setSelectedParentId] = useState<number | null>(parentId);
   const isClientFixed = parentId !== null || !!clientIdParam;
 
   const NEW_CLIENT_VALUE = '__NEW_CLIENT__';
+  const NO_PARENT_VALUE = '__NO_PARENT__';
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -72,6 +75,22 @@ export default function CreateFolderPage() {
     ],
     [clients]
   );
+
+  const parentFolderItems = useMemo(() => {
+    if (!clientId) {
+      return [{ label: 'Sin carpeta padre (nivel raíz)', value: NO_PARENT_VALUE }];
+    }
+
+    const displayFolders = getDisplayFolders(folders, clientId);
+
+    return [
+      { label: 'Sin carpeta padre (nivel raíz)', value: NO_PARENT_VALUE },
+      ...displayFolders.map(folder => ({
+        label: getFolderIndentedName(folder.name, folder.level),
+        value: folder.id.toString(),
+      })),
+    ];
+  }, [clientId, folders]);
 
   useEffect(() => {
     if (!permissions.includes('addFolder')) {
@@ -110,6 +129,21 @@ export default function CreateFolderPage() {
   }, [resolvedClientId]);
 
   useEffect(() => {
+    setSelectedParentId(parentId);
+  }, [parentId]);
+
+  useEffect(() => {
+    if (!clientId || selectedParentId === null) {
+      return;
+    }
+
+    const parentFolder = folders.find(folder => folder.id === selectedParentId);
+    if (!parentFolder || parentFolder.client_id !== clientId) {
+      setSelectedParentId(null);
+    }
+  }, [clientId, folders, selectedParentId]);
+
+  useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.folders.client)) {
       return;
     }
@@ -128,7 +162,7 @@ export default function CreateFolderPage() {
     const newFolderId = await addFolder({
       name,
       client_id: clientId,
-      parent_id: parentId,
+      parent_id: selectedParentId,
       folder_image_file_id: folderImageFileId,
     });
     setLoading(false);
@@ -172,6 +206,25 @@ export default function CreateFolderPage() {
           beginSelection(SELECTION_KEYS.folders.client);
           router.push(`/clients/${value}`);
         }}
+      />
+
+      <ThemedText style={styles.label}>Carpeta padre</ThemedText>
+      <SearchableSelect
+        style={styles.select}
+        items={parentFolderItems}
+        selectedValue={selectedParentId !== null ? selectedParentId.toString() : NO_PARENT_VALUE}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? NO_PARENT_VALUE;
+          if (stringValue === NO_PARENT_VALUE) {
+            setSelectedParentId(null);
+            return;
+          }
+
+          const parsed = Number(stringValue);
+          setSelectedParentId(Number.isNaN(parsed) ? null : parsed);
+        }}
+        placeholder="Selecciona carpeta padre"
+        disabled={!clientId}
       />
 
       <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>

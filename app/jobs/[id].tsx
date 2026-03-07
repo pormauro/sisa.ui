@@ -739,7 +739,13 @@ export default function EditJobScreen() {
             if (item.id === NEW_FOLDER_VALUE) {
               if (selectedClientId) {
                 beginSelection(SELECTION_KEYS.jobs.folder);
-                router.push({ pathname: '/folders/create', params: { client_id: selectedClientId } });
+                router.push({
+                  pathname: '/folders/create',
+                  params: {
+                    client_id: selectedClientId,
+                    parent_id: selectedFolder?.id ? String(selectedFolder.id) : undefined,
+                  },
+                });
               }
               return;
             }
