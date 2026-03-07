@@ -24,6 +24,15 @@ const getQueryValue = (rawPath: string, keys: string[]): string | null => {
   return null;
 };
 
+const getQueryParams = (rawPath: string): [string, string][] => {
+  const queryPart = rawPath.includes('?') ? rawPath.split('?')[1] : '';
+  if (!queryPart) {
+    return [];
+  }
+
+  return Array.from(new URLSearchParams(queryPart).entries());
+};
+
 const decodeRepeatedly = (value: string, maxIterations = 2): string => {
   let current = value;
   for (let i = 0; i < maxIterations; i += 1) {
@@ -47,6 +56,29 @@ const getStreamUriFromRawPath = (rawPath: string): string | null => {
   return decodeSafely(streamUriMatch[1]);
 };
 
+const getStreamUriFromParams = (rawPath: string): string | null => {
+  const queryParams = getQueryParams(rawPath);
+
+  for (const [rawKey, rawValue] of queryParams) {
+    if (!rawValue) {
+      continue;
+    }
+
+    const key = decodeSafely(rawKey).toLowerCase();
+    const value = decodeRepeatedly(rawValue, 3);
+    const directMatch = getStreamUriFromRawPath(value);
+    if (directMatch) {
+      return directMatch;
+    }
+
+    if (/(stream|uri|url)/i.test(key) && (value.startsWith('content://') || value.startsWith('file://'))) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 const isRootSchemePath = (path: string): boolean => {
   const normalized = decodeSafely(path).trim().toLowerCase();
   return normalized === 'sisa:///' || normalized === 'sisa://' || normalized === '/';
@@ -64,10 +96,11 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
     platform: Platform.OS,
   });
 
-  if (Platform.OS === 'web' || !initial || !path) {
+  if (Platform.OS === 'web' || !path) {
     recordShareDebug('native-intent:passthrough', {
-      reason: 'web-or-not-initial-or-empty-path',
+      reason: 'web-or-empty-path',
       path,
+      initial,
     });
     return path;
   }
@@ -86,7 +119,7 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
     'S.android.intent.extra.STREAM',
     'stream',
     'uri',
-  ]) ?? getStreamUriFromRawPath(path);
+  ]) ?? getStreamUriFromParams(path) ?? getStreamUriFromRawPath(path);
 
   if (!streamUri) {
     if (isRootSchemePath(path)) {
