@@ -2,7 +2,7 @@ import '@/utils/networkSniffer';
 
 import { Stack, usePathname, useRouter } from 'expo-router';
 import React, { useContext, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Font from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
@@ -48,8 +48,48 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { AppUpdatesProvider } from '@/contexts/AppUpdatesContext';
 import { primeMemoryCacheFromStorage } from '@/hooks/useCachedState';
 import { getDatabase } from '@/database/Database';
+import { useShareIntent } from '@/utils/useShareIntent';
+import { recordShareDebug } from '@/utils/shareDebug';
 
 void SplashScreen.preventAutoHideAsync();
+
+function ShareIntentBridge() {
+  const router = useRouter();
+
+  useShareIntent(files => {
+    const file = files[0];
+    const uri = file?.filePath ?? file?.contentUri ?? '';
+
+    if (!uri) {
+      recordShareDebug('share-intent:missing-uri', { file });
+      return;
+    }
+
+    const params: Record<string, string> = {
+      uri,
+    };
+
+    if (file?.fileName) {
+      params.name = file.fileName;
+    }
+
+    if (file?.mimeType) {
+      params.mime = file.mimeType;
+    }
+
+    recordShareDebug('share-intent:navigate', {
+      params,
+      currentPlatform: Platform.OS,
+    });
+
+    router.push({
+      pathname: '/share/attach-job',
+      params,
+    });
+  });
+
+  return null;
+}
 
 function RootLayoutContent() {
   const { isLoading, username } = useContext(AuthContext);
@@ -180,6 +220,7 @@ export default function RootLayout() {
                                                                   <NotificationsProvider>
                                                                     <PendingSelectionProvider>
                                                                       <BootstrapProvider>
+                                                                        <ShareIntentBridge />
                                                                         <RootLayoutContent />
                                                                         <LogOverlay />
                                                                       </BootstrapProvider>
