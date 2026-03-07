@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -84,6 +84,14 @@ const FileGallery: React.FC<FileGalleryProps> = ({
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
   const [viewerZoom, setViewerZoom] = useState(1);
+  const [viewerOffset, setViewerOffset] = useState({ x: 0, y: 0 });
+  const [viewerAreaSize, setViewerAreaSize] = useState({ width: 0, height: 0 });
+
+  const gestureStartZoomRef = useRef(1);
+  const gestureStartOffsetRef = useRef({ x: 0, y: 0 });
+  const pinchStartDistanceRef = useRef<number | null>(null);
+  const panStartPointRef = useRef({ x: 0, y: 0 });
+  const lastTouchCountRef = useRef(0);
 
   const parsedFiles = useMemo(() => parseAttachedFiles(filesJson), [filesJson]);
   const fileIds = useMemo(() => parsedFiles.map(file => file.id), [parsedFiles]);
@@ -257,29 +265,151 @@ const FileGallery: React.FC<FileGalleryProps> = ({
 
   const activeMedia = mediaFiles[viewerIndex];
 
+  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(value, max));
+
+  const getMaxOffsets = (zoom: number) => ({
+    maxX: ((zoom - 1) * viewerAreaSize.width) / 2,
+    maxY: ((zoom - 1) * viewerAreaSize.height) / 2,
+  });
+
+  const clampOffset = (offset: { x: number; y: number }, zoom: number) => {
+    if (zoom <= 1) {
+      return { x: 0, y: 0 };
+    }
+
+    const { maxX, maxY } = getMaxOffsets(zoom);
+
+    return {
+      x: clamp(offset.x, -maxX, maxX),
+      y: clamp(offset.y, -maxY, maxY),
+    };
+  };
+
+  const getTouchDistance = (touches: readonly { pageX: number; pageY: number }[]) => {
+    if (touches.length < 2) return 0;
+
+    const [first, second] = touches;
+    return Math.hypot(second.pageX - first.pageX, second.pageY - first.pageY);
+  };
+
+  const resetViewerTransform = () => {
+    setViewerZoom(1);
+    setViewerOffset({ x: 0, y: 0 });
+    gestureStartZoomRef.current = 1;
+    gestureStartOffsetRef.current = { x: 0, y: 0 };
+    pinchStartDistanceRef.current = null;
+    panStartPointRef.current = { x: 0, y: 0 };
+    lastTouchCountRef.current = 0;
+  };
+
   const openMediaViewer = (file: FileRecord) => {
     const mediaIndex = mediaFiles.findIndex(media => media.id === file.id);
     if (mediaIndex < 0) return;
-    setViewerZoom(1);
+    resetViewerTransform();
     setViewerIndex(mediaIndex);
     setViewerVisible(true);
   };
 
   const closeMediaViewer = () => {
     setViewerVisible(false);
-    setViewerZoom(1);
+    resetViewerTransform();
   };
 
   const goToPreviousMedia = () => {
     if (!mediaFiles.length) return;
-    setViewerZoom(1);
+    resetViewerTransform();
     setViewerIndex(current => (current === 0 ? mediaFiles.length - 1 : current - 1));
   };
 
   const goToNextMedia = () => {
     if (!mediaFiles.length) return;
-    setViewerZoom(1);
+    resetViewerTransform();
     setViewerIndex(current => (current === mediaFiles.length - 1 ? 0 : current + 1));
+  };
+
+  const handleImageGestureStart = (event: any) => {
+    const touches = event.nativeEvent.touches as { pageX: number; pageY: number }[];
+    const touchCount = touches.length;
+
+    lastTouchCountRef.current = touchCount;
+
+    if (touchCount >= 2) {
+      const distance = getTouchDistance(touches);
+      pinchStartDistanceRef.current = distance > 0 ? distance : null;
+      gestureStartZoomRef.current = viewerZoom;
+      gestureStartOffsetRef.current = viewerOffset;
+      return;
+    }
+
+    if (touchCount === 1) {
+      panStartPointRef.current = { x: touches[0].pageX, y: touches[0].pageY };
+      gestureStartOffsetRef.current = viewerOffset;
+      pinchStartDistanceRef.current = null;
+    }
+  };
+
+  const handleImageGestureMove = (event: any) => {
+    const touches = event.nativeEvent.touches as { pageX: number; pageY: number }[];
+    const touchCount = touches.length;
+
+    if (touchCount >= 2) {
+      const distance = getTouchDistance(touches);
+
+      if (!pinchStartDistanceRef.current || lastTouchCountRef.current < 2) {
+        pinchStartDistanceRef.current = distance > 0 ? distance : null;
+        gestureStartZoomRef.current = viewerZoom;
+        gestureStartOffsetRef.current = viewerOffset;
+      }
+
+      if (!pinchStartDistanceRef.current) return;
+
+      const rawZoom = gestureStartZoomRef.current * (distance / pinchStartDistanceRef.current);
+      const nextZoom = clamp(Number(rawZoom.toFixed(3)), 1, 3);
+      const nextOffset = clampOffset(gestureStartOffsetRef.current, nextZoom);
+
+      setViewerZoom(nextZoom);
+      setViewerOffset(nextOffset);
+      lastTouchCountRef.current = touchCount;
+      return;
+    }
+
+    if (touchCount === 1 && viewerZoom > 1) {
+      const currentTouch = touches[0];
+
+      if (lastTouchCountRef.current !== 1) {
+        panStartPointRef.current = { x: currentTouch.pageX, y: currentTouch.pageY };
+        gestureStartOffsetRef.current = viewerOffset;
+      }
+
+      const deltaX = currentTouch.pageX - panStartPointRef.current.x;
+      const deltaY = currentTouch.pageY - panStartPointRef.current.y;
+
+      const nextOffset = clampOffset(
+        {
+          x: gestureStartOffsetRef.current.x + deltaX,
+          y: gestureStartOffsetRef.current.y + deltaY,
+        },
+        viewerZoom,
+      );
+
+      setViewerOffset(nextOffset);
+    }
+
+    lastTouchCountRef.current = touchCount;
+  };
+
+  const handleImageGestureEnd = () => {
+    lastTouchCountRef.current = 0;
+    pinchStartDistanceRef.current = null;
+    gestureStartZoomRef.current = viewerZoom;
+    gestureStartOffsetRef.current = viewerOffset;
+
+    if (viewerZoom <= 1) {
+      setViewerZoom(1);
+      setViewerOffset({ x: 0, y: 0 });
+    } else {
+      setViewerOffset(current => clampOffset(current, viewerZoom));
+    }
   };
 
   const handleFilePress = (file: FileRecord) => {
@@ -414,16 +544,34 @@ const FileGallery: React.FC<FileGalleryProps> = ({
                 <>
                   <View style={styles.viewerContent}>
                     {isImageFile(activeMedia) ? (
-                      <Image
-                        source={{ uri: activeMedia.localUri! }}
-                        style={[
-                          styles.viewerMedia,
-                          {
-                            transform: [{ scale: viewerZoom }],
-                          },
-                        ]}
-                        resizeMode="contain"
-                      />
+                      <View
+                        style={styles.viewerImageGestureArea}
+                        onLayout={event => {
+                          const { width, height } = event.nativeEvent.layout;
+                          setViewerAreaSize({ width, height });
+                        }}
+                        onStartShouldSetResponder={() => true}
+                        onMoveShouldSetResponder={() => true}
+                        onResponderGrant={handleImageGestureStart}
+                        onResponderMove={handleImageGestureMove}
+                        onResponderRelease={handleImageGestureEnd}
+                        onResponderTerminate={handleImageGestureEnd}
+                      >
+                        <Image
+                          source={{ uri: activeMedia.localUri! }}
+                          style={[
+                            styles.viewerMedia,
+                            {
+                              transform: [
+                                { translateX: viewerOffset.x },
+                                { translateY: viewerOffset.y },
+                                { scale: viewerZoom },
+                              ],
+                            },
+                          ]}
+                          resizeMode="contain"
+                        />
+                      </View>
                     ) : (
                       <Video
                         source={{ uri: activeMedia.localUri! }}
@@ -449,26 +597,6 @@ const FileGallery: React.FC<FileGalleryProps> = ({
                       <MaterialIcons name="chevron-right" size={36} color="#fff" />
                     </Pressable>
                   </View>
-
-                  {isImageFile(activeMedia) && (
-                    <View style={styles.zoomControls}>
-                      <Pressable
-                        style={styles.zoomButton}
-                        onPress={() => setViewerZoom(value => Math.max(1, Number((value - 0.25).toFixed(2))))}
-                      >
-                        <MaterialIcons name="remove" size={24} color="#fff" />
-                      </Pressable>
-
-                      <ThemedText style={styles.zoomLabel}>{Math.round(viewerZoom * 100)}%</ThemedText>
-
-                      <Pressable
-                        style={styles.zoomButton}
-                        onPress={() => setViewerZoom(value => Math.min(3, Number((value + 0.25).toFixed(2))))}
-                      >
-                        <MaterialIcons name="add" size={24} color="#fff" />
-                      </Pressable>
-                    </View>
-                  )}
                 </>
               ) : null}
             </View>
@@ -620,6 +748,12 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 
+  viewerImageGestureArea: {
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden',
+  },
+
   viewerNavigation: {
     width: '100%',
     marginTop: 16,
@@ -642,31 +776,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  zoomControls: {
-    marginTop: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    borderRadius: 30,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-
-  zoomButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-
-  zoomLabel: {
-    minWidth: 52,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
 });
 
 export { FileGallery };
