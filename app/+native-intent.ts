@@ -24,6 +24,34 @@ const getQueryValue = (rawPath: string, keys: string[]): string | null => {
   return null;
 };
 
+const decodeRepeatedly = (value: string, maxIterations = 2): string => {
+  let current = value;
+  for (let i = 0; i < maxIterations; i += 1) {
+    const decoded = decodeSafely(current);
+    if (decoded === current) {
+      break;
+    }
+    current = decoded;
+  }
+
+  return current;
+};
+
+const getStreamUriFromRawPath = (rawPath: string): string | null => {
+  const decodedPath = decodeRepeatedly(rawPath, 3);
+  const streamUriMatch = decodedPath.match(/(content:\/\/[\w\-./%:?=&+#~]+|file:\/\/[\w\-./%:?=&+#~]+)/i);
+  if (!streamUriMatch?.[1]) {
+    return null;
+  }
+
+  return decodeSafely(streamUriMatch[1]);
+};
+
+const isRootSchemePath = (path: string): boolean => {
+  const normalized = decodeSafely(path).trim().toLowerCase();
+  return normalized === 'sisa:///' || normalized === 'sisa://' || normalized === '/';
+};
+
 const buildAttachJobPath = (params: Record<string, string>) => {
   const query = new URLSearchParams(params);
   return `/share/attach-job?${query.toString()}`;
@@ -58,9 +86,14 @@ export function redirectSystemPath({ path, initial }: { path: string; initial: b
     'S.android.intent.extra.STREAM',
     'stream',
     'uri',
-  ]);
+  ]) ?? getStreamUriFromRawPath(path);
 
   if (!streamUri) {
+    if (isRootSchemePath(path)) {
+      recordShareDebug('native-intent:root-path-no-share-payload', { path });
+      return path;
+    }
+
     recordShareDebug('native-intent:no-stream-uri', { path });
     return path;
   }
