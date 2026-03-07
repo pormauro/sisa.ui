@@ -5,8 +5,8 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "postinstall": "patch-package",
     "lint": "expo lint",
@@ -56,6 +56,7 @@
     "react-native-image-viewing": "^0.2.2",
     "react-native-maps": "1.20.1",
     "react-native-reanimated": "~4.1.0",
+    "react-native-receive-sharing-intent": "^2.0.0",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-web": "~0.21.0",
