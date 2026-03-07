@@ -220,16 +220,39 @@ const FileGallery: React.FC<FileGalleryProps> = ({
   const getMime = (file: FileRecord) =>
     String(file.mimeType || file.mime || file.file_type || '').toLowerCase();
 
-  const isImageFile = (file: FileRecord) => getMime(file).includes('image');
-  const isVideoFile = (file: FileRecord) => getMime(file).includes('video');
+  const getExtension = (file: FileRecord) => {
+    const candidates = [file.name, file.localUri, file.remoteUrl]
+      .filter(Boolean)
+      .map(value => String(value).toLowerCase());
 
-  const mediaFiles = useMemo(
-    () =>
-      files.filter(file => {
-        const mime = getMime(file);
-        return file.downloaded === 1 && (mime.includes('image') || mime.includes('video'));
-      }),
-    [files],
+    for (const value of candidates) {
+      const cleanValue = value.split('?')[0].split('#')[0];
+      const extension = cleanValue.split('.').pop();
+      if (extension && extension !== cleanValue) {
+        return extension;
+      }
+    }
+
+    return '';
+  };
+
+  const imageExtensions = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif']);
+  const videoExtensions = new Set(['mp4', 'mov', 'm4v', 'avi', 'mkv', 'webm', '3gp', 'mpeg', 'mpg']);
+
+  const isImageFile = (file: FileRecord) => {
+    const mime = getMime(file);
+    if (mime.includes('image')) return true;
+    return imageExtensions.has(getExtension(file));
+  };
+
+  const isVideoFile = (file: FileRecord) => {
+    const mime = getMime(file);
+    if (mime.includes('video')) return true;
+    return videoExtensions.has(getExtension(file));
+  };
+
+  const mediaFiles = files.filter(
+    file => file.downloaded === 1 && (isImageFile(file) || isVideoFile(file)),
   );
 
   const activeMedia = mediaFiles[viewerIndex];
