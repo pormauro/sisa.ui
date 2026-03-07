@@ -12,7 +12,7 @@ import {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { ResizeMode, Video } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { ThemedText } from './ThemedText';
 import { useFiles, FileRecord } from '@/contexts/FilesContext';
 
@@ -60,6 +60,15 @@ const parseAttachedFiles = (
   }
 
   return normalizeArray(raw);
+};
+
+const VideoViewerPlayer: React.FC<{ uri: string }> = ({ uri }) => {
+  const player = useVideoPlayer(uri, currentPlayer => {
+    currentPlayer.loop = true;
+    currentPlayer.play();
+  });
+
+  return <VideoView player={player} style={styles.viewerMedia} nativeControls contentFit="contain" />;
 };
 
 const FileGallery: React.FC<FileGalleryProps> = ({
@@ -573,14 +582,7 @@ const FileGallery: React.FC<FileGalleryProps> = ({
                         />
                       </View>
                     ) : (
-                      <Video
-                        source={{ uri: activeMedia.localUri! }}
-                        style={styles.viewerMedia}
-                        useNativeControls
-                        resizeMode={ResizeMode.CONTAIN}
-                        shouldPlay
-                        isLooping
-                      />
+                      <VideoViewerPlayer uri={activeMedia.localUri!} />
                     )}
                   </View>
 
