@@ -143,9 +143,11 @@ export default function JobsScreen() {
   }, []);
 
   const getJobCreatedValue = useCallback((job: Job) => {
-    if (job.created_at) return job.created_at;
-    if (job.updated_at) return job.updated_at;
-    if (!job.job_date) return job.id;
+    if (!job.job_date) {
+      if (job.created_at) return job.created_at;
+      if (job.updated_at) return job.updated_at;
+      return job.id;
+    }
 
     const time = job.start_time
       ? job.start_time.length === 5
