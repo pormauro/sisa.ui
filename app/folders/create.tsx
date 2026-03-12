@@ -11,6 +11,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { SearchableSelect } from '@/components/SearchableSelect';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import { SELECTION_KEYS, type SelectionKey } from '@/constants/selectionKeys';
+import { getDisplayFolders } from '@/utils/folders';
 
 export default function CreateFolderPage() {
   const router = useRouter();
@@ -37,7 +38,9 @@ export default function CreateFolderPage() {
 
   const parsedParentId =
     parentIdParam != null && parentIdParam !== '' ? Number(parentIdParam) : null;
-  const parentId = parsedParentId != null && !Number.isNaN(parsedParentId) ? parsedParentId : null;
+  const initialParentId =
+    parsedParentId != null && !Number.isNaN(parsedParentId) ? parsedParentId : null;
+  const [parentId, setParentId] = useState<number | null>(initialParentId);
   const folderParent = parentId ? folders.find(f => f.id === parentId) : null;
   const parsedClientId =
     clientIdParam != null && clientIdParam !== '' ? Number(clientIdParam) : null;
@@ -48,7 +51,8 @@ export default function CreateFolderPage() {
         ? folderParent.client_id
         : null;
   const [clientId, setClientId] = useState<number | null>(resolvedClientId);
-  const isClientFixed = parentId !== null || !!clientIdParam;
+  const isParentFixed = initialParentId !== null;
+  const isClientFixed = isParentFixed || !!clientIdParam;
 
   const NEW_CLIENT_VALUE = '__NEW_CLIENT__';
 
@@ -72,6 +76,41 @@ export default function CreateFolderPage() {
     ],
     [clients]
   );
+
+  const parentItems = useMemo(() => {
+    if (clientId === null) {
+      return [{ label: 'Sin carpeta padre', value: '' }];
+    }
+
+    const clientFolders = folders.filter(folder => folder.client_id === clientId);
+    const foldersMap = new Map(clientFolders.map(folder => [folder.id, folder]));
+
+    const getFolderPathLabel = (folderId: number): string => {
+      const parts: string[] = [];
+      const visited = new Set<number>();
+      let currentId: number | null = folderId;
+
+      while (currentId != null && !visited.has(currentId)) {
+        visited.add(currentId);
+        const currentFolder = foldersMap.get(currentId);
+        if (!currentFolder) {
+          break;
+        }
+        parts.unshift(currentFolder.name);
+        currentId = currentFolder.parent_id;
+      }
+
+      return parts.join(' → ');
+    };
+
+    return [
+      { label: 'Sin carpeta padre', value: '' },
+      ...getDisplayFolders(folders, clientId).map(folder => ({
+        label: getFolderPathLabel(folder.id),
+        value: folder.id.toString(),
+      })),
+    ];
+  }, [folders, clientId]);
 
   useEffect(() => {
     if (!permissions.includes('addFolder')) {
@@ -108,6 +147,40 @@ export default function CreateFolderPage() {
       setClientId(resolvedClientId);
     }
   }, [resolvedClientId]);
+
+  useEffect(() => {
+    if (initialParentId !== null) {
+      setParentId(initialParentId);
+    }
+  }, [initialParentId]);
+
+  useEffect(() => {
+    if (parentId === null) {
+      return;
+    }
+
+    const selectedParent = folders.find(folder => folder.id === parentId);
+    if (!selectedParent) {
+      return;
+    }
+
+    if (clientId !== selectedParent.client_id) {
+      setClientId(selectedParent.client_id);
+    }
+  }, [parentId, folders, clientId]);
+
+  useEffect(() => {
+    if (isParentFixed || clientId === null || parentId === null) {
+      return;
+    }
+
+    const parentBelongsToClient = folders.some(
+      folder => folder.id === parentId && folder.client_id === clientId
+    );
+    if (!parentBelongsToClient) {
+      setParentId(null);
+    }
+  }, [isParentFixed, clientId, parentId, folders]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.folders.client)) {
@@ -172,6 +245,19 @@ export default function CreateFolderPage() {
           beginSelection(SELECTION_KEYS.folders.client);
           router.push(`/clients/${value}`);
         }}
+      />
+
+      <ThemedText style={styles.label}>Carpeta padre</ThemedText>
+      <SearchableSelect
+        style={styles.select}
+        items={parentItems}
+        selectedValue={parentId !== null ? parentId.toString() : ''}
+        onValueChange={(value) => {
+          const stringValue = value?.toString() ?? '';
+          setParentId(stringValue ? Number(stringValue) : null);
+        }}
+        placeholder="Sin carpeta padre"
+        disabled={isParentFixed || clientId === null}
       />
 
       <ThemedText style={styles.label}>Imagen de la carpeta</ThemedText>

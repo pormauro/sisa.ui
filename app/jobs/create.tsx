@@ -604,7 +604,11 @@ export default function CreateJobScreen() {
             setSelectedFolder('');
             if (selectedClient) {
               beginSelection(SELECTION_KEYS.jobs.folder);
-              router.push({ pathname: '/folders/create', params: { client_id: selectedClient } });
+              const createFolderParams: Record<string, string> = { client_id: selectedClient };
+              if (selectedFolder) {
+                createFolderParams.parent_id = selectedFolder;
+              }
+              router.push({ pathname: '/folders/create', params: createFolderParams });
             }
             return;
           }
