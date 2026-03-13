@@ -1,0 +1,10 @@
+.git/
+.expo/
+.vscode/
+node_modules/
+android/
+android_backup_sdk54/
+**/.gradle/
+**/build/
+*.log
+*.tmp
