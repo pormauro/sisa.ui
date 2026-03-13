@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { AppointmentsContext } from '@/contexts/AppointmentsContext';
 import { ClientsContext } from '@/contexts/ClientsContext';
@@ -8,14 +8,6 @@ import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import { FileGallery } from '@/components/FileGallery';
-
-const parseDateTime = (date: string, time: string) => {
-  const [hours = '00', minutes = '00'] = time.split(':');
-  const parsed = new Date(`${date}T00:00:00`);
-  parsed.setHours(Number(hours), Number(minutes), 0, 0);
-  return parsed;
-};
 
 export default function ViewAppointmentModal() {
   const router = useRouter();
@@ -34,22 +26,25 @@ export default function ViewAppointmentModal() {
 
   const appointment = appointments.find(item => item.id === appointmentId);
 
+  const appointmentDateTime = useMemo(() => {
+    if (!appointment) return null;
+    return new Date(appointment.appointment);
+  }, [appointment]);
+
   const appointmentDate = useMemo(() => {
-    if (!appointment) return '';
-    const dt = parseDateTime(appointment.appointment_date, appointment.appointment_time);
-    return dt.toLocaleDateString('es-AR', {
+    if (!appointmentDateTime) return '';
+    return appointmentDateTime.toLocaleDateString('es-AR', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-  }, [appointment]);
+  }, [appointmentDateTime]);
 
   const appointmentTime = useMemo(() => {
-    if (!appointment) return '';
-    const dt = parseDateTime(appointment.appointment_date, appointment.appointment_time);
-    return dt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  }, [appointment]);
+    if (!appointmentDateTime) return '';
+    return appointmentDateTime.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  }, [appointmentDateTime]);
 
   const clientName = useMemo(() => {
     if (!appointment) return 'Sin cliente';
@@ -63,7 +58,7 @@ export default function ViewAppointmentModal() {
 
   if (!appointment) {
     return (
-      <ThemedView style={[styles.container, { backgroundColor: background }]}> 
+      <ThemedView style={[styles.container, { backgroundColor: background }]}>
         <ThemedText>Cita no encontrada</ThemedText>
       </ThemedView>
     );
@@ -72,7 +67,7 @@ export default function ViewAppointmentModal() {
   const canEdit = permissions.includes('updateAppointment');
 
   return (
-    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}> 
+    <ScrollView contentContainerStyle={[styles.container, { backgroundColor: background }]}>
       <ThemedText style={[styles.label, { color: labelColor }]}>Fecha</ThemedText>
       <ThemedText style={styles.value}>{appointmentDate}</ThemedText>
 
@@ -89,17 +84,8 @@ export default function ViewAppointmentModal() {
         </>
       ) : null}
 
-      <ThemedText style={[styles.label, { color: labelColor }]}>Ubicación</ThemedText>
-      <ThemedText style={styles.value}>{appointment.location || 'Sin ubicación'}</ThemedText>
-
-      <View style={styles.filesSection}>
-        <ThemedText style={[styles.label, { color: labelColor }]}>Archivos adjuntos</ThemedText>
-        <FileGallery
-          entityType="appointment"
-          entityId={appointment.id}
-          filesJson={appointment.attached_files ?? null}
-        />
-      </View>
+      <ThemedText style={[styles.label, { color: labelColor }]}>Comentario</ThemedText>
+      <ThemedText style={styles.value}>{appointment.comment?.trim() || 'Sin comentario'}</ThemedText>
 
       <ThemedText style={[styles.label, { color: labelColor }]}>ID</ThemedText>
       <ThemedText style={styles.value}>{appointment.id}</ThemedText>
@@ -131,9 +117,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginTop: 4,
-  },
-  filesSection: {
-    marginTop: 8,
   },
   editButton: {
     marginTop: 24,

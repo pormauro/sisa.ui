@@ -19,11 +19,8 @@ export interface Appointment {
   user_id: number;
   client_id: number;
   job_id: number | null;
-  appointment_date: string;
-  appointment_time: string;
-  location: string | null;
-  site_image_file_id: number | null;
-  attached_files: string | null;
+  appointment: string;
+  comment: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 }
@@ -63,17 +60,39 @@ const normalizeNumber = (value: unknown): number | null => {
 
 const toTimestampString = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-const serializeAttachedFiles = (value: Appointment['attached_files']) => {
-  if (!value) {
-    return null;
+const normalizeAppointmentDateTime = (value: unknown): string => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
   }
-  try {
-    JSON.parse(value);
-    return value;
-  } catch {
-    return null;
-  }
+  return '';
 };
+
+const getLegacyAppointmentDateTime = (value: any): string => {
+  const date = typeof value?.appointment_date === 'string' ? value.appointment_date.trim() : '';
+  const rawTime = typeof value?.appointment_time === 'string' ? value.appointment_time.trim() : '';
+  const time = rawTime && rawTime.length === 5 ? `${rawTime}:00` : rawTime;
+
+  if (date && time) {
+    return `${date} ${time}`;
+  }
+  if (date) {
+    return `${date} 00:00:00`;
+  }
+  return '';
+};
+
+const normalizeAppointment = (value: any): Appointment => ({
+  id: Number(value?.id ?? 0),
+  user_id: Number(value?.user_id ?? 0),
+  client_id: Number(value?.client_id ?? 0),
+  job_id: normalizeNumber(value?.job_id),
+  appointment:
+    normalizeAppointmentDateTime(value?.appointment) ||
+    getLegacyAppointmentDateTime(value),
+  comment: value?.comment ?? null,
+  created_at: value?.created_at ?? null,
+  updated_at: value?.updated_at ?? null,
+});
 
 const getAppointmentSortValue = (appointment: Appointment) => {
   if (appointment.created_at) {
@@ -82,11 +101,8 @@ const getAppointmentSortValue = (appointment: Appointment) => {
   if (appointment.updated_at) {
     return appointment.updated_at;
   }
-  if (appointment.appointment_date) {
-    const time = appointment.appointment_time?.length === 5
-      ? `${appointment.appointment_time}:00`
-      : appointment.appointment_time ?? '00:00:00';
-    return `${appointment.appointment_date}T${time}`;
+  if (appointment.appointment) {
+    return appointment.appointment;
   }
   return appointment.id;
 };
@@ -102,28 +118,14 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (appointmentsHydrated) {
-      setAppointments(prev => ensureSortedByNewest(prev, getAppointmentSortValue, item => item.id));
+      setAppointments(prev => {
+        const normalized = prev.map(normalizeAppointment);
+        return ensureSortedByNewest(normalized, getAppointmentSortValue, item => item.id);
+      });
     }
   }, [appointmentsHydrated, setAppointments]);
 
-  const parseAppointment = useCallback((raw: any): Appointment => ({
-    id: Number(raw.id),
-    user_id: Number(raw.user_id),
-    client_id: Number(raw.client_id),
-    job_id: normalizeNumber(raw.job_id),
-    appointment_date: raw.appointment_date,
-    appointment_time: raw.appointment_time?.slice(0, 5) ?? raw.appointment_time,
-    location: raw.location ?? null,
-    site_image_file_id: normalizeNumber(raw.site_image_file_id),
-    attached_files:
-      typeof raw.attached_files === 'string'
-        ? raw.attached_files
-        : raw.attached_files
-        ? JSON.stringify(raw.attached_files)
-        : null,
-    created_at: raw.created_at ?? null,
-    updated_at: raw.updated_at ?? null,
-  }), []);
+  const parseAppointment = useCallback((raw: any): Appointment => normalizeAppointment(raw), []);
 
   const loadAppointments = useCallback(async () => {
     if (!token || !appointmentsHydrated) return;
@@ -154,11 +156,10 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       if (!token) return null;
       try {
         const payload = {
-          ...appointment,
+          client_id: appointment.client_id,
           job_id: appointment.job_id ?? null,
-          location: appointment.location ?? '',
-          site_image_file_id: appointment.site_image_file_id ?? null,
-          attached_files: serializeAttachedFiles(appointment.attached_files),
+          appointment: appointment.appointment,
+          comment: appointment.comment,
           timestamp: toTimestampString(),
         };
         const response = await fetch(`${BASE_URL}/appointments`, {
@@ -194,11 +195,10 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
       if (!token) return false;
       try {
         const payload = {
-          ...appointment,
+          client_id: appointment.client_id,
           job_id: appointment.job_id ?? null,
-          location: appointment.location ?? '',
-          site_image_file_id: appointment.site_image_file_id ?? null,
-          attached_files: serializeAttachedFiles(appointment.attached_files),
+          appointment: appointment.appointment,
+          comment: appointment.comment,
           timestamp: toTimestampString(),
         };
         const response = await fetch(`${BASE_URL}/appointments/${id}`, {
@@ -250,7 +250,7 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
     },
-    [token]
+    [setAppointments, token]
   );
 
   useEffect(() => {
@@ -296,4 +296,3 @@ export const AppointmentsProvider = ({ children }: { children: ReactNode }) => {
 
   return <AppointmentsContext.Provider value={value}>{children}</AppointmentsContext.Provider>;
 };
-
