@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useContext } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedButton } from '@/components/ThemedButton';
@@ -33,6 +33,8 @@ const GpsConfigScreen = () => {
     deviceId,
     policy,
     status,
+    lastPolicyRefreshAt,
+    lastStatusRefreshAt,
     canUseTracking,
     isLoadingPolicy,
     isLoadingStatus,
@@ -45,10 +47,57 @@ const GpsConfigScreen = () => {
   const cardBackground = useThemeColor({ light: '#ffffff', dark: '#111827' }, 'background');
   const borderColor = useThemeColor({ light: '#e5e7eb', dark: '#374151' }, 'background');
   const mutedColor = useThemeColor({ light: '#6b7280', dark: '#9ca3af' }, 'text');
+  const [nowMs, setNowMs] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const refreshAll = useCallback(async () => {
     await Promise.all([refreshPolicy(), refreshStatus()]);
   }, [refreshPolicy, refreshStatus]);
+
+  const pollingRemainingSeconds = useMemo(() => {
+    if (!policy?.next_poll_after_seconds || !lastPolicyRefreshAt) {
+      return null;
+    }
+
+    const nextPollMs = new Date(lastPolicyRefreshAt).getTime() + policy.next_poll_after_seconds * 1000;
+    if (Number.isNaN(nextPollMs)) {
+      return null;
+    }
+
+    return Math.max(0, Math.ceil((nextPollMs - nowMs) / 1000));
+  }, [lastPolicyRefreshAt, nowMs, policy?.next_poll_after_seconds]);
+
+  const pollingCountdownLabel = useMemo(() => {
+    if (pollingRemainingSeconds === null) {
+      return 'No disponible';
+    }
+
+    const minutes = Math.floor(pollingRemainingSeconds / 60);
+    const seconds = pollingRemainingSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }, [pollingRemainingSeconds]);
+
+  const movementSummary = useMemo(() => {
+    const speed = typeof status?.location?.speed_mps === 'number' ? status.location.speed_mps : null;
+    const state = typeof status?.location?.state === 'string' ? status.location.state.toLowerCase() : '';
+    const isMovingByState = state === 'moving' || state === 'working';
+    const isMovingBySpeed = speed !== null && speed >= 0.8;
+    const moving = isMovingByState || isMovingBySpeed;
+
+    return {
+      moving,
+      label: moving ? 'En movimiento' : 'Quieto / sin movimiento',
+      color: moving ? '#16a34a' : '#d97706',
+      detail:
+        speed === null
+          ? 'Sin velocidad reportada por el backend.'
+          : `Velocidad actual ${speed.toFixed(1)} m/s.`,
+    };
+  }, [status?.location?.speed_mps, status?.location?.state]);
 
   useFocusEffect(
     useCallback(() => {
@@ -106,10 +155,18 @@ const GpsConfigScreen = () => {
           <View style={styles.row}><ThemedText style={styles.label}>Radio de visita</ThemedText><ThemedText style={styles.value}>{formatValue(policy?.visit_radius_m, ' m')}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Batch maximo</ThemedText><ThemedText style={styles.value}>{formatValue(policy?.max_batch_size)}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Proximo polling</ThemedText><ThemedText style={styles.value}>{formatValue(policy?.next_poll_after_seconds, ' s')}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Cuenta regresiva</ThemedText><ThemedText style={styles.value}>{pollingCountdownLabel}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Ultima policy leida</ThemedText><ThemedText style={styles.value}>{formatDateTime(lastPolicyRefreshAt)}</ThemedText></View>
         </View>
 
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
           <ThemedText style={styles.sectionTitle}>Ultima lectura conocida</ThemedText>
+          <View style={styles.movementWrap}>
+            <View style={[styles.movementBadge, { backgroundColor: movementSummary.color }]}> 
+              <ThemedText lightColor="#fff" darkColor="#fff" style={styles.movementBadgeText}>{movementSummary.label}</ThemedText>
+            </View>
+            <ThemedText style={[styles.movementDetail, { color: mutedColor }]}>{movementSummary.detail}</ThemedText>
+          </View>
           <View style={styles.row}><ThemedText style={styles.label}>Latitud</ThemedText><ThemedText style={styles.value}>{formatValue(status?.location?.lat)}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Longitud</ThemedText><ThemedText style={styles.value}>{formatValue(status?.location?.lng)}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Precision</ThemedText><ThemedText style={styles.value}>{formatValue(status?.location?.accuracy_m, ' m')}</ThemedText></View>
@@ -117,6 +174,7 @@ const GpsConfigScreen = () => {
           <View style={styles.row}><ThemedText style={styles.label}>Rumbo</ThemedText><ThemedText style={styles.value}>{formatValue(status?.location?.heading_deg, ' deg')}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Estado</ThemedText><ThemedText style={styles.value}>{formatValue(status?.location?.state)}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Capturada</ThemedText><ThemedText style={styles.value}>{formatDateTime(status?.location?.captured_at)}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Ultimo status leido</ThemedText><ThemedText style={styles.value}>{formatDateTime(lastStatusRefreshAt)}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Ultimo punto backend</ThemedText><ThemedText style={styles.value}>{formatValue(status?.last_server_point_id ?? status?.location?.point_id)}</ThemedText></View>
         </View>
 
@@ -149,6 +207,15 @@ const styles = StyleSheet.create({
   description: { fontSize: 14 },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, rowGap: 10 },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
+  movementWrap: { rowGap: 8, paddingBottom: 4 },
+  movementBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  movementBadgeText: { fontSize: 12, fontWeight: '700' },
+  movementDetail: { fontSize: 13 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -41,6 +41,8 @@ interface TrackingContextValue {
   deviceId: string | null;
   policy: TrackingPolicy | null;
   status: TrackingStatus | null;
+  lastPolicyRefreshAt: string | null;
+  lastStatusRefreshAt: string | null;
   nearbyClients: NearbyClient[];
   recentPoints: TrackingQueuePoint[];
   queueSummary: TrackingQueueSummary;
@@ -72,6 +74,8 @@ const defaultValue: TrackingContextValue = {
   deviceId: null,
   policy: null,
   status: null,
+  lastPolicyRefreshAt: null,
+  lastStatusRefreshAt: null,
   nearbyClients: [],
   recentPoints: [],
   queueSummary: emptyQueueSummary,
@@ -130,6 +134,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [deviceId, setDeviceId, deviceIdHydrated] = useCachedState<string | null>('tracking-device-id', null);
   const [policy, setPolicy] = useState<TrackingPolicy | null>(null);
   const [status, setStatus] = useState<TrackingStatus | null>(null);
+  const [lastPolicyRefreshAt, setLastPolicyRefreshAt] = useState<string | null>(null);
+  const [lastStatusRefreshAt, setLastStatusRefreshAt] = useState<string | null>(null);
   const [nearbyClients, setNearbyClients] = useState<NearbyClient[]>([]);
   const [recentPoints, setRecentPoints] = useState<TrackingQueuePoint[]>([]);
   const [queueSummary, setQueueSummary] = useState<TrackingQueueSummary>(emptyQueueSummary);
@@ -184,6 +190,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     if (!token || !permissions.includes('getTrackingPolicy')) {
       const cachedPolicy = await getCachedTrackingPolicy(deviceId);
       setPolicy(cachedPolicy);
+      setLastPolicyRefreshAt(new Date().toISOString());
       return cachedPolicy;
     }
 
@@ -207,11 +214,13 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const nextPolicy = normalizePolicy(data?.policy, deviceId);
       await saveTrackingPolicy(deviceId, nextPolicy);
       setPolicy(nextPolicy);
+      setLastPolicyRefreshAt(new Date().toISOString());
       return nextPolicy;
     } catch (error) {
       console.error('Error loading tracking policy', error);
       const cachedPolicy = await getCachedTrackingPolicy(deviceId);
       setPolicy(cachedPolicy);
+      setLastPolicyRefreshAt(new Date().toISOString());
       return cachedPolicy;
     } finally {
       setIsLoadingPolicy(false);
@@ -241,6 +250,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       const data = (await response.json()) as TrackingStatus;
       setStatus(data);
+      setLastStatusRefreshAt(new Date().toISOString());
       return data;
     } catch (error) {
       console.error('Error loading tracking status', error);
@@ -450,9 +460,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     void refreshQueueState();
-    void getCachedTrackingPolicy(deviceId).then(setPolicy).catch(error => {
-      console.error('Error hydrating cached tracking policy', error);
-    });
+    void getCachedTrackingPolicy(deviceId)
+      .then(cachedPolicy => {
+        setPolicy(cachedPolicy);
+        setLastPolicyRefreshAt(new Date().toISOString());
+      })
+      .catch(error => {
+        console.error('Error hydrating cached tracking policy', error);
+      });
   }, [deviceId, refreshQueueState]);
 
   useEffect(() => {
@@ -482,6 +497,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       deviceId,
       policy,
       status,
+      lastPolicyRefreshAt,
+      lastStatusRefreshAt,
       nearbyClients,
       recentPoints,
       queueSummary,
@@ -510,6 +527,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       isSyncing,
       lastSyncError,
       loadNearbyClients,
+      lastPolicyRefreshAt,
+      lastStatusRefreshAt,
       nearbyClients,
       policy,
       queueSummary,

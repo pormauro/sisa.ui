@@ -26,11 +26,14 @@ const TrackingQueueScreen = () => {
   const router = useRouter();
   const {
     deviceId,
+    status,
+    policy,
     recentPoints,
     queueSummary,
     canUseTracking,
     isSyncing,
     lastSyncError,
+    enqueueTrackingPoint,
     refreshQueueState,
     syncPendingPoints,
   } = useContext(TrackingContext);
@@ -70,6 +73,31 @@ const TrackingQueueScreen = () => {
         : 'No hay puntos pendientes para sincronizar.',
     );
   }, [syncPendingPoints]);
+
+  const handleForcePoint = useCallback(async () => {
+    if (typeof status?.location?.lat !== 'number' || typeof status?.location?.lng !== 'number') {
+      Alert.alert('Sin ubicacion base', 'Primero actualiza el estado de tracking para obtener una ubicacion de referencia.');
+      return;
+    }
+
+    try {
+      const sequenceNo = await enqueueTrackingPoint({
+        captured_at: new Date().toISOString(),
+        lat: status.location.lat,
+        lng: status.location.lng,
+        accuracy_m: typeof status.location.accuracy_m === 'number' ? status.location.accuracy_m : 10,
+        speed_mps: typeof status.location.speed_mps === 'number' ? status.location.speed_mps : 0,
+        heading_deg: typeof status.location.heading_deg === 'number' ? status.location.heading_deg : null,
+        source: 'manual_force',
+        state: status.location.state ?? policy?.tracking_profile ?? 'standby',
+      });
+      Alert.alert('Punto encolado', `Se agrego el punto manual #${sequenceNo} a la cola.`);
+      await refreshQueueState();
+    } catch (error) {
+      console.error('Error forcing tracking point', error);
+      Alert.alert('Error', 'No se pudo crear el punto manual.');
+    }
+  }, [enqueueTrackingPoint, policy?.tracking_profile, refreshQueueState, status?.location]);
 
   if (!canUseTracking) {
     return (
@@ -126,6 +154,12 @@ const TrackingQueueScreen = () => {
             />
             <ThemedButton title="Recargar" onPress={() => void handleRefresh()} style={styles.flexButton} />
           </View>
+          <ThemedButton
+            title="Forzar punto manual"
+            onPress={() => void handleForcePoint()}
+            disabled={typeof status?.location?.lat !== 'number' || typeof status?.location?.lng !== 'number'}
+          />
+          <ThemedText style={[styles.helperText, { color: mutedColor }]}>Usa la ultima ubicacion conocida por el backend para encolar un punto de prueba inmediato.</ThemedText>
         </View>
 
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
@@ -268,5 +302,8 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#dc2626',
     fontSize: 13,
+  },
+  helperText: {
+    fontSize: 12,
   },
 });
