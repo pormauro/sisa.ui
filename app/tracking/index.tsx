@@ -11,7 +11,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 
 const TrackingIndexScreen = () => {
   const router = useRouter();
-  const { canUseTracking, canViewNearbyClients, queueSummary, nearbyClients } = useContext(TrackingContext);
+  const { canUseTracking, canViewNearbyClients, queueSummary, nearbyClients, policy } = useContext(TrackingContext);
 
   const accentColor = useThemeColor({}, 'tint');
   const backgroundColor = useThemeColor({}, 'background');
@@ -38,6 +38,15 @@ const TrackingIndexScreen = () => {
           icon="git-compare-outline"
           layout="grid"
           onPress={() => router.push('/tracking/queue')}
+          accessibilityState={{ disabled: !canUseTracking }}
+          style={!canUseTracking ? styles.disabledCard : undefined}
+        />
+        <MenuButton
+          title="Config. GPS"
+          subtitle={policy?.tracking_profile ? `Perfil ${policy.tracking_profile}` : 'Policy actual'}
+          icon="options-outline"
+          layout="grid"
+          onPress={() => router.push('/tracking/gps-config')}
           accessibilityState={{ disabled: !canUseTracking }}
           style={!canUseTracking ? styles.disabledCard : undefined}
         />

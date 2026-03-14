@@ -107,6 +107,13 @@ export const MENU_SECTIONS: MenuSection[] = [
         fallbackPermissions: ['getTrackingPolicy', 'uploadTrackingPoints'],
       },
       {
+        title: 'Config. GPS',
+        route: '/tracking/gps-config',
+        icon: 'options-outline',
+        requiredPermissions: ['getTrackingPolicy'],
+        fallbackPermissions: ['getTrackingStatus'],
+      },
+      {
         title: 'Clientes cercanos',
         route: '/tracking/nearby-clients',
         icon: 'location-outline',
