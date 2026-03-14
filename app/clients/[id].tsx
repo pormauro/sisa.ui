@@ -18,6 +18,18 @@ import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
 import { StatusesContext } from '@/contexts/StatusesContext';
 
+const createDefaultReportStartDate = (): Date => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 6);
+  return date;
+};
+
+const createDefaultReportEndDate = (): Date => {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 6);
+  return date;
+};
+
 
 export default function ClientDetailPage() {
   const { permissions } = useContext(PermissionsContext);
@@ -63,14 +75,19 @@ export default function ClientDetailPage() {
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
-  const [startDate, setStartDate] = useState<Date>(() => new Date());
-  const [endDate, setEndDate] = useState<Date>(() => new Date());
+  const [startDate, setStartDate] = useState<Date>(createDefaultReportStartDate);
+  const [endDate, setEndDate] = useState<Date>(createDefaultReportEndDate);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
 
-  const formatDateParam = (date: Date): string => date.toISOString().split('T')[0];
+  const formatDateParam = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   const formatLabelDate = (date: Date): string =>
     date.toLocaleDateString('es-AR', {

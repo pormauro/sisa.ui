@@ -31,6 +31,18 @@ import { openAttachment } from '@/utils/files/openAttachment';
 
 type ClientJobsReportType = 'detailed-vertical' | 'summary-landscape';
 
+const createDefaultReportStartDate = (): Date => {
+  const date = new Date();
+  date.setMonth(date.getMonth() - 6);
+  return date;
+};
+
+const createDefaultReportEndDate = (): Date => {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 6);
+  return date;
+};
+
 export default function ViewClientModal() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientId = Number(id);
@@ -59,8 +71,8 @@ export default function ViewClientModal() {
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedStatusIds, setSelectedStatusIds] = useState<number[]>([]);
-  const [startDate, setStartDate] = useState<Date>(() => new Date());
-  const [endDate, setEndDate] = useState<Date>(() => new Date());
+  const [startDate, setStartDate] = useState<Date>(createDefaultReportStartDate);
+  const [endDate, setEndDate] = useState<Date>(createDefaultReportEndDate);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showStartTime, setShowStartTime] = useState(false);
