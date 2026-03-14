@@ -11,7 +11,7 @@ export interface MenuItem {
   fallbackRoute?: string;
 }
 
-export type MenuSectionKey = 'financial' | 'commercial' | 'operations' | 'settings';
+export type MenuSectionKey = 'financial' | 'commercial' | 'operations' | 'tracking' | 'settings';
 
 export interface MenuSection {
   key: MenuSectionKey;
@@ -92,12 +92,25 @@ export const MENU_SECTIONS: MenuSection[] = [
       { title: 'Agenda', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
       { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
       { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
+    ],
+  },
+  {
+    key: 'tracking',
+    title: 'Tracking y cercania',
+    icon: 'navigate-circle-outline',
+    items: [
       {
-        title: 'Tracking',
-        route: '/tracking',
-        icon: 'navigate-circle-outline',
+        title: 'Cola de puntos',
+        route: '/tracking/queue',
+        icon: 'git-compare-outline',
         requiredPermissions: ['getTrackingStatus'],
-        fallbackPermissions: ['getTrackingPolicy', 'uploadTrackingPoints', 'listNearbyClients'],
+        fallbackPermissions: ['getTrackingPolicy', 'uploadTrackingPoints'],
+      },
+      {
+        title: 'Clientes cercanos',
+        route: '/tracking/nearby-clients',
+        icon: 'location-outline',
+        requiredPermissions: ['listNearbyClients'],
       },
     ],
   },
