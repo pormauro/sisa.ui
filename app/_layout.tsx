@@ -38,6 +38,7 @@ import { TariffsProvider } from '@/contexts/TariffsContext';
 import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { BootstrapContext, BootstrapProvider } from '@/contexts/BootstrapContext';
+import { TrackingProvider } from '@/contexts/TrackingContext';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
@@ -178,10 +179,12 @@ export default function RootLayout() {
                                                                 <FoldersProvider>
                                                                   <NotificationsProvider>
                                                                     <PendingSelectionProvider>
-                                                                      <BootstrapProvider>
-                                                                        <RootLayoutContent />
-                                                                        <LogOverlay />
-                                                                      </BootstrapProvider>
+                                                                      <TrackingProvider>
+                                                                        <BootstrapProvider>
+                                                                          <RootLayoutContent />
+                                                                          <LogOverlay />
+                                                                        </BootstrapProvider>
+                                                                      </TrackingProvider>
                                                                     </PendingSelectionProvider>
                                                                   </NotificationsProvider>
                                                                 </FoldersProvider>

@@ -92,6 +92,13 @@ export const MENU_SECTIONS: MenuSection[] = [
       { title: 'Agenda', route: '/appointments', icon: 'calendar', requiredPermissions: ['listAppointments'] },
       { title: 'Carpetas', route: '/folders', icon: 'folder', requiredPermissions: ['listFolders'] },
       { title: 'Estados', route: '/statuses', icon: 'flag', requiredPermissions: ['listStatuses'] },
+      {
+        title: 'Tracking',
+        route: '/tracking',
+        icon: 'navigate-circle-outline',
+        requiredPermissions: ['getTrackingStatus'],
+        fallbackPermissions: ['getTrackingPolicy', 'uploadTrackingPoints', 'listNearbyClients'],
+      },
     ],
   },
   {
