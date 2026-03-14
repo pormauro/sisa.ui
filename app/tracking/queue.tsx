@@ -26,14 +26,13 @@ const TrackingQueueScreen = () => {
   const router = useRouter();
   const {
     deviceId,
-    status,
-    policy,
+    runtimeState,
     recentPoints,
     queueSummary,
     canUseTracking,
     isSyncing,
     lastSyncError,
-    enqueueTrackingPoint,
+    captureCurrentLocation,
     refreshQueueState,
     syncPendingPoints,
   } = useContext(TrackingContext);
@@ -75,29 +74,15 @@ const TrackingQueueScreen = () => {
   }, [syncPendingPoints]);
 
   const handleForcePoint = useCallback(async () => {
-    if (typeof status?.location?.lat !== 'number' || typeof status?.location?.lng !== 'number') {
-      Alert.alert('Sin ubicacion base', 'Primero actualiza el estado de tracking para obtener una ubicacion de referencia.');
-      return;
-    }
-
     try {
-      const sequenceNo = await enqueueTrackingPoint({
-        captured_at: new Date().toISOString(),
-        lat: status.location.lat,
-        lng: status.location.lng,
-        accuracy_m: typeof status.location.accuracy_m === 'number' ? status.location.accuracy_m : 10,
-        speed_mps: typeof status.location.speed_mps === 'number' ? status.location.speed_mps : 0,
-        heading_deg: typeof status.location.heading_deg === 'number' ? status.location.heading_deg : null,
-        source: 'manual_force',
-        state: status.location.state ?? policy?.tracking_profile ?? 'standby',
-      });
-      Alert.alert('Punto encolado', `Se agrego el punto manual #${sequenceNo} a la cola.`);
+      const sequenceNo = await captureCurrentLocation();
+      Alert.alert('Punto GPS guardado', `Se agrego el punto local #${sequenceNo} usando el GPS del telefono.`);
       await refreshQueueState();
     } catch (error) {
       console.error('Error forcing tracking point', error);
-      Alert.alert('Error', 'No se pudo crear el punto manual.');
+      Alert.alert('Error', 'No se pudo capturar la ubicacion actual. Revisa permisos y GPS del telefono.');
     }
-  }, [enqueueTrackingPoint, policy?.tracking_profile, refreshQueueState, status?.location]);
+  }, [captureCurrentLocation, refreshQueueState]);
 
   if (!canUseTracking) {
     return (
@@ -136,6 +121,8 @@ const TrackingQueueScreen = () => {
           <ThemedText style={styles.metaLine}>Device ID: {deviceId ?? 'Generando...'}</ThemedText>
           <ThemedText style={styles.metaLine}>Total en cola: {queueSummary.total}</ThemedText>
           <ThemedText style={styles.metaLine}>Proxima secuencia: {queueSummary.nextSequenceNo}</ThemedText>
+          <ThemedText style={styles.metaLine}>Task GPS: {runtimeState.isTrackingActive ? 'Activo' : 'Detenido'}</ThemedText>
+          <ThemedText style={styles.metaLine}>Ultima captura local: {formatDateTime(runtimeState.lastLocalCaptureAt)}</ThemedText>
           {lastSyncError ? <ThemedText style={styles.errorText}>Ultimo error: {lastSyncError}</ThemedText> : null}
           <View style={styles.summaryGrid}>
             {summaryItems.map(item => (
@@ -155,11 +142,10 @@ const TrackingQueueScreen = () => {
             <ThemedButton title="Recargar" onPress={() => void handleRefresh()} style={styles.flexButton} />
           </View>
           <ThemedButton
-            title="Forzar punto manual"
+            title="Capturar GPS ahora"
             onPress={() => void handleForcePoint()}
-            disabled={typeof status?.location?.lat !== 'number' || typeof status?.location?.lng !== 'number'}
           />
-          <ThemedText style={[styles.helperText, { color: mutedColor }]}>Usa la ultima ubicacion conocida por el backend para encolar un punto de prueba inmediato.</ThemedText>
+          <ThemedText style={[styles.helperText, { color: mutedColor }]}>Toma una lectura real del GPS del telefono y la encola para sincronizarla enseguida.</ThemedText>
         </View>
 
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 

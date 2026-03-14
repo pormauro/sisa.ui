@@ -26,13 +26,24 @@ import {
   saveTrackingPolicy,
   saveTrackingSyncState,
 } from '@/database/tracking';
+import {
+  captureCurrentTrackingPoint,
+  getStoredTrackingRuntimeState,
+  getTrackingPermissionState,
+  isTrackingTaskStarted,
+  requestTrackingPermissions,
+  startTrackingTask,
+  stopTrackingTask,
+} from '@/src/tracking/location';
 import type {
   NearbyClient,
+  TrackingPermissionState,
   TrackingNearbyResponse,
   TrackingPointDraft,
   TrackingPolicy,
   TrackingQueuePoint,
   TrackingQueueSummary,
+  TrackingRuntimeState,
   TrackingStatus,
   TrackingSyncResult,
 } from '@/src/tracking/types';
@@ -41,6 +52,8 @@ interface TrackingContextValue {
   deviceId: string | null;
   policy: TrackingPolicy | null;
   status: TrackingStatus | null;
+  permissionState: TrackingPermissionState;
+  runtimeState: TrackingRuntimeState;
   lastPolicyRefreshAt: string | null;
   lastStatusRefreshAt: string | null;
   nearbyClients: NearbyClient[];
@@ -53,6 +66,11 @@ interface TrackingContextValue {
   isLoadingNearbyClients: boolean;
   isSyncing: boolean;
   lastSyncError: string | null;
+  refreshLocationState: () => Promise<void>;
+  requestLocationPermissions: () => Promise<TrackingPermissionState>;
+  startGpsTracking: () => Promise<boolean>;
+  stopGpsTracking: () => Promise<void>;
+  captureCurrentLocation: () => Promise<number>;
   refreshPolicy: () => Promise<TrackingPolicy | null>;
   refreshStatus: () => Promise<TrackingStatus | null>;
   loadNearbyClients: (options?: { limit?: number; maxDistanceM?: number }) => Promise<NearbyClient[]>;
@@ -70,10 +88,30 @@ const emptyQueueSummary: TrackingQueueSummary = {
   nextSequenceNo: 1,
 };
 
+const emptyPermissionState: TrackingPermissionState = {
+  servicesEnabled: false,
+  foregroundStatus: 'undetermined',
+  backgroundStatus: 'undetermined',
+  foregroundGranted: false,
+  backgroundGranted: false,
+  canAskAgainForeground: true,
+  canAskAgainBackground: true,
+};
+
+const emptyRuntimeState: TrackingRuntimeState = {
+  isTrackingActive: false,
+  lastLocalCaptureAt: null,
+  lastPermissionCheckAt: null,
+  lastStartAt: null,
+  lastError: null,
+};
+
 const defaultValue: TrackingContextValue = {
   deviceId: null,
   policy: null,
   status: null,
+  permissionState: emptyPermissionState,
+  runtimeState: emptyRuntimeState,
   lastPolicyRefreshAt: null,
   lastStatusRefreshAt: null,
   nearbyClients: [],
@@ -86,6 +124,11 @@ const defaultValue: TrackingContextValue = {
   isLoadingNearbyClients: false,
   isSyncing: false,
   lastSyncError: null,
+  refreshLocationState: async () => {},
+  requestLocationPermissions: async () => emptyPermissionState,
+  startGpsTracking: async () => false,
+  stopGpsTracking: async () => {},
+  captureCurrentLocation: async () => 0,
   refreshPolicy: async () => null,
   refreshStatus: async () => null,
   loadNearbyClients: async () => [],
@@ -134,6 +177,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [deviceId, setDeviceId, deviceIdHydrated] = useCachedState<string | null>('tracking-device-id', null);
   const [policy, setPolicy] = useState<TrackingPolicy | null>(null);
   const [status, setStatus] = useState<TrackingStatus | null>(null);
+  const [permissionState, setPermissionState] = useState<TrackingPermissionState>(emptyPermissionState);
+  const [runtimeState, setRuntimeState] = useState<TrackingRuntimeState>(emptyRuntimeState);
   const [lastPolicyRefreshAt, setLastPolicyRefreshAt] = useState<string | null>(null);
   const [lastStatusRefreshAt, setLastStatusRefreshAt] = useState<string | null>(null);
   const [nearbyClients, setNearbyClients] = useState<NearbyClient[]>([]);
@@ -166,6 +211,54 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     setDeviceId(createDeviceId());
   }, [deviceId, deviceIdHydrated, setDeviceId]);
 
+  const refreshLocationState = useCallback(async () => {
+    const [nextPermissionState, nextRuntimeState, trackingStarted] = await Promise.all([
+      getTrackingPermissionState(),
+      getStoredTrackingRuntimeState(),
+      isTrackingTaskStarted(),
+    ]);
+
+    setPermissionState(nextPermissionState);
+    setRuntimeState({
+      ...nextRuntimeState,
+      isTrackingActive: trackingStarted,
+    });
+  }, []);
+
+  const requestLocationPermissions = useCallback(async () => {
+    const nextPermissionState = await requestTrackingPermissions();
+    setPermissionState(nextPermissionState);
+    await refreshLocationState();
+    return nextPermissionState;
+  }, [refreshLocationState]);
+
+  const startGpsTracking = useCallback(async (): Promise<boolean> => {
+    if (!deviceId) {
+      return false;
+    }
+
+    const nextPermissionState = await requestTrackingPermissions();
+    setPermissionState(nextPermissionState);
+
+    if (
+      !nextPermissionState.servicesEnabled ||
+      !nextPermissionState.foregroundGranted ||
+      !nextPermissionState.backgroundGranted
+    ) {
+      await refreshLocationState();
+      return false;
+    }
+
+    await startTrackingTask(deviceId, policy);
+    await refreshLocationState();
+    return true;
+  }, [deviceId, policy, refreshLocationState]);
+
+  const stopGpsTracking = useCallback(async (): Promise<void> => {
+    await stopTrackingTask();
+    await refreshLocationState();
+  }, [refreshLocationState]);
+
   const refreshQueueState = useCallback(async () => {
     if (!deviceId) {
       setQueueSummary(emptyQueueSummary);
@@ -181,6 +274,22 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     setQueueSummary(summary);
     setRecentPoints(points);
   }, [deviceId]);
+
+  const captureCurrentLocation = useCallback(async (): Promise<number> => {
+    if (!deviceId) {
+      throw new Error('Todavia no hay un device id disponible para tracking.');
+    }
+
+    const nextPermissionState = await requestTrackingPermissions();
+    setPermissionState(nextPermissionState);
+    if (!nextPermissionState.servicesEnabled || !nextPermissionState.foregroundGranted) {
+      throw new Error('La ubicacion no esta habilitada en el dispositivo.');
+    }
+
+    const sequenceNo = await captureCurrentTrackingPoint(deviceId, policy);
+    await Promise.all([refreshLocationState(), refreshQueueState()]);
+    return sequenceNo;
+  }, [deviceId, policy, refreshLocationState, refreshQueueState]);
 
   const refreshPolicy = useCallback(async (): Promise<TrackingPolicy | null> => {
     if (!deviceId) {
@@ -459,6 +568,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       return;
     }
 
+    void refreshLocationState();
     void refreshQueueState();
     void getCachedTrackingPolicy(deviceId)
       .then(cachedPolicy => {
@@ -468,7 +578,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       .catch(error => {
         console.error('Error hydrating cached tracking policy', error);
       });
-  }, [deviceId, refreshQueueState]);
+  }, [deviceId, refreshLocationState, refreshQueueState]);
 
   useEffect(() => {
     if (!deviceId || !token || !canUseTracking) {
@@ -492,11 +602,86 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     return () => clearInterval(interval);
   }, [canUseTracking, deviceId, policy?.next_poll_after_seconds, refreshPolicy, token]);
 
+  useEffect(() => {
+    if (!deviceId || !canUseTracking) {
+      return;
+    }
+
+    if (policy?.tracking_enabled === false) {
+      void stopTrackingTask()
+        .then(() => refreshLocationState())
+        .catch((error: unknown) => {
+          console.error('Error stopping GPS tracking task', error);
+        });
+      return;
+    }
+
+    if (
+      !permissionState.servicesEnabled ||
+      !permissionState.foregroundGranted ||
+      !permissionState.backgroundGranted
+    ) {
+      return;
+    }
+
+    void startTrackingTask(deviceId, policy)
+      .then(() => refreshLocationState())
+      .catch((error: unknown) => {
+        console.error('Error starting GPS tracking task', error);
+      });
+  }, [
+    canUseTracking,
+    deviceId,
+    permissionState.backgroundGranted,
+    permissionState.foregroundGranted,
+    permissionState.servicesEnabled,
+    policy,
+    refreshLocationState,
+  ]);
+
+  useEffect(() => {
+    if (!deviceId) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void refreshLocationState();
+      void refreshQueueState();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [deviceId, refreshLocationState, refreshQueueState]);
+
+  useEffect(() => {
+    if (!canUseTracking || !deviceId || isSyncing) {
+      return;
+    }
+
+    if (queueSummary.pending <= 0 && queueSummary.failed <= 0) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void syncPendingPoints();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [
+    canUseTracking,
+    deviceId,
+    isSyncing,
+    queueSummary.failed,
+    queueSummary.pending,
+    syncPendingPoints,
+  ]);
+
   const value = useMemo(
     () => ({
       deviceId,
       policy,
       status,
+      permissionState,
+      runtimeState,
       lastPolicyRefreshAt,
       lastStatusRefreshAt,
       nearbyClients,
@@ -509,6 +694,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       isLoadingNearbyClients,
       isSyncing,
       lastSyncError,
+      refreshLocationState,
+      requestLocationPermissions,
+      startGpsTracking,
+      stopGpsTracking,
+      captureCurrentLocation,
       refreshPolicy,
       refreshStatus,
       loadNearbyClients,
@@ -519,6 +709,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     [
       canUseTracking,
       canViewNearbyClients,
+      captureCurrentLocation,
       deviceId,
       enqueueTrackingPoint,
       isLoadingNearbyClients,
@@ -526,6 +717,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       isLoadingStatus,
       isSyncing,
       lastSyncError,
+      permissionState,
       loadNearbyClients,
       lastPolicyRefreshAt,
       lastStatusRefreshAt,
@@ -533,10 +725,15 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       policy,
       queueSummary,
       recentPoints,
+      refreshLocationState,
       refreshPolicy,
       refreshQueueState,
       refreshStatus,
+      requestLocationPermissions,
+      runtimeState,
+      startGpsTracking,
       status,
+      stopGpsTracking,
       syncPendingPoints,
     ],
   );

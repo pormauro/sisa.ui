@@ -107,3 +107,21 @@ export interface TrackingSyncResult {
   attempted: number;
   lastServerPointId?: number | null;
 }
+
+export interface TrackingPermissionState {
+  servicesEnabled: boolean;
+  foregroundStatus: string;
+  backgroundStatus: string;
+  foregroundGranted: boolean;
+  backgroundGranted: boolean;
+  canAskAgainForeground: boolean;
+  canAskAgainBackground: boolean;
+}
+
+export interface TrackingRuntimeState {
+  isTrackingActive: boolean;
+  lastLocalCaptureAt: string | null;
+  lastPermissionCheckAt: string | null;
+  lastStartAt: string | null;
+  lastError: string | null;
+}

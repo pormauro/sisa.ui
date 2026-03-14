@@ -33,11 +33,18 @@ const GpsConfigScreen = () => {
     deviceId,
     policy,
     status,
+    permissionState,
+    runtimeState,
     lastPolicyRefreshAt,
     lastStatusRefreshAt,
     canUseTracking,
     isLoadingPolicy,
     isLoadingStatus,
+    refreshLocationState,
+    requestLocationPermissions,
+    startGpsTracking,
+    stopGpsTracking,
+    captureCurrentLocation,
     refreshPolicy,
     refreshStatus,
   } = useContext(TrackingContext);
@@ -55,8 +62,8 @@ const GpsConfigScreen = () => {
   }, []);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([refreshPolicy(), refreshStatus()]);
-  }, [refreshPolicy, refreshStatus]);
+    await Promise.all([refreshPolicy(), refreshStatus(), refreshLocationState()]);
+  }, [refreshLocationState, refreshPolicy, refreshStatus]);
 
   const pollingRemainingSeconds = useMemo(() => {
     if (!policy?.next_poll_after_seconds || !lastPolicyRefreshAt) {
@@ -80,6 +87,22 @@ const GpsConfigScreen = () => {
     const seconds = pollingRemainingSeconds % 60;
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
   }, [pollingRemainingSeconds]);
+
+  const handleRequestPermissions = useCallback(async () => {
+    await requestLocationPermissions();
+  }, [requestLocationPermissions]);
+
+  const handleStartTracking = useCallback(async () => {
+    await startGpsTracking();
+  }, [startGpsTracking]);
+
+  const handleStopTracking = useCallback(async () => {
+    await stopGpsTracking();
+  }, [stopGpsTracking]);
+
+  const handleCaptureNow = useCallback(async () => {
+    await captureCurrentLocation();
+  }, [captureCurrentLocation]);
 
   const movementSummary = useMemo(() => {
     const speed = typeof status?.location?.speed_mps === 'number' ? status.location.speed_mps : null;
@@ -147,6 +170,25 @@ const GpsConfigScreen = () => {
         </View>
 
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
+          <ThemedText style={styles.sectionTitle}>Permisos y runtime</ThemedText>
+          <View style={styles.row}><ThemedText style={styles.label}>Servicios GPS</ThemedText><ThemedText style={styles.value}>{permissionState.servicesEnabled ? 'Activos' : 'Apagados'}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Permiso foreground</ThemedText><ThemedText style={styles.value}>{permissionState.foregroundGranted ? 'Concedido' : permissionState.foregroundStatus}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Permiso background</ThemedText><ThemedText style={styles.value}>{permissionState.backgroundGranted ? 'Concedido' : permissionState.backgroundStatus}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Task GPS activo</ThemedText><ThemedText style={styles.value}>{runtimeState.isTrackingActive ? 'Si' : 'No'}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Ultima captura local</ThemedText><ThemedText style={styles.value}>{formatDateTime(runtimeState.lastLocalCaptureAt)}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Ultimo inicio task</ThemedText><ThemedText style={styles.value}>{formatDateTime(runtimeState.lastStartAt)}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Ultimo check permisos</ThemedText><ThemedText style={styles.value}>{formatDateTime(runtimeState.lastPermissionCheckAt)}</ThemedText></View>
+          <View style={styles.row}><ThemedText style={styles.label}>Ultimo error runtime</ThemedText><ThemedText style={styles.value}>{formatValue(runtimeState.lastError)}</ThemedText></View>
+          <View style={styles.buttonStack}>
+            <ThemedButton title="Pedir permisos GPS" onPress={() => void handleRequestPermissions()} />
+            <ThemedButton title="Iniciar tracking GPS" onPress={() => void handleStartTracking()} disabled={!policy?.tracking_enabled} />
+            <ThemedButton title="Detener tracking GPS" onPress={() => void handleStopTracking()} />
+            <ThemedButton title="Capturar ubicacion ahora" onPress={() => void handleCaptureNow()} />
+          </View>
+          <ThemedText style={[styles.helperText, { color: mutedColor }]}>Si Android o iOS niegan permisos, despues de aceptar tenes que recompilar la app nativa para que tomen los nuevos permisos declarados.</ThemedText>
+        </View>
+
+        <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 
           <ThemedText style={styles.sectionTitle}>Parametros GPS</ThemedText>
           <View style={styles.row}><ThemedText style={styles.label}>Alta precision</ThemedText><ThemedText style={styles.value}>{formatValue(policy?.high_accuracy)}</ThemedText></View>
           <View style={styles.row}><ThemedText style={styles.label}>Distancia minima</ThemedText><ThemedText style={styles.value}>{formatValue(policy?.distance_filter_m, ' m')}</ThemedText></View>
@@ -207,6 +249,8 @@ const styles = StyleSheet.create({
   description: { fontSize: 14 },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, rowGap: 10 },
   sectionTitle: { fontSize: 18, fontWeight: '700' },
+  buttonStack: { rowGap: 10, paddingTop: 8 },
+  helperText: { fontSize: 12 },
   movementWrap: { rowGap: 8, paddingBottom: 4 },
   movementBadge: {
     alignSelf: 'flex-start',
