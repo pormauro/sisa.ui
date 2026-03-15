@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { BASE_URL } from '@/config/Index';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -47,13 +47,14 @@ const formatMoney = (value?: number | null) => `$${(value ?? 0).toFixed(2)}`;
 
 export default function AccountingSummaryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ cash_box_id?: string; start_date?: string; end_date?: string }>();
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { cashBoxes, loadCashBoxes } = useContext(CashBoxesContext);
 
-  const [startDate, setStartDate] = useState(getMonthStart());
-  const [endDate, setEndDate] = useState(getToday());
-  const [cashBoxId, setCashBoxId] = useState('');
+  const [startDate, setStartDate] = useState(params.start_date?.toString() || getMonthStart());
+  const [endDate, setEndDate] = useState(params.end_date?.toString() || getToday());
+  const [cashBoxId, setCashBoxId] = useState(params.cash_box_id?.toString() || '');
   const [summary, setSummary] = useState<AccountingSummary | null>(null);
   const [loading, setLoading] = useState(false);
 

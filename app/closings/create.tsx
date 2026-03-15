@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { ClosingsContext, AccountingClosingPreview } from '@/contexts/ClosingsContext';
@@ -15,11 +15,12 @@ const getNow = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
 export default function CreateClosingScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ cash_box_id?: string }>();
   const { cashBoxes, loadCashBoxes } = useContext(CashBoxesContext);
   const { addClosing, previewClosing } = useContext(ClosingsContext);
   const { permissions } = useContext(PermissionsContext);
 
-  const [cashBoxId, setCashBoxId] = useState('');
+  const [cashBoxId, setCashBoxId] = useState(params.cash_box_id?.toString() || '');
   const [closingDate, setClosingDate] = useState(getNow());
   const [finalBalance, setFinalBalance] = useState('0');
   const [totalIncome, setTotalIncome] = useState('0');

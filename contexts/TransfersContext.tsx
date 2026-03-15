@@ -29,6 +29,7 @@ interface TransfersContextValue {
   loading: boolean;
   loadTransfers: () => Promise<TransferRecord[]>;
   createTransfer: (payload: TransferPayload) => Promise<TransferRecord | null>;
+  getTransfer: (transferId: number) => Promise<TransferRecord | null>;
   getTransferEntries: (transferId: number) => Promise<Record<string, unknown>[]>;
 }
 
@@ -37,6 +38,7 @@ export const TransfersContext = createContext<TransfersContextValue>({
   loading: false,
   loadTransfers: async () => [],
   createTransfer: async () => null,
+  getTransfer: async () => null,
   getTransferEntries: async () => [],
 });
 
@@ -47,44 +49,6 @@ const toNullableNumber = (value: unknown): number | null => {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
-};
-
-const normalizeGroupedTransfers = (entries: Record<string, unknown>[]): TransferRecord[] => {
-  const grouped = new Map<number, TransferRecord>();
-
-  entries.forEach(entry => {
-    const transferId = toNullableNumber(entry.origin_id);
-    if (transferId === null) return;
-
-    const current = grouped.get(transferId) ?? {
-      id: transferId,
-      origin_account_id: 0,
-      destination_account_id: 0,
-      amount: toNullableNumber(entry.amount) ?? 0,
-      transfer_date: typeof entry.entry_date === 'string' ? entry.entry_date : '',
-      description: typeof entry.description === 'string' ? entry.description : null,
-      company_id: toNullableNumber(entry.company_id),
-      origin_entry_id: null,
-      destination_entry_id: null,
-    };
-
-    if (entry.entry_type === 'credit') {
-      current.origin_account_id = toNullableNumber(entry.account_id) ?? current.origin_account_id;
-      current.origin_entry_id = toNullableNumber(entry.id);
-    }
-    if (entry.entry_type === 'debit') {
-      current.destination_account_id = toNullableNumber(entry.account_id) ?? current.destination_account_id;
-      current.destination_entry_id = toNullableNumber(entry.id);
-    }
-
-    grouped.set(transferId, current);
-  });
-
-  return Array.from(grouped.values()).sort((a, b) => {
-    const aTime = Date.parse(a.transfer_date.replace(' ', 'T')) || 0;
-    const bTime = Date.parse(b.transfer_date.replace(' ', 'T')) || 0;
-    return bTime - aTime;
-  });
 };
 
 export const TransfersProvider = ({ children }: { children: ReactNode }) => {
@@ -120,27 +84,75 @@ export const TransfersProvider = ({ children }: { children: ReactNode }) => {
     [token],
   );
 
-  const loadTransfers = useCallback(async (): Promise<TransferRecord[]> => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${BASE_URL}/accounting-entries?origin_type=transfer&per_page=200&sort_by=entry_date&sort_direction=desc`,
-        {
+  const getTransfer = useCallback(
+    async (transferId: number): Promise<TransferRecord | null> => {
+      try {
+        const response = await fetch(`${BASE_URL}/transfers/${transferId}`, {
           headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
             Authorization: `Bearer ${token}`,
           },
-        },
-      );
-      await ensureAuthResponse(response);
-      const data = await response.json();
-      const entries = Array.isArray(data?.entries)
-        ? data.entries.filter((item: unknown): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
-        : [];
-      const normalized = normalizeGroupedTransfers(entries);
-      setTransfers(normalized);
-      return normalized;
+        });
+        await ensureAuthResponse(response);
+        const data = await response.json();
+        const transfer = data?.transfer as Record<string, unknown> | undefined;
+        if (!transfer) {
+          return null;
+        }
+        const normalized: TransferRecord = {
+          id: toNullableNumber(transfer.id) ?? 0,
+          origin_account_id: toNullableNumber(transfer.origin_account_id) ?? 0,
+          destination_account_id: toNullableNumber(transfer.destination_account_id) ?? 0,
+          amount: toNullableNumber(transfer.amount) ?? 0,
+          transfer_date: typeof transfer.transfer_date === 'string' ? transfer.transfer_date : '',
+          description: typeof transfer.description === 'string' ? transfer.description : null,
+          company_id: toNullableNumber(transfer.company_id) ?? toNullableNumber((transfer.entries as any)?.origin?.company_id),
+          origin_entry_id: toNullableNumber((transfer.entries as any)?.origin?.id),
+          destination_entry_id: toNullableNumber((transfer.entries as any)?.destination?.id),
+        };
+        setTransfers(prev => [normalized, ...prev.filter(item => item.id !== normalized.id)]);
+        return normalized;
+      } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al consultar una transferencia.');
+          return null;
+        }
+        console.error('Error loading transfer:', error);
+        return null;
+      }
+    },
+    [token],
+  );
+
+  const loadTransfers = useCallback(async (): Promise<TransferRecord[]> => {
+    setLoading(true);
+    try {
+        const response = await fetch(`${BASE_URL}/transfers`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        await ensureAuthResponse(response);
+        const data = await response.json();
+        const transfersData = Array.isArray(data?.transfers)
+          ? data.transfers.filter((item: unknown): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+          : [];
+        const normalized = transfersData.map(transfer => ({
+          id: toNullableNumber(transfer.id) ?? 0,
+          origin_account_id: toNullableNumber(transfer.origin_account_id) ?? 0,
+          destination_account_id: toNullableNumber(transfer.destination_account_id) ?? 0,
+          amount: toNullableNumber(transfer.amount) ?? 0,
+          transfer_date: typeof transfer.transfer_date === 'string' ? transfer.transfer_date : '',
+          description: typeof transfer.description === 'string' ? transfer.description : null,
+          company_id: toNullableNumber(transfer.company_id) ?? toNullableNumber((transfer.entries as any)?.origin?.company_id),
+          origin_entry_id: toNullableNumber((transfer.entries as any)?.origin?.id),
+          destination_entry_id: toNullableNumber((transfer.entries as any)?.destination?.id),
+        }));
+        setTransfers(normalized);
+        return normalized;
     } catch (error) {
       if (isTokenExpiredError(error)) {
         console.warn('Token expirado al cargar transferencias.');
@@ -198,7 +210,7 @@ export const TransfersProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <TransfersContext.Provider value={{ transfers, loading, loadTransfers, createTransfer, getTransferEntries }}>
+    <TransfersContext.Provider value={{ transfers, loading, loadTransfers, createTransfer, getTransfer, getTransferEntries }}>
       {children}
     </TransfersContext.Provider>
   );

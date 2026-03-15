@@ -16,7 +16,7 @@ export default function TransferDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const transferId = Number(id);
-  const { transfers, loadTransfers, getTransferEntries } = useContext(TransfersContext);
+  const { transfers, loadTransfers, getTransfer, getTransferEntries } = useContext(TransfersContext);
   const { accounts, loadAccounts } = useContext(AccountsContext);
   const { permissions } = useContext(PermissionsContext);
   const [entries, setEntries] = useState<Record<string, unknown>[]>([]);
@@ -40,8 +40,9 @@ export default function TransferDetailScreen() {
       if (!canView || !Number.isFinite(transferId) || transferId <= 0) return;
       void loadTransfers();
       void loadAccounts('all');
+      void getTransfer(transferId);
       void getTransferEntries(transferId).then(setEntries);
-    }, [canView, getTransferEntries, loadAccounts, loadTransfers, transferId]),
+    }, [canView, getTransfer, getTransferEntries, loadAccounts, loadTransfers, transferId]),
   );
 
   if (!Number.isFinite(transferId) || transferId <= 0 || !transfer) {
