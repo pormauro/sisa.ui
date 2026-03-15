@@ -22,6 +22,9 @@ import { FoldersProvider } from '@/contexts/FoldersContext';
 import { JobsProvider } from '@/contexts/JobsContext';
 import { JobItemsProvider } from '@/contexts/JobItemsContext';
 import { AppointmentsProvider } from '@/contexts/AppointmentsContext';
+import { AccountsProvider } from '@/contexts/AccountsContext';
+import { AccountingEntriesProvider } from '@/contexts/AccountingEntriesContext';
+import { ClosingsProvider } from '@/contexts/ClosingsContext';
 import { PaymentsProvider } from '@/contexts/PaymentsContext';
 import { InvoicesProvider } from '@/contexts/InvoicesContext';
 import { PaymentTemplatesProvider } from '@/contexts/PaymentTemplatesContext';
@@ -39,6 +42,7 @@ import { PendingSelectionProvider } from '@/contexts/PendingSelectionContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { BootstrapContext, BootstrapProvider } from '@/contexts/BootstrapContext';
 import { TrackingProvider } from '@/contexts/TrackingContext';
+import { TransfersProvider } from '@/contexts/TransfersContext';
 
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { LogOverlay } from '@/components/LogOverlay';
@@ -172,26 +176,34 @@ export default function RootLayout() {
                                                     <JobItemsProvider>
                                                     <AppointmentsProvider>
                                                       <PaymentTemplatesProvider>
-                                                        <PaymentsProvider>
-                                                          <InvoicesProvider>
-                                                            <ReceiptsProvider>
-                                                              <ReportsProvider>
-                                                                <FoldersProvider>
-                                                                  <NotificationsProvider>
-                                                                    <PendingSelectionProvider>
-                                                                      <TrackingProvider>
-                                                                        <BootstrapProvider>
-                                                                          <RootLayoutContent />
-                                                                          <LogOverlay />
-                                                                        </BootstrapProvider>
-                                                                      </TrackingProvider>
-                                                                    </PendingSelectionProvider>
-                                                                  </NotificationsProvider>
-                                                                </FoldersProvider>
-                                                              </ReportsProvider>
-                                                            </ReceiptsProvider>
-                                                          </InvoicesProvider>
-                                                        </PaymentsProvider>
+                                                        <AccountsProvider>
+                                                          <AccountingEntriesProvider>
+                                                            <TransfersProvider>
+                                                              <ClosingsProvider>
+                                                                <PaymentsProvider>
+                                                                  <InvoicesProvider>
+                                                                    <ReceiptsProvider>
+                                                                      <ReportsProvider>
+                                                                        <FoldersProvider>
+                                                                          <NotificationsProvider>
+                                                                            <PendingSelectionProvider>
+                                                                              <TrackingProvider>
+                                                                                <BootstrapProvider>
+                                                                                  <RootLayoutContent />
+                                                                                  <LogOverlay />
+                                                                                </BootstrapProvider>
+                                                                              </TrackingProvider>
+                                                                            </PendingSelectionProvider>
+                                                                          </NotificationsProvider>
+                                                                        </FoldersProvider>
+                                                                      </ReportsProvider>
+                                                                    </ReceiptsProvider>
+                                                                  </InvoicesProvider>
+                                                                </PaymentsProvider>
+                                                              </ClosingsProvider>
+                                                            </TransfersProvider>
+                                                          </AccountingEntriesProvider>
+                                                        </AccountsProvider>
                                                       </PaymentTemplatesProvider>
                                                     </AppointmentsProvider>
                                                     </JobItemsProvider>

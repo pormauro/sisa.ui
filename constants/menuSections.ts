@@ -47,6 +47,38 @@ export const MENU_SECTIONS: MenuSection[] = [
         requiredPermissions: ['listCashBoxes'],
       },
       {
+        title: 'Resumen contable',
+        route: '/accounting/summary',
+        icon: 'stats-chart-outline',
+        requiredPermissions: ['viewAccountingSummary'],
+      },
+      {
+        title: 'Cuentas contables',
+        route: '/accounts',
+        icon: 'wallet-outline',
+        requiredPermissions: ['listAccounts'],
+      },
+      {
+        title: 'Transferencias',
+        route: '/transfers',
+        icon: 'swap-horizontal-outline',
+        requiredPermissions: ['addTransfer'],
+        fallbackPermissions: ['listAccountingEntries'],
+      },
+      {
+        title: 'Libro diario',
+        route: '/journal_entries',
+        icon: 'reader-outline',
+        requiredPermissions: ['listAccountingEntries'],
+      },
+      {
+        title: 'Cierres',
+        route: '/closings',
+        icon: 'checkmark-done-outline',
+        requiredPermissions: ['listClosings'],
+        fallbackPermissions: ['addClosing'],
+      },
+      {
         title: 'Categorías contables',
         route: '/categories',
         icon: 'list',
