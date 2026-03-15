@@ -32,6 +32,29 @@ export interface AccountingClosingHistory {
   comments?: string | null;
 }
 
+export interface AccountingClosingPreview {
+  period: { start_date: string; end_date: string };
+  cash_box_id: number;
+  suggested: {
+    total_income: number;
+    total_payments: number;
+    net: number;
+    final_balance: number;
+  };
+  declared: {
+    total_income: number | null;
+    total_payments: number | null;
+    final_balance: number | null;
+  };
+  differences: {
+    income: number | null;
+    payments: number | null;
+    final_balance: number | null;
+  };
+  reconciliation?: Record<string, unknown>;
+  previous_closing?: Record<string, unknown> | null;
+}
+
 interface ClosingPayload {
   cash_box_id: number;
   closing_date: string;
@@ -49,6 +72,14 @@ interface ClosingsContextValue {
   updateClosing: (id: number, payload: ClosingPayload) => Promise<boolean>;
   deleteClosing: (id: number) => Promise<boolean>;
   getClosingHistory: (id: number) => Promise<AccountingClosingHistory[]>;
+  previewClosing: (payload: {
+    cash_box_id: number;
+    closing_date: string;
+    start_date?: string;
+    total_income?: number | null;
+    total_payments?: number | null;
+    final_balance?: number | null;
+  }) => Promise<AccountingClosingPreview | null>;
 }
 
 export const ClosingsContext = createContext<ClosingsContextValue>({
@@ -58,6 +89,7 @@ export const ClosingsContext = createContext<ClosingsContextValue>({
   updateClosing: async () => false,
   deleteClosing: async () => false,
   getClosingHistory: async () => [],
+  previewClosing: async () => null,
 });
 
 const toNullableNumber = (value: unknown): number | null => {
@@ -229,8 +261,49 @@ export const ClosingsProvider = ({ children }: { children: ReactNode }) => {
     [token],
   );
 
+  const previewClosing = useCallback(
+    async (payload: {
+      cash_box_id: number;
+      closing_date: string;
+      start_date?: string;
+      total_income?: number | null;
+      total_payments?: number | null;
+      final_balance?: number | null;
+    }): Promise<AccountingClosingPreview | null> => {
+      try {
+        const query = new URLSearchParams({
+          cash_box_id: String(payload.cash_box_id),
+          closing_date: payload.closing_date,
+        });
+        if (payload.start_date) query.set('start_date', payload.start_date);
+        if (typeof payload.total_income === 'number') query.set('total_income', String(payload.total_income));
+        if (typeof payload.total_payments === 'number') query.set('total_payments', String(payload.total_payments));
+        if (typeof payload.final_balance === 'number') query.set('final_balance', String(payload.final_balance));
+
+        const response = await fetch(`${BASE_URL}/accounting_closings/preview?${query.toString()}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        await ensureAuthResponse(response);
+        const data = await response.json();
+        return (data?.preview as AccountingClosingPreview) ?? null;
+      } catch (error) {
+        if (isTokenExpiredError(error)) {
+          console.warn('Token expirado al previsualizar un cierre contable.');
+          return null;
+        }
+        console.error('Error previewing closing:', error);
+        return null;
+      }
+    },
+    [token],
+  );
+
   return (
-    <ClosingsContext.Provider value={{ closings, loadClosings, addClosing, updateClosing, deleteClosing, getClosingHistory }}>
+    <ClosingsContext.Provider value={{ closings, loadClosings, addClosing, updateClosing, deleteClosing, getClosingHistory, previewClosing }}>
       {children}
     </ClosingsContext.Provider>
   );

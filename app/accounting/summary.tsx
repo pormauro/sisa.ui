@@ -28,6 +28,16 @@ type AccountingSummary = {
   cash_boxes: SummaryRow[];
   clients: SummaryRow[];
   providers: SummaryRow[];
+  reconciliation?: {
+    issued_invoices_total?: number;
+    paid_invoices_total?: number;
+    applied_receipts_total?: number;
+    issued_vs_receipts_gap?: number;
+    paid_vs_receipts_gap?: number;
+    income_vs_applied_gap?: number;
+    payments_total?: number;
+    counts?: { invoices?: number; receipts?: number; payments?: number };
+  };
 };
 
 const getToday = () => new Date().toISOString().slice(0, 10);
@@ -159,12 +169,24 @@ export default function AccountingSummaryScreen() {
 
         {summary ? (
           <>
-            <View style={[styles.summaryCard, { borderColor }]}>
+            <View style={[styles.summaryCard, { borderColor }]}> 
               <ThemedText style={styles.sectionTitle}>Totales del periodo</ThemedText>
               <ThemedText>Ingresos: {formatMoney(summary.totals.income)}</ThemedText>
               <ThemedText>Egresos: {formatMoney(summary.totals.payments)}</ThemedText>
               <ThemedText>Neto: {formatMoney(summary.totals.net)}</ThemedText>
             </View>
+            {summary.reconciliation ? (
+              <View style={[styles.summaryCard, { borderColor }]}> 
+                <ThemedText style={styles.sectionTitle}>Conciliacion</ThemedText>
+                <ThemedText>Facturas emitidas: {formatMoney(summary.reconciliation.issued_invoices_total)}</ThemedText>
+                <ThemedText>Facturas pagadas: {formatMoney(summary.reconciliation.paid_invoices_total)}</ThemedText>
+                <ThemedText>Recibos aplicados: {formatMoney(summary.reconciliation.applied_receipts_total)}</ThemedText>
+                <ThemedText>Gap facturas vs ingresos: {formatMoney(summary.reconciliation.issued_vs_receipts_gap)}</ThemedText>
+                <ThemedText>Gap pagos vs recibos aplicados: {formatMoney(summary.reconciliation.paid_vs_receipts_gap)}</ThemedText>
+                <ThemedText>Gap ingresos vs recibos aplicados: {formatMoney(summary.reconciliation.income_vs_applied_gap)}</ThemedText>
+                <ThemedText>Conteos: facturas {summary.reconciliation.counts?.invoices ?? 0} · recibos {summary.reconciliation.counts?.receipts ?? 0} · pagos {summary.reconciliation.counts?.payments ?? 0}</ThemedText>
+              </View>
+            ) : null}
             {renderSection('Cajas', summary.cash_boxes, false)}
             {renderSection('Clientes', summary.clients)}
             {renderSection('Proveedores', summary.providers)}
