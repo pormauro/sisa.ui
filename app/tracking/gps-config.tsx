@@ -185,7 +185,7 @@ const GpsConfigScreen = () => {
             <ThemedButton title="Detener tracking GPS" onPress={() => void handleStopTracking()} />
             <ThemedButton title="Capturar ubicacion ahora" onPress={() => void handleCaptureNow()} />
           </View>
-          <ThemedText style={[styles.helperText, { color: mutedColor }]}>Si Android o iOS niegan permisos, despues de aceptar tenes que recompilar la app nativa para que tomen los nuevos permisos declarados.</ThemedText>
+          <ThemedText style={[styles.helperText, { color: mutedColor }]}>Si ves un error como `ACCESS_BACKGROUND_LOCATION`, el APK que tenes instalado no incluye todavia el permiso nuevo. Tenes que reinstalar la app con `npx expo run:android` o generar un build nuevo.</ThemedText>
         </View>
 
         <View style={[styles.card, { backgroundColor: cardBackground, borderColor }]}> 

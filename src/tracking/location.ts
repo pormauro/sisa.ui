@@ -26,6 +26,26 @@ let trackingTaskDefined = false;
 
 const nowIso = () => new Date().toISOString();
 
+const fallbackBackgroundPermission = () => ({
+  status: 'unavailable',
+  granted: false,
+  canAskAgain: false,
+});
+
+const readBackgroundPermissionSafe = async () => {
+  try {
+    return await Location.getBackgroundPermissionsAsync();
+  } catch (error) {
+    await persistRuntimeState({
+      lastError:
+        error instanceof Error
+          ? error.message
+          : 'El binario actual no tiene ACCESS_BACKGROUND_LOCATION.',
+    });
+    return fallbackBackgroundPermission();
+  }
+};
+
 const locationToDraft = (location: Location.LocationObject, policy: TrackingPolicy | null): TrackingPointDraft => ({
   captured_at: new Date(location.timestamp).toISOString(),
   lat: location.coords.latitude,
@@ -100,7 +120,7 @@ export const getTrackingPermissionState = async (): Promise<TrackingPermissionSt
   const [servicesEnabled, foreground, background] = await Promise.all([
     Location.hasServicesEnabledAsync(),
     Location.getForegroundPermissionsAsync(),
-    Location.getBackgroundPermissionsAsync(),
+    readBackgroundPermissionSafe(),
   ]);
 
   const state: TrackingPermissionState = {
@@ -119,10 +139,20 @@ export const getTrackingPermissionState = async (): Promise<TrackingPermissionSt
 
 export const requestTrackingPermissions = async (): Promise<TrackingPermissionState> => {
   const foreground = await Location.requestForegroundPermissionsAsync();
-  let background = await Location.getBackgroundPermissionsAsync();
+  let background = await readBackgroundPermissionSafe();
 
   if (foreground.granted) {
-    background = await Location.requestBackgroundPermissionsAsync();
+    try {
+      background = await Location.requestBackgroundPermissionsAsync();
+    } catch (error) {
+      await persistRuntimeState({
+        lastError:
+          error instanceof Error
+            ? error.message
+            : 'No se pudo pedir el permiso background de GPS.',
+      });
+      background = fallbackBackgroundPermission();
+    }
   }
 
   const state: TrackingPermissionState = {
