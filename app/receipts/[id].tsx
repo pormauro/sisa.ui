@@ -103,6 +103,7 @@ export default function ReceiptDetailPage() {
   const [draftReady, setDraftReady] = useState(false);
   const [linkedInvoices, setLinkedInvoices] = useState<Record<string, unknown>[]>([]);
   const [historyEntries, setHistoryEntries] = useState<Record<string, unknown>[]>([]);
+  const [accountingEntries, setAccountingEntries] = useState<Record<string, unknown>[]>([]);
   const [draft, setDraft, draftHydrated] = useCachedState<{
     receiptDate: string;
     paidInAccount: string;
@@ -171,9 +172,11 @@ export default function ReceiptDetailPage() {
     void Promise.all([
       fetch(`${BASE_URL}/receipts/${receiptId}/invoices`, { headers }).then(response => response.json()).catch(() => ({ data: [] })),
       fetch(`${BASE_URL}/receipts/${receiptId}/history`, { headers }).then(response => response.json()).catch(() => ({ history: [] })),
-    ]).then(([invoiceData, historyData]) => {
+      fetch(`${BASE_URL}/accounting-entries?origin_type=receipt&origin_id=${receiptId}&per_page=50&sort_by=entry_date&sort_direction=desc`, { headers }).then(response => response.json()).catch(() => ({ entries: [] })),
+    ]).then(([invoiceData, historyData, entriesData]) => {
       setLinkedInvoices(Array.isArray(invoiceData?.data) ? invoiceData.data : []);
       setHistoryEntries(Array.isArray(historyData?.history) ? historyData.history : []);
+      setAccountingEntries(Array.isArray(entriesData?.entries) ? entriesData.entries : []);
     });
   }, [receiptId, token]);
 
@@ -814,6 +817,18 @@ export default function ReceiptDetailPage() {
           <View key={`receipt-history-${index}`} style={styles.infoRow}>
             <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
             <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
+          </View>
+        ))}
+      </ThemedView>
+
+      <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
+        <ThemedText style={styles.label}>Asientos contables</ThemedText>
+        {accountingEntries.length === 0 ? <ThemedText style={{ color: placeholderColor }}>No hay asientos contables directos para este recibo.</ThemedText> : null}
+        {accountingEntries.map((entry, index) => (
+          <View key={`receipt-entry-${index}`} style={styles.infoRow}>
+            <ThemedText>{`${String(entry.entry_type ?? '').toUpperCase()} - ${String(entry.amount ?? 0)}`}</ThemedText>
+            <ThemedText>{String(entry.entry_date ?? '')}</ThemedText>
+            <ThemedText style={{ color: placeholderColor }}>{String(entry.description ?? '')}</ThemedText>
           </View>
         ))}
       </ThemedView>

@@ -4,6 +4,8 @@ import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Activ
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
+import { ReceiptsContext } from '@/contexts/ReceiptsContext';
+import { PaymentsContext } from '@/contexts/PaymentsContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
@@ -17,6 +19,8 @@ export default function CashBoxDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const cashBoxId = Number(id);
   const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox, listCashBoxHistory } = useContext(CashBoxesContext);
+  const { receipts, loadReceipts } = useContext(ReceiptsContext);
+  const { payments, loadPayments } = useContext(PaymentsContext);
   const { permissions } = useContext(PermissionsContext);
   const { completeSelection, cancelSelection } = usePendingSelection();
   const { hasPrivilegedAccess } = useCompanyAdminPrivileges();
@@ -106,6 +110,14 @@ export default function CashBoxDetail() {
 
     void listCashBoxHistory(cashBoxId).then(setHistoryEntries);
   }, [cashBoxId, listCashBoxHistory]);
+
+  useEffect(() => {
+    void loadReceipts();
+    void loadPayments();
+  }, [loadPayments, loadReceipts]);
+
+  const cashBoxReceipts = receipts.filter(item => String(item.paid_in_account) === String(cashBoxId));
+  const cashBoxPayments = payments.filter(item => String(item.paid_with_account) === String(cashBoxId));
 
   const handleUpdate = () => {
     if (!canEdit) {
@@ -223,6 +235,25 @@ export default function CashBoxDetail() {
         <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={() => router.push(`/closings/create?cash_box_id=${cashBoxId}`)}>
           <ThemedText>Nuevo cierre</ThemedText>
         </TouchableOpacity>
+      </View>
+
+      <View style={[styles.infoCard, { borderColor }]}> 
+        <ThemedText style={styles.label}>Movimientos de caja</ThemedText>
+        {cashBoxReceipts.length === 0 && cashBoxPayments.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin movimientos contables visibles para esta caja.</ThemedText> : null}
+        {cashBoxReceipts.map((item, index) => (
+          <View key={`cashbox-receipt-${index}`} style={styles.infoRow}>
+            <ThemedText>{`Ingreso #${item.id} - ${item.price}`}</ThemedText>
+            <ThemedText>{item.receipt_date}</ThemedText>
+            <ThemedText style={{ color: placeholderColor }}>{item.description || 'Recibo'}</ThemedText>
+          </View>
+        ))}
+        {cashBoxPayments.map((item, index) => (
+          <View key={`cashbox-payment-${index}`} style={styles.infoRow}>
+            <ThemedText>{`Egreso #${item.id} - ${item.price}`}</ThemedText>
+            <ThemedText>{item.payment_date}</ThemedText>
+            <ThemedText style={{ color: placeholderColor }}>{item.description || 'Pago'}</ThemedText>
+          </View>
+        ))}
       </View>
 
       <View style={[styles.infoCard, { borderColor }]}> 

@@ -101,6 +101,7 @@ export default function PaymentDetailPage() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<Record<string, unknown>[]>([]);
+  const [accountingEntries, setAccountingEntries] = useState<Record<string, unknown>[]>([]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -391,6 +392,17 @@ export default function PaymentDetailPage() {
       .then(response => response.json())
       .then(data => setHistoryEntries(Array.isArray(data?.history) ? data.history : []))
       .catch(() => setHistoryEntries([]));
+
+    fetch(`${BASE_URL}/accounting-entries?origin_type=payment&origin_id=${paymentId}&per_page=50&sort_by=entry_date&sort_direction=desc`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(response => response.json())
+      .then(data => setAccountingEntries(Array.isArray(data?.entries) ? data.entries : []))
+      .catch(() => setAccountingEntries([]));
   }, [paymentId, token]);
 
   if (!Number.isFinite(paymentId) || paymentId <= 0) {
@@ -732,6 +744,18 @@ export default function PaymentDetailPage() {
           <View key={`payment-history-${index}`} style={styles.infoRow}>
             <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
             <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
+          </View>
+        ))}
+      </ThemedView>
+
+      <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
+        <ThemedText style={styles.label}>Asientos contables</ThemedText>
+        {accountingEntries.length === 0 ? <ThemedText style={{ color: placeholderColor }}>No hay asientos contables directos para este pago.</ThemedText> : null}
+        {accountingEntries.map((entry, index) => (
+          <View key={`payment-entry-${index}`} style={styles.infoRow}>
+            <ThemedText>{`${String(entry.entry_type ?? '').toUpperCase()} - ${String(entry.amount ?? 0)}`}</ThemedText>
+            <ThemedText>{String(entry.entry_date ?? '')}</ThemedText>
+            <ThemedText style={{ color: placeholderColor }}>{String(entry.description ?? '')}</ThemedText>
           </View>
         ))}
       </ThemedView>

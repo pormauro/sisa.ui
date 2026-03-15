@@ -259,6 +259,7 @@ export default function EditInvoiceScreen() {
   const [issuing, setIssuing] = useState(false);
   const [voiding, setVoiding] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<Record<string, unknown>[]>([]);
+  const [accountingEntries, setAccountingEntries] = useState<Record<string, unknown>[]>([]);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -476,6 +477,24 @@ export default function EditInvoiceScreen() {
       setHistoryEntries(entries as Record<string, unknown>[]);
     });
   }, [getInvoiceHistory, invoiceId]);
+
+  useEffect(() => {
+    if (!invoiceId || !token) {
+      setAccountingEntries([]);
+      return;
+    }
+
+    fetch(`${BASE_URL}/accounting-entries?origin_type=invoice&origin_id=${invoiceId}&per_page=50&sort_by=entry_date&sort_direction=desc`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(response => response.json())
+      .then(data => setAccountingEntries(Array.isArray(data?.entries) ? data.entries : []))
+      .catch(() => setAccountingEntries([]));
+  }, [invoiceId, token]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.invoices.client)) {
@@ -1199,7 +1218,7 @@ export default function EditInvoiceScreen() {
         ))}
       </View>
 
-      <View style={[styles.metadataContainer, { borderColor }]}>
+      <View style={[styles.metadataContainer, { borderColor }]}> 
         <ThemedText style={styles.sectionSubtitle}>Historial</ThemedText>
         {historyEntries.length === 0 ? <ThemedText style={{ color: secondaryText }}>Sin historial disponible.</ThemedText> : null}
         {historyEntries.slice(0, 8).map((entry, index) => (
@@ -1207,6 +1226,18 @@ export default function EditInvoiceScreen() {
             <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
             <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
             <ThemedText style={{ color: secondaryText }}>{String(entry.status ?? '')}</ThemedText>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.metadataContainer, { borderColor }]}> 
+        <ThemedText style={styles.sectionSubtitle}>Asientos contables</ThemedText>
+        {accountingEntries.length === 0 ? <ThemedText style={{ color: secondaryText }}>No hay asientos contables directos para esta factura.</ThemedText> : null}
+        {accountingEntries.map((entry, index) => (
+          <View key={`invoice-entry-${index}`} style={styles.historyRow}>
+            <ThemedText>{`${String(entry.entry_type ?? '').toUpperCase()} - ${formatCurrency(Number(entry.amount ?? 0))}`}</ThemedText>
+            <ThemedText>{String(entry.entry_date ?? '')}</ThemedText>
+            <ThemedText style={{ color: secondaryText }}>{String(entry.description ?? '')}</ThemedText>
           </View>
         ))}
       </View>
