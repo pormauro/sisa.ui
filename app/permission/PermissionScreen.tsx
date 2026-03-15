@@ -74,6 +74,16 @@ const PERMISSION_GROUPS = [
       'manageCashBoxPermissions',
     ],
   },
+  {
+    group: "Accounting Ledger",
+    permissions: [
+      'viewAccountingSummary',
+      'listAccounts',
+      'addAccount',
+      'addTransfer',
+      'listAccountingEntries',
+    ],
+  },
   { group: "Payments", permissions: ['listPayments', 'getPayment', 'addPayment', 'updatePayment', 'deletePayment', 'listPaymentHistory', 'generatePaymentReport'] },
   {
     group: "Invoices",

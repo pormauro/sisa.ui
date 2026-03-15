@@ -57,6 +57,8 @@ export const MENU_SECTIONS: MenuSection[] = [
         route: '/accounts',
         icon: 'wallet-outline',
         requiredPermissions: ['listAccounts'],
+        fallbackPermissions: ['addAccount'],
+        fallbackRoute: '/accounts/create',
       },
       {
         title: 'Transferencias',

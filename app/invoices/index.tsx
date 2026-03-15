@@ -83,6 +83,9 @@ export default function InvoicesScreen() {
   const canList = permissions.includes('listInvoices');
   const canCreate = permissions.includes('addInvoice');
   const canUpdate = permissions.includes('updateInvoice');
+  const canViewSummary = permissions.includes('viewAccountingSummary');
+  const canViewJournal = permissions.includes('listAccountingEntries');
+  const canViewTransfers = permissions.includes('addTransfer') || permissions.includes('listAccountingEntries');
   const clientNameById = useMemo(() => {
     const map = new Map<number, string>();
     clients.forEach(client => {
@@ -289,29 +292,53 @@ export default function InvoicesScreen() {
   ), []);
 
   const listHeaderComponent = useMemo(() => {
-    if (selectedJobsCount === 0) {
+    const showQuickLinks = canViewSummary || canViewJournal || canViewTransfers;
+    if (selectedJobsCount === 0 && !showQuickLinks) {
       return null;
     }
 
     return (
-      <View
-        style={[
-          styles.selectionBanner,
-          { backgroundColor: bannerBackground, borderColor: bannerBorder },
-        ]}
-      >
-        <ThemedText style={styles.selectionBannerTitle}>
-          Trabajos seleccionados: {selectedJobsCount}
-        </ThemedText>
-        <ThemedText style={styles.selectionBannerBody}>
-          Total estimado a facturar: {formattedSelectedJobsTotal}
-        </ThemedText>
-        <ThemedText style={styles.selectionBannerNote}>
-          Abrí una factura existente para vincular los trabajos o creá una nueva con los importes sugeridos.
-        </ThemedText>
+      <View style={styles.listHeaderWrapper}>
+        {showQuickLinks ? (
+          <View style={styles.quickLinksRow}>
+            {canViewSummary ? (
+              <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/accounting/summary')}>
+                <ThemedText style={styles.quickLinkText}>Resumen</ThemedText>
+              </TouchableOpacity>
+            ) : null}
+            {canViewJournal ? (
+              <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/journal_entries')}>
+                <ThemedText style={styles.quickLinkText}>Libro diario</ThemedText>
+              </TouchableOpacity>
+            ) : null}
+            {canViewTransfers ? (
+              <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/transfers')}>
+                <ThemedText style={styles.quickLinkText}>Transferencias</ThemedText>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
+        {selectedJobsCount > 0 ? (
+          <View
+            style={[
+              styles.selectionBanner,
+              { backgroundColor: bannerBackground, borderColor: bannerBorder },
+            ]}
+          >
+            <ThemedText style={styles.selectionBannerTitle}>
+              Trabajos seleccionados: {selectedJobsCount}
+            </ThemedText>
+            <ThemedText style={styles.selectionBannerBody}>
+              Total estimado a facturar: {formattedSelectedJobsTotal}
+            </ThemedText>
+            <ThemedText style={styles.selectionBannerNote}>
+              Abrí una factura existente para vincular los trabajos o creá una nueva con los importes sugeridos.
+            </ThemedText>
+          </View>
+        ) : null}
       </View>
     );
-  }, [bannerBackground, bannerBorder, formattedSelectedJobsTotal, selectedJobsCount]);
+  }, [bannerBackground, bannerBorder, borderColor, canViewJournal, canViewSummary, canViewTransfers, formattedSelectedJobsTotal, router, selectedJobsCount]);
 
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
@@ -343,6 +370,24 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 96,
+  },
+  listHeaderWrapper: {
+    gap: 12,
+  },
+  quickLinksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickLinkButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   selectionBanner: {
     borderWidth: 1,

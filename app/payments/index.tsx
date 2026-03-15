@@ -198,6 +198,8 @@ export default function PaymentsScreen() {
 
   const canDelete = permissions.includes('deletePayment');
   const canAdd = permissions.includes('addPayment');
+  const canViewSummary = permissions.includes('viewAccountingSummary');
+  const canViewJournal = permissions.includes('listAccountingEntries');
 
   const handleDelete = useCallback(
     (id: number) => {
@@ -313,6 +315,20 @@ export default function PaymentsScreen() {
           <Ionicons name="filter" size={20} color={inputTextColor} />
         </TouchableOpacity>
       </View>
+      {canViewSummary || canViewJournal ? (
+        <View style={styles.quickLinksRow}>
+          {canViewSummary ? (
+            <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/accounting/summary')}>
+              <ThemedText style={styles.quickLinkText}>Resumen</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+          {canViewJournal ? (
+            <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/journal_entries')}>
+              <ThemedText style={styles.quickLinkText}>Libro diario</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.filterSummaryRow}>
         <ThemedText style={styles.filterSummaryText}>
           Ordenado por {currentSortLabel} · {sortDirectionLabel}
@@ -397,6 +413,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  quickLinksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  quickLinkButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   search: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 12, marginRight: 8 },
   sortDirectionButton: {

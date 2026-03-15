@@ -138,6 +138,8 @@ export default function CashBoxesScreen() {
 
   const canDeleteCashBox = permissions.includes('deleteCashBox');
   const hasManagementAccess = hasPrivilegedAccess;
+  const canViewSummary = permissions.includes('viewAccountingSummary');
+  const canViewClosings = permissions.includes('listClosings') || permissions.includes('addClosing');
 
   const showRestrictedActionAlert = useCallback(() => {
     Alert.alert(
@@ -255,6 +257,20 @@ export default function CashBoxesScreen() {
           <Ionicons name="filter" size={20} color={inputTextColor} />
         </TouchableOpacity>
       </View>
+      {canViewSummary || canViewClosings ? (
+        <View style={styles.quickLinksRow}>
+          {canViewSummary ? (
+            <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/accounting/summary')}>
+              <ThemedText style={styles.quickLinkText}>Resumen</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+          {canViewClosings ? (
+            <TouchableOpacity style={[styles.quickLinkButton, { borderColor }]} onPress={() => router.push('/closings')}>
+              <ThemedText style={styles.quickLinkText}>Cierres</ThemedText>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.filterSummaryRow}>
         <ThemedText style={styles.filterSummaryText}>
           Ordenado por {currentSortLabel} · {sortDirectionLabel}
@@ -345,6 +361,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  quickLinksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  quickLinkButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   searchInput: { flex: 1, borderWidth: 1, borderRadius: 8, padding: 12, marginRight: 8 },
   sortDirectionButton: {
