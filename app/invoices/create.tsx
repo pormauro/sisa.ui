@@ -968,7 +968,7 @@ export default function CreateInvoiceScreen() {
         entityId={0}
         filesJson={attachedFiles}
         onChangeFilesJson={setAttachedFiles}
-        editable
+        editable={canCreate}
       />
 
       <TouchableOpacity

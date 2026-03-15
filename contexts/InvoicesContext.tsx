@@ -736,14 +736,16 @@ export const InvoicesProvider = ({ children }: { children: ReactNode }) => {
         },
       });
       await ensureAuthResponse(response);
-      const data = await response.json();
+      const data = await parseJsonSafely(response);
       const rawInvoices: unknown =
         (data && typeof data === 'object' && 'invoices' in data && (data as any).invoices) ||
         (data && typeof data === 'object' && 'data' in data && (data as any).data) ||
         [];
 
       const parsed = Array.isArray(rawInvoices)
-        ? rawInvoices.map(item => parseInvoice(item as Record<string, unknown>))
+        ? rawInvoices
+            .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+            .map(item => parseInvoice(item))
         : [];
 
       setInvoices(sortByNewest(parsed, getInvoiceSortValue, invoice => invoice.id));
