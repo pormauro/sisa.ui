@@ -819,6 +819,14 @@ export default function EditInvoiceScreen() {
     );
   }
 
+  if (!invoiceId || !currentInvoice) {
+    return (
+      <ThemedView style={[styles.loaderContainer, { backgroundColor: background }]}> 
+        <ThemedText>No se pudo cargar la factura.</ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
     <>
       <ScrollView style={{ backgroundColor: background }} contentContainerStyle={styles.container}>
