@@ -633,7 +633,6 @@ export default function EditInvoiceScreen() {
     },
     [
       canDownloadPdf,
-      currentInvoice,
       existingInvoicePdfFileId,
       getFile,
       getFileMetadata,

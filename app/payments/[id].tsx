@@ -56,6 +56,27 @@ export default function PaymentDetailPage() {
   const NEW_CATEGORY_VALUE = '__new_category__';
   const NEW_CASH_BOX_VALUE = '__new_cash_box__';
 
+  const parseAttachedFilesSafely = (value: unknown): unknown[] => {
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
+
   const payment = payments.find(p => p.id === paymentId);
 
   const [paymentDate, setPaymentDate] = useState<Date>(new Date());
@@ -301,9 +322,15 @@ export default function PaymentDetailPage() {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este pago.');
       router.back();
     }
-  }, [permissions]);
+  }, [canDelete, canEdit, router]);
 
   useEffect(() => {
+    if (!Number.isFinite(paymentId) || paymentId <= 0) {
+      setHasAttemptedLoad(true);
+      setIsFetchingItem(false);
+      return;
+    }
+
     if (payment) {
       if (hasAttemptedLoad) {
         setHasAttemptedLoad(false);
@@ -322,11 +349,7 @@ export default function PaymentDetailPage() {
       );
       setCreditorOther(payment.creditor_other || '');
       setDescription(payment.description || '');
-      const attachments = payment.attached_files
-        ? (typeof payment.attached_files === 'string'
-            ? JSON.parse(payment.attached_files)
-            : payment.attached_files)
-        : [];
+      const attachments = parseAttachedFilesSafely(payment.attached_files);
       setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
       setCategoryId(String(payment.category_id));
       setPrice(String(payment.price));
@@ -346,7 +369,15 @@ export default function PaymentDetailPage() {
     Promise.resolve(loadPayments()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [payment, hasAttemptedLoad, isFetchingItem, loadPayments]);
+  }, [hasAttemptedLoad, isFetchingItem, loadPayments, payment, paymentId]);
+
+  if (!Number.isFinite(paymentId) || paymentId <= 0) {
+    return (
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
+        <ThemedText>Pago invalido</ThemedText>
+      </ThemedView>
+    );
+  }
 
   if (!payment) {
     return (

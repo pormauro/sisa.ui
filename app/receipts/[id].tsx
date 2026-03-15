@@ -57,6 +57,27 @@ export default function ReceiptDetailPage() {
   const NEW_CATEGORY_VALUE = '__new_category__';
   const NEW_CASH_BOX_VALUE = '__new_cash_box__';
 
+  const parseAttachedFilesSafely = (value: unknown): unknown[] => {
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
+
   const receipt = receipts.find(r => r.id === receiptId);
 
   const [receiptDate, setReceiptDate] = useState<Date>(new Date());
@@ -344,9 +365,15 @@ export default function ReceiptDetailPage() {
       Alert.alert('Acceso denegado', 'No tienes permiso para acceder a este recibo.');
       router.back();
     }
-  }, [permissions]);
+  }, [canDelete, canEdit, router]);
 
   useEffect(() => {
+    if (!Number.isFinite(receiptId) || receiptId <= 0) {
+      setHasAttemptedLoad(true);
+      setIsFetchingItem(false);
+      return;
+    }
+
     if (draftHydrated && draft) {
       return;
     }
@@ -368,11 +395,7 @@ export default function ReceiptDetailPage() {
       );
       setPayerOther(receipt.payer_other || '');
       setDescription(receipt.description || '');
-      const attachments = receipt.attached_files
-        ? (typeof receipt.attached_files === 'string'
-            ? JSON.parse(receipt.attached_files)
-            : receipt.attached_files)
-        : [];
+      const attachments = parseAttachedFilesSafely(receipt.attached_files);
       setAttachedFiles(attachments.length ? JSON.stringify(attachments) : '');
       setCategoryId(String(receipt.category_id));
       setPrice(String(receipt.price));
@@ -395,7 +418,7 @@ export default function ReceiptDetailPage() {
     Promise.resolve(loadReceipts()).finally(() => {
       setIsFetchingItem(false);
     });
-  }, [receipt, hasAttemptedLoad, isFetchingItem, loadReceipts, draft, draftHydrated]);
+  }, [draft, draftHydrated, hasAttemptedLoad, isFetchingItem, loadReceipts, receipt, receiptId]);
 
   useEffect(() => {
     if (!draftReady) {
@@ -431,6 +454,14 @@ export default function ReceiptDetailPage() {
     receiptDate,
     setDraft,
   ]);
+
+  if (!Number.isFinite(receiptId) || receiptId <= 0) {
+    return (
+      <ThemedView style={[styles.container, { backgroundColor: screenBackground }]}> 
+        <ThemedText>Recibo invalido</ThemedText>
+      </ThemedView>
+    );
+  }
 
   if (!receipt) {
     return (
