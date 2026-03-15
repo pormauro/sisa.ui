@@ -3,7 +3,7 @@ import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { CashBoxesContext, CashBox } from '@/contexts/CashBoxesContext';
+import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
@@ -16,7 +16,7 @@ export default function CashBoxDetail() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const cashBoxId = Number(id);
-  const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox } = useContext(CashBoxesContext);
+  const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox, listCashBoxHistory } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
   const { completeSelection, cancelSelection } = usePendingSelection();
   const { hasPrivilegedAccess } = useCompanyAdminPrivileges();
@@ -26,6 +26,7 @@ export default function CashBoxDetail() {
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<any[]>([]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -96,6 +97,15 @@ export default function CashBoxDetail() {
       setIsFetchingItem(false);
     });
   }, [cashBox, hasAttemptedLoad, isFetchingItem, loadCashBoxes]);
+
+  useEffect(() => {
+    if (!cashBoxId || !Number.isFinite(cashBoxId)) {
+      setHistoryEntries([]);
+      return;
+    }
+
+    void listCashBoxHistory(cashBoxId).then(setHistoryEntries);
+  }, [cashBoxId, listCashBoxHistory]);
 
   const handleUpdate = () => {
     if (!canEdit) {
@@ -205,6 +215,27 @@ export default function CashBoxDetail() {
       />
       <ThemedText style={[styles.helperText, { color: placeholderColor }]}>Los usuarios seleccionados recibirán notificaciones y podrán acceder a esta caja.</ThemedText>
 
+      <View style={[styles.infoCard, { borderColor }]}> 
+        <ThemedText style={styles.label}>Accesos contables</ThemedText>
+        <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={() => router.push(`/accounting/summary?cash_box_id=${cashBoxId}`)}>
+          <ThemedText>Ver resumen contable</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={() => router.push(`/closings/create?cash_box_id=${cashBoxId}`)}>
+          <ThemedText>Nuevo cierre</ThemedText>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.infoCard, { borderColor }]}> 
+        <ThemedText style={styles.label}>Historial</ThemedText>
+        {historyEntries.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin historial disponible.</ThemedText> : null}
+        {historyEntries.slice(0, 8).map((entry, index) => (
+          <View key={`cashbox-history-${index}`} style={styles.infoRow}>
+            <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
+            <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
+          </View>
+        ))}
+      </View>
+
       {canEditPermission && (
         <TouchableOpacity
           style={[
@@ -245,6 +276,9 @@ const styles = StyleSheet.create({
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   helperText: { marginBottom: 12, fontSize: 12 },
+  infoCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 12, gap: 8 },
+  infoRow: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933', gap: 2 },
+  secondaryButton: { borderWidth: 1, borderRadius: 10, padding: 12, alignItems: 'center' },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },

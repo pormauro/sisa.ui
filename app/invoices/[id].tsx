@@ -239,7 +239,7 @@ export default function EditInvoiceScreen() {
     return Number.isFinite(parsed) ? parsed : null;
   }, [params.id]);
 
-  const { invoices, loadInvoices, updateInvoice, deleteInvoice } = useContext(InvoicesContext);
+  const { invoices, loadInvoices, updateInvoice, deleteInvoice, issueInvoice, voidInvoice, getInvoiceHistory } = useContext(InvoicesContext);
   const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { clients } = useContext(ClientsContext);
@@ -256,6 +256,9 @@ export default function EditInvoiceScreen() {
   const [deleting, setDeleting] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<string>('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<Record<string, unknown>[]>([]);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -462,6 +465,17 @@ export default function EditInvoiceScreen() {
       setIsLoading(false);
     });
   }, [currentInvoice, invoiceId, loadInvoices, router]);
+
+  useEffect(() => {
+    if (!invoiceId) {
+      setHistoryEntries([]);
+      return;
+    }
+
+    void getInvoiceHistory(invoiceId).then(entries => {
+      setHistoryEntries(entries as Record<string, unknown>[]);
+    });
+  }, [getInvoiceHistory, invoiceId]);
 
   useEffect(() => {
     if (!Object.prototype.hasOwnProperty.call(pendingSelections, SELECTION_KEYS.invoices.client)) {
@@ -810,6 +824,43 @@ export default function EditInvoiceScreen() {
     );
   };
 
+  const handleIssue = () => {
+    if (!invoiceId) return;
+    Alert.alert('Emitir factura', '¿Querés marcar esta factura como emitida?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Emitir',
+        onPress: async () => {
+          setIssuing(true);
+          const ok = await issueInvoice(invoiceId, { timestamp: new Date().toISOString() });
+          setIssuing(false);
+          if (!ok) {
+            Alert.alert('Error', 'No se pudo emitir la factura.');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleVoid = () => {
+    if (!invoiceId) return;
+    Alert.alert('Anular factura', '¿Querés anular esta factura?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Anular',
+        style: 'destructive',
+        onPress: async () => {
+          setVoiding(true);
+          const ok = await voidInvoice(invoiceId, 'Anulada desde la UI');
+          setVoiding(false);
+          if (!ok) {
+            Alert.alert('Error', 'No se pudo anular la factura.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (isLoading) {
     return (
       <ThemedView style={[styles.loaderContainer, { backgroundColor: background }]}> 
@@ -1106,7 +1157,7 @@ export default function EditInvoiceScreen() {
         );
       })}
 
-      <View style={[styles.costSummary, { borderColor }]}>
+      <View style={[styles.costSummary, { borderColor }]}> 
         <ThemedText style={styles.sectionSubtitle}>Costo</ThemedText>
         <View style={styles.costRow}>
           <ThemedText style={styles.costLabel}>Subtotal</ThemedText>
@@ -1120,6 +1171,44 @@ export default function EditInvoiceScreen() {
           <ThemedText style={styles.costLabel}>Total</ThemedText>
           <ThemedText style={styles.costValue}>{formattedTotal}</ThemedText>
         </View>
+      </View>
+
+      <View style={[styles.metadataContainer, { borderColor }]}>
+        <ThemedText style={styles.sectionSubtitle}>Conciliacion</ThemedText>
+        <ThemedText>Estado actual: {currentInvoice.status || 'draft'}</ThemedText>
+        <ThemedText>
+          Cliente: {clients.find(client => client.id === currentInvoice.client_id)?.business_name || `#${currentInvoice.client_id ?? '-'}`}
+        </ThemedText>
+        <ThemedText>
+          Cobrado aplicado: {formatCurrency((currentInvoice.receipt_links ?? []).reduce((sum, link) => sum + Number(link.applied_amount ?? link.receipt?.price ?? 0), 0))}
+        </ThemedText>
+        <ThemedText>
+          Saldo pendiente: {formatCurrency(Math.max(0, total - (currentInvoice.receipt_links ?? []).reduce((sum, link) => sum + Number(link.applied_amount ?? link.receipt?.price ?? 0), 0)))}
+        </ThemedText>
+      </View>
+
+      <View style={[styles.metadataContainer, { borderColor }]}>
+        <ThemedText style={styles.sectionSubtitle}>Recibos vinculados</ThemedText>
+        {(currentInvoice.receipt_links ?? []).length === 0 ? <ThemedText style={{ color: secondaryText }}>Sin recibos asociados.</ThemedText> : null}
+        {(currentInvoice.receipt_links ?? []).map((link, index) => (
+          <View key={`receipt-link-${index}`} style={styles.historyRow}>
+            <ThemedText>{`Recibo #${String(link.receipt_id ?? link.receipt?.id ?? '-')}`}</ThemedText>
+            <ThemedText>{`Aplicado: ${formatCurrency(Number(link.applied_amount ?? link.receipt?.price ?? 0))}`}</ThemedText>
+            <ThemedText style={{ color: secondaryText }}>{String(link.receipt?.receipt_date ?? '')}</ThemedText>
+          </View>
+        ))}
+      </View>
+
+      <View style={[styles.metadataContainer, { borderColor }]}>
+        <ThemedText style={styles.sectionSubtitle}>Historial</ThemedText>
+        {historyEntries.length === 0 ? <ThemedText style={{ color: secondaryText }}>Sin historial disponible.</ThemedText> : null}
+        {historyEntries.slice(0, 8).map((entry, index) => (
+          <View key={`history-${index}`} style={styles.historyRow}>
+            <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
+            <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
+            <ThemedText style={{ color: secondaryText }}>{String(entry.status ?? '')}</ThemedText>
+          </View>
+        ))}
       </View>
 
       <ThemedText style={styles.label}>Archivos adjuntos</ThemedText>
@@ -1179,6 +1268,18 @@ export default function EditInvoiceScreen() {
           ) : (
             <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>Rehacer PDF</ThemedText>
           )}
+        </TouchableOpacity>
+      ) : null}
+
+      {canUpdate && currentInvoice.status !== 'issued' && currentInvoice.status !== 'paid' ? (
+        <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={handleIssue} disabled={issuing}>
+          {issuing ? <ActivityIndicator color={textColor} /> : <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>Emitir factura</ThemedText>}
+        </TouchableOpacity>
+      ) : null}
+
+      {canUpdate && currentInvoice.status !== 'cancelled' ? (
+        <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={handleVoid} disabled={voiding}>
+          {voiding ? <ActivityIndicator color={textColor} /> : <ThemedText style={[styles.secondaryButtonText, { color: textColor }]}>Anular factura</ThemedText>}
         </TouchableOpacity>
       ) : null}
 
@@ -1383,6 +1484,12 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  historyRow: {
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#99999933',
+    gap: 2,
   },
   submitButton: {
     marginTop: 8,

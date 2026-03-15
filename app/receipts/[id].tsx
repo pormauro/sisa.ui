@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
@@ -22,6 +23,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
 import { FileGallery } from '@/components/FileGallery';
+import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -46,6 +48,7 @@ export default function ReceiptDetailPage() {
   const { id } = params;
   const receiptId = Number(id);
   const { receipts, loadReceipts, updateReceipt, deleteReceipt } = useContext(ReceiptsContext);
+  const { token } = useContext(AuthContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
@@ -98,6 +101,8 @@ export default function ReceiptDetailPage() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
+  const [linkedInvoices, setLinkedInvoices] = useState<Record<string, unknown>[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<Record<string, unknown>[]>([]);
   const [draft, setDraft, draftHydrated] = useCachedState<{
     receiptDate: string;
     paidInAccount: string;
@@ -149,6 +154,28 @@ export default function ReceiptDetailPage() {
     }
     setDraftReady(true);
   }, [draft, draftHydrated]);
+
+  useEffect(() => {
+    if (!receiptId || !token) {
+      setLinkedInvoices([]);
+      setHistoryEntries([]);
+      return;
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+
+    void Promise.all([
+      fetch(`${BASE_URL}/receipts/${receiptId}/invoices`, { headers }).then(response => response.json()).catch(() => ({ data: [] })),
+      fetch(`${BASE_URL}/receipts/${receiptId}/history`, { headers }).then(response => response.json()).catch(() => ({ history: [] })),
+    ]).then(([invoiceData, historyData]) => {
+      setLinkedInvoices(Array.isArray(invoiceData?.data) ? invoiceData.data : []);
+      setHistoryEntries(Array.isArray(historyData?.history) ? historyData.history : []);
+    });
+  }, [receiptId, token]);
 
   const cashBoxItems = useMemo(
     () => [
@@ -769,6 +796,28 @@ export default function ReceiptDetailPage() {
         editable={canEdit}
       />
 
+      <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
+        <ThemedText style={styles.label}>Facturas asociadas</ThemedText>
+        {linkedInvoices.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin facturas vinculadas.</ThemedText> : null}
+        {linkedInvoices.map((invoice, index) => (
+          <View key={`linked-invoice-${index}`} style={styles.infoRow}>
+            <ThemedText>{`Factura #${String(invoice.invoice_id ?? invoice.id ?? '-')}`}</ThemedText>
+            <ThemedText>{`Aplicado: ${String(invoice.applied_amount ?? '-')}`}</ThemedText>
+          </View>
+        ))}
+      </ThemedView>
+
+      <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
+        <ThemedText style={styles.label}>Historial</ThemedText>
+        {historyEntries.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin historial disponible.</ThemedText> : null}
+        {historyEntries.slice(0, 8).map((entry, index) => (
+          <View key={`receipt-history-${index}`} style={styles.infoRow}>
+            <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
+            <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
+          </View>
+        ))}
+      </ThemedView>
+
       {canEdit && (
         <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate} disabled={loading}>
           {loading ? <ActivityIndicator color={buttonTextColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar</ThemedText>}
@@ -793,6 +842,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  infoCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 12, gap: 8 },
+  infoRow: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933', gap: 2 },
   submitButton: { marginTop: 16, padding: 16, borderRadius: 8, alignItems: 'center' },
   deleteButton: { marginTop: 16, backgroundColor: '#dc3545', padding: 16, borderRadius: 8, alignItems: 'center' },
   submitButtonText: { fontSize: 16, fontWeight: 'bold' },

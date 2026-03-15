@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { FORM_BOTTOM_SPACING } from '@/styles/formSpacing';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { CategoriesContext } from '@/contexts/CategoriesContext';
@@ -22,6 +23,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { toMySQLDateTime } from '@/utils/date';
 import { getDisplayCategories } from '@/utils/categories';
 import { FileGallery } from '@/components/FileGallery';
+import { BASE_URL } from '@/config/Index';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
@@ -45,6 +47,7 @@ export default function PaymentDetailPage() {
   const { id } = params;
   const paymentId = Number(id);
   const { payments, loadPayments, updatePayment, deletePayment } = useContext(PaymentsContext);
+  const { token } = useContext(AuthContext);
   const { cashBoxes } = useContext(CashBoxesContext);
   const { categories } = useContext(CategoriesContext);
   const { providers } = useContext(ProvidersContext);
@@ -97,6 +100,7 @@ export default function PaymentDetailPage() {
   const [loading, setLoading] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<Record<string, unknown>[]>([]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -370,6 +374,24 @@ export default function PaymentDetailPage() {
       setIsFetchingItem(false);
     });
   }, [hasAttemptedLoad, isFetchingItem, loadPayments, payment, paymentId]);
+
+  useEffect(() => {
+    if (!paymentId || !token) {
+      setHistoryEntries([]);
+      return;
+    }
+
+    fetch(`${BASE_URL}/payments/${paymentId}/history`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(response => response.json())
+      .then(data => setHistoryEntries(Array.isArray(data?.history) ? data.history : []))
+      .catch(() => setHistoryEntries([]));
+  }, [paymentId, token]);
 
   if (!Number.isFinite(paymentId) || paymentId <= 0) {
     return (
@@ -697,6 +719,23 @@ export default function PaymentDetailPage() {
         invoiceMarkingEnabled
       />
 
+      <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
+        <ThemedText style={styles.label}>Trazabilidad</ThemedText>
+        <ThemedText>{`Acreedor: ${creditorType === 'client' ? (clients.find(client => String(client.id) === creditorClientId)?.business_name || creditorClientId || 'N/D') : creditorType === 'provider' ? (providers.find(provider => String(provider.id) === creditorProviderId)?.business_name || creditorProviderId || 'N/D') : creditorOther || 'N/D'}`}</ThemedText>
+        <ThemedText>{`Imputado a cliente: ${chargeClient ? (clients.find(client => String(client.id) === chargeClientId)?.business_name || chargeClientId || 'Si') : 'No'}`}</ThemedText>
+      </ThemedView>
+
+      <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
+        <ThemedText style={styles.label}>Historial</ThemedText>
+        {historyEntries.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin historial disponible.</ThemedText> : null}
+        {historyEntries.slice(0, 8).map((entry, index) => (
+          <View key={`payment-history-${index}`} style={styles.infoRow}>
+            <ThemedText>{String(entry.operation_type ?? entry.action_type ?? 'UPDATE')}</ThemedText>
+            <ThemedText>{String(entry.changed_at ?? entry.updated_at ?? entry.created_at ?? '')}</ThemedText>
+          </View>
+        ))}
+      </ThemedView>
+
       {canEdit && (
         <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleUpdate} disabled={loading}>
           {loading ? <ActivityIndicator color={buttonTextColor} /> : <ThemedText style={[styles.submitButtonText, { color: buttonTextColor }]}>Actualizar</ThemedText>}
@@ -715,6 +754,8 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: FORM_BOTTOM_SPACING },
   label: { marginVertical: 8, fontSize: 16 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
+  infoCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 12, gap: 8 },
+  infoRow: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933', gap: 2 },
   select: {
     marginBottom: 8,
   },
