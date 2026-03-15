@@ -488,10 +488,33 @@ export default function CreatePayment() {
   }, [permissions, router]);
 
   const handleSubmit = async () => {
-    if (!categoryId || !price) {
+    const normalizedPrice = Number.parseFloat(price.replace(',', '.'));
+
+    if (!paidWithAccount || !categoryId || !Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
+
+    if (creditorType === 'client' && !creditorClientId) {
+      Alert.alert('Error', 'Seleccioná un cliente acreedor.');
+      return;
+    }
+
+    if (creditorType === 'provider' && !creditorProviderId) {
+      Alert.alert('Error', 'Seleccioná un proveedor acreedor.');
+      return;
+    }
+
+    if (creditorType === 'other' && !creditorOther.trim()) {
+      Alert.alert('Error', 'Ingresá el nombre del acreedor.');
+      return;
+    }
+
+    if (chargeClient && !chargeClientId) {
+      Alert.alert('Error', 'Seleccioná el cliente a cobrar.');
+      return;
+    }
+
     setLoading(true);
     const created = await addPayment({
       payment_date: toMySQLDateTime(paymentDate),
@@ -510,7 +533,7 @@ export default function CreatePayment() {
       description,
       attached_files: attachedFiles || null,
       category_id: parseInt(categoryId, 10),
-      price: parseFloat(price),
+      price: normalizedPrice,
       charge_client: chargeClient,
       client_id:
         chargeClient && chargeClientId ? parseInt(chargeClientId, 10) : null,
@@ -770,7 +793,7 @@ export default function CreatePayment() {
         entityId={0}
         filesJson={attachedFiles}
         onChangeFilesJson={setAttachedFiles}
-        editable
+        editable={permissions.includes('addPayment')}
         invoiceMarkingEnabled
       />
 

@@ -408,10 +408,33 @@ export default function CreateReceipt() {
   }, [permissions, router]);
 
   const handleSubmit = async () => {
-    if (!categoryId || !price) {
+    const normalizedPrice = Number.parseFloat(price.replace(',', '.'));
+
+    if (!paidInAccount || !categoryId || !Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
       Alert.alert('Error', 'Completa los campos obligatorios.');
       return;
     }
+
+    if (payerType === 'client' && !payerClientId) {
+      Alert.alert('Error', 'Seleccioná un cliente para el recibo.');
+      return;
+    }
+
+    if (payerType === 'provider' && !payerProviderId) {
+      Alert.alert('Error', 'Seleccioná un proveedor para el recibo.');
+      return;
+    }
+
+    if (payerType === 'other' && !payerOther.trim()) {
+      Alert.alert('Error', 'Ingresá el nombre del pagador.');
+      return;
+    }
+
+    if (payProvider && !providerId) {
+      Alert.alert('Error', 'Seleccioná el proveedor a pagar.');
+      return;
+    }
+
     setLoading(true);
     const newReceipt = await addReceipt({
       receipt_date: toMySQLDateTime(receiptDate),
@@ -429,7 +452,7 @@ export default function CreateReceipt() {
       description,
       attached_files: attachedFiles || null,
       category_id: parseInt(categoryId, 10),
-      price: parseFloat(price),
+      price: normalizedPrice,
       pay_provider: payProvider,
       provider_id:
         payProvider && providerId ? parseInt(providerId, 10) : null,
@@ -665,7 +688,7 @@ export default function CreateReceipt() {
         entityId={0}
         filesJson={attachedFiles}
         onChangeFilesJson={setAttachedFiles}
-        editable
+        editable={permissions.includes('addReceipt')}
       />
 
       <TouchableOpacity style={[styles.submitButton, { backgroundColor: buttonColor }]} onPress={handleSubmit} disabled={loading}>
