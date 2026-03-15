@@ -803,10 +803,10 @@ export default function ReceiptDetailPage() {
         <ThemedText style={styles.label}>Facturas asociadas</ThemedText>
         {linkedInvoices.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin facturas vinculadas.</ThemedText> : null}
         {linkedInvoices.map((invoice, index) => (
-          <View key={`linked-invoice-${index}`} style={styles.infoRow}>
+          <TouchableOpacity key={`linked-invoice-${index}`} style={styles.infoRow} onPress={() => router.push(`/invoices/${String(invoice.invoice_id ?? invoice.id ?? '')}`)}>
             <ThemedText>{`Factura #${String(invoice.invoice_id ?? invoice.id ?? '-')}`}</ThemedText>
             <ThemedText>{`Aplicado: ${String(invoice.applied_amount ?? '-')}`}</ThemedText>
-          </View>
+          </TouchableOpacity>
         ))}
       </ThemedView>
 

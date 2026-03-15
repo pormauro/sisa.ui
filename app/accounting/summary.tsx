@@ -124,16 +124,34 @@ export default function AccountingSummaryScreen() {
   );
 
   const renderSection = (title: string, rows: SummaryRow[], useBalance = true) => (
-    <View style={[styles.section, { borderColor }]}>
+    <View style={[styles.section, { borderColor }]}> 
       <ThemedText style={styles.sectionTitle}>{title}</ThemedText>
       {rows.length === 0 ? <ThemedText style={{ color: secondaryText }}>Sin movimientos en el rango.</ThemedText> : null}
       {rows.map((row, index) => (
-        <View key={`${title}-${row.id ?? row.cash_box_id ?? index}`} style={styles.rowCard}>
+        <TouchableOpacity
+          key={`${title}-${row.id ?? row.cash_box_id ?? index}`}
+          style={styles.rowCard}
+          activeOpacity={0.8}
+          onPress={() => {
+            if (title === 'Cajas' && row.cash_box_id) {
+              router.push(`/cash_boxes/${row.cash_box_id}`);
+              return;
+            }
+            if (title === 'Clientes') {
+              router.push('/invoices');
+              return;
+            }
+            if (title === 'Proveedores') {
+              router.push('/payments');
+            }
+          }}
+        >
           <ThemedText style={styles.rowTitle}>{row.name}</ThemedText>
           <ThemedText>Ingresos: {formatMoney(row.income)}</ThemedText>
           <ThemedText>Egresos: {formatMoney(row.payments)}</ThemedText>
           <ThemedText>{useBalance ? 'Balance' : 'Neto'}: {formatMoney(useBalance ? row.balance : row.net)}</ThemedText>
-        </View>
+          <ThemedText style={{ color: secondaryText }}>Tocar para ver detalle relacionado</ThemedText>
+        </TouchableOpacity>
       ))}
     </View>
   );
@@ -182,11 +200,25 @@ export default function AccountingSummaryScreen() {
                 <ThemedText>Facturas pagadas: {formatMoney(summary.reconciliation.paid_invoices_total)}</ThemedText>
                 <ThemedText>Recibos aplicados: {formatMoney(summary.reconciliation.applied_receipts_total)}</ThemedText>
                 <ThemedText>Gap facturas vs ingresos: {formatMoney(summary.reconciliation.issued_vs_receipts_gap)}</ThemedText>
-                <ThemedText>Gap pagos vs recibos aplicados: {formatMoney(summary.reconciliation.paid_vs_receipts_gap)}</ThemedText>
-                <ThemedText>Gap ingresos vs recibos aplicados: {formatMoney(summary.reconciliation.income_vs_applied_gap)}</ThemedText>
-                <ThemedText>Conteos: facturas {summary.reconciliation.counts?.invoices ?? 0} · recibos {summary.reconciliation.counts?.receipts ?? 0} · pagos {summary.reconciliation.counts?.payments ?? 0}</ThemedText>
+              <ThemedText>Gap pagos vs recibos aplicados: {formatMoney(summary.reconciliation.paid_vs_receipts_gap)}</ThemedText>
+              <ThemedText>Gap ingresos vs recibos aplicados: {formatMoney(summary.reconciliation.income_vs_applied_gap)}</ThemedText>
+              <ThemedText>Conteos: facturas {summary.reconciliation.counts?.invoices ?? 0} · recibos {summary.reconciliation.counts?.receipts ?? 0} · pagos {summary.reconciliation.counts?.payments ?? 0}</ThemedText>
+              <View style={styles.quickActionsRow}>
+                <TouchableOpacity style={[styles.quickActionButton, { borderColor }]} onPress={() => router.push('/invoices')}>
+                  <ThemedText>Facturas</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.quickActionButton, { borderColor }]} onPress={() => router.push('/receipts')}>
+                  <ThemedText>Recibos</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.quickActionButton, { borderColor }]} onPress={() => router.push('/payments')}>
+                  <ThemedText>Pagos</ThemedText>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.quickActionButton, { borderColor }]} onPress={() => router.push('/journal_entries')}>
+                  <ThemedText>Libro diario</ThemedText>
+                </TouchableOpacity>
               </View>
-            ) : null}
+            </View>
+          ) : null}
             {renderSection('Cajas', summary.cash_boxes, false)}
             {renderSection('Clientes', summary.clients)}
             {renderSection('Proveedores', summary.providers)}
@@ -209,4 +241,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: '700' },
   rowCard: { gap: 2, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933' },
   rowTitle: { fontSize: 15, fontWeight: '600' },
+  quickActionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  quickActionButton: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 8 },
 });

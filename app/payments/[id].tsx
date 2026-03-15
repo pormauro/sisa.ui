@@ -735,6 +735,16 @@ export default function PaymentDetailPage() {
         <ThemedText style={styles.label}>Trazabilidad</ThemedText>
         <ThemedText>{`Acreedor: ${creditorType === 'client' ? (clients.find(client => String(client.id) === creditorClientId)?.business_name || creditorClientId || 'N/D') : creditorType === 'provider' ? (providers.find(provider => String(provider.id) === creditorProviderId)?.business_name || creditorProviderId || 'N/D') : creditorOther || 'N/D'}`}</ThemedText>
         <ThemedText>{`Imputado a cliente: ${chargeClient ? (clients.find(client => String(client.id) === chargeClientId)?.business_name || chargeClientId || 'Si') : 'No'}`}</ThemedText>
+        {creditorType === 'client' && creditorClientId ? (
+          <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={() => router.push('/clients')}>
+            <ThemedText>Ver clientes</ThemedText>
+          </TouchableOpacity>
+        ) : null}
+        {creditorType === 'provider' && creditorProviderId ? (
+          <TouchableOpacity style={[styles.secondaryButton, { borderColor }]} onPress={() => router.push('/providers')}>
+            <ThemedText>Ver proveedores</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </ThemedView>
 
       <ThemedView style={[styles.infoCard, { borderColor, backgroundColor: inputBackground }]}> 
@@ -780,6 +790,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   infoCard: { borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 12, gap: 8 },
   infoRow: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933', gap: 2 },
+  secondaryButton: { borderWidth: 1, borderRadius: 10, padding: 12, alignItems: 'center' },
   select: {
     marginBottom: 8,
   },

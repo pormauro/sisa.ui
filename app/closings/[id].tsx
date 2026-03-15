@@ -16,10 +16,11 @@ export default function ClosingDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const closingId = Number(id);
-  const { closings, loadClosings, deleteClosing, getClosingHistory } = useContext(ClosingsContext);
+  const { closings, loadClosings, deleteClosing, getClosingHistory, previewClosing } = useContext(ClosingsContext);
   const { cashBoxes, loadCashBoxes } = useContext(CashBoxesContext);
   const { permissions } = useContext(PermissionsContext);
   const [history, setHistory] = useState<Record<string, unknown>[]>([]);
+  const [preview, setPreview] = useState<any | null>(null);
 
   const background = useThemeColor({}, 'background');
   const borderColor = useThemeColor({ light: '#D0D0D0', dark: '#444444' }, 'background');
@@ -43,7 +44,16 @@ export default function ClosingDetailScreen() {
       void loadClosings();
       void loadCashBoxes();
       void getClosingHistory(closingId).then(records => setHistory(records as Record<string, unknown>[]));
-    }, [canView, closingId, getClosingHistory, loadCashBoxes, loadClosings]),
+      if (closing) {
+        void previewClosing({
+          cash_box_id: closing.cash_box_id,
+          closing_date: closing.closing_date,
+          total_income: closing.total_income,
+          total_payments: closing.total_payments,
+          final_balance: closing.final_balance,
+        }).then(setPreview);
+      }
+    }, [canView, closing, closingId, getClosingHistory, loadCashBoxes, loadClosings, previewClosing]),
   );
 
   const handleDelete = async () => {
@@ -71,7 +81,7 @@ export default function ClosingDetailScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, { borderColor }]}>
+        <View style={[styles.card, { borderColor }]}> 
           <ThemedText style={styles.title}>{cashBoxName}</ThemedText>
           <ThemedText>Fecha: {closing.closing_date}</ThemedText>
           <ThemedText>Ingresos: {formatMoney(closing.total_income)}</ThemedText>
@@ -79,7 +89,21 @@ export default function ClosingDetailScreen() {
           <ThemedText>Saldo final: {formatMoney(closing.final_balance)}</ThemedText>
           <ThemedText>Comentarios: {closing.comments || 'Sin comentarios'}</ThemedText>
         </View>
-        <View style={[styles.card, { borderColor }]}>
+        {preview ? (
+          <View style={[styles.card, { borderColor }]}> 
+            <ThemedText style={styles.title}>Conciliacion</ThemedText>
+            <ThemedText>Ingreso sugerido: {formatMoney(preview.suggested?.total_income)}</ThemedText>
+            <ThemedText>Egreso sugerido: {formatMoney(preview.suggested?.total_payments)}</ThemedText>
+            <ThemedText>Saldo sugerido: {formatMoney(preview.suggested?.final_balance)}</ThemedText>
+            <ThemedText>Diferencia ingreso: {formatMoney(preview.differences?.income)}</ThemedText>
+            <ThemedText>Diferencia egreso: {formatMoney(preview.differences?.payments)}</ThemedText>
+            <ThemedText>Diferencia saldo: {formatMoney(preview.differences?.final_balance)}</ThemedText>
+            <TouchableOpacity style={[styles.linkButton, { borderColor }]} onPress={() => router.push(`/accounting/summary?cash_box_id=${closing.cash_box_id}`)}>
+              <ThemedText>Ver resumen relacionado</ThemedText>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        <View style={[styles.card, { borderColor }]}> 
           <ThemedText style={styles.title}>Historial</ThemedText>
           {history.length === 0 ? <ThemedText>Sin historial disponible.</ThemedText> : null}
           {history.map((item, index) => (
@@ -101,6 +125,7 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 6 },
   title: { fontSize: 18, fontWeight: '700' },
   historyRow: { paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933' },
+  linkButton: { borderWidth: 1, borderRadius: 10, padding: 12, alignItems: 'center', marginTop: 8 },
   deleteButton: { padding: 14, borderRadius: 10, alignItems: 'center' },
   deleteText: { color: '#fff', fontWeight: '700' },
 });

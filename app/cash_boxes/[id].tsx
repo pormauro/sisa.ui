@@ -37,6 +37,7 @@ export default function CashBoxDetail() {
   const [movementReceipts, setMovementReceipts] = useState<any[]>([]);
   const [movementPayments, setMovementPayments] = useState<any[]>([]);
   const [movementEntries, setMovementEntries] = useState<any[]>([]);
+  const [movementSearch, setMovementSearch] = useState('');
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -152,6 +153,12 @@ export default function CashBoxDetail() {
 
   const cashBoxReceipts = movementReceipts.length > 0 ? movementReceipts : receipts.filter(item => String(item.paid_in_account) === String(cashBoxId));
   const cashBoxPayments = movementPayments.length > 0 ? movementPayments : payments.filter(item => String(item.paid_with_account) === String(cashBoxId));
+  const lowerSearch = movementSearch.trim().toLowerCase();
+  const visibleReceipts = lowerSearch ? cashBoxReceipts.filter(item => `${item.description ?? ''} ${item.id}`.toLowerCase().includes(lowerSearch)) : cashBoxReceipts;
+  const visiblePayments = lowerSearch ? cashBoxPayments.filter(item => `${item.description ?? ''} ${item.id}`.toLowerCase().includes(lowerSearch)) : cashBoxPayments;
+  const visibleEntries = lowerSearch ? movementEntries.filter(item => `${item.description ?? ''} ${item.origin_type ?? ''} ${item.origin_id ?? ''}`.toLowerCase().includes(lowerSearch)) : movementEntries;
+  const receiptsTotal = visibleReceipts.reduce((sum, item) => sum + Number(item.price ?? 0), 0);
+  const paymentsTotal = visiblePayments.reduce((sum, item) => sum + Number(item.price ?? 0), 0);
 
   const handleUpdate = () => {
     if (!canEdit) {
@@ -273,22 +280,30 @@ export default function CashBoxDetail() {
 
       <View style={[styles.infoCard, { borderColor }]}> 
         <ThemedText style={styles.label}>Movimientos de caja</ThemedText>
-        {cashBoxReceipts.length === 0 && cashBoxPayments.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin movimientos contables visibles para esta caja.</ThemedText> : null}
-        {cashBoxReceipts.map((item, index) => (
+        <TextInput
+          style={[styles.input, { backgroundColor: inputBackground, color: inputTextColor, borderColor }]}
+          value={movementSearch}
+          onChangeText={setMovementSearch}
+          placeholder="Filtrar movimientos..."
+          placeholderTextColor={placeholderColor}
+        />
+        <ThemedText>{`Ingresos: $${receiptsTotal.toFixed(2)} · Egresos: $${paymentsTotal.toFixed(2)} · Neto: $${(receiptsTotal - paymentsTotal).toFixed(2)}`}</ThemedText>
+        {visibleReceipts.length === 0 && visiblePayments.length === 0 && visibleEntries.length === 0 ? <ThemedText style={{ color: placeholderColor }}>Sin movimientos contables visibles para esta caja.</ThemedText> : null}
+        {visibleReceipts.map((item, index) => (
           <View key={`cashbox-receipt-${index}`} style={styles.infoRow}>
             <ThemedText>{`Ingreso #${item.id} - ${item.price}`}</ThemedText>
             <ThemedText>{item.receipt_date}</ThemedText>
             <ThemedText style={{ color: placeholderColor }}>{item.description || 'Recibo'}</ThemedText>
           </View>
         ))}
-        {cashBoxPayments.map((item, index) => (
+        {visiblePayments.map((item, index) => (
           <View key={`cashbox-payment-${index}`} style={styles.infoRow}>
             <ThemedText>{`Egreso #${item.id} - ${item.price}`}</ThemedText>
             <ThemedText>{item.payment_date}</ThemedText>
             <ThemedText style={{ color: placeholderColor }}>{item.description || 'Pago'}</ThemedText>
           </View>
         ))}
-        {movementEntries.map((item, index) => (
+        {visibleEntries.map((item, index) => (
           <View key={`cashbox-entry-${index}`} style={styles.infoRow}>
             <ThemedText>{`${String(item.entry_type ?? '').toUpperCase()} - ${String(item.amount ?? 0)}`}</ThemedText>
             <ThemedText>{String(item.entry_date ?? '')}</ThemedText>

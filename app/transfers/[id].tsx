@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { AccountsContext } from '@/contexts/AccountsContext';
@@ -55,11 +55,20 @@ export default function TransferDetailScreen() {
   return (
     <ThemedView style={[styles.container, { backgroundColor: background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, { borderColor }]}>
+        <View style={[styles.card, { borderColor }]}> 
           <ThemedText style={styles.title}>{`${accountName(transfer.origin_account_id)} -> ${accountName(transfer.destination_account_id)}`}</ThemedText>
           <ThemedText>Monto: {formatMoney(transfer.amount)}</ThemedText>
           <ThemedText>Fecha: {transfer.transfer_date || 'Sin fecha'}</ThemedText>
           <ThemedText>Descripcion: {transfer.description || 'Sin descripcion'}</ThemedText>
+          <ThemedText>Empresa: {transfer.company_id ?? '-'}</ThemedText>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={[styles.linkButton, { borderColor }]} onPress={() => router.push(`/accounts/${transfer.origin_account_id}`)}>
+              <ThemedText>Cuenta origen</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.linkButton, { borderColor }]} onPress={() => router.push(`/accounts/${transfer.destination_account_id}`)}>
+              <ThemedText>Cuenta destino</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={[styles.card, { borderColor }]}>
           <ThemedText style={styles.title}>Asientos generados</ThemedText>
@@ -81,4 +90,6 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 12, padding: 14, gap: 8 },
   title: { fontSize: 18, fontWeight: '700' },
   entryRow: { gap: 2, paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#99999933' },
+  actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  linkButton: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
 });

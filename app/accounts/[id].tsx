@@ -24,6 +24,7 @@ export default function AccountDetailScreen() {
   const buttonTextColor = useThemeColor({}, 'buttonText');
 
   const canList = permissions.includes('listAccounts');
+  const canEdit = permissions.includes('addAccount');
   const account = useMemo(() => accounts.find(item => item.id === accountId), [accountId, accounts]);
 
   useEffect(() => {
@@ -67,6 +68,11 @@ export default function AccountDetailScreen() {
         <TouchableOpacity style={[styles.button, { backgroundColor: buttonColor }]} onPress={() => router.push(`/transfers/create?origin_account_id=${account.id}`)}>
           <ThemedText style={{ color: buttonTextColor }}>Nueva transferencia</ThemedText>
         </TouchableOpacity>
+        {canEdit ? (
+          <TouchableOpacity style={[styles.button, { backgroundColor: buttonColor }]} onPress={() => router.push(`/accounts/edit?id=${account.id}`)}>
+            <ThemedText style={{ color: buttonTextColor }}>Editar cuenta</ThemedText>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </ThemedView>
   );
