@@ -393,7 +393,7 @@ export default function PaymentDetailPage() {
       .then(data => setHistoryEntries(Array.isArray(data?.history) ? data.history : []))
       .catch(() => setHistoryEntries([]));
 
-    fetch(`${BASE_URL}/accounting-entries?origin_type=payment&origin_id=${paymentId}&per_page=50&sort_by=entry_date&sort_direction=desc`, {
+    fetch(`${BASE_URL}/payments/${paymentId}/entries`, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',

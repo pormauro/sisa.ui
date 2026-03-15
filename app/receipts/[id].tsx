@@ -172,7 +172,7 @@ export default function ReceiptDetailPage() {
     void Promise.all([
       fetch(`${BASE_URL}/receipts/${receiptId}/invoices`, { headers }).then(response => response.json()).catch(() => ({ data: [] })),
       fetch(`${BASE_URL}/receipts/${receiptId}/history`, { headers }).then(response => response.json()).catch(() => ({ history: [] })),
-      fetch(`${BASE_URL}/accounting-entries?origin_type=receipt&origin_id=${receiptId}&per_page=50&sort_by=entry_date&sort_direction=desc`, { headers }).then(response => response.json()).catch(() => ({ entries: [] })),
+      fetch(`${BASE_URL}/receipts/${receiptId}/entries`, { headers }).then(response => response.json()).catch(() => ({ entries: [] })),
     ]).then(([invoiceData, historyData, entriesData]) => {
       setLinkedInvoices(Array.isArray(invoiceData?.data) ? invoiceData.data : []);
       setHistoryEntries(Array.isArray(historyData?.history) ? historyData.history : []);

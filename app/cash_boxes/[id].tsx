@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CashBoxesContext } from '@/contexts/CashBoxesContext';
 import { ReceiptsContext } from '@/contexts/ReceiptsContext';
 import { PaymentsContext } from '@/contexts/PaymentsContext';
+import { AuthContext } from '@/contexts/AuthContext';
 import { PermissionsContext } from '@/contexts/PermissionsContext';
 import CircleImagePicker from '@/components/CircleImagePicker';
 import { ThemedText } from '@/components/ThemedText';
@@ -13,6 +14,7 @@ import { useThemeColor } from '@/hooks/useThemeColor';
 import { usePendingSelection } from '@/contexts/PendingSelectionContext';
 import ParticipantsBubbles from '@/components/ParticipantsBubbles';
 import { useCompanyAdminPrivileges } from '@/hooks/useCompanyAdminPrivileges';
+import { BASE_URL } from '@/config/Index';
 
 export default function CashBoxDetail() {
   const router = useRouter();
@@ -21,6 +23,7 @@ export default function CashBoxDetail() {
   const { cashBoxes, loadCashBoxes, updateCashBox, deleteCashBox, listCashBoxHistory } = useContext(CashBoxesContext);
   const { receipts, loadReceipts } = useContext(ReceiptsContext);
   const { payments, loadPayments } = useContext(PaymentsContext);
+  const { token } = useContext(AuthContext);
   const { permissions } = useContext(PermissionsContext);
   const { completeSelection, cancelSelection } = usePendingSelection();
   const { hasPrivilegedAccess } = useCompanyAdminPrivileges();
@@ -31,6 +34,9 @@ export default function CashBoxDetail() {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [isFetchingItem, setIsFetchingItem] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<any[]>([]);
+  const [movementReceipts, setMovementReceipts] = useState<any[]>([]);
+  const [movementPayments, setMovementPayments] = useState<any[]>([]);
+  const [movementEntries, setMovementEntries] = useState<any[]>([]);
 
   const screenBackground = useThemeColor({}, 'background');
   const inputBackground = useThemeColor({ light: '#fff', dark: '#333' }, 'background');
@@ -116,8 +122,36 @@ export default function CashBoxDetail() {
     void loadPayments();
   }, [loadPayments, loadReceipts]);
 
-  const cashBoxReceipts = receipts.filter(item => String(item.paid_in_account) === String(cashBoxId));
-  const cashBoxPayments = payments.filter(item => String(item.paid_with_account) === String(cashBoxId));
+  useEffect(() => {
+    if (!cashBoxId || !token || !Number.isFinite(cashBoxId)) {
+      setMovementReceipts([]);
+      setMovementPayments([]);
+      setMovementEntries([]);
+      return;
+    }
+
+    fetch(`${BASE_URL}/cash_boxes/${cashBoxId}/movements`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(response => response.json())
+      .then(data => {
+        setMovementReceipts(Array.isArray(data?.receipts) ? data.receipts : []);
+        setMovementPayments(Array.isArray(data?.payments) ? data.payments : []);
+        setMovementEntries(Array.isArray(data?.entries) ? data.entries : []);
+      })
+      .catch(() => {
+        setMovementReceipts([]);
+        setMovementPayments([]);
+        setMovementEntries([]);
+      });
+  }, [cashBoxId, token]);
+
+  const cashBoxReceipts = movementReceipts.length > 0 ? movementReceipts : receipts.filter(item => String(item.paid_in_account) === String(cashBoxId));
+  const cashBoxPayments = movementPayments.length > 0 ? movementPayments : payments.filter(item => String(item.paid_with_account) === String(cashBoxId));
 
   const handleUpdate = () => {
     if (!canEdit) {
@@ -252,6 +286,13 @@ export default function CashBoxDetail() {
             <ThemedText>{`Egreso #${item.id} - ${item.price}`}</ThemedText>
             <ThemedText>{item.payment_date}</ThemedText>
             <ThemedText style={{ color: placeholderColor }}>{item.description || 'Pago'}</ThemedText>
+          </View>
+        ))}
+        {movementEntries.map((item, index) => (
+          <View key={`cashbox-entry-${index}`} style={styles.infoRow}>
+            <ThemedText>{`${String(item.entry_type ?? '').toUpperCase()} - ${String(item.amount ?? 0)}`}</ThemedText>
+            <ThemedText>{String(item.entry_date ?? '')}</ThemedText>
+            <ThemedText style={{ color: placeholderColor }}>{String(item.description ?? '')}</ThemedText>
           </View>
         ))}
       </View>

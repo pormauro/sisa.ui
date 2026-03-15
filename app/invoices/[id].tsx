@@ -484,7 +484,7 @@ export default function EditInvoiceScreen() {
       return;
     }
 
-    fetch(`${BASE_URL}/accounting-entries?origin_type=invoice&origin_id=${invoiceId}&per_page=50&sort_by=entry_date&sort_direction=desc`, {
+    fetch(`${BASE_URL}/invoices/${invoiceId}/entries`, {
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
